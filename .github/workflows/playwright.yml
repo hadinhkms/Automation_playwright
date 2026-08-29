@@ -1,140 +1,125 @@
 name: Playwright Checks
-
 on:
   push:
-    branches: [main, master]
-
+    branches: [ main, master ]
   pull_request:
-    branches: [main, master]
-
+    branches: [ main, master ]
   workflow_dispatch:
     inputs:
       suite:
-        description: Bộ test cần chạy
+        description: "Suite to run"
         required: true
-        default: e2e
+        default: "e2e"
         type: choice
         options:
+          - check
           - e2e
-          - applyjob
-          - register
-          - profile
-          - onboarding
-          - all
-
-concurrency:
-  group: playwright-shared-account
-  cancel-in-progress: false
-# name: Playwright Checks
-
-# on:
-#   push:
-#     branches: [main, master]
-#   pull_request:
-#     branches: [main, master]
-#   workflow_dispatch:
-
-# concurrency:
-#   group: playwright-${{ github.workflow }}-${{ github.ref }}
-#   cancel-in-progress: true
-
-permissions:
-  contents: read
+          - smoke
+          - regression
+      env:
+        description: "Environment"
+        required: true
+        default: "qc"
+        type: choice
+        options:
+          - dev
+          - qc
+          - prod
 
 jobs:
-  validate:
-    name: Framework and unit tests
-    timeout-minutes: 10
+  test:
+    timeout-minutes: 15
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v7
+      with:
+        node-version: 24
+    - name: Print tool versions
+      run: |
+        node --version
+        npm --version
+    - name: Install dependencies
+      run: npm ci
+    - name: Run framework structure checks
+      run: npm run check:framework
+    - name: Run unit tests
+      run: node --test
+    - name: Install Playwright browsers
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite != 'check' }}
+      run: npx playwright install --with-deps chromium
+    - name: Run selected suite
+      env:
+        SUITE: ${{ github.event.inputs.suite || 'check' }}
+        NODE_ENV: ${{ github.event.inputs.env || 'qc' }}
+      run: |
+        case "$SUITE" in
+          check)
+            npm run check:framework
+            ;;
+          e2e)
+            npm run test:e2e
+            ;;
+          smoke)
+            npm run suite:smoke
+            ;;
+          regression)
+            npm run suite:regression
+            ;;
+          *)
+            echo "Unknown suite: $SUITE"
+            exit 1
+            ;;
+        esac
+    - name: Notify Discord
+      if: always()
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+          echo "DISCORD_WEBHOOK_URL is not configured; skipping Discord notification."
+          exit 0
+        fi
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run framework structure checks
-        run: npm run check:framework
-
-      - name: Run unit tests
-        run: node --test
-
-  e2e:
-    name: Internal Playwright tests
-    if: github.event_name != 'pull_request'
-    needs: validate
-    timeout-minutes: 30
-    runs-on: [self-hosted, windows, x64]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Chromium
-        run: npx playwright install chromium
-
-      # - name: Run Playwright tests
-      #   run: npm run suite:regression
-      #   env:
-      #     CI: true
-      #     NODE_ENV: qc
-      
-      - name: Run selected Playwright suite
-        shell: pwsh
-        run: |
-          $suite = "${{ inputs.suite }}"
-      
-          switch ($suite) {
-            "applyjob" {
-              npx playwright test --grep "@applyjob" --project="Regression Tests"
+        node -e "
+          try {
+            const fs = require('fs');
+            const cfgPath = './core/config/dashboardConfig.json';
+            let discord = {};
+            if (fs.existsSync(cfgPath)) {
+              discord = JSON.parse(fs.readFileSync(cfgPath, 'utf8')).discord || {};
             }
-            "register" {
-              npx playwright test --project="Smoke Tests"
+            if (discord.notifyOnFinish === false) {
+              console.log('Discord notification is disabled (notifyOnFinish: false); skipping.');
+              process.exit(0);
             }
-            "profile" {
-              npx playwright test --grep "@profile" --project="Regression Tests"
+            if (discord.notifyOnlyOnFailure && '${{ job.status }}' !== 'failure') {
+              console.log('notifyOnlyOnFailure is enabled and status is ${{ job.status }}; skipping.');
+              process.exit(0);
             }
-            "onboarding" {
-              npx playwright test --grep "@onboarding" --project="Regression Tests"
-            }
-            "all" {
-              npx playwright test --project="Smoke Tests" --project="Regression Tests" --project="API Tests"
-            }
-            default {
-              npx playwright test --project="Smoke Tests" --project="Regression Tests"
-            }
+            const isPassed = '${{ job.status }}' === 'success';
+            const color = isPassed ? 0x22c55e : 0xef4444;
+            const emoji = isPassed ? '✅' : '❌';
+            const embed = {
+              title: emoji + ' GitHub Actions CI: Playwright Checks',
+              color: color,
+              description: 'Kết quả kiểm thử tự động từ GitHub Actions workflow.',
+              fields: [
+                { name: '📊 Trạng thái', value: '\`${{ job.status }}\`', inline: true },
+                { name: '📦 Báo cáo / Artifacts', value: '[Xem chi tiết trên GitHub](' + process.env.RUN_URL + ')', inline: false }
+              ],
+              footer: { text: 'CarThings QA Automation • ' + new Date().toLocaleString('vi-VN') }
+            };
+            fetch(process.env.DISCORD_WEBHOOK_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ embeds: [embed] })
+            }).then(r => {
+              if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+              console.log('Discord notification sent successfully.');
+            });
+          } catch (err) {
+            console.error('Error sending Discord notification:', err.message);
           }
-        env:
-          CI: true
-          NODE_ENV: qc
-
-      - name: Upload Playwright report and failure artifacts
-        # if: failure() && !cancelled()
-        if: always() && !cancelled()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-artifacts-${{ github.run_id }}
-          path: |
-            playwright-report/
-            test-results/
-            evidence/
-          if-no-files-found: warn
-          retention-days: 14
-
-      
+        "

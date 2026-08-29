@@ -3,32 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trung tâm điều khiển Playwright</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>CarThings Automation Dashboard</title>
+  <link rel="icon" href="https://dev.carthings.vn/icon.svg" id="favicon">
+  <link rel="stylesheet" href="/styles.css?v=2.3">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
 </head>
 <body>
   <main class="shell">
     <nav class="topbar">
-      <a class="brand" href="/" aria-label="Trung tâm điều khiển Playwright">
-        <span class="brand-mark">PW</span>
-        <span><strong>Trung tâm điều khiển</strong><small>Không gian automation</small></span>
+      <a class="brand" href="/" aria-label="CarThings Automation">
+        <img class="brand-mark" id="brand-logo" src="https://dev.carthings.vn/icon.svg" alt="CT" style="width: 28px; height: 28px; border-radius: 4px; border: none; background: transparent; padding: 0;">
+        <span><strong id="brand-name">CarThings Automation</strong><small id="brand-subtitle">Playwright Dashboard</small></span>
       </a>
       <div class="view-tabs" role="tablist" aria-label="Các khu vực trong dashboard">
-        <button class="view-tab active" type="button" role="tab" aria-selected="true" data-view="runner-view">Chạy test</button>
-        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="resources-view">Báo cáo & dữ liệu</button>
-        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="code-view">Mã framework</button>
-        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="compare-view">So sánh evidence</button>
-        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="settings-view">Cấu hình</button>
+        <button class="view-tab active" type="button" role="tab" aria-selected="true" data-view="runner-view"><i class="ph ph-play-circle"></i> Chạy test</button>
+        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="resources-view"><i class="ph ph-chart-bar"></i> Báo cáo & dữ liệu</button>
+        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="code-view"><i class="ph ph-code"></i> Mã framework</button>
+        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="compare-view"><i class="ph ph-images"></i> So sánh evidence</button>
+        <button class="view-tab" type="button" role="tab" aria-selected="false" data-view="settings-view"><i class="ph ph-gear"></i> Cấu hình</button>
       </div>
       <div class="header-actions">
         <button id="theme-button" class="theme-button" type="button" aria-label="Đổi giao diện sáng tối" aria-pressed="false">
-          <span class="theme-icon" aria-hidden="true">☀</span>
+          <span class="theme-icon" aria-hidden="true"><i class="ph-fill ph-sun"></i></span>
           <span id="theme-label">Sáng</span>
         </button>
-        <a class="report-link" href="/report/latest" target="_blank" rel="noreferrer">Mở report mới nhất ↗</a>
+        <a class="report-link" href="/report/latest" target="_blank" rel="noreferrer"><i class="ph ph-arrow-up-right"></i> Mở report mới nhất</a>
       </div>
     </nav>
 
@@ -40,7 +42,7 @@
         <p class="subtitle">Điều khiển suite, quan sát tiến trình và truy cập artifacts từ một workspace duy nhất.</p>
       </div>
       <div class="hero-actions">
-        <button id="ui-button" class="ui-mode-button" type="button"><span>◫</span> Mở Playwright UI</button>
+        <button id="ui-button" class="ui-mode-button" type="button"><i class="ph ph-browser"></i> Mở Playwright UI</button>
         <small>Debug trực quan trong cửa sổ riêng</small>
       </div>
     </header>
@@ -48,19 +50,97 @@
     <section class="workspace">
       <form id="run-form" class="panel controls-panel">
         <div class="panel-heading"><div><p>CẤU HÌNH</p><h2>Thiết lập test run</h2></div><span class="step">01</span></div>
-        <div class="controls">
-          <label>Môi trường<select id="environment" name="environment"></select></label>
-          <label>Nhóm test<select id="project" name="project"></select></label>
-          <label>File test<select id="spec" name="spec"></select></label>
-          <div class="inline-fields">
-            <label>Tag / grep<input id="grep" name="grep" placeholder="Ví dụ: @profile"></label>
-            <label class="workers">Luồng chạy<input id="workers" name="workers" type="number" min="1" max="8" value="2"></label>
-          </div>
-          <label class="toggle"><input id="headed" name="headed" type="checkbox"><span></span><div>Hiện browser<small>Mở trình duyệt thật khi chạy test</small></div></label>
+        <!-- Mode Switcher -->
+        <div class="runner-mode-switcher">
+          <button type="button" class="runner-mode-tab active" data-mode="suite">
+            <i class="ph-bold ph-package"></i> Theo Test Suite
+          </button>
+          <button type="button" class="runner-mode-tab" data-mode="manual">
+            <i class="ph-bold ph-sliders"></i> Tùy chỉnh (Thủ công)
+          </button>
         </div>
+
+        <div class="runner-config-body">
+          <input type="hidden" id="test-suite" name="test-suite" value="">
+
+          <!-- SUITE MODE VIEW -->
+          <div id="runner-suite-mode" class="runner-mode-panel">
+            <label>Kịch bản Test Suite
+              <select id="runner-suite-select"></select>
+            </label>
+
+            <!-- Compact Suite Card with fixed dimensions -->
+            <div id="suite-summary-box" class="suite-summary-box">
+              <div class="suite-summary-meta">
+                <span><i class="ph-bold ph-globe"></i> <strong id="suite-sum-project">Tất cả nhóm</strong></span>
+                <span><i class="ph-bold ph-device-mobile"></i> <strong id="suite-sum-viewport">1920x1080</strong></span>
+                <span><i class="ph-bold ph-tag"></i> <strong id="suite-sum-grep">Không tag</strong></span>
+                <span><i class="ph-bold ph-cpu"></i> <strong id="suite-sum-workers">2 luồng</strong></span>
+              </div>
+              <div class="suite-summary-files-header">
+                <i class="ph-bold ph-files"></i> Files thực thi (<span id="suite-sum-count">0</span>):
+              </div>
+              <div id="suite-sum-files-list" class="suite-summary-files-list"></div>
+            </div>
+          </div>
+
+          <!-- MANUAL MODE VIEW -->
+          <div id="runner-manual-mode" class="runner-mode-panel" hidden>
+            <div class="inline-fields">
+              <label>Nhóm test<select id="project" name="project"></select></label>
+              <label class="workers">Luồng chạy<input id="workers" name="workers" type="number" min="1" max="8" value="2"></label>
+            </div>
+
+            <!-- Scope Mode Switcher for Manual Runner -->
+            <div class="runner-scope-selector">
+              <label class="runner-scope-label">Phạm vi chạy test</label>
+              <div class="runner-scope-tabs">
+                <button type="button" class="runner-scope-tab-btn active" data-manual-scope="all">
+                  <i class="ph ph-globe"></i> Tất cả file
+                </button>
+                <button type="button" class="runner-scope-tab-btn" data-manual-scope="file">
+                  <i class="ph ph-file-js"></i> 1 File test
+                </button>
+                <button type="button" class="runner-scope-tab-btn" data-manual-scope="grep">
+                  <i class="ph ph-tag"></i> Theo Tag
+                </button>
+              </div>
+
+              <!-- FILE SELECTOR (Shown ONLY when mode === 'file') -->
+              <div id="runner-file-filter-box" style="display:none; margin-top: 8px;">
+                <label>Chọn file test cụ thể
+                  <select id="spec" name="spec"></select>
+                </label>
+              </div>
+
+              <!-- GREP INPUT (Shown ONLY when mode === 'grep') -->
+              <div id="runner-grep-filter-box" style="display:none; margin-top: 8px;">
+                <label>Nhập Tag cần lọc
+                  <input id="grep" name="grep" placeholder="Ví dụ: @smoke, @regression, @CompanySite">
+                </label>
+                <div id="runner-tag-chips" class="tag-chips-container" style="display:flex; flex-wrap:wrap; gap:5px; margin-top:6px;"></div>
+              </div>
+
+              <!-- LIVE SCRIPT PREVIEW BOX FOR MANUAL MODE -->
+              <div id="manual-specs-preview-box" class="suite-summary-box" style="margin-top: 10px; height: auto; min-height: 85px; max-height: 140px;">
+                <div class="suite-summary-files-header">
+                  <i class="ph-bold ph-files"></i> <span id="manual-specs-preview-title">Danh sách file sẽ chạy</span> (<span id="manual-specs-preview-count">0</span>):
+                </div>
+                <div id="manual-specs-preview-list" class="suite-summary-files-list"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- COMMON FIXED BOTTOM FIELDS -->
+          <div class="runner-common-fields">
+            <label>Môi trường<select id="environment" name="environment"></select></label>
+            <label class="toggle"><input id="headed" name="headed" type="checkbox"><span></span><div>Hiện browser<small>Mở trình duyệt thật khi chạy test</small></div></label>
+          </div>
+        </div>
+
         <div class="actions">
-          <button id="run-button" class="primary" type="submit">▶ Chạy test</button>
-          <button id="stop-button" class="danger" type="button" disabled>■ Dừng</button>
+          <button id="run-button" class="primary" type="submit"><i class="ph-fill ph-play"></i> Chạy test</button>
+          <button id="stop-button" class="danger" type="button" disabled><i class="ph-fill ph-stop"></i> Dừng</button>
         </div>
       </form>
 
@@ -105,7 +185,7 @@
           <div><span id="code-language">MÃ NGUỒN</span><strong id="code-file-name">Chọn file để xem hoặc chỉnh sửa</strong></div>
           <div><div class="code-zoom" role="group" aria-label="Thu phóng nội dung file"><button id="code-zoom-out" class="ghost" type="button" title="Thu nhỏ" aria-label="Thu nhỏ nội dung">−</button><button id="code-zoom-reset" class="ghost" type="button" title="Trở về kích thước mặc định">100%</button><button id="code-zoom-in" class="ghost" type="button" title="Phóng to" aria-label="Phóng to nội dung">+</button></div><button id="code-format-button" class="ghost" type="button" hidden>Định dạng</button><button id="code-edit-button" class="ghost" type="button" hidden>Chỉnh sửa</button><button id="code-cancel-button" class="ghost" type="button" hidden>Hủy</button><button id="code-save-button" class="primary" type="button" hidden>Lưu file</button></div>
         </div>
-        <div id="code-empty" class="resource-empty"><span>&lt;/&gt;</span><strong>Chọn source file</strong><p>Tests, Page Objects và core helpers sẽ hiển thị tại đây.</p></div>
+        <div id="code-empty" class="resource-empty"><i class="ph ph-code" style="font-size: 24px; color: var(--accent); margin-bottom: 8px;"></i><strong>Chọn source file</strong><p>Tests, Page Objects và core helpers sẽ hiển thị tại đây.</p></div>
         <div id="code-editor-stage" class="code-editor-stage" hidden>
           <pre id="code-preview" class="code-preview"><code></code></pre>
           <textarea id="code-editor" class="code-editor" wrap="off" spellcheck="false" aria-label="Framework source editor" hidden></textarea>
@@ -139,7 +219,7 @@
               <button id="delete-button" class="delete-button" type="button" hidden>Xóa</button>
             </div>
           </div>
-          <div class="resource-empty" id="resource-empty"><span>⌘</span><strong>Chọn một artifact hoặc file</strong><p>Nội dung chi tiết sẽ hiển thị tại đây.</p></div>
+          <div class="resource-empty" id="resource-empty"><i class="ph ph-files" style="font-size: 24px; color: var(--accent); margin-bottom: 8px;"></i><strong>Chọn một artifact hoặc file</strong><p>Nội dung chi tiết sẽ hiển thị tại đây.</p></div>
           <div id="resource-content" hidden></div>
           <div id="resource-editor" class="resource-editor" hidden>
             <textarea id="resource-edit-content" spellcheck="false" aria-label="Nội dung file"></textarea>
@@ -164,60 +244,622 @@
       <div class="compare-panel"><iframe src="/tools/visual_compare.html" title="Visual Evidence Comparison Tool"></iframe></div>
     </section>
     <section id="settings-view" class="dashboard-view settings-view" role="tabpanel" hidden>
-      <header class="resources-hero">
-        <div><p class="eyebrow">CẤU HÌNH</p><h1>Cấu hình</h1><p class="subtitle">Quản lý môi trường, cách chạy test, API chuẩn bị dữ liệu và chính sách lưu artifact.</p></div>
-        <div class="settings-actions"><button id="reload-settings-button" class="ghost" type="button">Tải lại</button><button id="save-settings-button" class="primary" type="button">Lưu cấu hình</button></div>
+      <header class="resources-hero settings-hero">
+        <div><p class="eyebrow">CẤU HÌNH</p><h1>Điều khiển framework</h1><p class="subtitle">Tinh chỉnh runtime, môi trường, API dữ liệu và nhận diện dashboard trong một màn hình dễ quét.</p></div>
+        <div class="settings-actions">
+          <button id="sync-git-button" class="ghost" type="button" title="Đồng bộ Test Suites lên GitHub để Discord Bot nhận diện"><i class="ph-bold ph-cloud-arrow-up"></i> Đồng bộ lên GitHub</button>
+          <button id="reload-settings-button" class="ghost" type="button"><i class="ph ph-arrow-clockwise"></i> Tải lại</button>
+          <button id="save-settings-button" class="primary" type="button"><i class="ph-fill ph-floppy-disk"></i> Lưu cấu hình</button>
+        </div>
       </header>
+      <div class="settings-subnav" role="tablist">
+        <button class="settings-subtab active" type="button" role="tab" data-subtab="general"><i class="ph-bold ph-gear"></i> Cấu hình chung & Môi trường</button>
+        <button class="settings-subtab" type="button" role="tab" data-subtab="suites"><i class="ph-bold ph-stack"></i> Test Suites (Kịch bản test)</button>
+        <button class="settings-subtab" type="button" role="tab" data-subtab="discord"><i class="ph-bold ph-bell-ringing"></i> Thông báo Discord</button>
+        <button class="settings-subtab" type="button" role="tab" data-subtab="branding"><i class="ph-bold ph-paint-brush"></i> Giao diện & Branding</button>
+      </div>
       <form id="settings-form" class="settings-page">
+        <section class="panel settings-panel settings-suites" hidden>
+          <div class="panel-heading settings-panel-heading">
+            <span class="settings-icon"><i class="ph ph-stack"></i></span>
+            <div style="flex: 1;"><p>TEST SUITES</p><h2>Kịch bản test nhanh</h2></div>
+            <button id="add-suite-button" class="ghost suite-add-btn" type="button"><i class="ph-bold ph-plus"></i> Thêm kịch bản mới</button>
+          </div>
+          <div class="settings-body">
+            <div id="suites-settings-list" class="suites-list">
+              <!-- Rendered dynamically by app.js -->
+            </div>
+          </div>
+        </section>
         <section class="panel settings-panel settings-environments">
-          <div class="panel-heading"><div><p>MÔI TRƯỜNG</p><h2>Đường dẫn hệ thống</h2></div></div>
+          <div class="panel-heading settings-panel-heading"><span class="settings-icon"><i class="ph ph-globe-hemisphere-east"></i></span><div><p>MÔI TRƯỜNG</p><h2>Đường dẫn hệ thống</h2></div></div>
           <div id="environment-settings" class="settings-body"></div>
         </section>
         <section class="panel settings-panel settings-runtime">
-          <div class="panel-heading"><div><p>PLAYWRIGHT</p><h2>Mặc định khi chạy test</h2></div></div>
+          <div class="panel-heading settings-panel-heading"><span class="settings-icon"><i class="ph ph-play-circle"></i></span><div><p>PLAYWRIGHT</p><h2>Mặc định khi chạy test</h2></div></div>
           <div class="settings-body settings-grid">
-            <label>Môi trường mặc định<small>Môi trường được chọn sẵn khi mở dashboard hoặc chạy không truyền NODE_ENV.</small><select id="settings-default-environment"></select></label>
-            <label>Luồng chạy<small>Số worker Playwright chạy song song. Cao hơn sẽ nhanh hơn nhưng dễ tranh chấp dữ liệu.</small><input id="settings-workers" type="number" min="1" max="8"></label>
-            <label>Timeout test<small>Thời gian tối đa cho một test case, tính bằng mili giây.</small><input id="settings-test-timeout" type="number" min="5000" max="600000" step="1000"></label>
-            <label>Timeout điều hướng<small>Thời gian tối đa cho thao tác mở trang hoặc đổi URL.</small><input id="settings-navigation-timeout" type="number" min="5000" max="600000" step="1000"></label>
-            <label>Timeout thao tác<small>Thời gian tối đa cho action mặc định. Giá trị 0 nghĩa là không giới hạn ở cấp Playwright.</small><input id="settings-action-timeout" type="number" min="0" max="600000" step="1000"></label>
-            <label>Retry local<small>Số lần chạy lại test lỗi khi chạy trên máy local.</small><input id="settings-retries-local" type="number" min="0" max="5"></label>
-            <label>Retry CI<small>Số lần chạy lại test lỗi khi chạy trong CI.</small><input id="settings-retries-ci" type="number" min="0" max="5"></label>
-            <label>Lưu trace<small>Cách lưu trace để debug từng step trong Playwright report.</small><select id="settings-trace"></select></label>
-            <label>Ảnh tự động<small>Cách Playwright tự lưu ảnh chụp khi test chạy.</small><select id="settings-screenshot"></select></label>
-            <label>Video<small>Cách Playwright tự lưu video trình duyệt khi test chạy.</small><select id="settings-video"></select></label>
-            <label>Chiều rộng viewport<small>Chiều rộng cửa sổ browser dùng khi chạy test.</small><input id="settings-viewport-width" type="number" min="320" max="7680"></label>
-            <label>Chiều cao viewport<small>Chiều cao cửa sổ browser dùng khi chạy test.</small><input id="settings-viewport-height" type="number" min="320" max="4320"></label>
-            <label class="toggle settings-toggle"><input id="settings-show-env-banner" type="checkbox"><span></span><div>In môi trường khi chạy<small>Ghi log môi trường đang chạy trước khi test bắt đầu.</small></div></label>
-            <label class="toggle settings-toggle"><input id="settings-debug-optional-popups" type="checkbox"><span></span><div>Debug popup optional<small>Ghi log khi popup optional không xuất hiện.</small></div></label>
+            <div class="settings-card settings-card-wide">
+              <div class="settings-card-title"><i class="ph ph-sliders-horizontal"></i><span>Lệnh chạy</span></div>
+              <div class="settings-card-grid">
+                <label>Môi trường mặc định<small>Môi trường được chọn sẵn khi mở dashboard hoặc chạy không truyền NODE_ENV.</small><select id="settings-default-environment"></select></label>
+                <label>Luồng chạy<small>Số worker Playwright chạy song song. Cao hơn sẽ nhanh hơn nhưng dễ tranh chấp dữ liệu.</small><input id="settings-workers" type="number" min="1" max="8"></label>
+              </div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-timer"></i><span>Timeout</span></div>
+              <div class="settings-card-grid">
+                <label>Timeout test<small>Tối đa cho một test case, tính bằng mili giây.</small><input id="settings-test-timeout" type="number" min="5000" max="600000" step="1000"></label>
+                <label>Timeout điều hướng<small>Tối đa cho thao tác mở trang hoặc đổi URL.</small><input id="settings-navigation-timeout" type="number" min="5000" max="600000" step="1000"></label>
+                <label>Timeout thao tác<small>Tối đa cho action mặc định. Giá trị 0 nghĩa là không giới hạn.</small><input id="settings-action-timeout" type="number" min="0" max="600000" step="1000"></label>
+              </div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-repeat"></i><span>Retry & artifact</span></div>
+              <div class="settings-card-grid">
+                <label>Retry local<small>Số lần chạy lại test lỗi khi chạy trên máy local.</small><input id="settings-retries-local" type="number" min="0" max="5"></label>
+                <label>Retry CI<small>Số lần chạy lại test lỗi khi chạy trong CI.</small><input id="settings-retries-ci" type="number" min="0" max="5"></label>
+                <label>Lưu trace<small>Cách lưu trace để debug từng step trong Playwright report.</small><select id="settings-trace"></select></label>
+                <label>Ảnh tự động<small>Cách Playwright tự lưu ảnh chụp khi test chạy.</small><select id="settings-screenshot"></select></label>
+                <label>Video<small>Cách Playwright tự lưu video trình duyệt khi test chạy.</small><select id="settings-video"></select></label>
+              </div>
+            </div>
+            <div class="settings-card settings-card-wide">
+              <div class="settings-card-title"><i class="ph ph-monitor"></i><span>Viewport & log</span></div>
+              <div class="settings-card-grid settings-card-grid-compact">
+                <label>Chiều rộng viewport<small>Chiều rộng cửa sổ browser dùng khi chạy test.</small><input id="settings-viewport-width" type="number" min="320" max="7680"></label>
+                <label>Chiều cao viewport<small>Chiều cao cửa sổ browser dùng khi chạy test.</small><input id="settings-viewport-height" type="number" min="320" max="4320"></label>
+                <label class="toggle settings-toggle"><input id="settings-show-env-banner" type="checkbox"><span></span><div>In môi trường khi chạy<small>Ghi log môi trường trước khi test bắt đầu.</small></div></label>
+                <label class="toggle settings-toggle"><input id="settings-debug-optional-popups" type="checkbox"><span></span><div>Debug popup optional<small>Ghi log khi popup optional không xuất hiện.</small></div></label>
+              </div>
+            </div>
           </div>
         </section>
         <section class="panel settings-panel settings-api">
-          <div class="panel-heading"><div><p>API</p><h2>Chuẩn bị tài khoản test</h2></div></div>
+          <div class="panel-heading settings-panel-heading"><span class="settings-icon"><i class="ph ph-plugs-connected"></i></span><div><p>API</p><h2>Chuẩn bị tài khoản test</h2></div></div>
           <div class="settings-body settings-grid">
-            <label class="wide">Token đăng ký<small>Bearer token dùng cho API đăng ký. Để trống nếu muốn giữ token hiện tại.</small><input id="settings-registration-token" type="password" autocomplete="off" placeholder="Để trống để giữ token hiện tại"></label>
-            <label>Branch<small>Giá trị header x-branch gửi lên API.</small><input id="settings-api-branch" type="text"></label>
-            <label>Ngôn ngữ API<small>Giá trị header x-lang gửi lên API.</small><input id="settings-api-lang" type="text"></label>
-            <label>Retry đăng ký<small>Số lần thử lại khi API đăng ký lỗi mạng hoặc timeout.</small><input id="settings-register-retries" type="number" min="1" max="5"></label>
-            <label>Timeout đăng ký<small>Thời gian tối đa cho request đăng ký, tính bằng mili giây.</small><input id="settings-register-timeout" type="number" min="5000" max="120000" step="1000"></label>
-            <label>Retry consent<small>Số lần thử lại khi API chấp nhận consent lỗi mạng hoặc timeout.</small><input id="settings-consent-retries" type="number" min="1" max="5"></label>
-            <label>Timeout consent<small>Thời gian tối đa cho request chấp nhận consent, tính bằng mili giây.</small><input id="settings-consent-timeout" type="number" min="5000" max="120000" step="1000"></label>
-            <p id="settings-token-status" class="settings-note wide"></p>
+            <div class="settings-card settings-card-wide">
+              <div class="settings-card-title"><i class="ph ph-key"></i><span>Token đăng ký</span></div>
+              <label>Bearer token<small>Để trống nếu muốn giữ token hiện tại.</small><input id="settings-registration-token" type="password" autocomplete="off" placeholder="Để trống để giữ token hiện tại"></label>
+              <p id="settings-token-status" class="settings-note"></p>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-list-bullets"></i><span>Header mặc định</span></div>
+              <div class="settings-card-grid">
+                <label>Branch<small>Giá trị header x-branch gửi lên API.</small><input id="settings-api-branch" type="text"></label>
+                <label>Ngôn ngữ API<small>Giá trị header x-lang gửi lên API.</small><input id="settings-api-lang" type="text"></label>
+              </div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-shield-check"></i><span>Độ bền request</span></div>
+              <div class="settings-card-grid">
+                <label>Retry đăng ký<small>Số lần thử lại khi API đăng ký lỗi mạng hoặc timeout.</small><input id="settings-register-retries" type="number" min="1" max="5"></label>
+                <label>Timeout đăng ký<small>Thời gian tối đa cho request đăng ký, tính bằng mili giây.</small><input id="settings-register-timeout" type="number" min="5000" max="120000" step="1000"></label>
+                <label>Retry consent<small>Số lần thử lại khi API chấp nhận consent lỗi mạng hoặc timeout.</small><input id="settings-consent-retries" type="number" min="1" max="5"></label>
+                <label>Timeout consent<small>Thời gian tối đa cho request chấp nhận consent, tính bằng mili giây.</small><input id="settings-consent-timeout" type="number" min="5000" max="120000" step="1000"></label>
+              </div>
+            </div>
           </div>
         </section>
-        <section class="panel settings-panel settings-artifacts">
-          <div class="panel-heading"><div><p>ARTIFACT</p><h2>Chính sách lưu trữ</h2></div></div>
+        <section class="panel settings-panel settings-branding" hidden>
+          <div class="panel-heading settings-panel-heading">
+            <span class="settings-icon"><i class="ph ph-paint-brush"></i></span>
+            <div><p>GIAO DIỆN</p><h2>Tùy Biến Branding & Theme Dashboard</h2></div>
+          </div>
+          <div class="branding-layout">
+            <!-- LEFT COLUMN: CONTROLS -->
+            <div class="branding-controls">
+              <!-- BRAND IDENTITY CARD -->
+              <div class="settings-card">
+                <div class="settings-card-title"><i class="ph ph-identification-badge"></i><span>Nhận diện thương hiệu</span></div>
+                <div class="settings-card-grid">
+                  <label>Tên hệ thống<small>Hiển thị ở góc trên bên trái Dashboard.</small>
+                    <input id="settings-project-name" type="text" placeholder="CarThings Automation">
+                  </label>
+                  <label>Dòng phụ đề (Subtitle)<small>Hiển thị nhỏ bên dưới tên hệ thống.</small>
+                    <input id="settings-project-subtitle" type="text" placeholder="Playwright Dashboard">
+                  </label>
+                  <label>Tiêu đề trang (Tab Title)<small>Tiêu đề hiển thị trên thẻ tab trình duyệt.</small>
+                    <input id="settings-page-title" type="text" placeholder="CarThings Automation Dashboard">
+                  </label>
+                  <label>Logo URL<small>Đường dẫn đến file ảnh SVG/PNG logo.</small>
+                    <input id="settings-logo-url" type="url" placeholder="https://dev.carthings.vn/icon.svg">
+                  </label>
+                </div>
+              </div>
+
+              <!-- COLOR & THEME CARD -->
+              <div class="settings-card">
+                <div class="settings-card-title"><i class="ph ph-palette"></i><span>Màu sắc & Phông chữ</span></div>
+                
+                <!-- PRIMARY ACCENT COLOR -->
+                <div class="theme-picker-group">
+                  <label>Màu sắc chủ đạo (Accent Color)<small>Áp dụng cho nút bấm chính, icon, thanh điều hướng và biểu đồ.</small></label>
+                  <div class="color-input-combo">
+                    <div class="color-picker-wrap">
+                      <input id="settings-primary-color-picker" type="color" value="#1A2B4C">
+                      <span class="color-picker-preview" style="background-color: #1A2B4C;"></span>
+                    </div>
+                    <input id="settings-primary-color" type="text" placeholder="#1A2B4C" class="color-hex-input">
+                  </div>
+
+                  <!-- PRESET COLOR SWATCHES -->
+                  <div class="color-presets-wrap">
+                    <span class="color-presets-label">Gợi ý màu chủ đạo:</span>
+                    <div class="color-swatches">
+                      <button class="color-swatch-btn active" type="button" data-color="#1A2B4C" title="CarThings Navy" style="--swatch-color: #1A2B4C;"></button>
+                      <button class="color-swatch-btn" type="button" data-color="#2563EB" title="Electric Blue" style="--swatch-color: #2563EB;"></button>
+                      <button class="color-swatch-btn" type="button" data-color="#7C3AED" title="Cyber Violet" style="--swatch-color: #7C3AED;"></button>
+                      <button class="color-swatch-btn" type="button" data-color="#059669" title="Emerald QA" style="--swatch-color: #059669;"></button>
+                      <button class="color-swatch-btn" type="button" data-color="#EA580C" title="Sunset Orange" style="--swatch-color: #EA580C;"></button>
+                      <button class="color-swatch-btn" type="button" data-color="#DC2626" title="Ruby Crimson" style="--swatch-color: #DC2626;"></button>
+                      <button class="color-swatch-btn" type="button" data-color="#0F172A" title="Obsidian Dark" style="--swatch-color: #0F172A;"></button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- DASHBOARD BACKGROUND COLOR -->
+                <div class="theme-picker-group" style="margin-top: 14px;">
+                  <label>Màu nền Dashboard (Background Color)<small>Tùy chỉnh tông màu nền cho toàn bộ giao diện làm việc.</small></label>
+                  <div class="color-input-combo">
+                    <div class="color-picker-wrap">
+                      <input id="settings-background-color-picker" type="color" value="#ffffff">
+                      <span class="bg-picker-preview color-picker-preview" style="background-color: var(--surface);"></span>
+                    </div>
+                    <input id="settings-background-color" type="text" placeholder="Để trống (Mặc định)" class="color-hex-input">
+                    <button id="btn-reset-bg-color" class="btn-reset-field" type="button" title="Khôi phục màu nền mặc định">
+                      <i class="ph ph-arrow-counter-clockwise"></i> Mặc định
+                    </button>
+                  </div>
+
+                  <!-- PRESET BACKGROUND CHIPS -->
+                  <div class="bg-presets-wrap">
+                    <span class="color-presets-label">Gợi ý tông nền:</span>
+                    <div class="bg-swatches">
+                      <button class="bg-swatch-btn active" type="button" data-bg="" title="Mặc định theo Theme (Tự động)">
+                        <span class="bg-chip-dot auto"></span> Mặc định
+                      </button>
+                      <button class="bg-swatch-btn" type="button" data-bg="#ffffff" title="Trắng tinh khiết">
+                        <span class="bg-chip-dot" style="background: #ffffff; border: 1px solid #ddd;"></span> Trắng tuyết
+                      </button>
+                      <button class="bg-swatch-btn" type="button" data-bg="#f8fafc" title="Xám nhạt dịu mắt">
+                        <span class="bg-chip-dot" style="background: #f8fafc; border: 1px solid #cbd5e1;"></span> Slate
+                      </button>
+                      <button class="bg-swatch-btn" type="button" data-bg="#f1f5f9" title="Xám ngọc trai">
+                        <span class="bg-chip-dot" style="background: #f1f5f9; border: 1px solid #94a3b8;"></span> Pearl
+                      </button>
+                      <button class="bg-swatch-btn" type="button" data-bg="#faf7f2" title="Trắng kem ấm áp">
+                        <span class="bg-chip-dot" style="background: #faf7f2; border: 1px solid #e7e0d3;"></span> Warm Sand
+                      </button>
+                      <button class="bg-swatch-btn" type="button" data-bg="#0f172a" title="Tối viễn tưởng">
+                        <span class="bg-chip-dot" style="background: #0f172a;"></span> Dark Navy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- TYPOGRAPHY SCALE -->
+                <div class="theme-picker-group" style="margin-top: 14px;">
+                  <label>Kích thước phông chữ (Typography Scale)<small>Điều chỉnh kích cỡ văn bản toàn bộ dashboard cho vừa mắt.</small></label>
+                  <div class="font-size-presets">
+                    <button class="font-size-btn" type="button" data-size="13px">13px <small>Gọn gàng</small></button>
+                    <button class="font-size-btn active" type="button" data-size="14px">14px <small>Chuẩn</small></button>
+                    <button class="font-size-btn" type="button" data-size="15px">15px <small>Lớn</small></button>
+                    <button class="font-size-btn" type="button" data-size="16px">16px <small>Rộng rãi</small></button>
+                  </div>
+                  <input id="settings-font-size" type="hidden" value="14px">
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN: LIVE MOCKUP PREVIEW -->
+            <div class="branding-preview-container">
+              <div class="preview-header-sticky">
+                <span class="preview-badge"><i class="ph-fill ph-sparkle"></i> Xem trước thời gian thực</span>
+                <span class="preview-hint">Thay đổi sẽ phản ánh ngay trên mockup bên dưới</span>
+              </div>
+
+              <div class="mockup-window branding-preview" id="mockup-window">
+                <!-- MOCKUP BROWSER TAB BAR -->
+                <div class="mockup-browser-bar">
+                  <div class="mockup-traffic-lights">
+                    <span class="light red"></span>
+                    <span class="light yellow"></span>
+                    <span class="light green"></span>
+                  </div>
+                  <div class="mockup-tab">
+                    <img id="mockup-tab-favicon" src="https://dev.carthings.vn/icon.svg" alt="Favicon">
+                    <span id="branding-preview-title" class="mockup-tab-title">CarThings Automation Dashboard</span>
+                    <i class="ph ph-x mockup-tab-close"></i>
+                  </div>
+                </div>
+
+                <!-- MOCKUP APP INTERFACE -->
+                <div class="mockup-app-body">
+                  <!-- APP TOPBAR -->
+                  <div class="mockup-topbar">
+                    <div class="mockup-brand">
+                      <img id="branding-preview-logo" src="https://dev.carthings.vn/icon.svg" alt="Logo">
+                      <div>
+                        <div id="branding-preview-name" class="mockup-brand-name">CarThings Automation</div>
+                        <div id="branding-preview-subtitle" class="mockup-brand-sub">Playwright Dashboard</div>
+                      </div>
+                    </div>
+                    <div class="mockup-topbar-nav">
+                      <span class="mockup-nav-item active"><i class="ph ph-play"></i> Chạy test</span>
+                      <span class="mockup-nav-item"><i class="ph ph-chart-bar"></i> Báo cáo</span>
+                    </div>
+                  </div>
+
+                  <!-- MOCKUP CONTENT -->
+                  <div class="mockup-content">
+                    <div class="mockup-metrics-row">
+                      <div class="mockup-metric-card">
+                        <small>KẾT QUẢ GẦN NHẤT</small>
+                        <strong class="mockup-status-pass">Passed</strong>
+                      </div>
+                      <div class="mockup-metric-card">
+                        <small>THỜI GIAN</small>
+                        <strong>4.6m</strong>
+                      </div>
+                    </div>
+
+                    <div class="mockup-action-box">
+                      <button class="mockup-run-btn branding-preview-button" type="button">
+                        <i class="ph-fill ph-play"></i> ▶ Chạy test ngay
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="panel settings-panel settings-discord" hidden>
+          <div class="panel-heading settings-panel-heading">
+            <span class="settings-icon"><i class="ph ph-bell-ringing"></i></span>
+            <div style="flex: 1;"><p>THÔNG BÁO</p><h2>Discord Webhook Integration</h2></div>
+          </div>
           <div class="settings-body settings-grid">
-            <label>Số ngày giữ lại<small>Artifact cũ hơn số ngày này sẽ bị dọn khi bật tự động dọn.</small><input id="settings-retention-days" type="number" min="1" max="365"></label>
-            <label>Số báo cáo tối đa/ngày<small>Giới hạn số report giữ lại trong mỗi thư mục ngày.</small><input id="settings-max-reports-per-day" type="number" min="1" max="200"></label>
-            <label class="toggle settings-toggle"><input id="settings-auto-cleanup-evidence" type="checkbox"><span></span><div>Tự dọn evidence<small>Dọn ảnh evidence theo số ngày giữ lại.</small></div></label>
-            <label class="toggle settings-toggle"><input id="settings-auto-cleanup-reports" type="checkbox"><span></span><div>Tự dọn báo cáo<small>Dọn Playwright report theo số ngày giữ lại và giới hạn theo ngày.</small></div></label>
+            <div class="settings-card settings-card-wide">
+              <div class="settings-card-title"><i class="ph ph-plugs"></i><span>Cấu hình Webhook kênh</span></div>
+              <div class="settings-card-grid">
+                <label class="wide">Discord Webhook URL<small>Dán link Webhook được tạo trong cài đặt kênh Discord (Kênh > Edit Channel > Integrations > Webhooks).</small>
+                  <input id="settings-discord-webhook" type="url" placeholder="https://discord.com/api/webhooks/..." autocomplete="off">
+                </label>
+                <label>Tên kênh Discord hiển thị<small>Gợi nhớ kênh đang nhận thông báo (ví dụ: #qa-automation-reports).</small>
+                  <input id="settings-discord-channel" type="text" placeholder="#qa-automation-reports">
+                </label>
+                <div class="discord-test-box">
+                  <label>Kiểm tra kết nối<small>Bấm nút để gửi tin nhắn thử nghiệm ngay lập tức về kênh.</small></label>
+                  <button id="test-discord-button" class="btn-test-discord" type="button"><i class="ph-bold ph-paper-plane-tilt"></i> Gửi tin nhắn thử</button>
+                </div>
+              </div>
+            </div>
+            <div class="settings-card settings-card-wide">
+              <div class="settings-card-title"><i class="ph ph-bell"></i><span>Quy tắc gửi thông báo</span></div>
+              <div class="settings-card-grid">
+                <label class="toggle settings-toggle"><input id="settings-discord-notify-finish" type="checkbox"><span></span><div>Gửi thông báo khi hoàn thành test run<small>Tự động gửi báo cáo tóm tắt kết quả (Pass/Fail/Duration) sau mỗi lần chạy test.</small></div></label>
+                <label class="toggle settings-toggle"><input id="settings-discord-notify-fail-only" type="checkbox"><span></span><div>Chỉ gửi khi có test case BỊ LỖI (Failed)<small>Bỏ qua các lần test Pass toàn bộ để tránh làm loãng kênh chat của team.</small></div></label>
+              </div>
+            </div>
+
+            <!-- DISCORD BOT CI/CD TRIGGER -->
+            <div class="settings-card settings-card-wide">
+              <div class="settings-card-title"><i class="ph ph-robot"></i><span>Discord QA Bot Remote Trigger (<code style="font-size:11px;">D:\_CarThings\discord-qa-bot</code>)</span></div>
+              <div class="settings-card-grid">
+                <label>Discord Bot Token<small id="settings-bot-token-desc">Token xác thực bot (để trống nếu giữ token cũ).</small>
+                  <input id="settings-bot-token" type="password" placeholder="Dán DISCORD_TOKEN mới" autocomplete="off">
+                </label>
+                <label>Allowed Channel ID<small>ID kênh Discord được phép nhận lệnh.</small>
+                  <input id="settings-bot-channel-id" type="text" placeholder="Ví dụ: 1541480185491234907">
+                </label>
+                <label>GitHub Personal Token<small id="settings-bot-gh-token-desc">GitHub Token quyền Workflow Dispatch (để trống nếu giữ token cũ).</small>
+                  <input id="settings-bot-gh-token" type="password" placeholder="Dán GITHUB_TOKEN mới" autocomplete="off">
+                </label>
+                <label>GitHub Owner / Username<small>Tên chủ sở hữu tài khoản GitHub hoặc tổ chức.</small>
+                  <input id="settings-bot-gh-owner" type="text" placeholder="hadinhkms">
+                </label>
+                <label>GitHub Repository<small>Tên repository trên GitHub.</small>
+                  <input id="settings-bot-gh-repo" type="text" placeholder="Automation_Carthings">
+                </label>
+                <label>Workflow File<small>File workflow trong .github/workflows/.</small>
+                  <input id="settings-bot-gh-workflow" type="text" placeholder="discord-run-playwright.yml">
+                </label>
+                <label>Branch / Ref Chạy Test<small>Nhánh Git bot kích hoạt trên GitHub Actions.</small>
+                  <input id="settings-bot-gh-ref" type="text" placeholder="main">
+                </label>
+                <label>Nhánh Git Hiện Tại (Đồng Bộ)<small>Nhánh local tự động đẩy lên khi bấm nút Đồng bộ.</small>
+                  <input id="settings-git-current-branch" type="text" readonly disabled style="opacity: 0.85; font-weight: 600;">
+                </label>
+              </div>
+            </div>
+
+            <!-- BOT COMMAND CHEATSHEET -->
+            <div class="settings-card settings-card-wide discord-cheatsheet-card">
+              <div class="settings-card-title"><i class="ph ph-terminal-window"></i><span>Cú pháp điều khiển Bot trên Discord</span></div>
+              <div class="discord-cheatsheet-body">
+                <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">Khi tag <code>@CarThings QA Bot</code> trong kênh chat Discord, bạn có thể kích hoạt các kịch bản test sau:</p>
+                <div class="discord-cmd-table">
+                  <div class="discord-cmd-row">
+                    <code class="discord-cmd">@CarThings QA Bot run &lt;suite&gt; &lt;dev|qc|prod&gt;</code>
+                    <span class="discord-cmd-desc">Chạy Test Suite (Ví dụ: <code>@CarThings QA Bot run carthings_site dev</code> hoặc <code>run admin-flows dev</code>)</span>
+                  </div>
+                  <div class="discord-cmd-row">
+                    <code class="discord-cmd">@CarThings QA Bot run file &lt;đường_dẫn_file&gt; &lt;env&gt;</code>
+                    <span class="discord-cmd-desc">Chạy 1 file test cụ thể (Ví dụ: <code>@CarThings QA Bot run file tests/e2e/company-add-student.spec.js dev</code>)</span>
+                  </div>
+                  <div class="discord-cmd-row">
+                    <code class="discord-cmd">@CarThings QA Bot run check dev</code>
+                    <span class="discord-cmd-desc">Kiểm tra tính toàn vẹn của framework (Lint & Config verification)</span>
+                  </div>
+                  <div class="discord-cmd-row">
+                    <code class="discord-cmd">@CarThings QA Bot help</code>
+                    <span class="discord-cmd-desc">Xem danh sách toàn bộ các Test Suites đang có sẵn</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- INTERACTIVE FULL STEP-BY-STEP SETUP GUIDE -->
+            <div class="settings-card settings-card-wide discord-master-guide-card">
+              <div class="settings-card-title">
+                <i class="ph-bold ph-book-open-text"></i>
+                <span style="font-weight: 700;">📖 Hướng Dẫn Từng Bước Thiết Lập Discord QA Bot & GitHub Actions</span>
+                <span class="guide-badge-pro">Step-by-Step Guide</span>
+              </div>
+              <div class="discord-master-guide-body">
+                <!-- STEP TABS -->
+                <div class="guide-nav-tabs">
+                  <button class="guide-nav-btn active" type="button" data-guide-step="1">
+                    <span class="step-num">1</span>
+                    <span class="step-label">Tạo Discord Bot</span>
+                  </button>
+                  <button class="guide-nav-btn" type="button" data-guide-step="2">
+                    <span class="step-num">2</span>
+                    <span class="step-label">Lấy Channel ID & Webhook</span>
+                  </button>
+                  <button class="guide-nav-btn" type="button" data-guide-step="3">
+                    <span class="step-num">3</span>
+                    <span class="step-label">Tạo GitHub Token</span>
+                  </button>
+                  <button class="guide-nav-btn" type="button" data-guide-step="4">
+                    <span class="step-num">4</span>
+                    <span class="step-label">Cài GitHub Secret</span>
+                  </button>
+                  <button class="guide-nav-btn" type="button" data-guide-step="5">
+                    <span class="step-num">5</span>
+                    <span class="step-label">Chạy Bot & Sử Dụng</span>
+                  </button>
+                </div>
+
+                <!-- STEP CONTENTS -->
+                <div class="guide-step-panes">
+                  <!-- STEP 1 PANE -->
+                  <div class="guide-pane active" id="guide-pane-1">
+                    <div class="guide-pane-header">
+                      <div>
+                        <h3><i class="ph ph-robot"></i> Bước 1: Tạo "Nhân viên ảo" (Bot) trên Discord</h3>
+                        <p class="guide-pane-sub">Mục đích: Tạo con Bot để sau này tester chỉ cần chat là bot tự động đi chạy test.</p>
+                      </div>
+                      <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" class="guide-link-btn">
+                        <i class="ph ph-arrow-square-out"></i> Bấm để mở Discord Developer Portal
+                      </a>
+                    </div>
+                    <div class="guide-instruction-list">
+                      <div class="instruction-item">
+                        <span class="inst-num">1.1</span>
+                        <div>
+                          <strong>Tạo hồ sơ Bot mới:</strong>
+                          <p>Bấm vào nút màu xanh ở trên để mở trang Discord -> Nhìn lên <b>góc trên bên phải</b>, bấm nút màu tím <b>"New Application"</b>.</p>
+                          <p>Ở ô <b>NAME</b>, gõ tên bot: <code>CarThings QA Bot</code> -> Tích vào ô vuông nhỏ đồng ý điều khoản -> Bấm nút <b>Create</b>.</p>
+                        </div>
+                      </div>
+                      <div class="instruction-item">
+                        <span class="inst-num">1.2</span>
+                        <div>
+                          <strong>Lấy mã chìa khóa của Bot (Token):</strong>
+                          <p>Nhìn sang <b>cột menu bên trái</b>, bấm vào chữ <b>"Bot"</b> (có hình con robot).</p>
+                          <p>Ở giữa màn hình, tìm chữ <b>TOKEN</b> -> Bấm nút <b>"Reset Token"</b> -> Bấm xác nhận <b>"Yes, do it!"</b>.</p>
+                          <p>Bấm nút <b>"Copy"</b> màu xanh để sao chép mã chìa khóa bí mật.</p>
+                          <div class="guide-dest-hint">👉 <b>Quay lại Dashboard này:</b> Dán mã vừa copy vào ô <code>DISCORD BOT TOKEN</code> ở bảng phía trên.</div>
+                          
+                          <div class="guide-alert warning" style="margin-top: 10px;">
+                            <i class="ph-bold ph-warning-circle"></i>
+                            <div>
+                              <b>Cực kỳ quan trọng (Bắt buộc):</b> Vẫn ở trang đó, cuộn chuột xuống tìm mục <b>Privileged Gateway Intents</b> -> Gạt công tắc dòng <b><code>MESSAGE CONTENT INTENT</code></b> sang màu xanh (ON) -> Bấm nút màu xanh <b>Save Changes</b> ở dưới đáy màn hình. <i>(Nếu quên bước này, bot sẽ bị điếc và không đọc được tin nhắn chat của bạn)</i>.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="instruction-item">
+                        <span class="inst-num">1.3</span>
+                        <div>
+                          <strong>Mời Bot vào Server Discord của công ty:</strong>
+                          <p>Nhìn sang <b>cột menu bên trái</b>, bấm vào <b>"OAuth2"</b> -> chọn <b>"URL Generator"</b>.</p>
+                          <p>Tại bảng to <b>SCOPES</b>, tích chọn 1 ô vuông: <code>[x] bot</code>.</p>
+                          <p>Ngay sau đó một bảng <b>BOT PERMISSIONS</b> hiện ra ở dưới, tích chọn 4 ô:</p>
+                          <ul class="guide-checklist">
+                            <li><i class="ph-bold ph-check-circle"></i> <b>Send Messages</b> (Gửi tin nhắn)</li>
+                            <li><i class="ph-bold ph-check-circle"></i> <b>Read Messages/View Channels</b> (Đọc tin nhắn / Xem kênh)</li>
+                            <li><i class="ph-bold ph-check-circle"></i> <b>Read Message History</b> (Đọc lịch sử chat)</li>
+                            <li><i class="ph-bold ph-check-circle"></i> <b>Embed Links</b> (Gửi thẻ báo cáo kết quả)</li>
+                          </ul>
+                          <p>Cuộn xuống đáy trang, bấm nút <b>Copy</b> ở ô <b>GENERATED URL</b> -> Dán link đó vào tab trình duyệt mới -> Chọn Server Discord của bạn -> Bấm <b>Tiếp tục (Continue)</b> -> Bấm <b>Phê duyệt (Authorize)</b>.</p>
+                          <div class="guide-dest-hint success">✅ <b>Kiểm tra:</b> Mở Discord lên, thấy con bot <code>CarThings QA Bot</code> xuất hiện trong danh sách thành viên là thành công!</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- STEP 2 PANE -->
+                  <div class="guide-pane" id="guide-pane-2">
+                    <div class="guide-pane-header">
+                      <div>
+                        <h3><i class="ph ph-hash"></i> Bước 2: Lấy Mã Kênh Chat & Link Nhận Báo Cáo</h3>
+                        <p class="guide-pane-sub">Mục đích: Chỉ định cho Bot biết nó được nhận lệnh ở kênh nào, và bắn kết quả về kênh nào.</p>
+                      </div>
+                    </div>
+                    <div class="guide-instruction-list">
+                      <div class="instruction-item">
+                        <span class="inst-num">2.1</span>
+                        <div>
+                          <strong>Bật chế độ lấy mã ID trên Discord:</strong>
+                          <p>Mở ứng dụng Discord trên máy tính -> Bấm vào biểu tượng <b>Bánh răng cài đặt (User Settings)</b> ở góc dưới cùng bên trái (cạnh tên tài khoản).</p>
+                          <p>Cuộn menu bên trái xuống tìm mục <b>Nâng cao (Advanced)</b> -> Gạt công tắc dòng <b>Chế độ nhà phát triển (Developer Mode)</b> sang màu xanh (ON) -> Bấm nút <code>X</code> góc trên để đóng cài đặt.</p>
+                        </div>
+                      </div>
+                      <div class="instruction-item">
+                        <span class="inst-num">2.2</span>
+                        <div>
+                          <strong>Lấy mã ID kênh nhận lệnh:</strong>
+                          <p>Nhìn vào danh sách kênh bên trái Discord, <b>chuột phải vào kênh bạn muốn chat ra lệnh</b> (ví dụ kênh <code>#qa-automation</code>) -> Chọn dòng cuối cùng: <b>Sao chép ID kênh (Copy Channel ID)</b>.</p>
+                          <div class="guide-dest-hint">👉 <b>Quay lại Dashboard này:</b> Dán dãy số vừa copy vào ô <code>ALLOWED CHANNEL ID</code> ở bảng phía trên (khoảng 18-19 chữ số).</div>
+                        </div>
+                      </div>
+                      <div class="instruction-item">
+                        <span class="inst-num">2.3</span>
+                        <div>
+                          <strong>Lấy Link Webhook nhận báo cáo kết quả:</strong>
+                          <p>Vẫn tại kênh đó (hoặc kênh muốn nhận kết quả), <b>chuột phải vào tên kênh</b> -> Chọn <b>Chỉnh sửa kênh (Edit Channel)</b>.</p>
+                          <p>Ở cột menu bên trái, bấm vào <b>Tích hợp (Integrations)</b> -> Bấm vào <b>Webhooks</b> -> Bấm <b>Tạo Webhook mới (New Webhook)</b> -> Bấm nút <b>Sao chép URL Webhook (Copy Webhook URL)</b>.</p>
+                          <div class="guide-dest-hint">👉 <b>Quay lại Dashboard này:</b> Dán link vừa copy vào ô <code>DISCORD WEBHOOK URL</code> ở thẻ trên cùng -> Bấm nút <b>"✈ Gửi tin nhắn thử"</b> để kiểm tra!</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- STEP 3 PANE -->
+                  <div class="guide-pane" id="guide-pane-3">
+                    <div class="guide-pane-header">
+                      <div>
+                        <h3><i class="ph ph-github-logo"></i> Bước 3: Tạo Mật Khẩu Chạy Test Trên GitHub (GitHub Token)</h3>
+                        <p class="guide-pane-sub">Mục đích: Cấp quyền cho Bot Discord được phép kích hoạt máy chủ GitHub Actions chạy test.</p>
+                      </div>
+                      <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" class="guide-link-btn">
+                        <i class="ph ph-arrow-square-out"></i> Bấm để mở cài đặt Token GitHub
+                      </a>
+                    </div>
+                    <div class="guide-instruction-list">
+                      <div class="instruction-item">
+                        <span class="inst-num">3.1</span>
+                        <div>
+                          <strong>Tạo Token mới:</strong>
+                          <p>Bấm vào nút màu xanh ở trên để mở trang GitHub -> Bấm nút <b>Generate new token</b> (góc trên bên phải) -> Chọn dòng <b>Generate new token (classic)</b>.</p>
+                          <p>Ở ô <b>Note</b>, gõ tên gợi nhớ: <code>Discord Bot Token</code> -> Ở ô <b>Expiration</b> (Hạn dùng), chọn: <code>No expiration</code> (Không bao giờ hết hạn).</p>
+                        </div>
+                      </div>
+                      <div class="instruction-item">
+                        <span class="inst-num">3.2</span>
+                        <div>
+                          <strong>Tích chọn 2 quyền bắt buộc:</strong>
+                          <p>Trong danh sách các ô vuông, bạn chỉ cần tìm và tích chọn đúng 2 ô sau:</p>
+                          <ul class="guide-checklist">
+                            <li><i class="ph-bold ph-check-circle"></i> <b><code>repo</code></b> (Tích vào ô to chữ `repo` ngay ở đầu danh sách).</li>
+                            <li><i class="ph-bold ph-check-circle"></i> <b><code>workflow</code></b> (Cuộn xuống tìm dòng chữ `workflow` và tích vào).</li>
+                          </ul>
+                          <p>Cuộn xuống tận cùng đáy trang, bấm nút màu xanh lá cây <b>Generate token</b>.</p>
+                          <p>Bấm vào biểu tượng <b>2 ô vuông (Copy)</b> bên cạnh chuỗi ký tự bắt đầu bằng <code>ghp_...</code> để sao chép mã Token.</p>
+                          <div class="guide-dest-hint">👉 <b>Quay lại Dashboard này:</b> Dán mã vừa copy vào ô <code>GITHUB PERSONAL TOKEN</code> ở bảng phía trên.</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- STEP 4 PANE -->
+                  <div class="guide-pane" id="guide-pane-4">
+                    <div class="guide-pane-header">
+                      <div>
+                        <h3><i class="ph ph-lock-key"></i> Bước 4: Dán Link Báo Cáo Vào GitHub (Secret)</h3>
+                        <p class="guide-pane-sub">Mục đích: Cho máy chủ GitHub biết link Discord để sau khi chạy test xong, nó tự động bắn kết quả về kênh chat.</p>
+                      </div>
+                      <a href="https://github.com/hadinhkms/Automation_Carthings/settings/secrets/actions" target="_blank" rel="noopener noreferrer" class="guide-link-btn">
+                        <i class="ph ph-arrow-square-out"></i> Bấm để mở trang Secrets GitHub
+                      </a>
+                    </div>
+                    <div class="guide-instruction-list">
+                      <div class="instruction-item">
+                        <span class="inst-num">4.1</span>
+                        <div>
+                          <strong>Tạo Secret mới trên GitHub:</strong>
+                          <p>Bấm vào nút màu xanh ở trên -> Nhìn lên <b>góc trên bên phải</b>, bấm nút màu xanh lá <b>"New repository secret"</b>.</p>
+                          <p>Điền chính xác 2 ô như sau:</p>
+                          <div class="guide-code-box">
+                            <div><b>Ô Name (Tên):</b> <code>DISCORD_WEBHOOK_URL</code> <i>(Gõ đúng từng chữ in hoa)</i></div>
+                            <div><b>Ô Secret (Giá trị):</b> <i>Dán lại đường link Discord Webhook URL bạn đã copy ở Bước 2.3</i></div>
+                          </div>
+                          <p style="margin-top:8px;">Bấm nút màu xanh <b>Add secret</b> để lưu lại. Xong!</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- STEP 5 PANE -->
+                  <div class="guide-pane" id="guide-pane-5">
+                    <div class="guide-pane-header">
+                      <div>
+                        <h3><i class="ph ph-play-circle"></i> Bước 5: Bật Bot & Bắt Đầu Thưởng Thức Thành Quả!</h3>
+                        <p class="guide-pane-sub">Mục đích: Bật công tắc cho Bot thức dậy và bắt đầu chat ra lệnh trên Discord.</p>
+                      </div>
+                    </div>
+                    <div class="guide-instruction-list">
+                      <div class="instruction-item">
+                        <span class="inst-num">5.1</span>
+                        <div>
+                          <strong>Lưu cấu hình trên Dashboard:</strong>
+                          <p>Kiểm tra các ô thông tin ở bảng phía trên -> Nhìn lên <b>góc trên bên phải trang Dashboard</b>, bấm nút màu xanh <b>"💾 Lưu cấu hình"</b>.</p>
+                        </div>
+                      </div>
+                      <div class="instruction-item">
+                        <span class="inst-num">5.2</span>
+                        <div>
+                          <strong>Bật Bot chạy (Chỉ cần làm 1 lần):</strong>
+                          <p>Mở cửa sổ dòng lệnh (Terminal hoặc PowerShell) trên máy tính -> Dán nguyên vẹn dòng lệnh sau rồi bấm <b>Enter</b>:</p>
+                          <pre class="guide-terminal-code"><code>cd D:\_CarThings\discord-qa-bot && node bot.js</code></pre>
+                          <div class="guide-dest-hint success">✅ Khi thấy màn hình hiện chữ: <code>Ready: CarThings QA Bot</code> là Bot đã chính thức thức dậy và sẵn sàng nhận lệnh!</div>
+                        </div>
+                      </div>
+                      <div class="instruction-item">
+                        <span class="inst-num">5.3</span>
+                        <div>
+                          <strong>Thử chat ra lệnh trên Discord:</strong>
+                          <p>Mở kênh chat Discord đã cài đặt ở Bước 2, gõ câu lệnh sau rồi bấm gửi:</p>
+                          <div class="guide-cmd-preview">
+                            <code>@CarThings QA Bot run carthings_site dev</code>
+                          </div>
+                          <p style="margin-top:6px; color:var(--text);">🎉 <b>Kết quả:</b> Bot sẽ trả lời ngay và kích hoạt test trên GitHub. Sau vài phút, thẻ báo cáo kết quả (Pass/Fail) sẽ tự động gửi thẳng về kênh chat cho bạn!</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="panel settings-panel settings-artifacts" hidden>
+          <div class="panel-heading settings-panel-heading"><span class="settings-icon"><i class="ph ph-archive"></i></span><div><p>ARTIFACT</p><h2>Chính sách lưu trữ</h2></div></div>
+          <div class="settings-body settings-grid">
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-calendar-dots"></i><span>Giới hạn lưu trữ</span></div>
+              <div class="settings-card-grid">
+                <label>Số ngày giữ lại<small>Artifact cũ hơn số ngày này sẽ bị dọn khi bật tự động dọn.</small><input id="settings-retention-days" type="number" min="1" max="365"></label>
+                <label>Số báo cáo tối đa/ngày<small>Giới hạn số report giữ lại trong mỗi thư mục ngày.</small><input id="settings-max-reports-per-day" type="number" min="1" max="200"></label>
+              </div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-broom"></i><span>Dọn tự động</span></div>
+              <div class="settings-card-grid">
+                <label class="toggle settings-toggle"><input id="settings-auto-cleanup-evidence" type="checkbox"><span></span><div>Tự dọn evidence<small>Dọn ảnh evidence theo số ngày giữ lại.</small></div></label>
+                <label class="toggle settings-toggle"><input id="settings-auto-cleanup-reports" type="checkbox"><span></span><div>Tự dọn báo cáo<small>Dọn Playwright report theo số ngày giữ lại và giới hạn theo ngày.</small></div></label>
+              </div>
+            </div>
           </div>
         </section>
       </form>
     </section>
     <div id="toast" role="alert"></div>
   </main>
-  <script src="/app.js"></script>
+  <script src="/app.js?v=2.3"></script>
 </body>
 </html>
+

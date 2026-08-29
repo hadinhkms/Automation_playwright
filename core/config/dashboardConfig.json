@@ -48,5 +48,21 @@
     "maxReportsPerDay": 20,
     "autoCleanupEvidence": false,
     "autoCleanupReports": false
-  }
+  },
+  "branding": {
+    "projectName": "Vieclam24h",
+    "projectSubtitle": "AUTOMATION DASHBOARD",
+    "pageTitle": "Trung tâm điều khiển Playwright",
+    "logoUrl": "https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png",
+    "primaryColor": "#451DA0",
+    "backgroundColor": "#FAFAFF",
+    "fontSize": "15px"
+  },
+  "discord": {
+    "webhookUrl": "",
+    "channelName": "#qa-automation",
+    "notifyOnFinish": false,
+    "notifyOnlyOnFailure": false
+  },
+  "suites": {}
 }

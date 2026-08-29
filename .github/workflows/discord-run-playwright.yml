@@ -1,0 +1,121 @@
+name: Discord Run Playwright
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        required: true
+        type: string
+        default: e2e
+        description: "Tên Test Suite từ dashboardConfig.json hoặc check, e2e, file, smoke..."
+      env:
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - qc
+          - prod
+      spec:
+        required: false
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - run: npm ci
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run selected suite
+        run: node scripts/run-suite.js "${{ inputs.suite }}" "${{ inputs.env }}" "${{ inputs.spec }}"
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: evidence
+          path: evidence/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Notify Discord
+        if: always()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is not configured; skipping Discord notification."
+            exit 0
+          fi
+
+          node -e "
+            try {
+              const fs = require('fs');
+              const cfgPath = './core/config/dashboardConfig.json';
+              let discord = {};
+              if (fs.existsSync(cfgPath)) {
+                discord = JSON.parse(fs.readFileSync(cfgPath, 'utf8')).discord || {};
+              }
+              if (discord.notifyOnFinish === false) {
+                console.log('Discord notification is disabled (notifyOnFinish: false); skipping.');
+                process.exit(0);
+              }
+              if (discord.notifyOnlyOnFailure && '${{ job.status }}' !== 'failure') {
+                console.log('notifyOnlyOnFailure is enabled and status is ${{ job.status }}; skipping.');
+                process.exit(0);
+              }
+              const isPassed = '${{ job.status }}' === 'success';
+              const color = isPassed ? 0x22c55e : 0xef4444;
+              const emoji = isPassed ? '✅' : '❌';
+              const embed = {
+                title: emoji + ' GitHub Actions Test Run: ${{ inputs.suite }}',
+                color: color,
+                description: 'Kết quả chạy tự động từ GitHub Actions cho kịch bản **${{ inputs.suite }}**.',
+                fields: [
+                  { name: '📊 Trạng thái', value: '\`${{ job.status }}\`', inline: true },
+                  { name: '🌐 Môi trường', value: '\`${{ inputs.env }}\`', inline: true },
+                  { name: '📦 Báo cáo / Artifacts', value: '[Xem chi tiết trên GitHub](' + process.env.RUN_URL + ')', inline: false }
+                ],
+                footer: { text: 'CarThings QA Automation • ' + new Date().toLocaleString('vi-VN') }
+              };
+              fetch(process.env.DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [embed] })
+              }).then(r => {
+                if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+                console.log('Discord notification sent successfully.');
+              });
+            } catch (err) {
+              console.error('Error sending Discord notification:', err.message);
+            }
+          "

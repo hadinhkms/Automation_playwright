@@ -7,22 +7,28 @@ const DEFAULT_CONFIG = Object.freeze({
   environments: {
     qc: {
       label: 'QC',
-      baseURL: 'https://seeker.vl24hv2.qc.sieuviet-team.com',
-      apiBaseURL: 'https://api.vl24hv2.qc.sieuviet-team.com',
+      baseURL: 'https://admin.carthings.vn',
+      companyURL: 'https://company.carthings.vn',
+      carthingsURL: 'https://qc.carthings.vn',
+      apiBaseURL: 'https://api.carthings.vn',
     },
-    stg: {
-      label: 'Staging',
-      baseURL: 'https://seeker.vl24hv2.staging.sieuviet-team.com',
-      apiBaseURL: 'https://api.vl24hv2.staging.sieuviet-team.com',
+    dev: {
+      label: 'Development',
+      baseURL: 'https://admin-dev.carthings.vn',
+      companyURL: 'https://company-dev.carthings.vn',
+      carthingsURL: 'https://dev.carthings.vn',
+      apiBaseURL: 'https://api-dev.carthings.vn',
     },
     prod: {
       label: 'Production',
-      baseURL: 'https://seeker.vl24hv2.staging.sieuviet-team.com',
-      apiBaseURL: 'https://api.vl24hv2.staging.sieuviet-team.com',
+      baseURL: 'https://admin.carthings.vn',
+      companyURL: 'https://company.carthings.vn',
+      carthingsURL: 'https://carthings.vn',
+      apiBaseURL: 'https://api.carthings.vn',
     },
   },
   runtime: {
-    defaultEnvironment: 'qc',
+    defaultEnvironment: 'dev',
     workers: 2,
     testTimeout: 60000,
     navigationTimeout: 60000,
@@ -51,6 +57,32 @@ const DEFAULT_CONFIG = Object.freeze({
     autoCleanupEvidence: false,
     autoCleanupReports: false,
   },
+  branding: {
+    projectName: "CarThings Automation",
+    projectSubtitle: "Playwright Dashboard",
+    pageTitle: "CarThings Automation Dashboard",
+    logoUrl: "https://dev.carthings.vn/icon.svg",
+    primaryColor: "",
+    backgroundColor: "",
+    fontSize: ""
+  },
+  suites: {
+    "smoke": {
+      label: "Smoke Tests",
+      project: "all",
+      viewport: { preset: "default", width: 1920, height: 1080 },
+      spec: "all",
+      specs: "all",
+      grep: "@smoke",
+      workers: 4
+    }
+  },
+  discord: {
+    webhookUrl: '',
+    channelName: '#qa-automation-reports',
+    notifyOnFinish: true,
+    notifyOnlyOnFailure: false,
+  },
 });
 
 const TRACE_OPTIONS = ['off', 'on', 'retain-on-failure', 'on-first-retry'];
@@ -68,6 +100,16 @@ function readRawConfig() {
 
 function asString(value, fallback = '') {
   return typeof value === 'string' ? value.trim() : fallback;
+}
+
+function asFontSize(value, fallback = '') {
+  const text = asString(value, '');
+  if (!text) return '';
+  const match = /^(\d+(?:\.\d+)?)px$/i.exec(text);
+  if (!match) return asFontSize(fallback, '');
+  const size = Number(match[1]);
+  if (!Number.isFinite(size) || size < 11 || size > 18) return asFontSize(fallback, '');
+  return `${size}px`;
 }
 
 function asBoolean(value, fallback = false) {
@@ -108,10 +150,14 @@ function normalizeDashboardConfig(input = {}, existingConfig = DEFAULT_CONFIG) {
     const fallback = existing.environments[envKey] || {};
     const label = asString(envValue.label, fallback.label || envKey.toUpperCase()).slice(0, 40);
     const baseURL = asString(envValue.baseURL, fallback.baseURL);
+    const companyURL = asString(envValue.companyURL, fallback.companyURL || baseURL);
+    const carthingsURL = asString(envValue.carthingsURL, fallback.carthingsURL || baseURL);
     const apiBaseURL = asString(envValue.apiBaseURL, fallback.apiBaseURL);
     assertUrl(baseURL, `${envKey}.baseURL`);
+    assertUrl(companyURL, `${envKey}.companyURL`);
+    assertUrl(carthingsURL, `${envKey}.carthingsURL`);
     assertUrl(apiBaseURL, `${envKey}.apiBaseURL`);
-    environments[envKey] = { label, baseURL, apiBaseURL };
+    environments[envKey] = { label, baseURL, companyURL, carthingsURL, apiBaseURL };
   }
 
   if (!Object.keys(environments).length) throw new Error('At least one environment is required.');
@@ -177,7 +223,62 @@ function normalizeDashboardConfig(input = {}, existingConfig = DEFAULT_CONFIG) {
     autoCleanupReports: asBoolean(artifactsInput.autoCleanupReports, artifactsFallback.autoCleanupReports),
   };
 
-  return { environments, runtime, api, artifacts };
+  const brandingInput = source.branding && typeof source.branding === 'object' ? source.branding : {};
+  const brandingFallback = existing.branding || DEFAULT_CONFIG.branding;
+  const branding = {
+    projectName: asString(brandingInput.projectName, brandingFallback.projectName).slice(0, 80),
+    projectSubtitle: asString(brandingInput.projectSubtitle, brandingFallback.projectSubtitle).slice(0, 100),
+    pageTitle: asString(brandingInput.pageTitle, brandingFallback.pageTitle).slice(0, 100),
+    logoUrl: asString(brandingInput.logoUrl, brandingFallback.logoUrl).slice(0, 500),
+    primaryColor: asString(brandingInput.primaryColor, brandingFallback.primaryColor).slice(0, 80),
+    backgroundColor: asString(brandingInput.backgroundColor, brandingFallback.backgroundColor).slice(0, 80),
+    fontSize: asFontSize(brandingInput.fontSize, brandingFallback.fontSize)
+  };
+
+  const discordInput = source.discord && typeof source.discord === 'object' ? source.discord : {};
+  const discordFallback = existing.discord || DEFAULT_CONFIG.discord;
+  const discord = {
+    webhookUrl: asString(discordInput.webhookUrl, discordFallback.webhookUrl).slice(0, 500),
+    channelName: asString(discordInput.channelName, discordFallback.channelName).slice(0, 100),
+    notifyOnFinish: asBoolean(discordInput.notifyOnFinish, discordFallback.notifyOnFinish),
+    notifyOnlyOnFailure: asBoolean(discordInput.notifyOnlyOnFailure, discordFallback.notifyOnlyOnFailure),
+  };
+
+  const suitesInput = source.suites && typeof source.suites === 'object' ? source.suites : (existing.suites || DEFAULT_CONFIG.suites);
+  const suites = {};
+  
+  for (const [key, value] of Object.entries(suitesInput)) {
+    if (typeof value === 'object' && value !== null) {
+      let specs = [];
+      if (Array.isArray(value.specs)) {
+        specs = value.specs.map((s) => asString(s, '')).filter(Boolean);
+      } else if (typeof value.spec === 'string' && value.spec && value.spec !== 'all') {
+        specs = [value.spec.trim()];
+      }
+
+      const vpInput = value.viewport && typeof value.viewport === 'object' ? value.viewport : {};
+      const vpPreset = asString(vpInput.preset || value.viewportPreset, 'default');
+      const vpWidth = asInteger(vpInput.width || value.viewportWidth, 1920, 320, 7680);
+      const vpHeight = asInteger(vpInput.height || value.viewportHeight, 1080, 320, 4320);
+      const viewport = {
+        preset: vpPreset,
+        width: vpWidth,
+        height: vpHeight,
+      };
+
+      suites[key.slice(0, 50)] = {
+        label: asString(value.label, key).slice(0, 50),
+        project: asString(value.project, 'all').slice(0, 100),
+        viewport,
+        spec: specs.length === 1 ? specs[0] : (specs.length > 1 ? 'custom' : 'all'),
+        specs: specs.length > 0 ? specs : 'all',
+        grep: asString(value.grep, '').slice(0, 80),
+        workers: asInteger(value.workers, 2, 1, 8),
+      };
+    }
+  }
+
+  return { environments, runtime, api, artifacts, branding, suites, discord };
 }
 
 function getDashboardConfig() {
