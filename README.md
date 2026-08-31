@@ -113,34 +113,36 @@ Page Object desktop nằm trực tiếp trong `pages/desktop/`; Page Object mobi
 
 Ba project có phạm vi không chồng lặp. `npm test` chạy Smoke, Regression và API; `npm run suite:regression` chạy toàn bộ UI gồm Smoke + Regression.
 
-## Lệnh thường dùng
+## Automation Dashboard (Trung tâm điều khiển Web)
 
-Khởi động giao diện điều khiển local:
+Dashboard là ứng dụng web điều khiển kiểm thử tự động trực quan, gọn nhẹ (xây dựng bằng Node.js thuần, HTML/CSS/JavaScript và Phosphor Icons), không cần cài đặt thêm framework frontend.
 
-Dashboard là ứng dụng local nhẹ, được xây dựng bằng Node.js (`http`), HTML, CSS và JavaScript thuần, không dùng frontend framework hoặc bước build riêng. Backend gọi Playwright CLI để chạy test và dùng Server-Sent Events (SSE) để cập nhật log, trạng thái theo thời gian thực.
+### 1. Khởi động và Dừng nhanh (1-Click)
+* **Windows 1-Click Start**: Double-click `Start_Dashboard.bat` (hoặc chạy `npm run dashboard:start`). Script tự động tìm port trống (từ `4174`), chạy server nền và mở trình duyệt web.
+* **Windows 1-Click Stop**: Double-click `Stop_Dashboard.bat` (hoặc chạy `npm run dashboard:stop`) để tắt server ngầm an toàn và giải phóng port.
+* **Chế độ Foreground Debug**: Chạy `npm run dashboard` để theo dõi log trực tiếp trên terminal và tắt bằng `Ctrl+C`.
 
-```bash
-npm run dashboard
-```
+### 2. Các tính năng chính của Dashboard
+* 🚀 **Chạy Test Linh hoạt (Runner Tab)**:
+  * **Kịch bản (Test Suites)**: Chọn kịch bản dựng sẵn (Smoke, Regression, Flow cụ thể) hoặc tùy chỉnh phạm vi chạy.
+  * **Bộ lọc Tag Chips & Từng File**: Lọc nhanh các test theo tag (`@smoke`, `@applyjob`, `@register`...) hoặc tích chọn danh sách từng file `.spec.js` trực quan.
+  * **Live Console & Trạng thái**: Theo dõi tiến trình qua Server-Sent Events (SSE) theo thời gian thực và nút mở **Playwright UI Mode**.
+* 📊 **Báo cáo & Dữ liệu (Artifacts Tab)**:
+  * Duyệt toàn bộ Playwright HTML reports mới nhất và lịch sử chạy.
+  * Cây bằng chứng ảnh (Evidence Screenshots) tổ chức theo `Ngày → Lần chạy → Spec → Worker`.
+  * Xem và chỉnh sửa trực tiếp dữ liệu kiểm thử trong `data/*.json` (tự động kiểm tra cú pháp và backup vào `.dashboard-backups/`).
+* 💻 **Mã Framework (Code View Tab)**:
+  * Duyệt cây thư mục mã nguồn (`tests/`, `pages/`, `core/`), xem nhanh code và chỉnh sửa trực tiếp trên giao diện.
+* 🔍 **So sánh Evidence (Compare Tab)**:
+  * Tích hợp công cụ Visual Compare (`tools/visual_compare.html`) hỗ trợ so sánh ảnh chụp baseline và actual theo nhiều chế độ (Side-by-side, 2-up Diff, Slider, Blink).
+* ⚙️ **Cấu hình & Tùy biến (Settings Tab)**:
+  * **Branding & Theme**: Tùy chỉnh màu chủ đạo (Vieclam24h tím/xanh hoặc mã màu tùy chọn), màu nền, logo, tiêu đề và kích thước chữ.
+  * **Runtime & Môi trường**: Cấu hình URL môi trường (`qc`, `stg`, `prod`), số worker, timeout, retry, kích thước viewport.
+  * **Discord Notification & QA Bot**: Nhập Discord Webhook URL để nhận thông báo tự động ngay khi test kết thúc (xem hướng dẫn chi tiết tại `docs/DISCORD_BOT_SETUP_GUIDE.md`).
 
-Lệnh trên chạy foreground và tắt bằng `Ctrl+C`. Để chạy ngầm và tắt lại bằng lệnh:
+---
 
-```bash
-npm run dashboard:start
-npm run dashboard:stop
-```
-
-Đóng tab trình duyệt không tắt dashboard server.
-
-Sau đó mở `http://127.0.0.1:4173`. Dashboard cho phép chọn environment, project, spec, tag, workers, theo dõi log trực tiếp và mở report mới nhất. Server chỉ lắng nghe trên máy local và chỉ nhận các lựa chọn đã được kiểm soát.
-
-Tab **Artifacts & Files** cho phép duyệt toàn bộ Playwright reports, evidence screenshots, `AI_PROMPTS.md`, hướng dẫn framework và các file JSON trong `data/`. Chọn một mục trong danh sách để mở report, ảnh hoặc nội dung file ngay ở vùng chi tiết bên phải. Các trường dữ liệu nhạy cảm được che mặc định và chỉ hiển thị khi người dùng chủ động chọn xem dữ liệu gốc. Nút **Open Playwright UI** khởi chạy UI Mode chính thức trong cửa sổ riêng để debug test.
-
-`AI_PROMPTS.md` và các file `data/*.json` có thể được chỉnh sửa trong tab này; JSON được validate trước khi lưu và bản cũ được sao lưu vào `.dashboard-backups/`. Evidence và report có thể xóa sau bước xác nhận; khi xóa report, toàn bộ thư mục artifact của đúng lần chạy đó sẽ bị xóa.
-
-Evidence được hiển thị theo cây `ngày → lần chạy → spec → worker → ảnh`; trạng thái folder được giữ khi chọn hoặc chuyển ảnh bằng nút Previous/Next. Có thể xóa từng ảnh hoặc cả folder sau bước xác nhận. Tab **Compare Evidence** nhúng visual comparison tool từ `tools/visual_compare.html` để so sánh screenshot.
-
-Tab **Framework Code** cung cấp cây source cho `tests/`, `pages/` và `core/`, bộ lọc theo lớp, tìm kiếm, xem và chỉnh sửa trực tiếp. JavaScript/JSON được kiểm tra cú pháp và file cũ được backup trước khi lưu.
+## Lệnh thực thi qua Terminal
 
 Chạy toàn bộ E2E:
 

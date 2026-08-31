@@ -127,8 +127,8 @@ function updateWorkersForSpec() {
   updateManualSpecsPreview();
 }
 
-$('#project').addEventListener('change', refreshSpecOptions);
-$('#spec').addEventListener('change', updateWorkersForSpec);
+$('#project')?.addEventListener('change', refreshSpecOptions);
+$('#spec')?.addEventListener('change', updateWorkersForSpec);
 $('#grep')?.addEventListener('input', updateManualSpecsPreview);
 
 function fillSettingSelect(selector, values, selected) {
@@ -811,7 +811,7 @@ function updateSuiteSummaryBox(suiteId) {
     return;
   }
   $('#test-suite').value = suiteId;
-  $('#suite-sum-project').textContent = suite.project === 'all' ? 'Tất cả nhóm' : suite.project;
+  if ($('#suite-sum-project')) $('#suite-sum-project').textContent = suite.project === 'all' ? 'Tất cả nhóm' : suite.project;
   
   const vp = suite.viewport || { preset: 'default', width: 1920, height: 1080 };
   const vpText = vp.preset === 'default' ? 'Mặc định' : `${vp.width}x${vp.height}`;

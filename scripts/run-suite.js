@@ -52,15 +52,23 @@ if (suiteName.toLowerCase() === 'check') {
 } else {
   // Built-in presets
   const s = suiteName.toLowerCase();
-  if (s === 'smoke') args.push('--grep', '@smoke');
-  else if (s === 'regression') args.push('--grep-invert', '@smoke');
-  else if (s === 'company-site' || s === 'companysite') args.push('--grep', '@CompanySite');
-  else if (s === 'desktop') args.push('--project=Desktop Chrome');
-  else if (s === 'fullhd') args.push('--project=Company Site Desktop Full HD');
-  else if (s === '2k') args.push('--project=Company Site Desktop 2K');
-  else {
+  if (s === 'smoke') {
+    args.push('--grep', '@smoke');
+  } else if (s === 'regression') {
+    args.push('--grep-invert', '@smoke');
+  } else if (s === 'applyjob' || s === 'apply-job') {
+    args.push('--grep', '@applyjob');
+  } else if (s === 'profile') {
+    args.push('--grep', '@profile');
+  } else if (s === 'desktop') {
+    args.push('--project=Desktop Smoke Tests', '--project=Desktop Regression Tests');
+  } else if (s === 'mobile') {
+    args.push('--project=Mobile Chrome Regression Tests', '--project=Mobile Safari Regression Tests');
+  } else if (s === 'api') {
+    args.push('--project=API Tests');
+  } else {
     console.error(`Không tìm thấy kịch bản nào phù hợp với: "${suiteName}"`);
-    console.error('Các kịch bản hợp lệ:', ['check', 'e2e', 'smoke', 'regression', 'company-site', 'desktop', 'fullhd', '2k', 'file', ...Object.keys(config.suites || {})].join(', '));
+    console.error('Các kịch bản hợp lệ:', ['check', 'e2e', 'smoke', 'regression', 'applyjob', 'profile', 'desktop', 'mobile', 'api', 'file', ...Object.keys(config.suites || {})].join(', '));
     process.exit(1);
   }
 }

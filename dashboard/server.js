@@ -46,14 +46,34 @@ function writeEnvFile(filePath, envObj) {
 }
 const CODE_ROOTS = ['tests', 'pages', 'core'];
 const PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
-const APP_NAME = process.env.DASHBOARD_APP_NAME || 'carthings';
-const PROJECTS = [
-  'all', 
-  'Desktop Chrome',
-  'Company Site Desktop Full HD',
-  'Company Site Desktop 2K'
-];
+const APP_NAME = process.env.DASHBOARD_APP_NAME || 'vieclam24h';
 const DOCUMENT_RESOURCES = ['AI_PROMPTS.md', 'QA_AI_RULES.md', 'README.md'];
+
+function getPlaywrightProjects() {
+  try {
+    const configPath = path.join(ROOT, 'playwright.config.js');
+    if (fs.existsSync(configPath)) {
+      delete require.cache[require.resolve(configPath)];
+      const config = require(configPath);
+      if (Array.isArray(config.projects) && config.projects.length > 0) {
+        const names = config.projects.map((p) => p.name).filter(Boolean);
+        return ['all', ...names];
+      }
+    }
+  } catch (error) {
+    console.warn('[Dashboard] Could not parse playwright.config.js projects:', error.message);
+  }
+  return [
+    'all',
+    'Desktop Smoke Tests',
+    'Desktop Regression Tests',
+    'Mobile Chrome Smoke Tests',
+    'Mobile Chrome Regression Tests',
+    'Mobile Safari Smoke Tests',
+    'Mobile Safari Regression Tests',
+    'API Tests',
+  ];
+}
 
 let activeRun = null;
 let lastRun = null;
@@ -90,12 +110,23 @@ function listSpecDetails() {
     if (!fs.existsSync(fullPath)) continue;
     try {
       const content = fs.readFileSync(fullPath, 'utf8');
-      const matches = content.match(/@([a-zA-Z0-9_-]+)/g) || [];
-      const tags = Array.from(new Set(
-        matches.filter((t) => !t.startsWith('@playwright') && !t.includes('@email') && !t.includes('@mail'))
-      ));
-      specTags[specPath] = tags;
-      tags.forEach((t) => allTags.add(t));
+      const tags = [];
+      const lines = content.split(/\r?\n/);
+      for (const line of lines) {
+        // Only inspect test titles and describe block headers
+        if (/\b(?:test|describe)\b/i.test(line)) {
+          const matches = line.match(/(?:^|[\s'",`])@([a-zA-Z][a-zA-Z0-9_-]*)/g) || [];
+          for (const m of matches) {
+            const tag = m.trim().replace(/^['",`]/, '').trim();
+            if (tag.startsWith('@') && !tag.startsWith('@playwright') && !tag.includes('email') && !tag.includes('mail')) {
+              tags.push(tag);
+            }
+          }
+        }
+      }
+      const uniqueTags = Array.from(new Set(tags)).sort();
+      specTags[specPath] = uniqueTags;
+      uniqueTags.forEach((t) => allTags.add(t));
     } catch (e) {
       specTags[specPath] = [];
     }
@@ -107,14 +138,83 @@ function listSpecDetails() {
   };
 }
 
-function projectsForSpec(spec) {
-  const content = fs.readFileSync(path.join(ROOT, spec), 'utf8');
-  if (!spec.startsWith('tests/e2e/')) return [];
-  const projects = ['Desktop Chrome'];
-  if (/@CompanySite\b/.test(content)) {
-    projects.push('Company Site Desktop Full HD', 'Company Site Desktop 2K');
+function loadPlaywrightConfig() {
+  try {
+    const configPath = path.join(ROOT, 'playwright.config.js');
+    if (!fs.existsSync(configPath)) return null;
+    delete require.cache[require.resolve(configPath)];
+    return require(configPath);
+  } catch (err) {
+    console.error('Lỗi khi đọc cấu hình playwright.config.js:', err.message);
+    return null;
   }
-  return projects;
+}
+
+function getPlaywrightProjects() {
+  const config = loadPlaywrightConfig();
+  if (!config || !Array.isArray(config.projects)) {
+    return ['all'];
+  }
+  const projectNames = config.projects
+    .map((p) => p.name)
+    .filter((name) => name && name !== 'setup');
+  return ['all', ...projectNames];
+}
+
+function matchGlobOrRegex(pattern, str) {
+  if (!pattern) return true;
+  if (pattern instanceof RegExp) return pattern.test(str);
+  if (typeof pattern === 'string') {
+    const segments = pattern.split('/').filter(Boolean).filter((p) => p !== '**' && p !== '*');
+    return segments.every((segment) => {
+      if (segment.endsWith('.spec.js')) return str.endsWith('.spec.js');
+      return str.includes(segment);
+    });
+  }
+  return true;
+}
+
+function projectsForSpec(spec) {
+  const fullPath = path.join(ROOT, spec);
+  if (!fs.existsSync(fullPath)) return [];
+  
+  const config = loadPlaywrightConfig();
+  if (!config || !Array.isArray(config.projects)) {
+    return [];
+  }
+
+  const content = fs.readFileSync(fullPath, 'utf8');
+  const specRel = spec.split(path.sep).join('/');
+  const specUnderTests = specRel.replace(/^tests\//, '');
+  const matchedProjects = [];
+
+  for (const proj of config.projects) {
+    if (!proj.name || proj.name === 'setup') continue;
+
+    // 1. Kiểm tra testMatch / testIgnore nếu có cấu hình trong project
+    if (proj.testMatch && !matchGlobOrRegex(proj.testMatch, specRel) && !matchGlobOrRegex(proj.testMatch, specUnderTests)) {
+      continue;
+    }
+    if (proj.testIgnore && (matchGlobOrRegex(proj.testIgnore, specRel) || matchGlobOrRegex(proj.testIgnore, specUnderTests))) {
+      continue;
+    }
+
+    // 2. Kiểm tra bộ lọc grep nếu project có khai báo grep
+    if (proj.grep) {
+      const grepRegex = proj.grep instanceof RegExp ? proj.grep : new RegExp(proj.grep);
+      if (!grepRegex.test(content)) continue;
+    }
+
+    // 3. Kiểm tra bộ lọc grepInvert nếu project có khai báo grepInvert
+    if (proj.grepInvert) {
+      const invertRegex = proj.grepInvert instanceof RegExp ? proj.grepInvert : new RegExp(proj.grepInvert);
+      if (invertRegex.test(content)) continue;
+    }
+
+    matchedProjects.push(proj.name);
+  }
+
+  return matchedProjects;
 }
 
 function specProjects() {
@@ -445,7 +545,7 @@ function validateOptions(input) {
     else throw new Error('Spec không hợp lệ.');
   }
 
-  if (!PROJECTS.includes(project)) throw new Error('Project không hợp lệ.');
+  if (!getPlaywrightProjects().includes(project)) throw new Error('Project không hợp lệ.');
   if (!environments.includes(environment)) throw new Error('Environment không hợp lệ.');
   if (!Number.isInteger(workers) || workers < 1 || workers > 8) throw new Error('Luồng chạy phải từ 1 đến 8.');
   if (grep.length > 80 || /[\r\n\0]/.test(grep)) throw new Error('Tag/grep không hợp lệ.');
@@ -554,10 +654,11 @@ async function sendDiscordRunReport(runData) {
   const vpWidth = runData.options?.viewport?.width || settings.runtime.viewport.width;
   const vpHeight = runData.options?.viewport?.height || settings.runtime.viewport.height;
 
+  const projectName = settings.branding?.projectName || 'Việc Làm 24h';
   const embed = {
     title: `${isPassed ? '✅' : isFailed ? '❌' : '⚠️'} Automation Test Run: ${suiteName}`,
     color,
-    description: `Kết quả thực thi tự động từ **CarThings Automation Dashboard**.`,
+    description: `Kết quả thực thi tự động từ **${projectName} Automation Dashboard**.`,
     fields: [
       { name: '📊 Kết quả', value: `\`${statusEmoji}\``, inline: true },
       { name: '⏱️ Thời lượng', value: `\`${durationSec}\``, inline: true },
@@ -567,14 +668,14 @@ async function sendDiscordRunReport(runData) {
       { name: '🏷️ Tag / Grep', value: `\`${runData.options?.grep || 'None'}\``, inline: true },
     ],
     footer: {
-      text: `CarThings Automation • ${new Date().toLocaleString('vi-VN')}`,
+      text: `${projectName} Automation • ${new Date().toLocaleString('vi-VN')}`,
     },
     timestamp: new Date().toISOString(),
   };
 
   const payload = {
-    username: 'CarThings QA Bot',
-    avatar_url: settings.branding?.logoUrl || 'https://dev.carthings.vn/icon.svg',
+    username: `${projectName} QA Bot`,
+    avatar_url: settings.branding?.logoUrl || '',
     embeds: [embed],
   };
 
@@ -666,7 +767,7 @@ const server = http.createServer(async (request, response) => {
     const settings = getDashboardConfig();
     const details = listSpecDetails();
     return sendJson(response, 200, {
-      projects: PROJECTS,
+      projects: getPlaywrightProjects(),
       environments: Object.keys(settings.environments),
       specs: details.specs || listSpecs(),
       specTags: details.specTags,

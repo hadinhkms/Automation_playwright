@@ -64,7 +64,99 @@
     "backgroundColor": "#FAFAFF",
     "fontSize": "15px"
   },
-  "suites": {},
+  "suites": {
+    "smoke-tests": {
+      "label": "Smoke Tests (Đăng ký nhanh)",
+      "project": "Desktop Smoke Tests",
+      "grep": "@smoke",
+      "workers": 2,
+      "viewport": {
+        "preset": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all"
+    },
+    "desktop-regression": {
+      "label": "Desktop Regression (Toàn bộ UI)",
+      "project": "Desktop Regression Tests",
+      "grep": "@e2e",
+      "workers": 2,
+      "viewport": {
+        "preset": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all"
+    },
+    "apply-job-flow": {
+      "label": "Ứng tuyển việc làm (@applyjob)",
+      "project": "Desktop Regression Tests",
+      "grep": "@applyjob",
+      "workers": 2,
+      "viewport": {
+        "preset": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all"
+    },
+    "user-profile-flow": {
+      "label": "Hồ sơ & CV (@profile)",
+      "project": "Desktop Regression Tests",
+      "grep": "@profile",
+      "workers": 2,
+      "viewport": {
+        "preset": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all"
+    },
+    "mobile-web-suite": {
+      "label": "Mobile Web Regression (Android / Chrome)",
+      "project": "Mobile Chrome Regression Tests",
+      "grep": "@mobile",
+      "workers": 2,
+      "viewport": {
+        "preset": "390x844",
+        "width": 390,
+        "height": 844
+      },
+      "spec": "all",
+      "specs": "all"
+    },
+    "mobile-safari-suite": {
+      "label": "Mobile Web Safari (iOS / WebKit)",
+      "project": "Mobile Safari Regression Tests",
+      "grep": "@mobile",
+      "workers": 2,
+      "viewport": {
+        "preset": "390x844",
+        "width": 390,
+        "height": 844
+      },
+      "spec": "all",
+      "specs": "all"
+    },
+    "api-suite": {
+      "label": "API Tests Suite (@api)",
+      "project": "API Tests",
+      "grep": "@api",
+      "workers": 1,
+      "viewport": {
+        "preset": "default",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all"
+    }
+  },
   "discord": {
     "webhookUrl": "",
     "channelName": "#qa-automation",

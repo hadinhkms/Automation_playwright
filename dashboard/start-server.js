@@ -3,7 +3,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const APP_NAME = process.env.DASHBOARD_APP_NAME || 'carthings';
+const APP_NAME = process.env.DASHBOARD_APP_NAME || 'vieclam24h';
 const STATE_PATH = path.join(ROOT, '.dashboard-server.json');
 const DEFAULT_PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
 const MAX_PORT_ATTEMPTS = 20;
@@ -40,58 +40,52 @@ async function stopRunningDashboard(port) {
   try {
     await fetch(`${dashboardUrl(port)}/api/shutdown`, {
       method: 'POST',
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(1500),
     });
   } catch {
-    return;
-  }
-
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    if (!(await isRunning(port))) return;
+    // Ignore shutdown request errors.
   }
 }
 
 function writeState(port) {
-  fs.writeFileSync(
-    STATE_PATH,
-    `${JSON.stringify({ appName: APP_NAME, workspaceRoot: ROOT, port }, null, 2)}\n`,
-    'utf8'
-  );
+  fs.writeFileSync(STATE_PATH, JSON.stringify({ port, updatedAt: new Date().toISOString() }, null, 2));
 }
 
-async function findDashboardPort() {
+async function findAvailablePort() {
   for (let offset = 0; offset < MAX_PORT_ATTEMPTS; offset += 1) {
     const port = DEFAULT_PORT + offset;
-    if (!(await isRunning(port))) {
-      return { port, status: 'available' };
+    const running = await isRunning(port);
+    if (!running) {
+      return { port, status: 'free' };
     }
 
     const health = await getHealth(port);
-    if (health?.workspaceRoot === ROOT && health?.appName === APP_NAME) {
+    if (health?.appName === APP_NAME && health?.workspaceRoot === ROOT) {
       return { port, status: 'same-dashboard' };
-    }
-
-    if (offset === 0) {
-      console.log(`Port ${port} đang được dashboard khác sử dụng, thử port kế tiếp...`);
     }
   }
 
-  throw new Error(`Không tìm được port trống từ ${DEFAULT_PORT} đến ${DEFAULT_PORT + MAX_PORT_ATTEMPTS - 1}.`);
+  return null;
 }
 
 async function start() {
-  const selected = await findDashboardPort();
+  const selected = await findAvailablePort();
+  if (!selected) {
+    process.exitCode = 1;
+    console.error(`Không tìm thấy port trống nào từ ${DEFAULT_PORT} đến ${DEFAULT_PORT + MAX_PORT_ATTEMPTS - 1}.`);
+    return;
+  }
+
   const url = dashboardUrl(selected.port);
 
   if (selected.status === 'same-dashboard') {
     if (await hasCurrentSettingsApi(selected.port)) {
       writeState(selected.port);
-      console.log(`CarThings dashboard đã chạy tại ${url}`);
+      console.log(`Việc Làm 24h dashboard đã chạy tại ${url}`);
       return;
     }
 
-    console.log(`CarThings dashboard tại ${url} đang chạy phiên bản cũ, đang khởi động lại...`);
+    console.log(`Việc Làm 24h dashboard tại ${url} đang chạy phiên bản cũ, đang khởi động lại...`);
     await stopRunningDashboard(selected.port);
   }
 
@@ -112,7 +106,7 @@ async function start() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     if (await isRunning(selected.port)) {
       writeState(selected.port);
-      console.log(`CarThings dashboard đang chạy ngầm tại ${url}`);
+      console.log(`Việc Làm 24h dashboard đang chạy ngầm tại ${url}`);
       console.log('Tắt bằng: npm run dashboard:stop');
       return;
     }

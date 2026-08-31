@@ -72,8 +72,7 @@
             <!-- Compact Suite Card with fixed dimensions -->
             <div id="suite-summary-box" class="suite-summary-box">
               <div class="suite-summary-meta">
-                <span><i class="ph-bold ph-globe"></i> <strong id="suite-sum-project">Tất cả nhóm</strong></span>
-                <span><i class="ph-bold ph-device-mobile"></i> <strong id="suite-sum-viewport">1920x1080</strong></span>
+                <span><i class="ph-bold ph-desktop"></i> <strong id="suite-sum-viewport">1920x1080</strong></span>
                 <span><i class="ph-bold ph-tag"></i> <strong id="suite-sum-grep">Không tag</strong></span>
                 <span><i class="ph-bold ph-cpu"></i> <strong id="suite-sum-workers">2 luồng</strong></span>
               </div>
@@ -86,9 +85,11 @@
 
           <!-- MANUAL MODE VIEW -->
           <div id="runner-manual-mode" class="runner-mode-panel" hidden>
-            <div class="inline-fields">
-              <label>Nhóm test<select id="project" name="project"></select></label>
-              <label class="workers">Luồng chạy<input id="workers" name="workers" type="number" min="1" max="8" value="2"></label>
+            <input type="hidden" id="project" name="project" value="all">
+            <div class="inline-fields" style="grid-template-columns: 1fr;">
+              <label class="workers" style="width: 100%;">Luồng chạy song song (Parallel Workers)
+                <input id="workers" name="workers" type="number" min="1" max="8" value="2">
+              </label>
             </div>
 
             <!-- Scope Mode Switcher for Manual Runner -->

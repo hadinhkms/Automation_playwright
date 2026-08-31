@@ -562,17 +562,18 @@ workerUserData: [<span class="kw">async</span> ({}, use, info) =&gt; {
       <header class="topline"><p class="eyebrow">Phạm vi</p><span class="chapter">13 / Test suites</span></header>
       <div class="content two-col">
         <div>
-          <h2>Tag biến repository thành các <span class="accent">bộ test có mục đích</span>.</h2>
-          <p class="lead" style="margin-top:24px">Cấu hình tại <code>playwright.config.js → projects</code>; các suite được tách để không chạy trùng test.</p>
+          <h2>Tag &amp; Project biến repository thành các <span class="accent">bộ test có mục đích</span>.</h2>
+          <p class="lead" style="margin-top:24px">Tách bạch phạm vi tại <code>playwright.config.js</code> &amp; Dashboard; không chạy trùng lặp test giữa các suite.</p>
         </div>
         <div class="stack">
-          <div class="stack-item"><strong>Smoke Tests · @smoke · 2 tests</strong><span>Hai luồng đăng ký cốt lõi, phản hồi nhanh sau deploy.</span></div>
-          <div class="stack-item"><strong>Regression Tests · @e2e − @smoke · 9 tests</strong><span>Các UI flow còn lại: onboarding, profile và apply job.</span></div>
-          <div class="stack-item"><strong>API Tests · @api · 2 tests</strong><span>Scenario API độc lập trong thư mục <code>tests/api</code>.</span></div>
-          <div class="stack-item"><strong>Full UI regression</strong><span>Chạy Smoke Tests + Regression Tests, không lặp test.</span></div>
+          <div class="stack-item"><strong>Desktop Smoke · @smoke · 2 tests</strong><span>Hai luồng đăng ký cốt lõi (Email / SĐT), phản hồi cực nhanh sau deploy.</span></div>
+          <div class="stack-item"><strong>Desktop Regression · @e2e − @smoke · 9 tests</strong><span>Bao phủ toàn bộ UI: Onboarding, Profile AI, Upload CV, Apply Job.</span></div>
+          <div class="stack-item"><strong>Mobile Web Suites · @mobile</strong><span>Mô phỏng đa nền tảng: Android (Pixel 7) và iOS (iPhone 13 / WebKit).</span></div>
+          <div class="stack-item"><strong>API Tests · @api</strong><span>Scenario API độc lập kiểm tra Auth / Registration không qua UI browser.</span></div>
+          <div class="stack-item"><strong>Custom Dashboard Suites</strong><span>Tùy biến bộ kịch bản linh hoạt theo Tag, Viewport hoặc từng File trên Dashboard.</span></div>
         </div>
       </div>
-      <footer class="footer"><span>npm run suite:smoke · npm run suite:regression · npm run suite:api</span><span>13</span></footer>
+      <footer class="footer"><span>npm run suite:smoke · npm run suite:regression · npm run suite:mobile · npm run suite:api</span><span>13</span></footer>
     </section>
 
     <section class="slide">
@@ -690,7 +691,33 @@ workerUserData: [<span class="kw">async</span> ({}, use, info) =&gt; {
     </section>
 
     <section class="slide">
-      <header class="topline"><p class="eyebrow">Tool Compare</p><span class="chapter">19 / Evidence review</span></header>
+      <header class="topline"><p class="eyebrow">Control Hub</p><span class="chapter">19 / Automation Dashboard</span></header>
+      <div class="content two-col">
+        <div>
+          <h2>Trung tâm điều khiển <span class="cyan">Web Dashboard</span> &amp; Báo cáo thời gian thực.</h2>
+          <div class="stack" style="margin-top:24px">
+            <div class="stack-item"><strong>1-Click Launch</strong><span>Chạy <code>Start_Dashboard.bat</code> để tự động tìm port trống, chạy server nền và mở trình duyệt.</span></div>
+            <div class="stack-item"><strong>Test Suites &amp; Tag Chips</strong><span>Chạy theo kịch bản tùy chỉnh, lọc nhanh theo tag (<code>@smoke</code>, <code>@register</code>) hoặc tích chọn từng file.</span></div>
+            <div class="stack-item"><strong>Real-time Log &amp; Discord Alerts</strong><span>Quan sát tiến trình qua SSE và tự động bắn thông báo kết quả qua Discord Webhook.</span></div>
+            <div class="stack-item"><strong>Artifacts &amp; Code Hub</strong><span>Duyệt Playwright reports, cây ảnh evidence theo worker, và chỉnh sửa test data trực quan.</span></div>
+          </div>
+          <a class="tool-link" href="http://127.0.0.1:4174" target="_blank" rel="noopener" style="margin-top:16px">Mở Automation Dashboard ↗</a>
+        </div>
+        <div>
+          <div class="compare-preview" aria-label="Minh họa Automation Dashboard features">
+            <div class="compare-pane"><small>Runtime &amp; Control</small><strong>▶ Chạy Test &amp; Suites</strong><span style="display:block;margin-top:8px;color:var(--cyan);font-size:13px">Live Console · SSE Stream · UI Mode</span></div>
+            <div class="compare-pane actual"><small>Integrations</small><strong>🤖 Discord &amp; Artifacts</strong><span style="display:block;margin-top:8px;color:var(--orange);font-size:13px">Auto Notification · Visual Compare · Backups</span></div>
+          </div>
+          <div class="compare-modes"><span>1-Click .bat</span><span>Suites</span><span>Tag Chips</span><span>Discord Bot</span><span>Branding</span><span>Code View</span></div>
+          <p style="color:var(--muted);font-size:15px">Gọn nhẹ bằng Node.js thuần và Vanilla JS/CSS — không cần cài đặt thêm frontend framework.</p>
+          <p style="color:var(--cyan);font-size:14px">Đóng mở an toàn qua <code>Start_Dashboard.bat</code> và <code>Stop_Dashboard.bat</code>.</p>
+        </div>
+      </div>
+      <footer class="footer"><span>http://127.0.0.1:4174 · Biến terminal thành Control Hub trực quan cho cả team</span><span>19</span></footer>
+    </section>
+
+    <section class="slide">
+      <header class="topline"><p class="eyebrow">Tool Compare</p><span class="chapter">20 / Evidence review</span></header>
       <div class="content two-col">
         <div>
           <h2><code class="cyan">visual_compare.html</code> biến output demo thành <span class="accent">phiên review trực quan</span>.</h2>
@@ -711,11 +738,11 @@ workerUserData: [<span class="kw">async</span> ({}, use, info) =&gt; {
           <p style="color:var(--orange);font-size:14px">Approve Baseline sẽ ghi Actual đè lên Expected sau khi người dùng xác nhận.</p>
         </div>
       </div>
-      <footer class="footer"><span>Tool chạy cục bộ bằng File System Access API · phù hợp Chrome/Edge</span><span>19</span></footer>
+      <footer class="footer"><span>Tool chạy cục bộ bằng File System Access API · phù hợp Chrome/Edge</span><span>20</span></footer>
     </section>
 
     <section class="slide">
-      <header class="topline"><p class="eyebrow">Kết luận</p><span class="chapter">20 / Takeaway</span></header>
+      <header class="topline"><p class="eyebrow">Kết luận</p><span class="chapter">21 / Takeaway</span></header>
       <div class="content two-col">
         <div>
           <h2>Framework tốt làm cho <span class="accent">thay đổi trở nên rẻ hơn</span>.</h2>
@@ -727,10 +754,10 @@ workerUserData: [<span class="kw">async</span> ({}, use, info) =&gt; {
             <div class="stack-item"><strong>Dễ bảo trì</strong><span>UI đổi không kéo theo việc sửa hàng loạt spec</span></div>
             <div class="stack-item"><strong>Dễ điều tra</strong><span>Report, evidence, trace và video tạo ngữ cảnh lỗi</span></div>
           </div>
-          <p style="margin:30px 0 0;color:var(--cyan);font-weight:700">Câu hỏi & thảo luận</p>
+          <p style="margin:30px 0 0;color:var(--cyan);font-weight:700">Câu hỏi &amp; thảo luận</p>
         </div>
       </div>
-      <footer class="footer"><span class="brand"><i class="brand-mark"></i><strong>Playwright Automation Framework</strong></span><span>20</span></footer>
+      <footer class="footer"><span class="brand"><i class="brand-mark"></i><strong>Playwright Automation Framework</strong></span><span>21</span></footer>
     </section>
   </main>
 

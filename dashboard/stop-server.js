@@ -37,9 +37,9 @@ async function stop() {
       fs.rmSync(STATE_PATH, { force: true });
     }
 
-    console.log(`Đã tắt CarThings dashboard tại ${url}`);
+    console.log(`Đã tắt Việc Làm 24h dashboard tại ${url}`);
   } catch {
-    console.log(`Không có CarThings dashboard đang chạy tại ${url}`);
+    console.log(`Không có Việc Làm 24h dashboard đang chạy tại ${url}`);
   }
 }
 
