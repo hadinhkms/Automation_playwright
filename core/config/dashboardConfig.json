@@ -56,105 +56,105 @@
     "autoCleanupReports": false
   },
   "branding": {
-    "projectName": "Vieclam24h",
-    "projectSubtitle": "AUTOMATION DASHBOARD",
-    "pageTitle": "Trung tâm điều khiển Playwright",
+    "projectName": "Vieclam24h Automation",
+    "projectSubtitle": "Siêu Việt Group • Playwright",
+    "pageTitle": "Vieclam24h Automation Dashboard",
     "logoUrl": "https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png",
     "primaryColor": "#451DA0",
-    "backgroundColor": "#FAFAFF",
-    "fontSize": "15px"
+    "backgroundColor": "",
+    "fontSize": "14px"
   },
   "suites": {
     "smoke-tests": {
       "label": "Smoke Tests (Đăng ký nhanh)",
-      "project": "Desktop Smoke Tests",
-      "grep": "@smoke",
-      "workers": 2,
+      "project": "all",
       "viewport": {
         "preset": "1920x1080",
         "width": 1920,
         "height": 1080
       },
       "spec": "all",
-      "specs": "all"
+      "specs": "all",
+      "grep": "@smoke",
+      "workers": 2
     },
     "desktop-regression": {
       "label": "Desktop Regression (Toàn bộ UI)",
-      "project": "Desktop Regression Tests",
-      "grep": "@e2e",
-      "workers": 2,
+      "project": "all",
       "viewport": {
         "preset": "1920x1080",
         "width": 1920,
         "height": 1080
       },
       "spec": "all",
-      "specs": "all"
+      "specs": "all",
+      "grep": "@e2e",
+      "workers": 2
     },
     "apply-job-flow": {
       "label": "Ứng tuyển việc làm (@applyjob)",
-      "project": "Desktop Regression Tests",
-      "grep": "@applyjob",
-      "workers": 2,
+      "project": "all",
       "viewport": {
         "preset": "1920x1080",
         "width": 1920,
         "height": 1080
       },
       "spec": "all",
-      "specs": "all"
+      "specs": "all",
+      "grep": "@applyjob",
+      "workers": 2
     },
     "user-profile-flow": {
       "label": "Hồ sơ & CV (@profile)",
-      "project": "Desktop Regression Tests",
-      "grep": "@profile",
-      "workers": 2,
+      "project": "all",
       "viewport": {
         "preset": "1920x1080",
         "width": 1920,
         "height": 1080
       },
       "spec": "all",
-      "specs": "all"
+      "specs": "all",
+      "grep": "@profile",
+      "workers": 2
     },
     "mobile-web-suite": {
       "label": "Mobile Web Regression (Android / Chrome)",
-      "project": "Mobile Chrome Regression Tests",
-      "grep": "@mobile",
-      "workers": 2,
+      "project": "all",
       "viewport": {
         "preset": "390x844",
         "width": 390,
         "height": 844
       },
       "spec": "all",
-      "specs": "all"
+      "specs": "all",
+      "grep": "@mobile",
+      "workers": 2
     },
     "mobile-safari-suite": {
       "label": "Mobile Web Safari (iOS / WebKit)",
-      "project": "Mobile Safari Regression Tests",
-      "grep": "@mobile",
-      "workers": 2,
+      "project": "all",
       "viewport": {
         "preset": "390x844",
         "width": 390,
         "height": 844
       },
       "spec": "all",
-      "specs": "all"
+      "specs": "all",
+      "grep": "@mobile",
+      "workers": 2
     },
     "api-suite": {
       "label": "API Tests Suite (@api)",
-      "project": "API Tests",
-      "grep": "@api",
-      "workers": 1,
+      "project": "all",
       "viewport": {
         "preset": "default",
         "width": 1920,
         "height": 1080
       },
       "spec": "all",
-      "specs": "all"
+      "specs": "all",
+      "grep": "@api",
+      "workers": 2
     }
   },
   "discord": {

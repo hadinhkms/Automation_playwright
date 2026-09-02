@@ -23,6 +23,37 @@ const VIDEO_OPTIONS = ['off', 'on', 'retain-on-failure', 'on-first-retry'];
 const DISCORD_BOT_DIR = path.resolve(ROOT, '../discord-qa-bot');
 const DISCORD_BOT_ENV_PATH = path.join(DISCORD_BOT_DIR, '.env');
 
+const { parsePlaywrightScript, scanPages } = require('../core/generator/recordParser');
+const { transformToPomAndSpec } = require('../core/generator/recordTransformer');
+const { saveDraftFiles } = require('../core/generator/recordWriter');
+const { sanitizeToIdentifier } = require('../core/generator/namingUtils');
+const { execSync } = require('child_process');
+
+const RECORDINGS_DIR = path.join(ROOT, '.tmp', 'recordings');
+let activeRecorder = null;
+
+function ensureRecordingsDir() {
+  if (!fs.existsSync(RECORDINGS_DIR)) {
+    fs.mkdirSync(RECORDINGS_DIR, { recursive: true });
+  }
+}
+
+function listRecentRecordings() {
+  ensureRecordingsDir();
+  return fs.readdirSync(RECORDINGS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
+    .map((entry) => {
+      const fullPath = path.join(RECORDINGS_DIR, entry.name);
+      return {
+        fileName: entry.name,
+        path: `.tmp/recordings/${entry.name}`,
+        size: fs.statSync(fullPath).size,
+        modifiedAt: new Date(fs.statSync(fullPath).mtimeMs).toISOString(),
+      };
+    })
+    .sort((a, b) => new Date(b.modifiedAt) - new Date(a.modifiedAt));
+}
+
 function parseEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return {};
   const content = fs.readFileSync(filePath, 'utf8');
@@ -801,18 +832,18 @@ const server = http.createServer(async (request, response) => {
       const testEmbed = {
         title: '🧪 Kiểm Tra Kết Nối Discord Webhook Thành Công!',
         color: 0x3b82f6,
-        description: 'CarThings Automation Dashboard đã kết nối thành công tới kênh Discord này.\nBạn sẽ nhận được thông báo tự động mỗi khi có lượt chạy test!',
+        description: 'Vieclam24h Automation Dashboard đã kết nối thành công tới kênh Discord này.\nBạn sẽ nhận được thông báo tự động mỗi khi có lượt chạy test!',
         fields: [
-          { name: '🖥️ Hệ thống', value: settings.branding?.projectName || 'CarThings Automation', inline: true },
+          { name: '🖥️ Hệ thống', value: settings.branding?.projectName || 'Vieclam24h Automation', inline: true },
           { name: '⏰ Thời gian', value: new Date().toLocaleString('vi-VN'), inline: true },
         ],
-        footer: { text: 'CarThings QA Automation Bot' },
+        footer: { text: 'Vieclam24h QA Automation Bot' },
         timestamp: new Date().toISOString(),
       };
 
       await sendDiscordWebhook(webhookUrl, {
-        username: 'CarThings QA Bot',
-        avatar_url: settings.branding?.logoUrl || 'https://dev.carthings.vn/icon.svg',
+        username: 'Vieclam24h QA Bot',
+        avatar_url: settings.branding?.logoUrl || 'https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png',
         embeds: [testEmbed],
       });
 
@@ -826,7 +857,13 @@ const server = http.createServer(async (request, response) => {
     const env = exists ? parseEnvFile(DISCORD_BOT_ENV_PATH) : {};
     let currentGitBranch = 'main';
     try {
-      currentGitBranch = require('child_process').execSync('git branch --show-current', { cwd: ROOT, stdio: 'pipe' }).toString().trim() || 'main';
+      const headPath = path.join(ROOT, '.git', 'HEAD');
+      if (fs.existsSync(headPath)) {
+        const headContent = fs.readFileSync(headPath, 'utf8').trim();
+        const branchMatch = headContent.match(/ref:\s+refs\/heads\/(.+)/);
+        if (branchMatch) currentGitBranch = branchMatch[1];
+        else currentGitBranch = headContent.slice(0, 7);
+      }
     } catch (e) {}
 
     return sendJson(response, 200, {
@@ -840,7 +877,7 @@ const server = http.createServer(async (request, response) => {
         githubToken: env.GITHUB_TOKEN ? `${env.GITHUB_TOKEN.slice(0, 12)}...${env.GITHUB_TOKEN.slice(-4)}` : '',
         hasGithubToken: Boolean(env.GITHUB_TOKEN),
         githubOwner: env.GITHUB_OWNER || 'hadinhkms',
-        githubRepo: env.GITHUB_REPO || 'Automation_Carthings',
+        githubRepo: env.GITHUB_REPO || 'Automation_playwright_SV',
         githubWorkflow: env.GITHUB_WORKFLOW || 'discord-run-playwright.yml',
         githubRef: env.GITHUB_REF || 'main',
       }
@@ -877,20 +914,20 @@ const server = http.createServer(async (request, response) => {
       }
 
       const testEmbed = {
-        username: 'CarThings QA Automation',
-        avatar_url: 'https://dev.carthings.vn/icon.svg',
+        username: 'Vieclam24h QA Automation',
+        avatar_url: 'https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png',
         embeds: [
           {
             title: '🔔 Thử Nghiệm Kết Nối Webhook Thành Công!',
-            description: `Kênh nhận thông báo: **${channelName}**\nCarThings Automation Dashboard đã kết nối thành công tới Discord Webhook.`,
+            description: `Kênh nhận thông báo: **${channelName}**\nVieclam24h Automation Dashboard đã kết nối thành công tới Discord Webhook.`,
             color: 0x22c55e,
             fields: [
               { name: 'Thời gian', value: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), inline: true },
               { name: 'Trạng thái', value: '🟢 Sẵn sàng gửi báo cáo', inline: true },
-              { name: 'Hệ thống', value: 'CarThings Playwright Automation', inline: false }
+              { name: 'Hệ thống', value: 'Vieclam24h Playwright Automation', inline: false }
             ],
             footer: {
-              text: 'CarThings QA Dashboard • Automated Notification'
+              text: 'Vieclam24h QA Dashboard • Automated Notification'
             }
           }
         ]
@@ -907,16 +944,16 @@ const server = http.createServer(async (request, response) => {
       const { execSync } = require('child_process');
       let currentBranch = 'main';
       try {
-        currentBranch = execSync('git branch --show-current', { cwd: ROOT, stdio: 'pipe' }).toString().trim() || 'main';
+        currentBranch = execSync('git branch --show-current', { cwd: ROOT, stdio: 'pipe', windowsHide: true }).toString().trim() || 'main';
       } catch (e) {}
 
-      execSync('git add .', { cwd: ROOT, stdio: 'pipe' });
+      execSync('git add .', { cwd: ROOT, stdio: 'pipe', windowsHide: true });
       try {
-        execSync('git commit -m "chore(dashboard): sync test suites and configs"', { cwd: ROOT, stdio: 'pipe' });
+        execSync('git commit -m "chore(dashboard): sync test suites and configs"', { cwd: ROOT, stdio: 'pipe', windowsHide: true });
       } catch (e) {
         // Không có thay đổi mới cũng không sao
       }
-      const pushLog = execSync(`git push origin ${currentBranch}`, { cwd: ROOT, stdio: 'pipe' }).toString();
+      const pushLog = execSync(`git push origin ${currentBranch}`, { cwd: ROOT, stdio: 'pipe', windowsHide: true }).toString();
       return sendJson(response, 200, {
         success: true,
         currentBranch,
@@ -1077,6 +1114,289 @@ const server = http.createServer(async (request, response) => {
     setImmediate(shutdown);
     return;
   }
+  // RECORDER API ENDPOINTS
+  if (request.method === 'POST' && url.pathname === '/api/recorder/start') {
+    if (activeRecorder) {
+      return sendJson(response, 409, { error: 'Đang có một phiên ghi UI đang chạy.' });
+    }
+    try {
+      const body = await parseBody(request);
+      const targetUrl = (body.url || '').trim() || 'https://seeker.vl24hv2.qc.sieuviet-team.com';
+      const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
+      const device = (body.device || '').trim();
+      const browser = (body.browser || 'chromium').trim();
+      const viewport = body.viewport || (platform === 'desktop' ? '1920,1080' : '390,844');
+      const loadStorage = (body.loadStorage || '').trim();
+      const testIdAttribute = (body.testIdAttribute || '').trim();
+
+      ensureRecordingsDir();
+      const fileName = `rec_${Date.now()}.js`;
+      const outputPath = path.join(RECORDINGS_DIR, fileName);
+
+      const args = [
+        'playwright',
+        'codegen',
+        targetUrl,
+        '--target=playwright-test',
+        `--output=${outputPath}`,
+      ];
+
+      if (browser && ['chromium', 'firefox', 'webkit', 'chrome'].includes(browser)) {
+        args.push(`--browser=${browser}`);
+      }
+      if (device) {
+        args.push(`--device=${device}`);
+      } else if (viewport) {
+        args.push(`--viewport-size=${viewport}`);
+      }
+      if (loadStorage && fs.existsSync(path.resolve(ROOT, loadStorage))) {
+        args.push(`--load-storage=${path.resolve(ROOT, loadStorage)}`);
+      }
+      if (testIdAttribute) {
+        args.push(`--test-id-attribute=${testIdAttribute}`);
+      }
+
+      const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
+        cwd: ROOT,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env },
+        shell: true,
+      });
+
+      activeRecorder = {
+        child,
+        url: targetUrl,
+        platform,
+        device,
+        browser,
+        fileName,
+        outputPath,
+        startTime: new Date().toISOString(),
+      };
+
+      publish('recorder_status', { isRecording: true, ...activeRecorder, child: undefined });
+
+      child.on('exit', (code) => {
+        const finishedRecorder = activeRecorder;
+        activeRecorder = null;
+        publish('recorder_status', {
+          isRecording: false,
+          code,
+          fileName: finishedRecorder?.fileName,
+          outputPath: finishedRecorder?.outputPath,
+        });
+      });
+
+      child.on('error', (err) => {
+        console.error('[Recorder Error]', err);
+        activeRecorder = null;
+        publish('recorder_status', { isRecording: false, error: err.message });
+      });
+
+      return sendJson(response, 200, {
+        message: 'Đã khởi chạy Playwright Codegen.',
+        fileName,
+        outputPath: `.tmp/recordings/${fileName}`,
+        url: targetUrl,
+      });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/recorder/stop') {
+    if (!activeRecorder) {
+      return sendJson(response, 400, { error: 'Không có phiên ghi nào đang chạy.' });
+    }
+    const current = activeRecorder;
+    try {
+      if (process.platform === 'win32' && current.child?.pid) {
+        try {
+          execSync(`taskkill /pid ${current.child.pid} /T /F`, { stdio: 'ignore' });
+        } catch (e) {}
+      } else if (current.child) {
+        current.child.kill('SIGTERM');
+      }
+    } catch (e) {}
+
+    activeRecorder = null;
+    publish('recorder_status', { isRecording: false, fileName: current.fileName });
+
+    await new Promise((r) => setTimeout(r, 400));
+
+    let rawScript = '';
+    if (fs.existsSync(current.outputPath)) {
+      rawScript = fs.readFileSync(current.outputPath, 'utf8');
+    }
+
+    const parsed = parsePlaywrightScript(rawScript);
+
+    return sendJson(response, 200, {
+      message: 'Đã dừng phiên ghi.',
+      fileName: current.fileName,
+      rawScript,
+      actionsCount: parsed.actionsCount,
+      actions: parsed.actions,
+      detectedUrl: parsed.detectedUrl || parsed.url,
+      scenarioName: parsed.scenarioName,
+      globalWarnings: parsed.globalWarnings || [],
+    });
+  }
+
+  if (request.method === 'GET' && (url.pathname === '/api/recorder/status' || url.pathname === '/api/recorder/state')) {
+    return sendJson(response, 200, {
+      isRecording: Boolean(activeRecorder),
+      activeRecorder: activeRecorder
+        ? {
+            url: activeRecorder.url,
+            platform: activeRecorder.platform,
+            device: activeRecorder.device,
+            browser: activeRecorder.browser,
+            fileName: activeRecorder.fileName,
+            startTime: activeRecorder.startTime,
+          }
+        : null,
+      recentRecordings: listRecentRecordings().slice(0, 15),
+    });
+  }
+
+  if (request.method === 'GET' && (url.pathname === '/api/recorder/file' || url.pathname === '/api/recorder/output')) {
+    const fileName = path.basename(url.searchParams.get('name') || url.searchParams.get('file') || '');
+    if (!fileName || !fileName.endsWith('.js')) {
+      return sendJson(response, 400, { error: 'Tên file record không hợp lệ.' });
+    }
+    const filePath = path.join(RECORDINGS_DIR, fileName);
+    if (!fs.existsSync(filePath)) {
+      return sendJson(response, 404, { error: 'Không tìm thấy file record.' });
+    }
+    const rawScript = fs.readFileSync(filePath, 'utf8');
+    const parsed = parsePlaywrightScript(rawScript);
+    return sendJson(response, 200, {
+      fileName,
+      rawScript,
+      actionsCount: parsed.actionsCount,
+      actions: parsed.actions,
+      detectedUrl: parsed.detectedUrl || parsed.url,
+      scenarioName: parsed.scenarioName,
+      globalWarnings: parsed.globalWarnings || [],
+    });
+  }
+
+  if ((request.method === 'POST' || request.method === 'DELETE') && url.pathname === '/api/recorder/delete') {
+    try {
+      const body = request.method === 'POST' ? await parseBody(request) : {};
+      const fileName = path.basename(body.fileName || url.searchParams.get('name') || url.searchParams.get('file') || '');
+      if (!fileName || !fileName.endsWith('.js')) {
+        return sendJson(response, 400, { error: 'Tên file bản ghi không hợp lệ.' });
+      }
+      const filePath = path.join(RECORDINGS_DIR, fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      return sendJson(response, 200, {
+        message: `Đã xóa bản ghi ${fileName}.`,
+        recentRecordings: listRecentRecordings().slice(0, 15),
+      });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/recorder/clear') {
+    try {
+      ensureRecordingsDir();
+      const files = fs.readdirSync(RECORDINGS_DIR).filter((f) => f.endsWith('.js'));
+      let deletedCount = 0;
+      files.forEach((f) => {
+        try {
+          fs.unlinkSync(path.join(RECORDINGS_DIR, f));
+          deletedCount++;
+        } catch (e) {}
+      });
+      return sendJson(response, 200, {
+        message: `Đã dọn dẹp ${deletedCount} bản ghi lịch sử.`,
+        recentRecordings: [],
+      });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/recorder/scan-pages') {
+    try {
+      const body = await parseBody(request);
+      const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
+      const pages = scanPages(platform, ROOT);
+      return sendJson(response, 200, { platform, pages });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && (url.pathname === '/api/recorder/convert' || url.pathname === '/api/recorder/generate-draft')) {
+    try {
+      const body = await parseBody(request);
+      const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
+      const rawScript = String(body.rawScript || '');
+      const parsed = parsePlaywrightScript(rawScript);
+      const actions = body.actions && Array.isArray(body.actions) && body.actions.length > 0 ? body.actions : parsed.actions;
+
+      const isNewPage = body.isNewPage !== false;
+      const pageClassName = body.pageClassName || 'CustomPage';
+      const methodName = body.methodName || 'performRecordedActions';
+      const featureName = (body.featureName || parsed.scenarioName || 'Recorded Feature').trim();
+      const testName = (body.testName || `Người dùng thực hiện ${featureName}`).trim();
+      const includeEvidence = body.includeEvidence !== false;
+
+      let existingContent = '';
+      let existingPagePath = '';
+
+      if (!isNewPage && body.existingPagePath) {
+        const resolved = path.resolve(ROOT, body.existingPagePath);
+        if (resolved.startsWith(path.join(ROOT, 'pages', platform)) && fs.existsSync(resolved)) {
+          existingContent = fs.readFileSync(resolved, 'utf8');
+          existingPagePath = path.relative(ROOT, resolved).split(path.sep).join('/');
+        }
+      }
+
+      const result = transformToPomAndSpec({
+        platform,
+        actions,
+        isNewPage,
+        pageClassName,
+        baseClass: 'BasePage',
+        existingPagePath,
+        existingContent,
+        methodName,
+        featureName,
+        testName,
+        includeEvidence,
+        url: parsed.detectedUrl || parsed.url || '',
+      });
+
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && (url.pathname === '/api/recorder/save-draft' || url.pathname === '/api/recorder/save')) {
+    try {
+      const body = await parseBody(request);
+      const { pomFile, specFile } = body;
+      const saveResult = saveDraftFiles({
+        ROOT,
+        pomFile,
+        specFile,
+        createBackupFn: createBackup,
+        execSyncFn: execSync,
+      });
+      return sendJson(response, 200, saveResult);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
   if (request.method === 'GET' && url.pathname === '/report/latest') {
     const report = newestReport();
     if (!report) return sendJson(response, 404, { error: 'Chưa có Playwright report.' });
@@ -1146,6 +1466,15 @@ tryListen(currentPort);
 
 function shutdown() {
   if (activeRun?.child) activeRun.child.kill('SIGTERM');
+  if (activeRecorder?.child) {
+    try {
+      if (process.platform === 'win32') {
+        execSync(`taskkill /pid ${activeRecorder.child.pid} /T /F`, { stdio: 'ignore' });
+      } else {
+        activeRecorder.child.kill('SIGTERM');
+      }
+    } catch (e) {}
+  }
   if (fs.existsSync(STATE_PATH)) {
     try { fs.rmSync(STATE_PATH, { force: true }); } catch (e) {}
   }

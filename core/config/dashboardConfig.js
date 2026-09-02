@@ -58,13 +58,13 @@ const DEFAULT_CONFIG = Object.freeze({
     autoCleanupReports: false,
   },
   branding: {
-    projectName: "CarThings Automation",
-    projectSubtitle: "Playwright Dashboard",
-    pageTitle: "CarThings Automation Dashboard",
-    logoUrl: "https://dev.carthings.vn/icon.svg",
-    primaryColor: "",
+    projectName: "Vieclam24h Automation",
+    projectSubtitle: "Siêu Việt Group • Playwright",
+    pageTitle: "Vieclam24h Automation Dashboard",
+    logoUrl: "https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png",
+    primaryColor: "#0A65CC",
     backgroundColor: "",
-    fontSize: ""
+    fontSize: "14px"
   },
   suites: {
     "smoke": {

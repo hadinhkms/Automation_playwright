@@ -84,10 +84,21 @@ function preferredTheme() {
 function applyTheme(theme) {
   const isLight = theme === 'light';
   document.documentElement.dataset.theme = theme;
-  $('#theme-button').setAttribute('aria-pressed', String(isLight));
-  $('.theme-icon').innerHTML = isLight ? '<i class="ph-fill ph-moon"></i>' : '<i class="ph-fill ph-sun"></i>';
-  $('#theme-label').textContent = isLight ? 'Tối' : 'Sáng';
+  const btn = $('#theme-button');
+  if (btn) btn.setAttribute('aria-pressed', String(isLight));
+  const icon = $('.theme-icon');
+  if (icon) icon.innerHTML = isLight ? '<i class="ph-fill ph-sun"></i>' : '<i class="ph-fill ph-moon"></i>';
+  const label = $('#theme-label');
+  if (label) label.textContent = isLight ? 'Sáng' : 'Tối';
 }
+
+$('#theme-button')?.addEventListener('click', () => {
+  const current = document.documentElement.dataset.theme || preferredTheme();
+  const nextTheme = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('playwright-dashboard-theme', nextTheme);
+  applyTheme(nextTheme);
+  notify(`Đã chuyển sang giao diện ${nextTheme === 'dark' ? 'Tối (Dark Mode)' : 'Sáng (Light Mode)'}`);
+});
 
 applyTheme(preferredTheme());
 
@@ -693,6 +704,16 @@ async function loadCodeFile(filePath) {
 }
 
 function highlightCode(content, isJson = false) {
+  if (!content) return '';
+  if (typeof Prism !== 'undefined' && Prism.languages) {
+    try {
+      const lang = isJson ? 'javascript' : 'javascript';
+      const grammar = Prism.languages[lang] || Prism.languages.javascript;
+      if (grammar) {
+        return Prism.highlight(content, grammar, lang);
+      }
+    } catch (e) {}
+  }
   const pattern = isJson
     ? /("(?:\\.|[^"\\])*")|\b(true|false|null)\b|(-?\b\d+(?:\.\d+)?\b)/g
     : /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|\b(const|let|var|class|extends|new|function|async|await|return|if|else|for|while|try|catch|throw|require|module|exports|this|super|import|from|export|default|true|false|null|undefined)\b|\b(\d+(?:\.\d+)?)\b/g;
@@ -1050,7 +1071,7 @@ function createSuiteCardElement(id, suite = {}) {
         <label>Chiều cao (px)<input type="number" data-field="viewport-height" value="${vpHeight}" min="320" max="4320"></label>
       </div>
       
-      <!-- SCOPE SELECTION SECTION -->
+      <!-- SCOPE SELECTION SECTION (Sleek Segmented Control) -->
       <div class="suite-scope-section wide">
         <label class="suite-section-label">Phạm vi bài test (Test Scope)
           <small>Chọn 1 trong 3 cách thức chỉ định bài test cho kịch bản này.</small>
@@ -1058,24 +1079,18 @@ function createSuiteCardElement(id, suite = {}) {
         <div class="suite-scope-modes">
           <label class="scope-mode-option ${currentScopeMode === 'all' ? 'active' : ''}">
             <input type="radio" name="scope-mode-${id}" value="all" ${currentScopeMode === 'all' ? 'checked' : ''}>
-            <div class="scope-mode-info">
-              <strong>🌐 Toàn bộ dự án</strong>
-              <small>Chạy tất cả các file test</small>
-            </div>
+            <i class="ph-bold ph-globe"></i>
+            <span>Toàn bộ dự án</span>
           </label>
           <label class="scope-mode-option ${currentScopeMode === 'grep' ? 'active' : ''}">
             <input type="radio" name="scope-mode-${id}" value="grep" ${currentScopeMode === 'grep' ? 'checked' : ''}>
-            <div class="scope-mode-info">
-              <strong>🏷️ Lọc theo Tag</strong>
-              <small>Ví dụ: @smoke, @regression</small>
-            </div>
+            <i class="ph-bold ph-tag"></i>
+            <span>Lọc theo Tag</span>
           </label>
           <label class="scope-mode-option ${currentScopeMode === 'custom' ? 'active' : ''}">
             <input type="radio" name="scope-mode-${id}" value="custom" ${currentScopeMode === 'custom' ? 'checked' : ''}>
-            <div class="scope-mode-info">
-              <strong>📑 Chọn từng File</strong>
-              <small>Tích chọn các file cụ thể</small>
-            </div>
+            <i class="ph-bold ph-files"></i>
+            <span>Chọn từng File</span>
           </label>
         </div>
 
@@ -1247,7 +1262,7 @@ function renderSettings(settings) {
     setInputValue('#settings-project-subtitle', settings.branding.projectSubtitle);
     setInputValue('#settings-page-title', settings.branding.pageTitle);
     setInputValue('#settings-logo-url', settings.branding.logoUrl);
-    setInputValue('#settings-primary-color', settings.branding.primaryColor || '#1A2B4C');
+    setInputValue('#settings-primary-color', settings.branding.primaryColor || '#0A65CC');
     setInputValue('#settings-background-color', settings.branding.backgroundColor || '');
     setInputValue('#settings-font-size', settings.branding.fontSize || '14px');
     if ($('#settings-primary-color-picker') && /^#[0-9A-Fa-f]{6}$/.test(settings.branding.primaryColor)) {
@@ -1256,16 +1271,27 @@ function renderSettings(settings) {
     if ($('#settings-background-color-picker') && /^#[0-9A-Fa-f]{6}$/.test(settings.branding.backgroundColor)) {
       $('#settings-background-color-picker').value = settings.branding.backgroundColor;
     }
+
+    if ($('#brand-name') && settings.branding.projectName) {
+      $('#brand-name').textContent = settings.branding.projectName;
+    }
+    if ($('#brand-subtitle') && settings.branding.projectSubtitle) {
+      $('#brand-subtitle').textContent = settings.branding.projectSubtitle;
+    }
+    if (settings.branding.pageTitle) {
+      document.title = settings.branding.pageTitle;
+    }
+
     updateBrandingPreview();
   }
 }
 
 function updateBrandingPreview() {
-  const name = $('#settings-project-name')?.value.trim() || 'CarThings Automation';
-  const subtitle = $('#settings-project-subtitle')?.value.trim() || 'Playwright Dashboard';
+  const name = $('#settings-project-name')?.value.trim() || 'Vieclam24h Automation';
+  const subtitle = $('#settings-project-subtitle')?.value.trim() || 'Siêu Việt Group • Playwright';
   const title = $('#settings-page-title')?.value.trim() || name;
   const logoUrl = $('#settings-logo-url')?.value.trim();
-  const primaryColor = $('#settings-primary-color')?.value.trim() || '#1A2B4C';
+  const primaryColor = $('#settings-primary-color')?.value.trim() || '#0A65CC';
   const backgroundColor = $('#settings-background-color')?.value.trim() || '';
   const fontSize = $('#settings-font-size')?.value.trim() || '14px';
   const preview = $('#mockup-window') || $('.branding-preview');
@@ -1581,6 +1607,7 @@ async function initialize() {
     const event = JSON.parse(data);
     if (event.type === 'log') appendLog(event.payload);
     if (event.type === 'status') renderRun(event.payload);
+    if (event.type === 'recorder_status') onRecorderStatusUpdate(event.payload);
   };
   events.onerror = () => notify('Mất kết nối tới dashboard server.');
 }
@@ -1647,6 +1674,16 @@ document.querySelectorAll('.settings-subtab').forEach((tab) => {
     if (envPanel) envPanel.hidden = !isGeneral;
     if (apiPanel) apiPanel.hidden = !isGeneral;
     if (artifactsPanel) artifactsPanel.hidden = !isGeneral;
+  });
+});
+
+document.querySelectorAll('.guide-nav-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const step = btn.dataset.guideStep;
+    document.querySelectorAll('.guide-nav-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.guide-pane').forEach((p) => {
+      p.classList.toggle('active', p.id === `guide-pane-${step}`);
+    });
   });
 });
 
@@ -1805,6 +1842,7 @@ document.querySelectorAll('.view-tab').forEach((button) => button.addEventListen
   if (button.dataset.view === 'resources-view') await openExplorer();
   if (button.dataset.view === 'code-view') await openCodeWorkspace();
   if (button.dataset.view === 'settings-view') await openSettings();
+  if (button.dataset.view === 'recorder-view') await openRecorderStudio();
 }));
 document.querySelectorAll('.resource-filter').forEach((button) => button.addEventListener('click', () => {
   activeResourceCategory = button.dataset.category;
@@ -1904,10 +1942,666 @@ document.querySelectorAll('.guide-nav-btn').forEach((btn) => {
   });
 });
 
-$('#theme-button').addEventListener('click', () => {
-  const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-  localStorage.setItem('playwright-dashboard-theme', theme);
-  applyTheme(theme);
+// ==========================================================================
+// RECORDER STUDIO CONTROLLER
+// ==========================================================================
+let recorderState = {
+  isRecording: false,
+  currentRawScript: '',
+  parsedActions: [],
+  availablePages: [],
+  draftPom: null,
+  draftSpec: null,
+  savedSpecPath: null,
+};
+
+async function openRecorderStudio() {
+  await Promise.all([
+    checkRecorderStatus(),
+    refreshPagesForPlatform(),
+  ]);
+}
+
+async function checkRecorderStatus() {
+  try {
+    const status = await request('/api/recorder/status');
+    onRecorderStatusUpdate(status);
+    if (status.recentRecordings) {
+      renderRecentRecordings(status.recentRecordings);
+    }
+  } catch (e) {}
+}
+
+function onRecorderStatusUpdate(status) {
+  recorderState.isRecording = Boolean(status.isRecording);
+  const badge = $('#recorder-badge');
+  const startBtn = $('#rec-start-btn');
+  const stopBtn = $('#rec-stop-btn');
+
+  if (recorderState.isRecording) {
+    if (badge) {
+      badge.className = 'rec-status-badge recording';
+      badge.innerHTML = '<i class="ph-fill ph-circle"></i> Đang ghi thao tác...';
+    }
+    if (startBtn) startBtn.disabled = true;
+    if (stopBtn) stopBtn.disabled = false;
+  } else {
+    if (badge) {
+      badge.className = 'rec-status-badge idle';
+      badge.innerHTML = '<i class="ph-fill ph-circle"></i> Sẵn sàng';
+    }
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.disabled = true;
+  }
+
+  if (status.recentRecordings) {
+    renderRecentRecordings(status.recentRecordings);
+  }
+}
+
+function renderRecentRecordings(recordings) {
+  const container = $('#recent-recordings-list');
+  if (!container) return;
+
+  if (!recordings || recordings.length === 0) {
+    container.innerHTML = '<small class="rec-empty-hint">Chưa có bản ghi nào.</small>';
+    return;
+  }
+
+  container.innerHTML = recordings.map((rec) => `
+    <div class="recent-rec-item" data-filename="${escapeHtml(rec.fileName)}">
+      <div class="rec-item-info">
+        <i class="ph-bold ph-file-js"></i>
+        <span class="rec-item-name">${escapeHtml(rec.fileName)}</span>
+      </div>
+      <div class="rec-item-meta">
+        <small class="rec-time">${new Date(rec.modifiedAt).toLocaleTimeString('vi-VN')}</small>
+        <button type="button" class="rec-delete-btn" data-filename="${escapeHtml(rec.fileName)}" title="Xóa bản ghi này">
+          <i class="ph-bold ph-trash"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.recent-rec-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.rec-delete-btn')) return;
+      loadRawRecordingFile(item.dataset.filename);
+    });
+  });
+
+  container.querySelectorAll('.rec-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const fileName = btn.dataset.filename;
+      if (!confirm(`Bạn có chắc chắn muốn xóa bản ghi "${fileName}" không?`)) return;
+
+      try {
+        const result = await request('/api/recorder/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName }),
+        });
+        notify(result.message || `Đã xóa bản ghi ${fileName}`);
+        renderRecentRecordings(result.recentRecordings || []);
+      } catch (error) {
+        notify(`Xóa bản ghi thất bại: ${error.message}`);
+      }
+    });
+  });
+}
+
+$('#rec-clear-all-btn')?.addEventListener('click', async () => {
+  if (!confirm('Bạn có chắc chắn muốn xóa TẤT CẢ các bản ghi thô trong lịch sử không?')) return;
+
+  try {
+    const result = await request('/api/recorder/clear', { method: 'POST' });
+    notify(result.message || 'Đã dọn dẹp toàn bộ lịch sử ghi.');
+    renderRecentRecordings([]);
+  } catch (error) {
+    notify(`Dọn dẹp lịch sử thất bại: ${error.message}`);
+  }
+});
+
+async function loadRawRecordingFile(fileName) {
+  try {
+    const result = await request(`/api/recorder/file?name=${encodeURIComponent(fileName)}`);
+    setRawScriptContent(result.rawScript, result.actions, result.actionsCount, result.detectedUrl, result.globalWarnings || []);
+    notify(`Đã nạp bản ghi ${fileName}`);
+  } catch (error) {
+    notify(`Không thể đọc bản ghi: ${error.message}`);
+  }
+}
+
+// ==========================================================================
+// SYNTAX HIGHLIGHTING & STEPPER WIZARD ENGINE
+// ==========================================================================
+
+function highlightJavaScript(code) {
+  if (!code) return '<div class="code-line"><span class="line-num">1</span><span class="tok-comment">// Chưa có mã nguồn Playwright...</span></div>';
+  
+  let formattedHtml = '';
+  if (typeof Prism !== 'undefined' && Prism.languages && Prism.languages.javascript) {
+    try {
+      formattedHtml = Prism.highlight(code, Prism.languages.javascript, 'javascript');
+    } catch (e) {
+      formattedHtml = escapeHtml(code);
+    }
+  } else {
+    formattedHtml = escapeHtml(code);
+  }
+
+  const lines = formattedHtml.split('\n');
+  return lines.map((line, idx) => `
+    <div class="code-line">
+      <span class="line-num">${idx + 1}</span>
+      <span class="code-content">${line || '&nbsp;'}</span>
+    </div>
+  `).join('');
+}
+
+let currentRecorderStep = 1;
+let maxUnlockedRecorderStep = 1;
+
+function setRecorderStep(step) {
+  currentRecorderStep = step;
+  if (step > maxUnlockedRecorderStep) maxUnlockedRecorderStep = step;
+
+  // Update Stepper Bar buttons
+  document.querySelectorAll('.recorder-stepper-bar .stepper-step').forEach((btn) => {
+    const s = Number(btn.dataset.step);
+    btn.classList.toggle('active', s === step);
+    btn.classList.toggle('completed', s < step);
+    btn.disabled = s > maxUnlockedRecorderStep;
+  });
+
+  // Update step subtext
+  if (recorderState.currentRawScript && $('#step1-status-text')) {
+    $('#step1-status-text').textContent = `Đã ghi ${recorderState.parsedActions?.length || 0} thao tác`;
+  }
+  if (recorderState.draftPom && $('#step2-status-text')) {
+    $('#step2-status-text').textContent = `Đã map: ${recorderState.draftPom.relativePath.split('/').pop()}`;
+  }
+
+  // Switch visible Panes
+  document.querySelectorAll('.rec-step-pane').forEach((pane) => {
+    pane.style.display = 'none';
+  });
+  const targetPane = $(`#rec-step-pane-${step}`);
+  if (targetPane) {
+    targetPane.style.display = 'block';
+  }
+}
+
+function renderWarnings(warnings = []) {
+  const box = $('#rec-warnings-box');
+  const list = $('#rec-warnings-list');
+  const countEl = $('#rec-warnings-count');
+  if (!box || !list) return;
+
+  if (!warnings || warnings.length === 0) {
+    box.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  box.style.display = 'flex';
+  if (countEl) countEl.textContent = String(warnings.length);
+  list.innerHTML = warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('');
+}
+
+function setRawScriptContent(rawScript, actions = [], actionsCount = 0, detectedUrl = '', warnings = []) {
+  recorderState.currentRawScript = rawScript || '';
+  recorderState.parsedActions = actions || [];
+  recorderState.warnings = warnings || [];
+  
+  const rawCodeEl = $('#rec-raw-code-highlighted');
+  if (rawCodeEl) {
+    rawCodeEl.innerHTML = highlightJavaScript(rawScript || '// Không có mã thô.');
+  }
+  const countEl = $('#rec-actions-count');
+  if (countEl) {
+    countEl.textContent = String(actionsCount || actions.length || 0);
+  }
+
+  renderWarnings(warnings);
+
+  if (detectedUrl && !$('#rec-feature-name')?.value) {
+    try {
+      const parsedPath = new URL(detectedUrl).pathname.replace(/^\/|\/$/g, '');
+      if (parsedPath) {
+        const featName = parsedPath.replace(/[^a-zA-Z0-9_-]/g, '_');
+        if ($('#rec-feature-name')) $('#rec-feature-name').value = featName;
+        if ($('#rec-method-name')) $('#rec-method-name').value = `perform${featName.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('')}`;
+      }
+    } catch (e) {}
+  }
+
+  // Tự động chuyển sang Bước 2 khi có mã thô
+  if (rawScript && rawScript.trim().length > 15) {
+    setRecorderStep(2);
+  }
+}
+
+async function refreshPagesForPlatform() {
+  const platform = $('#rec-platform')?.value || 'desktop';
+  try {
+    const result = await request('/api/recorder/scan-pages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platform }),
+    });
+    recorderState.availablePages = result.pages || [];
+    renderPagesDropdown(recorderState.availablePages);
+  } catch (error) {
+    notify(`Lỗi quét Page Objects: ${error.message}`);
+  }
+}
+
+function renderPagesDropdown(pages) {
+  const select = $('#rec-existing-page-select');
+  if (!select) return;
+
+  if (pages.length === 0) {
+    select.innerHTML = '<option value="">(Không tìm thấy Page Object nào)</option>';
+    renderExistingMethodsHint(null);
+    return;
+  }
+
+  select.innerHTML = pages.map((p) => `
+    <option value="${escapeHtml(p.relativePath)}" data-class="${escapeHtml(p.className)}">
+      ${escapeHtml(p.className)} (${escapeHtml(p.fileName)} - ${p.methods.length} methods)
+    </option>
+  `).join('');
+
+  renderExistingMethodsHint(pages[0]);
+}
+
+function renderExistingMethodsHint(page) {
+  const hintEl = $('#rec-existing-methods-hint');
+  if (!hintEl) return;
+  if (!page || !page.methods || page.methods.length === 0) {
+    hintEl.innerHTML = '<div class="methods-empty-hint"><i class="ph ph-info"></i> Chưa có method nào trong Page Object này.</div>';
+    return;
+  }
+  hintEl.innerHTML = `
+    <div class="methods-hint-header">
+      <span><i class="ph-bold ph-function"></i> <strong>${page.methods.length} methods</strong> trong <code>${escapeHtml(page.className)}</code>:</span>
+      <small>Click để tự điền tên</small>
+    </div>
+    <div class="methods-chips-wrap">
+      ${page.methods.map((m) => `
+        <button type="button" class="method-chip-btn" data-method="${escapeHtml(m.name)}" title="Click để điền tên method">
+          <i class="ph ph-lightning"></i> ${escapeHtml(m.name)}()
+        </button>
+      `).join('')}
+    </div>
+  `;
+
+  hintEl.querySelectorAll('.method-chip-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const methodName = btn.dataset.method;
+      if ($('#rec-method-name')) {
+        $('#rec-method-name').value = methodName;
+        $('#rec-method-name').focus();
+        notify(`Đã gợi ý tên method: ${methodName}`);
+      }
+    });
+  });
+}
+
+// RECORDER UI EVENT HANDLERS
+document.querySelectorAll('.recorder-stepper-bar .stepper-step').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const targetStep = Number(btn.dataset.step);
+    if (targetStep <= maxUnlockedRecorderStep) {
+      setRecorderStep(targetStep);
+    }
+  });
+});
+
+$('#step2-back-btn')?.addEventListener('click', () => setRecorderStep(1));
+$('#step3-back-btn')?.addEventListener('click', () => setRecorderStep(2));
+
+$('#rec-platform')?.addEventListener('change', (e) => {
+  const isMobile = e.target.value === 'mobile-web';
+  const deviceWrapper = $('#rec-device-wrapper');
+  if (deviceWrapper) deviceWrapper.style.display = isMobile ? 'block' : 'none';
+  refreshPagesForPlatform();
+});
+
+document.querySelectorAll('input[name="rec-pom-mode"]').forEach((radio) => {
+  radio.addEventListener('change', () => {
+    document.querySelectorAll('.pom-mode-card').forEach((card) => {
+      const cardRadio = card.querySelector('input[type="radio"]');
+      card.classList.toggle('active', cardRadio && cardRadio.checked);
+    });
+    const isExisting = radio.value === 'existing';
+    const existingBox = $('#rec-existing-page-box');
+    const newBox = $('#rec-new-page-box');
+    const guideText = $('#rec-mode-guide-text');
+
+    if (existingBox) existingBox.style.display = isExisting ? 'block' : 'none';
+    if (newBox) newBox.style.display = isExisting ? 'none' : 'block';
+    if (guideText) {
+      guideText.textContent = isExisting
+        ? 'Hệ thống sẽ giữ nguyên code hiện tại, tự động thêm các locator mới vào constructor và chèn 1 method mới vào class đã chọn.'
+        : 'Hệ thống sẽ sinh file Page Object mới kế thừa BasePage, khai báo constructor chuẩn và các method thao tác.';
+    }
+  });
+});
+
+$('#rec-existing-page-select')?.addEventListener('change', (e) => {
+  const selectedPath = e.target.value;
+  const page = recorderState.availablePages.find((p) => p.relativePath === selectedPath);
+  renderExistingMethodsHint(page);
+});
+
+$('#rec-refresh-list-btn')?.addEventListener('click', async () => {
+  await checkRecorderStatus();
+  notify('Đã làm mới danh sách bản ghi.');
+});
+
+$('#rec-copy-raw-btn')?.addEventListener('click', () => {
+  if (!recorderState.currentRawScript) {
+    notify('Chưa có mã thô để sao chép.');
+    return;
+  }
+  navigator.clipboard.writeText(recorderState.currentRawScript);
+  notify('Đã sao chép mã thô vào Clipboard!');
+});
+
+$('#rec-start-btn')?.addEventListener('click', async () => {
+  const url = $('#rec-url')?.value.trim() || 'https://dev.carthings.vn';
+  const platform = $('#rec-platform')?.value || 'desktop';
+  const device = platform === 'mobile-web' ? $('#rec-device')?.value : '';
+  const startBtn = $('#rec-start-btn');
+
+  startBtn.disabled = true;
+  startBtn.innerHTML = '<i class="ph ph-spinner-gap"></i> Đang mở...';
+
+  try {
+    const result = await request('/api/recorder/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, platform, device }),
+    });
+    notify(result.message || 'Playwright Codegen đang chạy. Thao tác trên trình duyệt rồi đóng hoặc bấm Dừng.');
+    onRecorderStatusUpdate({ isRecording: true });
+  } catch (error) {
+    notify(`Không thể bắt đầu ghi: ${error.message}`);
+    onRecorderStatusUpdate({ isRecording: false });
+  } finally {
+    startBtn.innerHTML = '<i class="ph-fill ph-record"></i> Bắt đầu ghi (Codegen)';
+  }
+});
+
+$('#rec-stop-btn')?.addEventListener('click', async () => {
+  const stopBtn = $('#rec-stop-btn');
+  stopBtn.disabled = true;
+  stopBtn.innerHTML = '<i class="ph ph-spinner-gap"></i> Đang đọc mã...';
+
+  try {
+    const result = await request('/api/recorder/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    setRawScriptContent(result.rawScript, result.actions, result.actionsCount, result.detectedUrl);
+    notify(`Đã dừng ghi. Đã bắt được ${result.actionsCount || 0} hành động! Tự động chuyển sang Bước 2.`);
+    await checkRecorderStatus();
+  } catch (error) {
+    notify(`Lỗi khi dừng ghi: ${error.message}`);
+  } finally {
+    stopBtn.innerHTML = '<i class="ph-fill ph-stop"></i> Dừng ghi & Lấy mã';
+    stopBtn.disabled = true;
+  }
+});
+
+$('#rec-convert-btn')?.addEventListener('click', async () => {
+  if (!recorderState.currentRawScript) {
+    notify('Vui lòng thực hiện ghi thao tác hoặc chọn một bản ghi trước khi chuyển đổi.');
+    return;
+  }
+
+  const platform = $('#rec-platform')?.value || 'desktop';
+  let isNewPage = true;
+  document.querySelectorAll('input[name="rec-pom-mode"]').forEach((r) => {
+    if (r.checked) isNewPage = r.value === 'new';
+  });
+
+  let pageClassName = '';
+  let existingPagePath = '';
+
+  if (isNewPage) {
+    pageClassName = $('#rec-new-page-name')?.value.trim() || 'CustomPage';
+  } else {
+    const selectedOpt = $('#rec-existing-page-select')?.selectedOptions?.[0];
+    existingPagePath = selectedOpt?.value || '';
+    pageClassName = selectedOpt?.dataset.class || 'CustomPage';
+  }
+
+  const methodName = $('#rec-method-name')?.value.trim() || 'performRecordedActions';
+  const featureName = $('#rec-feature-name')?.value.trim() || 'Recorded Feature';
+  const testName = `Người dùng thực hiện ${featureName}`;
+  const includeEvidence = $('#rec-include-evidence')?.checked === true;
+
+  const convertBtn = $('#rec-convert-btn');
+  convertBtn.disabled = true;
+  convertBtn.innerHTML = '<i class="ph ph-spinner-gap"></i> Đang phân tích & chuyển đổi...';
+
+  try {
+    const result = await request('/api/recorder/convert', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform,
+        isNewPage,
+        pageClassName,
+        existingPagePath,
+        methodName,
+        featureName,
+        testName,
+        rawScript: recorderState.currentRawScript,
+        actions: recorderState.parsedActions,
+        includeEvidence,
+      }),
+    });
+
+    recorderState.draftPom = result.pomDraft;
+    recorderState.draftSpec = result.specDraft;
+    recorderState.warnings = result.warnings || [];
+
+    $('#draft-pom-path').textContent = result.pomDraft.relativePath;
+    $('#draft-pom-editor').value = result.pomDraft.content;
+    const pomCodeEl = $('#draft-pom-code');
+    if (pomCodeEl) pomCodeEl.innerHTML = highlightCode(result.pomDraft.content) + '\n';
+    $('#draft-pom-tab-title').textContent = result.pomDraft.relativePath.split('/').pop();
+
+    $('#draft-spec-path').textContent = result.specDraft.relativePath;
+    $('#draft-spec-editor').value = result.specDraft.content;
+    const specCodeEl = $('#draft-spec-code');
+    if (specCodeEl) specCodeEl.innerHTML = highlightCode(result.specDraft.content) + '\n';
+    $('#draft-spec-tab-title').textContent = result.specDraft.relativePath.split('/').pop();
+
+    renderWarnings(result.warnings);
+
+    $('#rec-save-btn').disabled = false;
+    $('#rec-run-spec-btn').style.display = 'none';
+
+    const guardBox = $('#rec-guard-status');
+    if (guardBox) {
+      guardBox.style.display = 'flex';
+      guardBox.className = 'guard-status-box';
+      $('#rec-guard-title').textContent = 'Framework Guard: Sẵn sàng kiểm tra';
+      $('#rec-guard-desc').innerHTML = 'Mã draft đã được chuẩn hóa. Nhấn <b>"Lưu vào Framework"</b> để ghi file an toàn (Sandbox + Backup) và chạy kiểm tra tự động.';
+    }
+
+    // Tự động chuyển sang Bước 3
+    setRecorderStep(3);
+    notify('Đã chuyển đổi thành công sang Page Object & Spec BDD! Chuyển sang Bước 3.');
+  } catch (error) {
+    notify(`Lỗi chuyển đổi: ${error.message}`);
+  } finally {
+    convertBtn.disabled = false;
+    convertBtn.innerHTML = '<i class="ph-bold ph-magic-wand"></i> Chuyển đổi & Sang Bước 3 <i class="ph ph-arrow-right"></i>';
+  }
+});
+
+// Live Syntax Highlighting & Sync for Step 3 Editors
+$('#draft-pom-editor')?.addEventListener('input', () => {
+  const code = $('#draft-pom-editor').value;
+  const pomCodeEl = $('#draft-pom-code');
+  if (pomCodeEl) pomCodeEl.innerHTML = highlightCode(code) + '\n';
+});
+$('#draft-pom-editor')?.addEventListener('scroll', () => {
+  const preview = $('#draft-pom-preview');
+  const editor = $('#draft-pom-editor');
+  if (preview && editor) {
+    preview.scrollTop = editor.scrollTop;
+    preview.scrollLeft = editor.scrollLeft;
+  }
+});
+
+$('#draft-spec-editor')?.addEventListener('input', () => {
+  const code = $('#draft-spec-editor').value;
+  const specCodeEl = $('#draft-spec-code');
+  if (specCodeEl) specCodeEl.innerHTML = highlightCode(code) + '\n';
+});
+$('#draft-spec-editor')?.addEventListener('scroll', () => {
+  const preview = $('#draft-spec-preview');
+  const editor = $('#draft-spec-editor');
+  if (preview && editor) {
+    preview.scrollTop = editor.scrollTop;
+    preview.scrollLeft = editor.scrollLeft;
+  }
+});
+
+$('#draft-format-btn')?.addEventListener('click', () => {
+  const activeTab = document.querySelector('.code-draft-tab.active')?.dataset.draft;
+  if (activeTab === 'pom' && recorderState.draftPom) {
+    $('#draft-pom-editor').value = recorderState.draftPom.content;
+    const pomCodeEl = $('#draft-pom-code');
+    if (pomCodeEl) pomCodeEl.innerHTML = highlightCode(recorderState.draftPom.content) + '\n';
+    notify('Đã khôi phục mã Page Object gốc.');
+  } else if (activeTab === 'spec' && recorderState.draftSpec) {
+    $('#draft-spec-editor').value = recorderState.draftSpec.content;
+    const specCodeEl = $('#draft-spec-code');
+    if (specCodeEl) specCodeEl.innerHTML = highlightCode(recorderState.draftSpec.content) + '\n';
+    notify('Đã khôi phục mã BDD Spec gốc.');
+  }
+});
+
+$('#draft-copy-btn')?.addEventListener('click', () => {
+  let activeCode = '';
+  const activeTab = document.querySelector('.code-draft-tab.active')?.dataset.draft;
+  if (activeTab === 'pom') {
+    activeCode = $('#draft-pom-editor')?.value || '';
+  } else {
+    activeCode = $('#draft-spec-editor')?.value || '';
+  }
+  if (!activeCode) {
+    notify('Chưa có mã để sao chép.');
+    return;
+  }
+  navigator.clipboard.writeText(activeCode);
+  notify('Đã sao chép mã nguồn vào Clipboard!');
+});
+
+document.querySelectorAll('.code-draft-tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    const draftType = tab.dataset.draft;
+    document.querySelectorAll('.code-draft-tab').forEach((t) => t.classList.toggle('active', t === tab));
+    const pomPane = $('#draft-pom-pane');
+    const specPane = $('#draft-spec-pane');
+    if (pomPane) pomPane.style.display = draftType === 'pom' ? 'flex' : 'none';
+    if (specPane) specPane.style.display = draftType === 'spec' ? 'flex' : 'none';
+  });
+});
+
+$('#rec-save-btn')?.addEventListener('click', async () => {
+  const pomPath = $('#draft-pom-path')?.textContent;
+  const pomContent = $('#draft-pom-editor')?.value;
+  const specPath = $('#draft-spec-path')?.textContent;
+  const specContent = $('#draft-spec-editor')?.value;
+
+  if (!pomPath || !pomContent || !specPath || !specContent) {
+    notify('Thiếu thông tin mã draft để lưu.');
+    return;
+  }
+
+  const saveBtn = $('#rec-save-btn');
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<i class="ph ph-spinner-gap"></i> Đang sao lưu & ghi file...';
+
+  try {
+    const result = await request('/api/recorder/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pomFile: { path: pomPath, content: pomContent },
+        specFile: { path: specPath, content: specContent },
+      }),
+    });
+
+    recorderState.savedSpecPath = specPath;
+
+    const guardBox = $('#rec-guard-status');
+    const guardTitle = $('#rec-guard-title');
+    const guardDesc = $('#rec-guard-desc');
+    const runBtn = $('#rec-run-spec-btn');
+
+    if (result.frameworkCheck?.passed) {
+      if (guardBox) guardBox.className = 'guard-status-box passed';
+      if (guardTitle) guardTitle.textContent = '✅ Framework Guard: Đạt chuẩn 100%';
+      if (guardDesc) guardDesc.textContent = result.frameworkCheck.output || 'Tất cả quy tắc kiến trúc POM, BDD và no-direct-locator đều thỏa mãn.';
+      if (runBtn) {
+        runBtn.style.display = 'inline-flex';
+        runBtn.textContent = `🚀 Chạy thử ${specPath.split('/').pop()} ngay`;
+      }
+      notify(`Đã lưu thành công! (Tự động Backup vào ${result.backups?.length || 0} bản)`);
+    } else {
+      if (guardBox) guardBox.className = 'guard-status-box failed';
+      if (guardTitle) guardTitle.textContent = '⚠️ Framework Guard: Có vi phạm cấu trúc';
+      if (guardDesc) guardDesc.textContent = result.frameworkCheck.output;
+      notify('File đã được lưu nhưng có vi phạm quy tắc framework. Vui lòng kiểm tra lại!');
+    }
+
+    await refreshPagesForPlatform();
+  } catch (error) {
+    notify(`Lưu thất bại: ${error.message}`);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Lưu vào Framework (Tự động Backup & Check)';
+  }
+});
+
+$('#rec-run-spec-btn')?.addEventListener('click', async () => {
+  if (!recorderState.savedSpecPath) return;
+
+  const runnerTab = document.querySelector('.view-tab[data-view="runner-view"]');
+  if (runnerTab) runnerTab.click();
+
+  setRunnerMode('manual');
+  const scopeFileBtn = document.querySelector('.runner-scope-tab-btn[data-manual-scope="file"]');
+  if (scopeFileBtn) scopeFileBtn.click();
+
+  const config = await request('/api/config');
+  testCatalog = {
+    specs: config.specs,
+    specTags: config.specTags || {},
+    availableTags: config.availableTags || [],
+    specProjects: config.specProjects || {},
+    projects: config.projects || [],
+  };
+  refreshSpecOptions();
+
+  if ($('#spec')) {
+    $('#spec').value = recorderState.savedSpecPath;
+    updateWorkersForSpec();
+  }
+
+  notify(`Đã nạp file ${recorderState.savedSpecPath} vào Runner. Nhấn "Chạy test" để bắt đầu!`);
 });
 
 initialize();
