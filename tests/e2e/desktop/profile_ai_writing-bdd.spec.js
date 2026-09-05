@@ -10,8 +10,7 @@ test.describe('Feature: Dùng trợ lý AI để hoàn thiện hồ sơ @profile
     test.slow();
     test.setTimeout(600000);
 
-    await test.step('Given Người dùng đã đăng nhập và đang ở trang Hồ sơ của tôi', async () => {
-      // authenticatedUser fixture đã hoàn tất precondition đăng nhập.
+    await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang Hồ sơ', async () => {
       await onboardingPopup.closeIfVisible(undefined, {
         modalTimeout: 15000,
         closeBtnTimeout: 5000,
@@ -19,10 +18,10 @@ test.describe('Feature: Dùng trợ lý AI để hoàn thiện hồ sơ @profile
         modalDetachedTimeout: 10000,
       });
       await userProfilePage.navigateToMyProfile();
+      await userProfilePage.capture('precondition_my_profile_opened');
     });
 
     await test.step('When Người dùng viết lại phần giới thiệu theo giọng chuyên nghiệp rồi thuyết phục', async () => {
-      await userProfilePage.capture('profile_page_opened',true);
       await userProfilePage.clickAddIntroduction();
       await userProfilePage.capture('introduction_popup_opened');
       await userProfilePage.rewriteIntroductionWithAi(

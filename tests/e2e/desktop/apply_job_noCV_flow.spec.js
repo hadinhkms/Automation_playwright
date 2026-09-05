@@ -15,17 +15,19 @@ test.describe('Feature: Hoàn thành profile mini và ứng tuyển job không c
     test.setTimeout(600000);
 
     let jobApplyNoCVPage;
-    await test.step('Given Người dùng đã truy cập trang chủ và đăng nhập bằng thông tin từ authSetup', async () => {
-      // authenticatedUser fixture đã hoàn tất precondition đăng nhập.
-    });
-
-    await test.step('And Người dùng thấy popup Onboarding và đóng popup này', async () => {
+    await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang chủ', async () => {
       await onboardingPopup.closeIfVisible(undefined, {
         modalTimeout: 15000,
         closeBtnTimeout: 5000,
         modalHiddenTimeout: 10000,
         modalDetachedTimeout: 10000,
       });
+      await homePage.expectHomepageVisible();
+      await homePage.capture('precondition_logged_in_state');
+    });
+
+    await test.step('And Người dùng đảm bảo các modal chặn màn hình đã được đóng', async () => {
+      await homePage.closeBlockingModalIfVisible();
     });
 
     await test.step('When Người dùng chọn Xem việc không cần CV và mở chi tiết việc làm', async () => {
@@ -49,7 +51,7 @@ test.describe('Feature: Hoàn thành profile mini và ứng tuyển job không c
       await jobApplyNoCVPage.capture('and_profile1_submitted');
     });
 
-    await test.step('And Người dùng apply tất cả các công việc', async () => {
+    await test.step('And Người dùng thực hiện Bulk Apply tất cả các công việc', async () => {
       const didBulkApply = await jobApplyNoCVPage.bulkApply(applyData.noCVApply.job2);
       if (didBulkApply) {
         await jobApplyNoCVPage.capture('and_finish_end');

@@ -1,1 +1,4 @@
-﻿Always read and strictly follow the testing guidelines defined in QA_AI_RULES.md at the root of this workspace when writing or modifying Playwright test scripts.
+﻿Always read and strictly follow `ai/shared/AI_PROMPTS.md` when writing or modifying Playwright test scripts.
+Before writing or modifying Playwright tests, read `ai/shared/TEST_AUTOMATION_LESSONS.md` for confirmed automation issues and preventive patterns.
+
+Before working on `dashboard/`, read and follow `ai/dashboard/DASHBOARD_AI_PROMPT.md` and `ai/dashboard/AI_LESSONS.md`. Reuse shared dashboard primitives instead of creating another layout, header, panel, or code editor for the same behavior.

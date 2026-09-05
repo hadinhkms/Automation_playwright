@@ -5,23 +5,26 @@ test.describe('Feature: Hoàn thành profile và ứng tuyển job @e2e', () => 
 
   test('Người dùng hoàn thành tạo profile và ứng tuyển', async ({
     authenticatedUser,
+    homePage,
     onboardingPopup,
     userProfilePage,
   }) => {
     test.slow();
     test.setTimeout(600000);
 
-    await test.step('Given Người dùng đã truy cập trang chủ và đăng nhập bằng thông tin từ authSetup', async () => {
-      // authenticatedUser fixture đã hoàn tất precondition đăng nhập.
-    });
-
-    await test.step('And Người dùng thấy popup Onboarding và đóng popup này', async () => {
+    await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang chủ', async () => {
       await onboardingPopup.closeIfVisible(undefined, {
         modalTimeout: 15000,
         closeBtnTimeout: 5000,
         modalHiddenTimeout: 10000,
         modalDetachedTimeout: 10000,
       });
+      await homePage.expectHomepageVisible();
+      await homePage.capture('precondition_logged_in_state');
+    });
+
+    await test.step('And Người dùng đảm bảo các modal chặn màn hình đã được đóng', async () => {
+      await homePage.closeBlockingModalIfVisible();
     });
 
     await test.step('When Người dùng vào trang Hồ sơ của tôi', async () => {

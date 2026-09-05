@@ -29,8 +29,54 @@ const { saveDraftFiles } = require('../core/generator/recordWriter');
 const { sanitizeToIdentifier } = require('../core/generator/namingUtils');
 const { execSync } = require('child_process');
 
+const {
+  listDatasets,
+  readDataset,
+  saveDataset,
+  createDataset,
+  deleteDataset,
+  jsonToCsv,
+  csvToJson,
+  generateDynamicValue,
+} = require('../core/utils/dataManager');
+
+const {
+  PRESET_ACTIONS,
+  compileVisualScenario,
+  parseExistingSpecFile,
+  scanAllProjectScripts,
+} = require('../core/generator/visualBuilderCompiler');
+
+const {
+  injectSmartEvidenceCaptures,
+} = require('../core/generator/evidenceInjector');
+const { hashText } = require('../core/generator/wizardSchema');
+const { createRemoteRunService } = require('../core/ci/remoteRunService');
+const { createCopilotService } = require('../core/ai/copilotService');
+const { analyzeDiagnostics } = require('../core/diagnostics/diagnosticsAnalyzer');
+
+const {
+  scanAllPageObjects,
+  parsePageObject,
+  updateLocatorSelector,
+  getCoreCapabilities,
+  createPageObject,
+  deletePageObject,
+} = require('../core/generator/objectRepository');
+
+const {
+  saveDraft,
+  getDraft,
+  listDrafts,
+  deleteDraft,
+  cleanupDraft,
+} = require('../core/generator/draftManager');
+
 const RECORDINGS_DIR = path.join(ROOT, '.tmp', 'recordings');
 let activeRecorder = null;
+const remoteRunConfig = { environments: {}, suites: {}, github: {} };
+const remoteRunService = createRemoteRunService({ config: remoteRunConfig, allowProd: process.env.DASHBOARD_ALLOW_PROD_REMOTE === '1' });
+const copilotService = createCopilotService({ quota: Number(process.env.DASHBOARD_AI_QUOTA || 20) });
 
 function ensureRecordingsDir() {
   if (!fs.existsSync(RECORDINGS_DIR)) {
@@ -78,7 +124,43 @@ function writeEnvFile(filePath, envObj) {
 const CODE_ROOTS = ['tests', 'pages', 'core'];
 const PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
 const APP_NAME = process.env.DASHBOARD_APP_NAME || 'vieclam24h';
-const DOCUMENT_RESOURCES = ['AI_PROMPTS.md', 'QA_AI_RULES.md', 'README.md'];
+const CANONICAL_DOCUMENTS = [
+  'ai/shared/AI_PROMPTS.md',
+  'ai/shared/TEST_AUTOMATION_LESSONS.md',
+  'ai/dashboard/DASHBOARD_AI_PROMPT.md',
+  'ai/dashboard/AI_LESSONS.md',
+  'ai/README.md',
+  'AGENTS.md',
+  'GEMINI.md',
+  'CLAUDE.md',
+  'QA_AI_RULES.md',
+  '.github/copilot-instructions.md',
+  '.agents/skills/playwright_test/SKILL.md',
+  '.agents/skills/dashboard-maintainer/SKILL.md',
+  'README.md',
+  'GIT_WORKFLOW.md',
+  'docs/DISCORD_BOT_SETUP_GUIDE.md',
+];
+
+function listDocumentResources() {
+  const discovered = new Set(CANONICAL_DOCUMENTS);
+  const scanDirs = ['ai', '.agents/skills', 'docs'];
+  const walk = (dir) => {
+    const fullDir = path.join(ROOT, dir);
+    if (!fs.existsSync(fullDir)) return;
+    for (const entry of fs.readdirSync(fullDir, { withFileTypes: true })) {
+      const relPath = path.join(dir, entry.name).split(path.sep).join('/');
+      if (entry.isDirectory()) {
+        walk(relPath);
+      } else if (entry.isFile() && entry.name.endsWith('.md')) {
+        discovered.add(relPath);
+      }
+    }
+  };
+  scanDirs.forEach(walk);
+
+  return Array.from(discovered).filter((f) => fs.existsSync(path.join(ROOT, f))).sort();
+}
 
 function getPlaywrightProjects() {
   try {
@@ -277,7 +359,7 @@ function resolveCodeFile(filePath) {
 
 function listResources() {
   cleanupArtifacts();
-  const documents = DOCUMENT_RESOURCES.filter((file) => fs.existsSync(path.join(ROOT, file)));
+  const documents = listDocumentResources();
   const dataDirectory = path.join(ROOT, 'data');
   const data = fs.existsSync(dataDirectory)
     ? fs.readdirSync(dataDirectory, { withFileTypes: true })
@@ -342,6 +424,32 @@ function createBackup(resourcePath, absolutePath) {
   fs.mkdirSync(path.dirname(backupPath), { recursive: true });
   fs.copyFileSync(absolutePath, backupPath);
   return path.relative(ROOT, backupPath).split(path.sep).join('/');
+}
+
+function deleteTestScript(specPath, rootDir = ROOT) {
+  const value = String(specPath || '').replace(/\\/g, '/');
+  if (path.isAbsolute(value) || value.includes('..') || !value.startsWith('tests/')) {
+    throw new Error('Đường dẫn kịch bản phải thuộc thư mục tests/.');
+  }
+  if (!value.endsWith('.spec.js')) {
+    throw new Error('Chỉ được xóa file kịch bản kiểm thử Playwright (*.spec.js).');
+  }
+  const fullPath = path.resolve(rootDir, value);
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`File kịch bản ${value} không tồn tại.`);
+  }
+
+  // Tao backup truoc khi xoa
+  const backup = createBackup(value, fullPath);
+
+  fs.unlinkSync(fullPath);
+  return {
+    success: true,
+    spec: value,
+    fileName: path.basename(value),
+    backup,
+    message: `Đã xóa kịch bản ${path.basename(value)} thành công.`,
+  };
 }
 
 function removeInside(base, target) {
@@ -457,14 +565,19 @@ function cleanupArtifacts() {
 
 function countFolderArtifacts(directory) {
   const result = { files: 0, traceAndVideo: 0 };
+  if (!fs.existsSync(directory)) return result;
   const visit = (current) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      const absolutePath = path.join(current, entry.name);
-      if (entry.isDirectory()) visit(absolutePath);
-      if (entry.isFile()) {
-        result.files += 1;
-        if (/\.(zip|trace|webm)$/i.test(entry.name)) result.traceAndVideo += 1;
+    try {
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const absolutePath = path.join(current, entry.name);
+        if (entry.isDirectory()) visit(absolutePath);
+        if (entry.isFile()) {
+          result.files += 1;
+          if (/\.(zip|trace|webm)$/i.test(entry.name)) result.traceAndVideo += 1;
+        }
       }
+    } catch {
+      // Safe fallback if directory access is transiently restricted
     }
   };
   visit(directory);
@@ -486,7 +599,7 @@ function readResourceBody(resourcePath, reveal = false) {
       return { error: 'File JSON không hợp lệ.', status: 422 };
     }
   }
-  return { path: resourcePath, type: 'markdown', content: rawContent, masked: false, editable: resourcePath === 'AI_PROMPTS.md' };
+  return { path: resourcePath, type: 'markdown', content: rawContent, masked: false, editable: resourcePath.endsWith('.md') };
 }
 
 function maskSensitiveData(value, key = '') {
@@ -535,18 +648,44 @@ function publicRun(run) {
   return serializable;
 }
 
-function parseBody(request) {
+function parseBody(request, maxBytes = 32_768) {
   return new Promise((resolve, reject) => {
     let body = '';
     request.on('data', (chunk) => {
       body += chunk;
-      if (body.length > 32_768) reject(new Error('Request body quá lớn.'));
+      if (Buffer.byteLength(body, 'utf8') > maxBytes) reject(new Error('Request body quá lớn.'));
     });
     request.on('end', () => {
       try { resolve(body ? JSON.parse(body) : {}); } catch { reject(new Error('JSON không hợp lệ.')); }
     });
     request.on('error', reject);
   });
+}
+
+function validateWizardDependencies(state) {
+  const platform = state.platform || 'desktop';
+  const pages = scanAllPageObjects(ROOT);
+  const errors = [];
+  for (const selected of Array.isArray(state.pageObjects) ? state.pageObjects : []) {
+    const relativePath = typeof selected === 'string' ? selected : selected?.path || selected?.relativePath;
+    const page = pages.find((item) => item.relativePath === relativePath);
+    if (!page) { errors.push(`Page Object không tồn tại: ${relativePath || 'unknown'}.`); continue; }
+    if (page.platform !== platform) errors.push(`Page Object ${relativePath} không tương thích platform ${platform}.`);
+    if (!page.readiness?.ready) errors.push(`Page Object ${relativePath} chưa sẵn sàng.`);
+  }
+  for (const source of state.dataSources || []) {
+    try {
+      if (!source.dataPath || !String(source.dataPath).trim()) {
+        errors.push(`Chưa chọn đường dẫn dữ liệu (dataPath) cho ${source.file || 'dataset'}.`);
+        continue;
+      }
+      const dataset = readDataset(path.basename(source.file));
+      let value = dataset.data;
+      for (const segment of String(source.dataPath).split('.')) value = value?.[segment];
+      if (value === undefined) errors.push(`dataPath không tồn tại: ${source.dataPath}.`);
+    } catch (_) { errors.push(`Dataset không hợp lệ: ${source.file}.`); }
+  }
+  return errors;
 }
 
 function validateOptions(input) {
@@ -590,9 +729,9 @@ function runtimeEnv(options) {
   const runtime = settings.runtime;
   const api = settings.api;
   const retries = process.env.CI ? runtime.retriesCI : runtime.retriesLocal;
-  const selectedSpec = String(options.spec || '');
+  const selectedSpec = String(options.spec || (Array.isArray(options.specs) && options.specs.length > 0 ? options.specs[0] : '') || '');
   const selectedProject = String(options.project || '');
-  const platform = selectedSpec.startsWith('tests/e2e/mobile-web/') || selectedSpec.startsWith('tests/e2e/mobile/') || /^Mobile (?:Chrome|Safari)/.test(selectedProject)
+  const platform = selectedSpec.startsWith('tests/e2e/mobile-web/') || selectedSpec.startsWith('tests/e2e/mobile/') || selectedSpec.includes('.mobile.') || /^Mobile (?:Chrome|Safari)/i.test(selectedProject)
     ? 'mobile-web'
     : selectedSpec.startsWith('tests/e2e/mobile-app/')
       ? 'mobile-app'
@@ -623,11 +762,14 @@ function runtimeEnv(options) {
 }
 
 async function sendDiscordWebhook(webhookUrl, payload) {
-  if (!webhookUrl || typeof webhookUrl !== 'string' || !webhookUrl.startsWith('http')) {
+  if (!webhookUrl || typeof webhookUrl !== 'string') {
+    throw new Error('Discord Webhook URL không hợp lệ.');
+  }
+  const parsedUrl = new URL(webhookUrl);
+  if (parsedUrl.protocol !== 'https:' || !/(^|\.)discord(?:app)?\.com$/i.test(parsedUrl.hostname) || !parsedUrl.pathname.startsWith('/api/webhooks/')) {
     throw new Error('Discord Webhook URL không hợp lệ.');
   }
   const body = JSON.stringify(payload);
-  const parsedUrl = new URL(webhookUrl);
   return new Promise((resolve, reject) => {
     const req = https.request(parsedUrl, {
       method: 'POST',
@@ -822,6 +964,29 @@ const server = http.createServer(async (request, response) => {
   if (request.method === 'GET' && url.pathname === '/api/settings') {
     return sendJson(response, 200, publicDashboardConfig());
   }
+  if (request.method === 'POST' && url.pathname === '/api/remote-run') {
+    try {
+      const body = await parseBody(request);
+      const env = parseEnvFile(DISCORD_BOT_ENV_PATH);
+      const settings = getDashboardConfig();
+      const remoteConfig = {
+        environments: settings.environments,
+        suites: settings.suites,
+        github: {
+          token: env.GITHUB_TOKEN,
+          owner: env.GITHUB_OWNER || 'hadinhkms',
+          repo: env.GITHUB_REPO || 'Automation_playwright_SV',
+          workflow: env.GITHUB_WORKFLOW || 'discord-run-playwright.yml',
+          ref: env.GITHUB_REF || 'main',
+        },
+      };
+      Object.assign(remoteRunConfig, remoteConfig);
+      const result = await remoteRunService.dispatch(body);
+      return sendJson(response, 202, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
   if (request.method === 'POST' && url.pathname === '/api/discord/test') {
     try {
       const body = await parseBody(request);
@@ -904,62 +1069,13 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, 400, { error: `Không thể lưu cấu hình Bot: ${error.message}` });
     }
   }
-  if (request.method === 'POST' && url.pathname === '/api/discord/test') {
-    try {
-      const body = await parseBody(request);
-      const webhookUrl = (body.webhookUrl || '').trim() || getDashboardConfig().discord?.webhookUrl;
-      const channelName = (body.channelName || '').trim() || getDashboardConfig().discord?.channelName || '#qa-automation';
-      if (!webhookUrl) {
-        return sendJson(response, 400, { error: 'Vui lòng nhập Discord Webhook URL trước khi thử nghiệm.' });
-      }
-
-      const testEmbed = {
-        username: 'Vieclam24h QA Automation',
-        avatar_url: 'https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png',
-        embeds: [
-          {
-            title: '🔔 Thử Nghiệm Kết Nối Webhook Thành Công!',
-            description: `Kênh nhận thông báo: **${channelName}**\nVieclam24h Automation Dashboard đã kết nối thành công tới Discord Webhook.`,
-            color: 0x22c55e,
-            fields: [
-              { name: 'Thời gian', value: new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }), inline: true },
-              { name: 'Trạng thái', value: '🟢 Sẵn sàng gửi báo cáo', inline: true },
-              { name: 'Hệ thống', value: 'Vieclam24h Playwright Automation', inline: false }
-            ],
-            footer: {
-              text: 'Vieclam24h QA Dashboard • Automated Notification'
-            }
-          }
-        ]
-      };
-
-      await sendDiscordWebhook(webhookUrl, testEmbed);
-      return sendJson(response, 200, { success: true, message: 'Đã gửi tin nhắn thử nghiệm thành công về Discord!' });
-    } catch (error) {
-      return sendJson(response, 500, { error: `Không thể gửi tin nhắn Discord: ${error.message}` });
-    }
-  }
   if (request.method === 'POST' && url.pathname === '/api/git/sync') {
     try {
-      const { execSync } = require('child_process');
-      let currentBranch = 'main';
-      try {
-        currentBranch = execSync('git branch --show-current', { cwd: ROOT, stdio: 'pipe', windowsHide: true }).toString().trim() || 'main';
-      } catch (e) {}
-
+      const currentBranch = execSync('git branch --show-current', { cwd: ROOT, stdio: 'pipe', windowsHide: true }).toString().trim() || 'main';
       execSync('git add .', { cwd: ROOT, stdio: 'pipe', windowsHide: true });
-      try {
-        execSync('git commit -m "chore(dashboard): sync test suites and configs"', { cwd: ROOT, stdio: 'pipe', windowsHide: true });
-      } catch (e) {
-        // Không có thay đổi mới cũng không sao
-      }
+      try { execSync('git commit -m "chore(dashboard): sync test suites and configs"', { cwd: ROOT, stdio: 'pipe', windowsHide: true }); } catch (_) {}
       const pushLog = execSync(`git push origin ${currentBranch}`, { cwd: ROOT, stdio: 'pipe', windowsHide: true }).toString();
-      return sendJson(response, 200, {
-        success: true,
-        currentBranch,
-        message: `Đã đồng bộ hóa và Push Test Suites lên nhánh "${currentBranch}" (origin/${currentBranch}) thành công!`,
-        output: pushLog.trim() || 'Everything up-to-date'
-      });
+      return sendJson(response, 200, { success: true, currentBranch, message: `Đã đồng bộ hóa lên nhánh "${currentBranch}" thành công!`, output: pushLog.trim() || 'Everything up-to-date' });
     } catch (error) {
       return sendJson(response, 500, { error: `Không thể đồng bộ lên GitHub: ${error.message}` });
     }
@@ -1016,7 +1132,7 @@ const server = http.createServer(async (request, response) => {
       const body = await parseBody(request);
       const resourcePath = String(body.path || '');
       const absolutePath = resolveResource(resourcePath);
-      const editable = resourcePath === 'AI_PROMPTS.md' || resourcePath.startsWith('data/') && resourcePath.endsWith('.json');
+      const editable = resourcePath.endsWith('.md') || (resourcePath.startsWith('data/') && resourcePath.endsWith('.json'));
       if (!absolutePath || !editable) return sendJson(response, 403, { error: 'Resource này không được phép chỉnh sửa.' });
       const content = String(body.content ?? '');
       if (Buffer.byteLength(content, 'utf8') > 1_048_576) return sendJson(response, 413, { error: 'Nội dung lớn hơn giới hạn 1 MB.' });
@@ -1045,8 +1161,38 @@ const server = http.createServer(async (request, response) => {
         const containsEvidence = normalizedFolder && resources.evidence.some((item) => item.startsWith(`${normalizedFolder}/`));
         const target = containsEvidence ? safeChildPath(EVIDENCE_DIR, `/${normalizedFolder}`) : null;
         if (!target || target === EVIDENCE_DIR || !target.startsWith(`${EVIDENCE_DIR}${path.sep}`) || !fs.statSync(target).isDirectory()) throw new Error('Folder evidence không hợp lệ.');
-        fs.rmSync(target, { recursive: true, force: false });
+        fs.rmSync(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+        let parentDir = path.dirname(target);
+        while (parentDir !== EVIDENCE_DIR && parentDir.startsWith(`${EVIDENCE_DIR}${path.sep}`)) {
+          if (fs.existsSync(parentDir) && fs.readdirSync(parentDir).length === 0) {
+            fs.rmdirSync(parentDir);
+            parentDir = path.dirname(parentDir);
+          } else {
+            break;
+          }
+        }
         return sendJson(response, 200, { message: 'Đã xóa folder evidence và toàn bộ ảnh bên trong.' });
+      }
+      if (type === 'report-folder') {
+        const normalizedFolder = artifactPath.replace(/^\/+|\/+$/g, '');
+        if (!normalizedFolder) throw new Error('Đường dẫn folder báo cáo không hợp lệ.');
+        const containsReport = resources.reports.some((item) => item.startsWith(`${normalizedFolder}/`));
+        const target = containsReport ? safeChildPath(REPORT_DIR, `/${normalizedFolder}`) : null;
+        if (!target || target === REPORT_DIR || !target.startsWith(`${REPORT_DIR}${path.sep}`) || !fs.existsSync(target) || !fs.statSync(target).isDirectory()) {
+          throw new Error('Folder báo cáo không hợp lệ.');
+        }
+        const deleted = countFolderArtifacts(target);
+        fs.rmSync(target, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+        let parentDir = path.dirname(target);
+        while (parentDir !== REPORT_DIR && parentDir.startsWith(`${REPORT_DIR}${path.sep}`)) {
+          if (fs.existsSync(parentDir) && fs.readdirSync(parentDir).length === 0) {
+            fs.rmdirSync(parentDir);
+            parentDir = path.dirname(parentDir);
+          } else {
+            break;
+          }
+        }
+        return sendJson(response, 200, { message: `Đã xóa folder báo cáo (${deleted.files} file, ${deleted.traceAndVideo} trace/video).` });
       }
       if (type === 'report' && resources.reports.includes(artifactPath)) {
         const indexPath = safeChildPath(REPORT_DIR, `/${artifactPath}`);
@@ -1054,9 +1200,16 @@ const server = http.createServer(async (request, response) => {
         const relativeFolder = reportFolder ? path.relative(REPORT_DIR, reportFolder) : '';
         if (!reportFolder || !reportFolder.startsWith(`${REPORT_DIR}${path.sep}`) || relativeFolder.split(path.sep).length < 2) throw new Error('Báo cáo không hợp lệ.');
         const deleted = countFolderArtifacts(reportFolder);
-        const dateFolder = path.dirname(reportFolder);
-        fs.rmSync(reportFolder, { recursive: true, force: false });
-        if (dateFolder !== REPORT_DIR && fs.existsSync(dateFolder) && fs.readdirSync(dateFolder).length === 0) fs.rmdirSync(dateFolder);
+        fs.rmSync(reportFolder, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+        let parentDir = path.dirname(reportFolder);
+        while (parentDir !== REPORT_DIR && parentDir.startsWith(`${REPORT_DIR}${path.sep}`)) {
+          if (fs.existsSync(parentDir) && fs.readdirSync(parentDir).length === 0) {
+            fs.rmdirSync(parentDir);
+            parentDir = path.dirname(parentDir);
+          } else {
+            break;
+          }
+        }
         return sendJson(response, 200, { message: `Đã xóa toàn bộ folder báo cáo (${deleted.files} file, ${deleted.traceAndVideo} trace/video).` });
       }
       return sendJson(response, 404, { error: 'Artifact không tồn tại hoặc không hợp lệ.' });
@@ -1121,7 +1274,10 @@ const server = http.createServer(async (request, response) => {
     }
     try {
       const body = await parseBody(request);
-      const targetUrl = (body.url || '').trim() || 'https://seeker.vl24hv2.qc.sieuviet-team.com';
+      const activeConfig = getDashboardConfig();
+      const defaultEnvKey = activeConfig.runtime?.defaultEnvironment || 'qc';
+      const fallbackUrl = activeConfig.environments?.[defaultEnvKey]?.baseURL || 'https://seeker.vl24hv2.qc.sieuviet-team.com';
+      const targetUrl = (body.url || '').trim() || fallbackUrl;
       const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
       const device = (body.device || '').trim();
       const browser = (body.browser || 'chromium').trim();
@@ -1394,6 +1550,604 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, 200, saveResult);
     } catch (error) {
       return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  // --- No-Code Test Data Studio APIs ---
+  if (request.method === 'GET' && url.pathname === '/api/data/datasets') {
+    try {
+      return sendJson(response, 200, { datasets: listDatasets() });
+    } catch (error) {
+      return sendJson(response, 500, { error: error.message });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/data/dataset') {
+    const fileName = url.searchParams.get('file');
+    if (!fileName) return sendJson(response, 400, { error: 'Thiếu tên file dữ liệu.' });
+    try {
+      const result = readDataset(fileName);
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 404, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/data/dataset') {
+    try {
+      const body = await parseBody(request);
+      const fileName = body.fileName;
+      if (!fileName) return sendJson(response, 400, { error: 'Thiếu tên file dữ liệu.' });
+      const result = saveDataset(fileName, body.data);
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if ((request.method === 'DELETE' && url.pathname === '/api/data/dataset') || (request.method === 'POST' && url.pathname === '/api/data/delete-dataset')) {
+    try {
+      const body = request.method === 'POST' ? await parseBody(request) : {};
+      const fileName = body.fileName || body.file || body.name || url.searchParams.get('fileName') || url.searchParams.get('file') || url.searchParams.get('name');
+      if (!fileName) return sendJson(response, 400, { error: 'Thiếu tên file dữ liệu cần xóa.' });
+      const result = deleteDataset(fileName);
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/data/create-dataset') {
+    try {
+      const body = await parseBody(request);
+      const fileName = body.fileName;
+      const templateType = body.templateType || 'array';
+      if (!fileName) return sendJson(response, 400, { error: 'Thiếu tên file dữ liệu.' });
+      const result = createDataset(fileName, templateType, body.content);
+      return sendJson(response, 200, {
+        success: true,
+        message: `Đã tạo tệp dữ liệu ${result.fileName}`,
+        ...result,
+      });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/data/export-csv') {
+    const fileName = url.searchParams.get('file');
+    if (!fileName) return sendJson(response, 400, { error: 'Thiếu tên file dữ liệu.' });
+    try {
+      const dataset = readDataset(fileName);
+      if (!Array.isArray(dataset.data)) throw new Error('Chỉ có thể xuất CSV từ dataset dạng mảng.');
+      const csv = jsonToCsv(dataset.data);
+      response.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${dataset.fileName.replace(/"/g, '')}"`,
+      });
+      return response.end(`\uFEFF${csv}`);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/data/import-csv') {
+    try {
+      const body = await parseBody(request, 1024 * 1024 + 4096);
+      const fileName = body.fileName;
+      const csv = typeof body.csv === 'string' ? body.csv.replace(/^\uFEFF/, '') : '';
+      if (!fileName || !csv) return sendJson(response, 400, { error: 'Thiếu tên file hoặc nội dung CSV.' });
+      const rows = csvToJson(csv);
+      if (rows.length === 0) throw new Error('CSV phải có tiêu đề và ít nhất một dòng dữ liệu.');
+      const result = saveDataset(fileName, rows);
+      return sendJson(response, 200, { ...result, importedRows: rows.length });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/data/dynamic-preview') {
+    try {
+      return sendJson(response, 200, {
+        random_phone: generateDynamicValue('{{random_phone}}'),
+        random_email: generateDynamicValue('{{random_email}}'),
+        random_name: generateDynamicValue('{{random_name}}'),
+        timestamp: generateDynamicValue('{{timestamp}}'),
+        date: generateDynamicValue('{{date}}'),
+      });
+    } catch (error) {
+      return sendJson(response, 500, { error: error.message });
+    }
+  }
+
+  // --- Visual Step Builder & BDD Studio APIs ---
+  if (request.method === 'GET' && url.pathname === '/api/builder/scripts') {
+    try {
+      const scripts = scanAllProjectScripts(ROOT);
+      return sendJson(response, 200, { scripts });
+    } catch (error) {
+      return sendJson(response, 500, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/ai/generate-state') {
+    try {
+      const body = await parseBody(request, 64 * 1024);
+      const result = await copilotService.generateState({ prompt: body.prompt, context: body.context });
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 422, { error: error.message, valid: false });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/diagnostics/analyze') {
+    try {
+      const body = await parseBody(request, 128 * 1024);
+      return sendJson(response, 200, analyzeDiagnostics(body));
+    } catch (error) {
+      return sendJson(response, 422, { error: error.message });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/builder/actions') {
+    try {
+      const presetActions = PRESET_ACTIONS.map(({ id, category, stepType, name, desc, fixture }) => ({
+        id,
+        category,
+        stepType,
+        name,
+        desc,
+        fixture,
+      }));
+      return sendJson(response, 200, { presetActions });
+    } catch (error) {
+      return sendJson(response, 500, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/builder/compile') {
+    try {
+      const body = await parseBody(request);
+      const isPreview = body.previewMode !== false;
+      const dependencyErrors = isPreview ? [] : validateWizardDependencies(body);
+      if (dependencyErrors.length) return sendJson(response, 422, { valid: false, errors: dependencyErrors, warnings: [] });
+      const compiled = compileVisualScenario(body, { previewMode: isPreview });
+      if (!compiled.valid) return sendJson(response, 422, compiled);
+      return sendJson(response, 200, compiled);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/builder/validate-spec') {
+    let tempPath = '';
+    try {
+      const body = await parseBody(request);
+      const dependencyErrors = validateWizardDependencies(body);
+      if (dependencyErrors.length) return sendJson(response, 422, { valid: false, syntaxError: null, errors: dependencyErrors, warnings: [] });
+      const compiled = compileVisualScenario(body);
+      if (!compiled.valid) return sendJson(response, 422, { ...compiled, syntaxError: null });
+      tempPath = path.join(ROOT, '.tmp', `wizard-validate-${process.pid}-${Date.now()}.spec.js`);
+      fs.mkdirSync(path.dirname(tempPath), { recursive: true });
+      fs.writeFileSync(tempPath, compiled.specCode, 'utf8');
+      try {
+        execSync(`node --check "${tempPath}"`, { cwd: ROOT, stdio: 'pipe', windowsHide: true });
+        return sendJson(response, 200, { valid: true, syntaxError: null, errors: [], warnings: compiled.warnings, compiledHash: compiled.compiledHash, specRelativePath: compiled.specRelativePath });
+      } catch (error) {
+        return sendJson(response, 422, { valid: false, syntaxError: error.stderr?.toString() || error.message, errors: [{ code: 'syntax-error', message: 'Spec sinh ra có lỗi cú pháp.' }], warnings: compiled.warnings, compiledHash: compiled.compiledHash });
+      }
+    } catch (error) { return sendJson(response, 400, { valid: false, syntaxError: null, errors: [{ code: 'request-error', message: error.message }], warnings: [] }); }
+    finally { if (tempPath) fs.rmSync(tempPath, { force: true }); }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/builder/save') {
+    try {
+      const body = await parseBody(request);
+      const dependencyErrors = validateWizardDependencies(body);
+      if (dependencyErrors.length) return sendJson(response, 422, { valid: false, errors: dependencyErrors, warnings: [] });
+      const compiled = compileVisualScenario(body);
+      if (!compiled.valid) return sendJson(response, 422, compiled);
+      const fullPath = path.join(ROOT, compiled.specRelativePath);
+      const specDir = path.dirname(fullPath);
+      if (!fs.existsSync(specDir)) {
+        fs.mkdirSync(specDir, { recursive: true });
+      }
+      let backup = null;
+      if (fs.existsSync(fullPath)) {
+        if (body.expectedHash && body.expectedHash !== hashText(fs.readFileSync(fullPath, 'utf8'))) {
+          return sendJson(response, 409, { error: 'File đã thay đổi trên disk. Hãy tải lại trước khi lưu.' });
+        }
+        backup = createBackup(compiled.specRelativePath, fullPath);
+      }
+      const tempPath = `${fullPath}.${process.pid}.tmp`;
+      fs.writeFileSync(tempPath, compiled.specCode, 'utf8');
+      fs.renameSync(tempPath, fullPath);
+      if (body.draftId) {
+        cleanupDraft({ type: 'script', id: body.draftId, rootDir: ROOT });
+      }
+      return sendJson(response, 200, {
+        success: true,
+        message: 'Đã lưu kịch bản kiểm thử thành công',
+        specPath: compiled.specRelativePath,
+        backup,
+        compiledHash: compiled.compiledHash,
+      });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/builder/load-spec') {
+    const specFile = url.searchParams.get('file');
+    if (!specFile) return sendJson(response, 400, { error: 'Thiếu file kịch bản.' });
+    try {
+      const parsed = parseExistingSpecFile(specFile, ROOT);
+      return sendJson(response, 200, parsed);
+    } catch (error) {
+      return sendJson(response, 404, { error: error.message });
+    }
+  }
+
+  if ((request.method === 'DELETE' || request.method === 'POST') && (url.pathname === '/api/builder/script' || url.pathname === '/api/builder/delete-script')) {
+    try {
+      const body = request.method === 'POST' ? await parseBody(request) : {};
+      const spec = body.spec || body.specPath || body.path || body.file || url.searchParams.get('spec') || url.searchParams.get('specPath') || url.searchParams.get('path') || url.searchParams.get('file');
+      if (!spec) return sendJson(response, 400, { error: 'Thiếu đường dẫn kịch bản cần xóa.' });
+      const result = deleteTestScript(spec, ROOT);
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/builder/page-content') {
+    const pageFile = url.searchParams.get('file');
+    if (!pageFile) return sendJson(response, 400, { error: 'Thiếu đường dẫn Page Object.' });
+    const fullPath = safeChildPath(ROOT, pageFile.startsWith('/') ? pageFile : `/${pageFile}`);
+    if (!fullPath || !fs.existsSync(fullPath)) {
+      return sendJson(response, 404, { error: 'Không tìm thấy file Page Object.' });
+    }
+    try {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      return sendJson(response, 200, { path: pageFile, content });
+    } catch (error) {
+      return sendJson(response, 500, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/builder/auto-capture') {
+    try {
+      const body = await parseBody(request);
+      const specCode = String(body.specCode || '');
+      const result = injectSmartEvidenceCaptures(specCode, { filePath: body.filePath });
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  // --- Draft Management APIs ---
+  if (request.method === 'POST' && url.pathname === '/api/drafts/save') {
+    try {
+      const body = await parseBody(request);
+      const { type, id, data } = body;
+      if (!type || !['script', 'page'].includes(type)) {
+        return sendJson(response, 400, { error: 'type phải là "script" hoặc "page"' });
+      }
+      const draft = saveDraft({ type, id, data, rootDir: ROOT });
+      return sendJson(response, 200, { success: true, draft });
+    } catch (err) {
+      return sendJson(response, 500, { error: `Lỗi lưu bản nháp: ${err.message}` });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/drafts') {
+    try {
+      const type = url.searchParams.get('type') || 'script';
+      const drafts = listDrafts({ type, rootDir: ROOT });
+      return sendJson(response, 200, { success: true, drafts });
+    } catch (err) {
+      return sendJson(response, 500, { error: `Lỗi tải danh sách bản nháp: ${err.message}` });
+    }
+  }
+
+  if (request.method === 'GET' && (url.pathname === '/api/drafts/get' || url.pathname === '/api/drafts/detail')) {
+    try {
+      const type = url.searchParams.get('type') || 'script';
+      const id = url.searchParams.get('id');
+      if (!id) return sendJson(response, 400, { error: 'Thiếu id bản nháp' });
+      const draft = getDraft({ type, id, rootDir: ROOT });
+      if (!draft) return sendJson(response, 404, { error: 'Không tìm thấy bản nháp' });
+      return sendJson(response, 200, { success: true, draft });
+    } catch (err) {
+      return sendJson(response, 500, { error: `Lỗi lấy bản nháp: ${err.message}` });
+    }
+  }
+
+  if ((request.method === 'DELETE' || request.method === 'POST') && (url.pathname === '/api/drafts/delete' || url.pathname === '/api/drafts/discard')) {
+    try {
+      const body = request.method === 'POST' ? await parseBody(request) : {};
+      const type = body.type || url.searchParams.get('type') || 'script';
+      const id = body.id || url.searchParams.get('id');
+      if (!id) return sendJson(response, 400, { error: 'Thiếu id bản nháp cần xóa' });
+      const result = deleteDraft({ type, id, rootDir: ROOT });
+      return sendJson(response, 200, result);
+    } catch (err) {
+      return sendJson(response, 500, { error: `Lỗi xóa bản nháp: ${err.message}` });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/builder/insert-step') {
+    try {
+      const body = await parseBody(request);
+      const {
+        scriptPath,
+        pageFile,
+        pageClassName,
+        actionType, // 'method' | 'locator'
+        actionName,
+        actionParams,
+        locatorInteraction = 'click', // 'click' | 'fill' | 'check' | 'visible'
+        locatorValue,
+        stepType = 'When',
+        stepTitle,
+        includeEvidence = true,
+      } = body;
+
+      if (!scriptPath) return sendJson(response, 400, { error: 'Thiếu đường dẫn kịch bản BDD (scriptPath).' });
+      const fullPath = path.resolve(ROOT, scriptPath);
+      if (!fs.existsSync(fullPath)) return sendJson(response, 404, { error: `Không tìm thấy file kịch bản: ${scriptPath}` });
+
+      let content = fs.readFileSync(fullPath, 'utf8');
+
+      // 1. Xác định tên class và fixture
+      const cleanClassName = pageClassName || (pageFile ? path.basename(pageFile, '.js') : 'CustomPage');
+      const fixtureName = cleanClassName.charAt(0).toLowerCase() + cleanClassName.slice(1);
+
+      // 2. Tự động kiểm tra và thêm fixture vào test({ ... }) arguments nếu chưa có
+      const testArgsMatch = content.match(/test\(\s*(?:'[^']*'|"[^"]*"|`[^`]*`)\s*,\s*async\s*\(\s*\{([^}]*)\}\s*\)\s*=>/);
+      if (testArgsMatch) {
+        const currentArgs = testArgsMatch[1];
+        const argTokens = currentArgs.split(',').map((t) => t.trim()).filter(Boolean);
+        if (!argTokens.includes(fixtureName)) {
+          const rawTrimEnd = currentArgs.replace(/\s+$/, '');
+          const updatedArgs = `${rawTrimEnd}${rawTrimEnd.endsWith(',') ? '' : ','}\n    ${fixtureName},\n  `;
+          content = content.replace(testArgsMatch[0], testArgsMatch[0].replace(currentArgs, updatedArgs));
+        }
+      }
+
+      // 3. Sinh mã cho hành động bên trong bước BDD
+      const actionLines = [];
+      const safeStepTitle = (stepTitle || `Tôi thực hiện ${actionName}`).trim();
+      const evidenceName = `${stepType.toLowerCase()}_${actionName}_completed`.replace(/[^a-zA-Z0-9_]/g, '_');
+
+      if (actionType === 'locator') {
+        const locVar = `${fixtureName}.${actionName}`;
+        if (locatorInteraction === 'fill') {
+          const val = locatorValue || "''";
+          actionLines.push(`      await ${locVar}.fill(${JSON.stringify(val)});`);
+        } else if (locatorInteraction === 'check') {
+          actionLines.push(`      await ${locVar}.check();`);
+        } else if (locatorInteraction === 'visible') {
+          actionLines.push(`      await expect(${locVar}).toBeVisible();`);
+        } else {
+          actionLines.push(`      await ${locVar}.click();`);
+        }
+      } else {
+        // Method nghiệp vụ
+        const paramStr = (actionParams || '').trim();
+        actionLines.push(`      await ${fixtureName}.${actionName}(${paramStr});`);
+      }
+
+      if (includeEvidence && locatorInteraction !== 'visible') {
+        actionLines.push(`      await ${fixtureName}.capture('${evidenceName}');`);
+      }
+
+      const stepBlock = `\n    await test.step('${stepType} ${safeStepTitle}', async () => {\n${actionLines.join('\n')}\n    });\n`;
+
+      // 4. Chèn khối step vào trước khi kết thúc test()
+      const lastStepIndex = content.lastIndexOf('await test.step');
+      if (lastStepIndex !== -1) {
+        const afterLastStep = content.slice(lastStepIndex);
+        const stepEndMatch = afterLastStep.match(/\n\s*\}\s*\);\s*(?=\n\s*(?:\}\s*\);|test\.after|\/\/|$))/);
+        if (stepEndMatch) {
+          const insertPos = lastStepIndex + stepEndMatch.index + stepEndMatch[0].length;
+          content = content.slice(0, insertPos) + stepBlock + content.slice(insertPos);
+        } else {
+          const lastClose = content.lastIndexOf('});');
+          if (lastClose !== -1) {
+            content = content.slice(0, lastClose) + stepBlock + content.slice(lastClose);
+          } else {
+            content += stepBlock;
+          }
+        }
+      } else {
+        const lastClose = content.lastIndexOf('});');
+        if (lastClose !== -1) {
+          content = content.slice(0, lastClose) + stepBlock + content.slice(lastClose);
+        } else {
+          content += stepBlock;
+        }
+      }
+
+      // 5. Kiểm tra cú pháp
+      try {
+        new Function(content);
+      } catch (syntaxErr) {
+        return sendJson(response, 400, { error: `Mã nguồn sau khi chèn bước có lỗi cú pháp JS: ${syntaxErr.message}` });
+      }
+
+      // 6. Tạo backup và lưu file
+      const backup = createBackup(scriptPath, fullPath);
+      fs.writeFileSync(fullPath, content, 'utf8');
+
+      // 7. Parse lại file để trả về thông tin cập nhật
+      const parsed = parseExistingSpecFile(scriptPath, ROOT);
+
+      return sendJson(response, 200, {
+        success: true,
+        message: `Đã thêm bước "${stepType} ${safeStepTitle}" gọi ${cleanClassName}.${actionName}() thành công!`,
+        script: parsed,
+        backup,
+      });
+    } catch (err) {
+      return sendJson(response, 500, { error: `Lỗi chèn bước BDD: ${err.message}` });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/builder/create-script') {
+    try {
+      const body = await parseBody(request);
+      const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
+      let rawName = (body.fileName || '').trim().replace(/\.spec\.js$/, '');
+      if (!rawName) rawName = `scenario_${Date.now()}`;
+      if (!rawName.endsWith('-bdd')) rawName += '-bdd';
+      const fileName = `${rawName}.spec.js`;
+
+      const relPath = `tests/e2e/${platform}/${fileName}`;
+      const fullPath = path.resolve(ROOT, relPath);
+      if (fs.existsSync(fullPath)) {
+        return sendJson(response, 400, { error: `File kịch bản ${fileName} đã tồn tại trong ${platform}.` });
+      }
+
+      const featureName = (body.featureName || 'Tính năng kiểm thử').trim();
+      const scenarioName = (body.scenarioName || 'Người dùng thực hiện quy trình kiểm thử').trim();
+      const tags = (body.tags || '@e2e @custom').trim();
+      const primaryPage = body.primaryPage;
+
+      let fixtureName = 'homePage';
+      if (primaryPage) {
+        const pageClassName = path.basename(primaryPage, '.js');
+        fixtureName = pageClassName.charAt(0).toLowerCase() + pageClassName.slice(1);
+      }
+
+      const fixtureRelPath = platform === 'mobile-web' ? '../../../core/fixtures/mobileWebTest' : '../../../core/fixtures/baseTest';
+
+      const template = `const { test, expect } = require('${fixtureRelPath}');
+ 
+test.describe('Feature: ${featureName} ${tags}', () => {
+  test('${scenarioName}', async ({
+    authenticatedUser,
+    onboardingPopup,
+    ${fixtureName},
+  }, testInfo) => {
+    test.setTimeout(180000);
+
+    // Gắn tag Precondition hiển thị trên header của Playwright Report
+    testInfo.annotations.push({
+      type: 'Precondition',
+      description: 'Đã đăng nhập tài khoản ứng viên hợp lệ (authSetup)',
+    });
+
+    await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang chủ', async () => {
+      await onboardingPopup.closeIfVisible();
+      await ${fixtureName}.expectHomepageVisible();
+      await ${fixtureName}.capture('precondition_logged_in_ready');
+    });
+
+    await test.step('When Người dùng thực hiện các bước kiểm thử', async () => {
+      // Bổ sung các bước nghiệp vụ với ${fixtureName} tại đây
+    });
+
+    await test.step('Then Hệ thống phản hồi đúng kết quả mong đợi', async () => {
+      // Bổ sung các assertion kiểm tra trạng thái
+    });
+  });
+});
+`;
+
+      const dir = path.dirname(fullPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const finalContent = (typeof body.specCode === 'string' && body.specCode.trim()) ? body.specCode : template;
+      fs.writeFileSync(fullPath, finalContent, 'utf8');
+
+      const parsed = parseExistingSpecFile(relPath, ROOT);
+      if (body.draftId) {
+        cleanupDraft({ type: 'script', id: body.draftId, rootDir: ROOT });
+      }
+      return sendJson(response, 200, {
+        success: true,
+        message: `Đã tạo kịch bản BDD ${fileName} thành công!`,
+        script: parsed,
+      });
+    } catch (err) {
+      return sendJson(response, 500, { error: `Lỗi tạo kịch bản: ${err.message}` });
+    }
+  }
+
+  // --- Centralized Object Repository & Core Capabilities APIs ---
+  if (request.method === 'GET' && url.pathname === '/api/object-repository/pages') {
+    try {
+      const pages = scanAllPageObjects(ROOT);
+      return sendJson(response, 200, { pages });
+    } catch (error) {
+      return sendJson(response, 500, { error: error.message });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/object-repository/page') {
+    const pageFile = url.searchParams.get('file');
+    if (!pageFile) return sendJson(response, 400, { error: 'Thiếu file Page Object.' });
+    try {
+      const details = parsePageObject(pageFile, ROOT);
+      return sendJson(response, 200, details);
+    } catch (error) {
+      return sendJson(response, 404, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/object-repository/update-locator') {
+    try {
+      const body = await parseBody(request);
+      const result = updateLocatorSelector({
+        pageRelativePath: body.pageRelativePath,
+        locatorName: body.locatorName,
+        newExpression: body.newExpression,
+        rootDir: ROOT,
+      });
+      return sendJson(response, 200, {
+        success: true,
+        message: `Đã cập nhật selector cho phần tử "${body.locatorName}" thành công!`,
+        affectedFiles: result.affectedFiles,
+        impact: result.impact,
+        ...result,
+      });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/object-repository/create-page') {
+    try {
+      const body = await parseBody(request);
+      const result = createPageObject(body, ROOT);
+      if (body.draftId) {
+        cleanupDraft({ type: 'page', id: body.draftId, rootDir: ROOT });
+      }
+      return sendJson(response, 201, { ...result, message: `Đã tạo ${result.className}.js trong ${result.relativePath}` });
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if ((request.method === 'DELETE' || request.method === 'POST') && (url.pathname === '/api/object-repository/page' || url.pathname === '/api/object-repository/delete-page')) {
+    try {
+      const body = request.method === 'POST' ? await parseBody(request) : {};
+      const relativePath = body.relativePath || body.path || body.file || url.searchParams.get('relativePath') || url.searchParams.get('path') || url.searchParams.get('file') || (body.platform && body.name ? `pages/${body.platform}/${body.name}.js` : '');
+      if (!relativePath) return sendJson(response, 400, { error: 'Thiếu đường dẫn Page Object cần xóa.' });
+      const result = deletePageObject(relativePath, ROOT);
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message });
+    }
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/core/capabilities') {
+    try {
+      const capabilities = getCoreCapabilities(ROOT);
+      return sendJson(response, 200, { capabilities });
+    } catch (error) {
+      return sendJson(response, 500, { error: error.message });
     }
   }
 

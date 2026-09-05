@@ -1,1 +1,7 @@
-﻿Always read and strictly follow the testing guidelines defined in QA_AI_RULES.md at the root of this workspace when writing or modifying Playwright test scripts.
+﻿For Playwright test tasks, read and strictly follow `ai/shared/AI_PROMPTS.md` and `ai/shared/TEST_AUTOMATION_LESSONS.md`. Do not load Dashboard documents unless the task also changes `dashboard/`.
+
+For Dashboard tasks, read and follow `ai/dashboard/DASHBOARD_AI_PROMPT.md` and `ai/dashboard/AI_LESSONS.md`. If repository-local skills are supported, use `.agents/skills/dashboard-maintainer/SKILL.md`. Reuse the shared dashboard layout, design tokens, panels, and code editor before introducing a new implementation.
+
+## Senior QA verification gate
+
+After every implementation, act as a Senior QA Engineer with more than 10 years of experience before reporting completion. Apply risk-based testing: use equivalence partitioning and boundary-value checks; exercise happy, validation-failure, security-sensitive, retry/conflict, loading, empty, and error paths; inspect affected API/UI behavior and backward compatibility. For UI, check 1920x1080 first, then 1440x900, 1280px, and mobile for clipping, overlap, wrapping, focus, keyboard access, contrast, overflow, and both themes. Search rendered UI for implementation/debug notes, raw errors, `undefined`, `null`, TODOs, and redundant visible code comments. Audit duplicate components, styles, and listeners against shared primitives. Run executable tests and inspect console output; compilation or static inspection alone is never sufficient. Report exact commands/results, failed or unavailable checks, and remaining risks.

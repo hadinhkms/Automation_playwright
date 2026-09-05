@@ -19,6 +19,9 @@ on:
       spec:
         required: false
         type: string
+      correlation_id:
+        required: false
+        type: string
 
 jobs:
   test:

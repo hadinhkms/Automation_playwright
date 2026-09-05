@@ -1,6 +1,6 @@
 # Kế Hoạch Triển Khai: UI Recorder Studio Cho Playwright Dashboard
 
-Tài liệu này ghi lại toàn bộ lộ trình, kiến trúc kỹ thuật và tiêu chuẩn chất lượng (Definition of Done) cho tính năng **UI Recorder Studio** tích hợp vào Dashboard của dự án, tuân thủ nghiêm ngặt mô hình **Page Object Model (POM)** và **BDD** theo quy định tại [AI_PROMPTS.md](file:///d:/_Automation-Project/AI_PROMPTS.md).
+Tài liệu này ghi lại toàn bộ lộ trình, kiến trúc kỹ thuật và tiêu chuẩn chất lượng (Definition of Done) cho tính năng **UI Recorder Studio** tích hợp vào Dashboard của dự án, tuân thủ nghiêm ngặt mô hình **Page Object Model (POM)** và **BDD** theo quy định tại [ai/shared/AI_PROMPTS.md](../ai/shared/AI_PROMPTS.md).
 
 ---
 
@@ -31,6 +31,16 @@ Chạy Framework Guard (check:framework) & Chạy thử Targeted Spec ngay
 
 > [!IMPORTANT]
 > **Triết lý thiết kế:** Không cố làm "auto 100%" từ đầu. Định hướng xây dựng **AI-assisted / Rule-assisted Generator** (hỗ trợ sinh draft, QA kiểm duyệt diff trước khi lưu) để đảm bảo chất lượng mã nguồn bền vững và không làm vỡ kiến trúc framework.
+
+## Backlog
+
+### PLAN-03 — Smart AI Copilot & Test Error Diagnostics
+
+- **Trạng thái:** Backlog, chưa triển khai.
+- **Phạm vi:** Prompt tiếng Việt ➔ structured state theo schema dùng chung; diagnostics deterministic trước, AI chỉ diễn giải dữ liệu đã mask.
+- **Điều kiện bắt đầu:** `wizardSchema`/compiler ổn định và runner/report hoàn tất artifact contract.
+- **Acceptance chính:** API không ghi file trực tiếp; validate schema, Page Object, fixture, action, data path và platform; có timeout/retry/quota, audit id, secret masking, prompt-injection protection và fallback.
+- **Tài liệu chi tiết:** [03_PLAN_SMART_AI_COPILOT_AND_DIAGNOSTICS.md](03_PLAN_SMART_AI_COPILOT_AND_DIAGNOSTICS.md).
 
 ---
 
@@ -93,7 +103,7 @@ core/generator/
   ```json
   {
     "scenarioName": "recorded scenario",
-    "detectedUrl": "https://dev.carthings.vn/...",
+    "detectedUrl": "https://seeker.vl24hv2.qc.sieuviet-team.com/...",
     "actions": [
       { "id": "act_1", "type": "goto", "url": "/tim-kiem-viec-lam" },
       { "id": "act_2", "type": "fill", "locator": "page.getByPlaceholder('...')", "value": "Kế toán", "raw": "..." },
@@ -247,6 +257,6 @@ Một bản release được coi là đạt tiêu chuẩn khi thỏa mãn toàn 
 ---
 
 > **Tài liệu tham chiếu:**
-> - [AI_PROMPTS.md](file:///d:/_Automation-Project/AI_PROMPTS.md): Quy chuẩn duy nhất cho AI Agent và QA Automation.
+> - [ai/shared/AI_PROMPTS.md](../ai/shared/AI_PROMPTS.md): Quy chuẩn duy nhất cho AI Agent và QA Automation.
 > - [server.js](file:///d:/_Automation-Project/dashboard/server.js): Backend điều phối Dashboard & Runner.
 > - [scripts/check-framework-structure.js](file:///d:/_Automation-Project/scripts/check-framework-structure.js): Bộ kiểm tra tĩnh quy tắc framework.

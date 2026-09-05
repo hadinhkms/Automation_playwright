@@ -63,7 +63,7 @@ let currentRun = null;
 let timer = null;
 let resourceCatalog = { documents: [], data: [], evidence: [], evidenceDetails: [], reports: [], reportDetails: [] };
 let currentResource = null;
-let activeResourceCategory = 'evidence';
+let activeResourceCategory = 'reports';
 let currentResourceCategory = '';
 let evidenceNavigation = [];
 const openEvidenceFolders = new Set();
@@ -85,7 +85,11 @@ function applyTheme(theme) {
   const isLight = theme === 'light';
   document.documentElement.dataset.theme = theme;
   const btn = $('#theme-button');
-  if (btn) btn.setAttribute('aria-pressed', String(isLight));
+  if (btn) {
+    btn.setAttribute('aria-pressed', String(isLight));
+    btn.setAttribute('data-tooltip', isLight ? 'Giao diện Tối' : 'Giao diện Sáng');
+    btn.setAttribute('aria-label', isLight ? 'Chuyển sang giao diện Tối' : 'Chuyển sang giao diện Sáng');
+  }
   const icon = $('.theme-icon');
   if (icon) icon.innerHTML = isLight ? '<i class="ph-fill ph-sun"></i>' : '<i class="ph-fill ph-moon"></i>';
   const label = $('#theme-label');
@@ -120,6 +124,7 @@ function refreshSpecOptions() {
   fillSelect('#spec', ['all', ...specs], 'Tất cả file test');
   if (specs.includes(selectedSpec)) $('#spec').value = selectedSpec;
   updateWorkersForSpec();
+  populateBuilderSpecOptions();
 }
 
 function updateWorkersForSpec() {
@@ -280,7 +285,7 @@ function renderResourceContent(resource) {
 
   if (resource.type === 'json') {
     const formatted = formatJsonText(resource.content);
-    container.innerHTML = `<pre><code>${highlightCode(formatted, true)}</code></pre>`;
+    container.innerHTML = `<pre><code>${highlightCode(formatted, getCodeLanguage(resource.path || 'data.json'))}</code></pre>`;
     return;
   }
 
@@ -292,11 +297,20 @@ function renderResourceContent(resource) {
   container.textContent = resource.content;
 }
 
-function notify(message) {
-  const toast = $('#toast');
+function notify(message, type = 'info') {
+  const toast = document.getElementById('toast') || document.querySelector('#toast');
+  if (!toast) {
+    console.log(`[Toast ${type}]`, message);
+    return;
+  }
   toast.textContent = message;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 3000);
+  toast.className = `show ${type}`;
+  clearTimeout(toast.__timeout);
+  toast.__timeout = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+function showToast(message, type = 'info') {
+  notify(message, type);
 }
 
 function appendLog(payload) {
@@ -343,7 +357,10 @@ function renderRun(run) {
 async function request(url, options) {
   const response = await fetch(url, options);
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || 'Có lỗi xảy ra.');
+  if (!response.ok) {
+    const errorMsg = body.error || (Array.isArray(body.errors) && body.errors.length ? body.errors.join('; ') : '') || 'Có lỗi xảy ra.';
+    throw new Error(errorMsg);
+  }
   return body;
 }
 
@@ -352,8 +369,6 @@ function renderResourceList(filter = '') {
   const groups = [
     ['Báo cáo', 'reports', resourceCatalog.reports],
     ['Evidence', 'evidence', resourceCatalog.evidence],
-    ['Tài liệu', 'documents', resourceCatalog.documents],
-    ['Dữ liệu test', 'data', resourceCatalog.data],
   ];
   $('#resource-list').innerHTML = groups.map(([label, category, files]) => {
     if (activeResourceCategory !== 'all' && activeResourceCategory !== category) return '';
@@ -381,7 +396,11 @@ function renderResourceList(filter = '') {
   document.querySelectorAll('.delete-folder-button').forEach((button) => button.addEventListener('click', async (event) => {
     event.preventDefault();
     event.stopPropagation();
-    await deleteEvidenceFolder(button.dataset.folder);
+    if (button.dataset.type === 'report-folder') {
+      await deleteReportFolder(button.dataset.folder);
+    } else {
+      await deleteEvidenceFolder(button.dataset.folder);
+    }
   }));
 }
 
@@ -412,7 +431,7 @@ function renderReportTree(files) {
     .map(([folder, child]) => {
       const folderPath = parentPath ? `${parentPath}/${folder}` : folder;
       const open = openReportFolders.has(folderPath) ? ' open' : '';
-      return `<details class="evidence-folder report-folder" data-report-folder="${escapeHtml(folderPath)}"${open}><summary><span class="folder-icon">▸</span><strong>${escapeHtml(folder)}</strong><small>${countReports(child)}</small></summary><div>${branchHtml(child, folderPath)}${reportItems(child.__reports || [])}</div></details>`;
+      return `<details class="evidence-folder report-folder" data-report-folder="${escapeHtml(folderPath)}"${open}><summary><span class="folder-icon">▸</span><strong>${escapeHtml(folder)}</strong><small>${countReports(child)}</small><button class="delete-folder-button" type="button" data-folder="${escapeHtml(folderPath)}" data-type="report-folder" title="Xóa folder báo cáo">×</button></summary><div>${branchHtml(child, folderPath)}${reportItems(child.__reports || [])}</div></details>`;
     }).join('');
   return branchHtml(root) + reportItems(root.__reports || []);
 }
@@ -438,7 +457,7 @@ function renderEvidenceTree(files) {
       const childFiles = countTreeFiles(child);
       const folderPath = parentPath ? `${parentPath}/${folder}` : folder;
       const open = openEvidenceFolders.has(folderPath) ? ' open' : '';
-      return `<details class="evidence-folder" data-folder="${escapeHtml(folderPath)}"${open}><summary><span class="folder-icon">▸</span><strong>${escapeHtml(folder)}</strong><small>${childFiles}</small><button class="delete-folder-button" type="button" data-folder="${escapeHtml(folderPath)}" title="Xóa folder">×</button></summary><div>${renderBranch(child, depth + 1, folderPath)}${renderFiles(child.__files || [])}</div></details>`;
+      return `<details class="evidence-folder" data-folder="${escapeHtml(folderPath)}"${open}><summary><span class="folder-icon">▸</span><strong>${escapeHtml(folder)}</strong><small>${childFiles}</small><button class="delete-folder-button" type="button" data-folder="${escapeHtml(folderPath)}" data-type="evidence-folder" title="Xóa folder">×</button></summary><div>${renderBranch(child, depth + 1, folderPath)}${renderFiles(child.__files || [])}</div></details>`;
     }).join('');
 
   const renderFiles = (items) => [...items].reverse().map((file) => {
@@ -549,13 +568,52 @@ async function deleteEvidenceFolder(folderPath) {
       body: JSON.stringify({ type: 'evidence-folder', path: folderPath }),
     });
     notify(result.message);
-    if (currentResource?.startsWith(`${folderPath}/`)) {
+    if (currentResource && (currentResource === folderPath || currentResource.startsWith(`${folderPath}/`))) {
       currentResource = null;
       currentResourceCategory = '';
       hideResourcePreviews();
       $('#resource-empty').hidden = false;
+      $('#resource-name').textContent = 'Chọn một mục để xem chi tiết';
+      $('#resource-type').textContent = 'RESOURCE';
+      $('#delete-button').hidden = true;
     }
-    openEvidenceFolders.clear();
+    openEvidenceFolders.delete(folderPath);
+    for (const openFolder of Array.from(openEvidenceFolders)) {
+      if (openFolder === folderPath || openFolder.startsWith(`${folderPath}/`)) {
+        openEvidenceFolders.delete(openFolder);
+      }
+    }
+    await openExplorer();
+  } catch (error) { notify(error.message); }
+}
+
+async function deleteReportFolder(folderPath) {
+  const reportCount = resourceCatalog.reports.filter((item) => item.startsWith(`${folderPath}/`)).length;
+  const promptText = reportCount > 0
+    ? `Xóa folder báo cáo này và toàn bộ ${reportCount} báo cáo (gồm HTML, data, trace/video) bên trong?\n\n${folderPath}`
+    : `Xóa folder báo cáo này?\n\n${folderPath}`;
+  if (!window.confirm(promptText)) return;
+  try {
+    const result = await request('/api/artifact', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'report-folder', path: folderPath }),
+    });
+    notify(result.message);
+    if (currentResource && (currentResource === folderPath || currentResource.startsWith(`${folderPath}/`))) {
+      currentResource = null;
+      currentResourceCategory = '';
+      hideResourcePreviews();
+      $('#resource-empty').hidden = false;
+      $('#resource-name').textContent = 'Chọn một mục để xem chi tiết';
+      $('#resource-type').textContent = 'RESOURCE';
+      $('#delete-button').hidden = true;
+    }
+    openReportFolders.delete(folderPath);
+    for (const openFolder of Array.from(openReportFolders)) {
+      if (openFolder === folderPath || openFolder.startsWith(`${folderPath}/`)) {
+        openReportFolders.delete(openFolder);
+      }
+    }
     await openExplorer();
   } catch (error) { notify(error.message); }
 }
@@ -576,7 +634,7 @@ async function editCurrentResource() {
 function formatCurrentResourceEditor() {
   const editor = $('#resource-edit-content');
   try {
-    if (currentResourceType === 'json' || currentResource?.endsWith('.json')) {
+    if (currentResourceType === 'json' || getCodeLanguage(currentResource) === 'json') {
       editor.value = formatJsonText(editor.value);
       notify('Đã định dạng JSON.');
       return;
@@ -596,7 +654,7 @@ async function saveCurrentResource() {
   const saveButton = $('#save-resource-button');
   saveButton.disabled = true;
   try {
-    const content = currentResourceType === 'json' || currentResource?.endsWith('.json')
+    const content = currentResourceType === 'json' || getCodeLanguage(currentResource) === 'json'
       ? formatJsonText($('#resource-edit-content').value)
       : $('#resource-edit-content').value;
     const result = await request('/api/resource', {
@@ -633,18 +691,1389 @@ async function deleteCurrentArtifact() {
 async function openExplorer() {
   try {
     resourceCatalog = await request('/api/resources');
-    $('#resource-summary').innerHTML = `<span><strong>${resourceCatalog.reports.length}</strong> báo cáo</span><span><strong>${resourceCatalog.evidence.length}</strong> evidence</span><span><strong>${resourceCatalog.documents.length + resourceCatalog.data.length}</strong> tệp</span>`;
+    $('#resource-summary').innerHTML = `
+      <div class="hero-stat-card"><strong>${resourceCatalog.reports.length}</strong><small>Báo cáo</small></div>
+      <div class="hero-stat-card"><strong>${resourceCatalog.evidence.length}</strong><small>Ảnh evidence</small></div>
+      <div class="hero-stat-card"><strong>${resourceCatalog.documents.length}</strong><small>Tài liệu</small></div>
+    `;
     renderResourceList();
   } catch (error) { notify(error.message); }
 }
 
-async function openCodeWorkspace() {
+// ============================================================================
+// OBJECT REPOSITORY & CORE CAPABILITIES CONTROLLER (NON-TECH MODE)
+// ============================================================================
+let activeCodeMode = 'visual'; // 'visual' | 'raw'
+let repoPages = [];
+let repoCapabilities = [];
+let selectedRepoPage = null;
+let activeRepoCategory = 'all'; // 'all' | 'desktop' | 'mobile-web' | 'core'
+let activeRepoTypeFilter = 'all';
+let currentEditingLocator = null;
+let objectRepoInitialized = false;
+let pageStudioLocators = [];
+let pageStudioActions = [];
+
+function renderPageStudioRows() {
+  const locators = $('#new-page-locators');
+  const actions = $('#new-page-actions');
+  if (locators) {
+    locators.innerHTML = pageStudioLocators.map((item, index) => `
+      <div class="page-studio-row" data-index="${index}">
+        <input class="new-page-locator-name" placeholder="Tên biến, ví dụ: submitButton" value="${escapeHtml(item.name)}">
+        <input class="new-page-locator-expression" placeholder="this.page.getByRole('button', { name: 'Lưu' })" value="${escapeHtml(item.expression)}">
+        <button type="button" class="btn-icon-subtle page-studio-remove" aria-label="Xóa locator"><i class="ph-bold ph-trash"></i></button>
+      </div>`).join('');
+  }
+  if (actions) {
+    actions.innerHTML = pageStudioActions.map((item, index) => `
+      <div class="page-studio-row" data-index="${index}">
+        <input class="new-page-action-name" placeholder="Tên action, ví dụ: submitForm" value="${escapeHtml(item.name)}">
+        <select class="new-page-action-locator">${pageStudioLocators.map((locator) => `<option value="${escapeHtml(locator.name)}"${locator.name === item.locatorName ? ' selected' : ''}>${escapeHtml(locator.name || 'Chọn locator')}</option>`).join('')}</select>
+        <select class="new-page-action-operation"><option value="click"${item.operation === 'click' ? ' selected' : ''}>Bấm</option><option value="fill"${item.operation === 'fill' ? ' selected' : ''}>Nhập</option></select>
+        <button type="button" class="btn-icon-subtle page-studio-remove" aria-label="Xóa action"><i class="ph-bold ph-trash"></i></button>
+      </div>`).join('');
+  }
+  document.querySelectorAll('.page-studio-remove').forEach((button) => button.addEventListener('click', () => {
+    const row = button.closest('.page-studio-row');
+    const index = Number(row.dataset.index);
+    const collection = row.parentElement.id === 'new-page-locators' ? pageStudioLocators : pageStudioActions;
+    collection.splice(index, 1);
+    renderPageStudioRows();
+    updatePageStudioPreview();
+  }));
+  document.querySelectorAll('#new-page-locators input, #new-page-actions input, #new-page-actions select').forEach((control) => control.addEventListener('input', syncPageStudioState));
+  document.querySelectorAll('#new-page-actions select').forEach((control) => control.addEventListener('change', syncPageStudioState));
+}
+
+function syncPageStudioState() {
+  pageStudioLocators = Array.from(document.querySelectorAll('#new-page-locators .page-studio-row')).map((row) => ({
+    name: row.querySelector('.new-page-locator-name').value,
+    expression: row.querySelector('.new-page-locator-expression').value,
+  }));
+  pageStudioActions = Array.from(document.querySelectorAll('#new-page-actions .page-studio-row')).map((row) => ({
+    name: row.querySelector('.new-page-action-name').value,
+    locatorName: row.querySelector('.new-page-action-locator').value,
+    operation: row.querySelector('.new-page-action-operation').value,
+  }));
+  updatePageStudioPreview();
+}
+
+function pageStudioCode() {
+  const className = $('#new-page-class')?.value.trim() || 'NewPage';
+  const basePageImport = $('#new-page-platform')?.value === 'mobile-web' ? "require('../../pages/BasePage')" : "require('../BasePage')";
+  const locatorLines = pageStudioLocators.filter((item) => item.name && item.expression).map((item) => `    this.${item.name} = ${item.expression};`).join('\n') || '    // Thêm locator của màn hình tại đây.';
+  const methodLines = pageStudioActions.filter((item) => item.name).map((item) => item.operation === 'fill'
+    ? `  async ${item.name}(value) {\n    await this.${item.locatorName || 'page'}.fill(value);\n  }`
+    : `  async ${item.name}() {\n    await this.${item.locatorName || 'page'}.click();\n  }`).join('\n\n');
+  return `const { BasePage } = ${basePageImport};\n\nclass ${className} extends BasePage {\n  constructor(page, featureName) {\n    super(page, featureName);\n${locatorLines}\n  }${methodLines ? `\n\n${methodLines}` : ''}\n}\n\nmodule.exports = { ${className} };\n`;
+}
+
+function updatePageStudioPreview() {
+  const preview = $('#new-page-preview code');
+  if (preview) preview.innerHTML = highlightCode(pageStudioCode());
+  const status = $('#new-page-status');
+  if (status) status.textContent = `${pageStudioLocators.length} locator · ${pageStudioActions.length} action`;
+}
+
+let pageManagerLocators = [];
+let pageManagerActions = [];
+let pageManagerMode = 'inspect'; // 'inspect' | 'create'
+let currentInspectedPage = null;
+let pageDirectEditMode = false;
+let currentInspectedCode = '';
+let existingPageFilter = 'all';
+
+function pageManagerCode() {
+  const className = $('#page-manager-class')?.value.trim() || 'NewPage';
+  const basePageImport = $('#page-manager-platform')?.value === 'mobile-web' ? "require('../../pages/BasePage')" : "require('../BasePage')";
+  const locatorLines = pageManagerLocators.filter((item) => item.name && item.expression).map((item) => `    this.${item.name} = ${item.expression};`).join('\n') || '    // Thêm locator của màn hình tại đây.';
+  const methodLines = pageManagerActions.filter((item) => item.name && item.locatorName).map((item) => item.operation === 'fill'
+    ? `  async ${item.name}(value) {\n    await this.${item.locatorName}.fill(value);\n  }`
+    : `  async ${item.name}() {\n    await this.${item.locatorName}.click();\n  }`).join('\n\n');
+  return `const { BasePage } = ${basePageImport};\n\nclass ${className} extends BasePage {\n  constructor(page, featureName) {\n    super(page, featureName);\n${locatorLines}\n  }${methodLines ? `\n\n${methodLines}` : ''}\n}\n\nmodule.exports = { ${className} };\n`;
+}
+
+function renderPageManagerRows() {
+  const locatorContainer = $('#page-manager-locators');
+  const actionContainer = $('#page-manager-actions');
+  if (locatorContainer) locatorContainer.innerHTML = pageManagerLocators.map((item, index) => `
+    <div class="page-manager-row" data-index="${index}"><input class="page-manager-locator-name" placeholder="Tên biến, ví dụ: submitButton" value="${escapeHtml(item.name)}"><input class="page-manager-locator-expression" placeholder="this.page.getByRole('button', { name: 'Lưu' })" value="${escapeHtml(item.expression)}"><button type="button" class="btn-icon-subtle page-manager-remove" aria-label="Xóa locator"><i class="ph-bold ph-trash"></i></button></div>`).join('');
+  if (actionContainer) actionContainer.innerHTML = pageManagerActions.map((item, index) => `
+    <div class="page-manager-row page-manager-action-row" data-index="${index}"><input class="page-manager-action-name" placeholder="Tên action, ví dụ: submitForm" value="${escapeHtml(item.name)}"><select class="page-manager-action-locator">${pageManagerLocators.map((locator) => `<option value="${escapeHtml(locator.name)}"${locator.name === item.locatorName ? ' selected' : ''}>${escapeHtml(locator.name || 'Chọn locator')}</option>`).join('')}</select><select class="page-manager-action-operation"><option value="click"${item.operation === 'click' ? ' selected' : ''}>Bấm</option><option value="fill"${item.operation === 'fill' ? ' selected' : ''}>Nhập</option></select><button type="button" class="btn-icon-subtle page-manager-remove" aria-label="Xóa action"><i class="ph-bold ph-trash"></i></button></div>`).join('');
+  document.querySelectorAll('.page-manager-remove').forEach((button) => button.addEventListener('click', () => {
+    const row = button.closest('.page-manager-row');
+    const collection = row.classList.contains('page-manager-action-row') ? pageManagerActions : pageManagerLocators;
+    collection.splice(Number(row.dataset.index), 1);
+    renderPageManagerRows();
+    updatePageManagerPreview();
+  }));
+  document.querySelectorAll('#page-manager-locators input, #page-manager-actions input, #page-manager-actions select').forEach((control) => control.addEventListener('input', syncPageManagerState));
+  document.querySelectorAll('#page-manager-actions select').forEach((control) => control.addEventListener('change', syncPageManagerState));
+}
+
+function syncPageManagerState() {
+  pageManagerLocators = Array.from(document.querySelectorAll('#page-manager-locators .page-manager-row')).map((row) => ({ name: row.querySelector('.page-manager-locator-name').value, expression: row.querySelector('.page-manager-locator-expression').value }));
+  pageManagerActions = Array.from(document.querySelectorAll('#page-manager-actions .page-manager-action-row')).map((row) => ({ name: row.querySelector('.page-manager-action-name').value, locatorName: row.querySelector('.page-manager-action-locator').value, operation: row.querySelector('.page-manager-action-operation').value }));
+  updatePageManagerPreview();
+  debounceSavePageDraft();
+}
+
+function updatePageManagerPreview() {
+  const preview = $('#page-manager-preview code');
+  if (preview) preview.innerHTML = highlightCode(pageManagerCode());
+  const count = $('#page-manager-count');
+  if (count) count.textContent = `${pageManagerLocators.length} locator · ${pageManagerActions.length} action`;
+}
+
+// --- Page Manager Draft Management (.dashboard-drafts/pages/) ---
+const PAGE_MANAGER_DRAFT_KEY = 'vieclam24h_page_manager_draft';
+let activePageDraftId = null;
+let pageDraftDebounceTimer = null;
+
+function updatePageDraftStatusBadge(statusText, state = 'saved') {
+  const badge = $('#pm-draft-status-badge');
+  if (!badge) return;
+  if (state === 'none' || !statusText) {
+    badge.style.display = 'none';
+    return;
+  }
+  badge.style.display = 'inline-flex';
+  badge.className = 'draft-status-pill ' + state;
+  let icon = '<i class="ph-bold ph-floppy-disk"></i>';
+  if (state === 'saved') icon = '<i class="ph-bold ph-check"></i>';
+  if (state === 'modified') icon = '<i class="ph-bold ph-pencil-simple"></i>';
+  badge.innerHTML = `${icon} <span>${escapeHtml(statusText)}</span>`;
+}
+
+function getPageManagerDraftPayload() {
+  const platform = $('#page-manager-platform')?.value || 'desktop';
+  const title = $('#page-manager-title')?.value.trim() || '';
+  const className = $('#page-manager-class')?.value.trim() || '';
+  const description = $('#page-manager-description')?.value.trim() || '';
+  return {
+    platform,
+    title,
+    className,
+    description,
+    locators: pageManagerLocators || [],
+    actions: pageManagerActions || [],
+    savedAt: Date.now(),
+  };
+}
+
+async function savePageDraft(forceServer = false) {
+  if (pageManagerMode !== 'create') return null;
+  const draft = getPageManagerDraftPayload();
+  const hasContent = Boolean(
+    draft.title ||
+    draft.className ||
+    draft.description ||
+    (draft.locators && draft.locators.length > 0) ||
+    (draft.actions && draft.actions.length > 0)
+  );
+
+  if (!hasContent) {
+    updatePageDraftStatusBadge('', 'none');
+    return null;
+  }
+
   try {
-    const result = await request('/api/code-files');
-    codeFiles = result.files;
-    $('#code-file-count').textContent = `${codeFiles.length} tệp`;
-    renderCodeTree();
+    localStorage.setItem(PAGE_MANAGER_DRAFT_KEY, JSON.stringify(draft));
+    if (!activePageDraftId) {
+      activePageDraftId = 'draft_page_active';
+    }
+
+    updatePageDraftStatusBadge('Đang lưu máy chủ...', 'modified');
+
+    const res = await fetch('/api/drafts/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'page',
+        id: activePageDraftId,
+        data: draft,
+      }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const timeStr = new Date().toLocaleTimeString('vi-VN');
+      updatePageDraftStatusBadge(`Bản nháp máy chủ (${timeStr})`, 'saved');
+      if (forceServer) {
+        showToast(`Đã lưu bản nháp Page Object vào máy chủ (.dashboard-drafts/pages/)`, 'success');
+      }
+    }
+    return draft;
+  } catch (err) {
+    console.warn('Lỗi lưu page draft:', err.message);
+    updatePageDraftStatusBadge('Đã lưu cục bộ', 'saved');
+    return draft;
+  }
+}
+
+function debounceSavePageDraft() {
+  if (pageDraftDebounceTimer) clearTimeout(pageDraftDebounceTimer);
+  pageDraftDebounceTimer = setTimeout(() => {
+    savePageDraft(false);
+  }, 600);
+}
+
+function restorePageDraft(draft) {
+  if (!draft) return;
+  if ($('#page-manager-platform') && draft.platform) $('#page-manager-platform').value = draft.platform;
+  if ($('#page-manager-title') && draft.title) $('#page-manager-title').value = draft.title;
+  if ($('#page-manager-class') && draft.className) $('#page-manager-class').value = draft.className;
+  if ($('#page-manager-description') && draft.description) $('#page-manager-description').value = draft.description;
+
+  pageManagerLocators = Array.isArray(draft.locators) ? draft.locators : [];
+  pageManagerActions = Array.isArray(draft.actions) ? draft.actions : [];
+
+  renderPageManagerRows();
+  updatePageManagerPreview();
+  const timeStr = draft.savedAt ? new Date(draft.savedAt).toLocaleTimeString('vi-VN') : '';
+  updatePageDraftStatusBadge(timeStr ? `Đã khôi phục (${timeStr})` : 'Đã khôi phục', 'saved');
+  const banner = $('#pm-draft-recovery-banner');
+  if (banner) banner.style.display = 'none';
+  showToast('Đã khôi phục dữ liệu bản nháp Page Object!', 'success');
+}
+
+async function checkPageDraftOnCreateMode() {
+  let localDraft = null;
+  try {
+    const raw = localStorage.getItem(PAGE_MANAGER_DRAFT_KEY);
+    if (raw) localDraft = JSON.parse(raw);
+  } catch {}
+
+  try {
+    const res = await fetch('/api/drafts?type=page');
+    const data = await res.json();
+    const serverDrafts = data.drafts || [];
+    const latestServerDraft = serverDrafts[0];
+
+    const draftCandidate = latestServerDraft?.data || localDraft;
+    if (draftCandidate && (draftCandidate.title || draftCandidate.className || (draftCandidate.locators && draftCandidate.locators.length > 0))) {
+      activePageDraftId = latestServerDraft?.id || 'draft_page_active';
+      const banner = $('#pm-draft-recovery-banner');
+      const text = $('#pm-draft-recovery-text');
+      if (banner && text) {
+        const name = draftCandidate.className || draftCandidate.title || 'Page Object chưa đặt tên';
+        const dateStr = latestServerDraft?.updatedAt ? new Date(latestServerDraft.updatedAt).toLocaleTimeString('vi-VN') : '';
+        text.textContent = `Phát hiện bản nháp "${name}"${dateStr ? ` (lưu lúc ${dateStr} trên máy chủ)` : ''}.`;
+        banner.style.display = 'flex';
+
+        const btnRestore = $('#pm-btn-restore-draft');
+        if (btnRestore) btnRestore.onclick = () => restorePageDraft(draftCandidate);
+        const btnDismiss = $('#pm-btn-dismiss-draft');
+        if (btnDismiss) btnDismiss.onclick = () => { banner.style.display = 'none'; };
+      }
+    } else {
+      const banner = $('#pm-draft-recovery-banner');
+      if (banner) banner.style.display = 'none';
+    }
+  } catch (err) {
+    if (localDraft) {
+      const banner = $('#pm-draft-recovery-banner');
+      if (banner) {
+        banner.style.display = 'flex';
+        const btnRestore = $('#pm-btn-restore-draft');
+        if (btnRestore) btnRestore.onclick = () => restorePageDraft(localDraft);
+        const btnDismiss = $('#pm-btn-dismiss-draft');
+        if (btnDismiss) btnDismiss.onclick = () => { banner.style.display = 'none'; };
+      }
+    }
+  }
+}
+
+async function clearPageDraft(skipConfirm = false) {
+  if (!skipConfirm) {
+    const draft = getPageManagerDraftPayload();
+    if (draft.title || draft.className || draft.locators.length > 0) {
+      const ok = window.confirm('Bạn có chắc muốn xóa bản nháp Page Object này và làm mới form?');
+      if (!ok) return;
+    }
+  }
+
+  try {
+    localStorage.removeItem(PAGE_MANAGER_DRAFT_KEY);
+    if (activePageDraftId) {
+      await fetch('/api/drafts/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'page', id: activePageDraftId }),
+      });
+      activePageDraftId = null;
+    }
+  } catch {}
+
+  if ($('#page-manager-title')) $('#page-manager-title').value = '';
+  if ($('#page-manager-class')) $('#page-manager-class').value = '';
+  if ($('#page-manager-description')) $('#page-manager-description').value = '';
+  pageManagerLocators = [];
+  pageManagerActions = [];
+  renderPageManagerRows();
+  updatePageManagerPreview();
+  updatePageDraftStatusBadge('', 'none');
+  const banner = $('#pm-draft-recovery-banner');
+  if (banner) banner.style.display = 'none';
+  if (!skipConfirm) {
+    showToast('Đã xóa bản nháp Page Object và làm mới form.', 'info');
+  }
+}
+
+function renderInspectedLocators(locators = []) {
+  const container = $('#pm-inspect-locators-list');
+  if (!container) return;
+  const filterQuery = ($('#pm-quick-search-input')?.value || '').toLowerCase().trim();
+
+  const filtered = locators.filter((l) => {
+    if (!filterQuery) return true;
+    return (l.name || '').toLowerCase().includes(filterQuery) ||
+      (l.expression || '').toLowerCase().includes(filterQuery) ||
+      (l.description || '').toLowerCase().includes(filterQuery);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<p class="empty-resource" style="padding:16px 0; font-size:12px;">${filterQuery ? 'Không tìm thấy locator nào khớp với từ khóa.' : 'Chưa có locator nào được định nghĩa trong constructor.'}</p>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((l) => {
+    const badgeColor = l.badgeColor || '#6b7280';
+    const categoryIcon = l.categoryIcon || 'ph-bold ph-crosshair';
+    const categoryLabel = l.categoryLabel || 'Phần tử';
+    return `
+      <div class="pm-locator-card" data-name="${escapeHtml(l.name)}">
+        <div class="pm-locator-top">
+          <div class="pm-locator-title">
+            <span class="pm-locator-name">this.${escapeHtml(l.name)}</span>
+            <span class="pm-locator-category-pill" style="background:${badgeColor};">
+              <i class="${categoryIcon}"></i> ${escapeHtml(categoryLabel)}
+            </span>
+          </div>
+          <div class="pm-locator-actions">
+            <button type="button" class="pm-btn-loc-action pm-btn-copy-loc" data-expr="${escapeHtml(l.expression)}" title="Sao chép selector">
+              <i class="ph-bold ph-copy"></i> Copy
+            </button>
+            <button type="button" class="pm-btn-loc-action pm-btn-edit-loc" data-name="${escapeHtml(l.name)}" data-expr="${escapeHtml(l.expression)}" title="Chỉnh sửa selector">
+              <i class="ph-bold ph-pencil-simple"></i> Sửa
+            </button>
+          </div>
+        </div>
+        <code class="pm-locator-expr">${escapeHtml(l.expression)}</code>
+        ${l.description ? `<p class="pm-locator-desc"><i class="ph ph-info"></i> ${escapeHtml(l.description)}</p>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.pm-btn-copy-loc').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navigator.clipboard.writeText(btn.dataset.expr);
+      notify('Đã sao chép biểu thức selector vào clipboard!', 'success');
+    });
+  });
+
+  container.querySelectorAll('.pm-btn-edit-loc').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pagePath = currentInspectedPage ? currentInspectedPage.relativePath : undefined;
+      openLocatorEditModal(btn.dataset.name, btn.dataset.expr, pagePath);
+    });
+  });
+}
+
+function renderInspectedActions(actions = []) {
+  const container = $('#pm-inspect-actions-list');
+  if (!container) return;
+  const filterQuery = ($('#pm-quick-search-input')?.value || '').toLowerCase().trim();
+
+  const filtered = actions.filter((a) => {
+    if (!filterQuery) return true;
+    return (a.signature || a.name || '').toLowerCase().includes(filterQuery);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<p class="empty-resource" style="padding:16px 0; font-size:12px;">${filterQuery ? 'Không tìm thấy action nào khớp từ khóa.' : 'Chưa định nghĩa method hành động riêng.'}</p>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((a) => {
+    return `
+      <div class="pm-action-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <span class="pm-action-sig">${escapeHtml(a.signature || a.name + '()')}</span>
+          <button type="button" class="pm-btn-use-bdd" data-action="${escapeHtml(a.name)}" title="Chèn method này vào kịch bản BDD">
+            <i class="ph-bold ph-tree-structure"></i> Dùng trong BDD
+          </button>
+        </div>
+        <div class="pm-action-flags">
+          ${a.hasCapture ? '<span class="pm-flag-pill pm-flag-capture"><i class="ph-bold ph-camera"></i> Evidence</span>' : ''}
+          ${a.isNavigation ? '<span class="pm-flag-pill pm-flag-nav"><i class="ph-bold ph-compass"></i> Điều hướng</span>' : ''}
+          ${a.isAssertion ? '<span class="pm-flag-pill pm-flag-assert"><i class="ph-bold ph-check-circle"></i> Assertion</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.pm-btn-use-bdd').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openInsertPomActionModal(currentInspectedPage, btn.dataset.action);
+    });
+  });
+}
+
+async function inspectPage(relativePath, doScroll = false) {
+  try {
+    pageManagerMode = 'inspect';
+    $('#pm-btn-inspect-mode')?.classList.add('active');
+    $('#pm-btn-create-mode')?.classList.remove('active');
+    if ($('#page-manager-create-form')) $('#page-manager-create-form').style.display = 'none';
+    if ($('#page-manager-inspect-panel')) {
+      $('#page-manager-inspect-panel').style.display = 'flex';
+      $('#page-manager-inspect-panel').scrollTop = 0;
+    }
+    if ($('#pm-btn-toggle-edit')) $('#pm-btn-toggle-edit').style.display = 'inline-flex';
+
+    const result = await request(`/api/object-repository/page?file=${encodeURIComponent(relativePath)}`);
+    currentInspectedPage = result;
+    currentInspectedCode = result.rawCode || '';
+
+    // Đồng bộ dropdown select
+    if ($('#page-manager-select-page')) $('#page-manager-select-page').value = relativePath;
+
+    // Cập nhật Left Panel: Thông tin Page (Phần 01)
+    const platformLabel = result.platform === 'mobile-web' ? 'Mobile Web' : (result.platform === 'base' ? 'Trang Cơ Sở' : 'Desktop Web');
+    if ($('#pm-inspect-title-text')) $('#pm-inspect-title-text').textContent = result.title ? `${result.title} (${result.className})` : result.className;
+    if ($('#pm-inspect-platform')) $('#pm-inspect-platform').textContent = platformLabel;
+    if ($('#pm-inspect-file')) $('#pm-inspect-file').textContent = result.relativePath;
+    if ($('#pm-inspect-class')) $('#pm-inspect-class').textContent = `${result.className}${result.baseClass && result.baseClass !== 'None' ? ` extends ${result.baseClass}` : ''}`;
+    if ($('#pm-inspect-desc')) $('#pm-inspect-desc').textContent = result.desc || `Page Object quản lý tương tác trên ${result.className}.`;
+    if ($('#pm-inspect-loc-count')) $('#pm-inspect-loc-count').textContent = (result.locators || []).length;
+    if ($('#pm-locators-badge-count')) $('#pm-locators-badge-count').textContent = (result.locators || []).length;
+    if ($('#pm-inspect-act-count')) $('#pm-inspect-act-count').textContent = (result.methods || []).length;
+    if ($('#pm-actions-badge-count')) $('#pm-actions-badge-count').textContent = (result.methods || []).length;
+
+    const pmDelBtn = $('#pm-btn-delete-page');
+    if (pmDelBtn) {
+      const isBase = result.relativePath === 'pages/BasePage.js';
+      pmDelBtn.disabled = isBase;
+      pmDelBtn.style.opacity = isBase ? '0.35' : '1';
+      pmDelBtn.title = isBase ? 'Không thể xóa BasePage.js (lớp nền tảng dùng chung)' : 'Xóa Page Object này khỏi dự án';
+    }
+
+    // Render locators và actions
+    renderInspectedLocators(result.locators || []);
+    renderInspectedActions(result.methods || []);
+
+    // Cập nhật Right Panel: Mã nguồn
+    if ($('#pm-code-eyebrow')) $('#pm-code-eyebrow').textContent = 'MÃ NGUỒN HIỆN TẠI';
+    if ($('#pm-code-title')) $('#pm-code-title').textContent = `${result.className}.js`;
+    if ($('#page-manager-preview code')) $('#page-manager-preview code').innerHTML = highlightCode(currentInspectedCode);
+    if ($('#page-manager-code-editor')) $('#page-manager-code-editor').value = currentInspectedCode;
+
+    const statusPill = $('#pm-code-status');
+    if (statusPill) {
+      statusPill.innerHTML = '<i class="ph-bold ph-check"></i> Đang mở từ disk';
+      statusPill.classList.remove('modified');
+    }
+
+    // Reset về chế độ view code (không mở textarea ngay)
+    pageDirectEditMode = false;
+    if ($('#pm-code-view-wrap')) $('#pm-code-view-wrap').style.display = 'block';
+    if ($('#pm-code-edit-wrap')) $('#pm-code-edit-wrap').style.display = 'none';
+    if ($('#pm-btn-save-code')) $('#pm-btn-save-code').style.display = 'none';
+    if ($('#pm-edit-btn-text')) $('#pm-edit-btn-text').textContent = 'Chỉnh sửa mã';
+    if ($('#pm-code-help-text')) $('#pm-code-help-text').textContent = 'Nhấn "Chỉnh sửa mã" để gõ trực tiếp hoặc Ctrl+S để lưu file. Tự động sao lưu backup (.bak) an toàn.';
+
+    // Đánh dấu card active ở danh sách dưới
+    document.querySelectorAll('.page-manager-file-card').forEach((card) => {
+      card.classList.toggle('is-selected', card.dataset.path === relativePath);
+    });
+
+    if (doScroll) {
+      $('#page-manager-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  } catch (error) {
+    notify(`Không thể tải chi tiết Page Object: ${error.message}`);
+  }
+}
+
+function switchToCreatePageMode() {
+  pageManagerMode = 'create';
+  pageDirectEditMode = false;
+  $('#pm-btn-create-mode')?.classList.add('active');
+  $('#pm-btn-inspect-mode')?.classList.remove('active');
+  if ($('#page-manager-create-form')) $('#page-manager-create-form').style.display = 'block';
+  if ($('#page-manager-inspect-panel')) $('#page-manager-inspect-panel').style.display = 'none';
+  if ($('#pm-btn-toggle-edit')) $('#pm-btn-toggle-edit').style.display = 'none';
+  if ($('#pm-btn-save-code')) $('#pm-btn-save-code').style.display = 'none';
+
+  if ($('#pm-code-eyebrow')) $('#pm-code-eyebrow').textContent = 'LIVE PREVIEW';
+  if ($('#pm-code-title')) $('#pm-code-title').textContent = 'Mã framework sẽ sinh ra';
+  if ($('#pm-code-view-wrap')) $('#pm-code-view-wrap').style.display = 'block';
+  if ($('#pm-code-edit-wrap')) $('#pm-code-edit-wrap').style.display = 'none';
+  if ($('#pm-code-help-text')) $('#pm-code-help-text').textContent = 'Preview cập nhật theo từng ô nhập. File chỉ được tạo khi bạn bấm nút ở cuối form.';
+
+  document.querySelectorAll('.page-manager-file-card').forEach((card) => card.classList.remove('is-selected'));
+
+  renderPageManagerRows();
+  updatePageManagerPreview();
+  checkPageDraftOnCreateMode();
+  $('#page-manager-workspace')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleDirectCodeEdit(forceState) {
+  if (pageManagerMode !== 'inspect' || !currentInspectedPage) return;
+  pageDirectEditMode = (forceState !== undefined) ? forceState : !pageDirectEditMode;
+
+  const viewWrap = $('#pm-code-view-wrap');
+  const editWrap = $('#pm-code-edit-wrap');
+  const saveBtn = $('#pm-btn-save-code');
+  const editText = $('#pm-edit-btn-text');
+  const statusPill = $('#pm-code-status');
+
+  if (pageDirectEditMode) {
+    if (viewWrap) viewWrap.style.display = 'none';
+    if (editWrap) editWrap.style.display = 'flex';
+    if (saveBtn) saveBtn.style.display = 'inline-flex';
+    if (editText) editText.textContent = 'Chế độ xem';
+    if (statusPill) {
+      statusPill.innerHTML = '<i class="ph-bold ph-pencil"></i> Chế độ chỉnh sửa';
+      statusPill.classList.add('modified');
+    }
+    $('#page-manager-code-editor')?.focus();
+  } else {
+    currentInspectedCode = $('#page-manager-code-editor')?.value || '';
+    if ($('#page-manager-preview code')) $('#page-manager-preview code').innerHTML = highlightCode(currentInspectedCode);
+    if (viewWrap) viewWrap.style.display = 'block';
+    if (editWrap) editWrap.style.display = 'none';
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (editText) editText.textContent = 'Chỉnh sửa mã';
+    if (statusPill) {
+      statusPill.innerHTML = '<i class="ph-bold ph-check"></i> Đang mở từ disk';
+      statusPill.classList.remove('modified');
+    }
+  }
+}
+
+async function saveCurrentPageCode() {
+  if (!currentInspectedPage) return;
+  const newContent = $('#page-manager-code-editor')?.value;
+  if (!newContent) {
+    notify('Nội dung mã nguồn không được để trống.');
+    return;
+  }
+
+  const saveBtn = $('#pm-btn-save-code');
+  if (saveBtn) saveBtn.disabled = true;
+
+  try {
+    const result = await request('/api/code', {
+      method: 'PUT',
+      body: JSON.stringify({
+        path: currentInspectedPage.relativePath,
+        content: newContent,
+      }),
+    });
+
+    notify(result.message || `Đã lưu file ${currentInspectedPage.className}.js thành công!`, 'success');
+    toggleDirectCodeEdit(false);
+    await inspectPage(currentInspectedPage.relativePath);
+  } catch (error) {
+    notify(`Không thể lưu file: ${error.message}`);
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+function copyCurrentPageManagerCode() {
+  const code = pageManagerMode === 'inspect'
+    ? ($('#page-manager-code-editor')?.value || currentInspectedCode)
+    : pageManagerCode();
+
+  if (!code) {
+    notify('Chưa có mã nguồn để sao chép.');
+    return;
+  }
+
+  navigator.clipboard.writeText(code);
+  notify('Đã sao chép toàn bộ mã nguồn vào clipboard!', 'success');
+}
+
+function openAddLocatorToPageModal() {
+  if (!currentInspectedPage) {
+    notify('Vui lòng chọn một Page Object để thêm locator.');
+    return;
+  }
+  $('#add-loc-target-page').value = currentInspectedPage.relativePath;
+  $('#add-loc-name').value = '';
+  $('#add-loc-expr').value = '';
+  $('#modal-add-locator-to-page').hidden = false;
+  $('#add-loc-name').focus();
+}
+
+function closeAddLocatorToPageModal() {
+  $('#modal-add-locator-to-page').hidden = true;
+}
+
+async function saveAddLocatorToPage() {
+  if (!currentInspectedPage) return;
+  const name = $('#add-loc-name').value.trim();
+  const expr = $('#add-loc-expr').value.trim();
+
+  if (!name || !expr) {
+    notify('Vui lòng nhập đầy đủ tên biến phần tử và biểu thức định vị.');
+    return;
+  }
+
+  if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name)) {
+    notify('Tên biến phải bắt đầu bằng chữ cái và chỉ chứa ký tự chữ số/gạch dưới (camelCase).');
+    return;
+  }
+
+  let cleanExpr = expr.replace(/;$/, '').trim();
+  if (!cleanExpr.startsWith('this.page.') && !cleanExpr.startsWith('page.') && !cleanExpr.startsWith('this.')) {
+    cleanExpr = `this.page.${cleanExpr}`;
+  }
+
+  try {
+    // Đọc mã nguồn hiện tại
+    const fileRes = await request(`/api/code?path=${encodeURIComponent(currentInspectedPage.relativePath)}`);
+    const originalContent = fileRes.content || '';
+
+    // Tìm constructor và chèn thêm dòng locator
+    const constructorMatch = originalContent.match(/(constructor\s*\([^)]*\)\s*\{[\s\S]*?)(\n\s*\}\s*\n|\n\s*\}\s*$)/);
+    if (!constructorMatch) {
+      notify('Không tìm thấy hàm constructor trong Page Object để chèn locator.');
+      return;
+    }
+
+    const insertion = `\n    this.${name} = ${cleanExpr};`;
+    const updatedContent = originalContent.slice(0, constructorMatch.index + constructorMatch[1].length) +
+      insertion +
+      originalContent.slice(constructorMatch.index + constructorMatch[1].length);
+
+    await request('/api/code', {
+      method: 'PUT',
+      body: JSON.stringify({
+        path: currentInspectedPage.relativePath,
+        content: updatedContent,
+      }),
+    });
+
+    notify(`Đã thêm phần tử "${name}" vào ${currentInspectedPage.className} thành công!`, 'success');
+    closeAddLocatorToPageModal();
+    await inspectPage(currentInspectedPage.relativePath);
+  } catch (error) {
+    notify(`Lỗi thêm locator: ${error.message}`);
+  }
+}
+
+async function addInlineLocatorToPage() {
+  if (!currentInspectedPage) {
+    notify('Vui lòng chọn một Page Object để thêm locator.');
+    return;
+  }
+  const nameInput = $('#pm-inline-loc-name');
+  const exprInput = $('#pm-inline-loc-expr');
+  const name = nameInput ? nameInput.value.trim() : '';
+  const expr = exprInput ? exprInput.value.trim() : '';
+
+  if (!name || !expr) {
+    notify('Vui lòng nhập đầy đủ tên biến phần tử và biểu thức định vị (selector).');
+    return;
+  }
+
+  if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name)) {
+    notify('Tên biến phải bắt đầu bằng chữ cái và theo chuẩn camelCase.');
+    return;
+  }
+
+  let cleanExpr = expr.replace(/;$/, '').trim();
+  if (!cleanExpr.startsWith('this.page.') && !cleanExpr.startsWith('page.') && !cleanExpr.startsWith('this.')) {
+    cleanExpr = `this.page.${cleanExpr}`;
+  }
+
+  try {
+    const fileRes = await request(`/api/code?path=${encodeURIComponent(currentInspectedPage.relativePath)}`);
+    const originalContent = fileRes.content || '';
+    const constructorMatch = originalContent.match(/(constructor\s*\([^)]*\)\s*\{[\s\S]*?)(\n\s*\}\s*\n|\n\s*\}\s*$)/);
+    if (!constructorMatch) {
+      notify('Không tìm thấy hàm constructor trong Page Object để chèn locator.');
+      return;
+    }
+
+    const insertion = `\n    this.${name} = ${cleanExpr};`;
+    const updatedContent = originalContent.slice(0, constructorMatch.index + constructorMatch[1].length) +
+      insertion +
+      originalContent.slice(constructorMatch.index + constructorMatch[1].length);
+
+    await request('/api/code', {
+      method: 'PUT',
+      body: JSON.stringify({
+        path: currentInspectedPage.relativePath,
+        content: updatedContent,
+      }),
+    });
+
+    notify(`Đã thêm phần tử "this.${name}" vào ${currentInspectedPage.className} thành công!`, 'success');
+    if (nameInput) nameInput.value = '';
+    if (exprInput) exprInput.value = '';
+    await inspectPage(currentInspectedPage.relativePath);
+  } catch (error) {
+    notify(`Lỗi thêm locator: ${error.message}`);
+  }
+}
+
+function renderPageManagerFiles() {
+  const container = $('#page-manager-existing-list');
+  if (!container) return;
+
+  const searchQuery = ($('#pm-filter-input')?.value || '').toLowerCase().trim();
+
+  const filtered = repoPages.filter((page) => {
+    if (existingPageFilter !== 'all' && page.platform !== existingPageFilter) return false;
+    if (searchQuery) {
+      const matchName = (page.className || '').toLowerCase().includes(searchQuery);
+      const matchPath = (page.relativePath || '').toLowerCase().includes(searchQuery);
+      const matchTitle = (page.title || '').toLowerCase().includes(searchQuery);
+      if (!matchName && !matchPath && !matchTitle) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<p class="empty-resource" style="grid-column:1/-1;">Không có Page Object nào phù hợp với bộ lọc.</p>';
+    return;
+  }
+
+  container.innerHTML = filtered.map((page) => {
+    const isCurrent = currentInspectedPage && currentInspectedPage.relativePath === page.relativePath;
+    const platformLabel = page.platform === 'mobile-web' ? 'Mobile' : (page.platform === 'base' ? 'Base' : 'Desktop');
+    const isBase = page.relativePath === 'pages/BasePage.js';
+    return `
+      <div class="dashboard-list-card page-manager-file-card${isCurrent ? ' is-selected' : ''}" data-path="${escapeHtml(page.relativePath)}">
+        <span class="dashboard-list-card__icon page-manager-file-icon"><i class="ph-bold ${page.icon || 'ph-browsers'}"></i></span>
+        <span class="dashboard-list-card__body">
+          <strong>${escapeHtml(page.className)}.js</strong>
+          <small>${platformLabel} · ${page.locatorCount || 0} locators · ${page.methodCount || 0} actions</small>
+        </span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          ${!isBase ? `<button type="button" class="btn-icon-subtle item-delete-hover-btn pm-page-delete-btn" data-path="${escapeHtml(page.relativePath)}" title="Xóa Page Object" style="padding:2px; font-size:14px;"><i class="ph ph-trash"></i></button>` : ''}
+          <i class="ph-bold ph-arrow-up-right" style="color:var(--muted); font-size:14px;"></i>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.page-manager-file-card').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.pm-page-delete-btn')) return;
+      inspectPage(card.dataset.path, true);
+    });
+  });
+
+  container.querySelectorAll('.pm-page-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pagePath = btn.dataset.path;
+      inspectPage(pagePath, true).then(() => {
+        document.getElementById('pm-btn-delete-page')?.click();
+      });
+    });
+  });
+}
+
+function populatePageSelectorDropdown() {
+  const select = $('#page-manager-select-page');
+  if (!select) return;
+
+  const desktopPages = repoPages.filter((p) => p.platform === 'desktop');
+  const mobilePages = repoPages.filter((p) => p.platform === 'mobile-web');
+  const basePages = repoPages.filter((p) => p.platform === 'base');
+
+  let html = '<option value="" disabled>-- Chọn Page Object để xem song song --</option>';
+
+  if (desktopPages.length > 0) {
+    html += '<optgroup label="Desktop Web">';
+    desktopPages.forEach((p) => {
+      html += `<option value="${escapeHtml(p.relativePath)}">${escapeHtml(p.className)}.js (${p.locatorCount || 0} locators)</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  if (mobilePages.length > 0) {
+    html += '<optgroup label="Mobile Web">';
+    mobilePages.forEach((p) => {
+      html += `<option value="${escapeHtml(p.relativePath)}">${escapeHtml(p.className)}.js (${p.locatorCount || 0} locators)</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  if (basePages.length > 0) {
+    html += '<optgroup label="Trang cơ sở">';
+    basePages.forEach((p) => {
+      html += `<option value="${escapeHtml(p.relativePath)}">${escapeHtml(p.className)}.js</option>`;
+    });
+    html += '</optgroup>';
+  }
+
+  select.innerHTML = html;
+}
+
+async function openPageManager() {
+  pageManagerLocators = [];
+  pageManagerActions = [];
+  try {
+    const result = await request('/api/object-repository/pages');
+    repoPages = result.pages || [];
+
+    // Cập nhật thống kê header
+    const desktopCount = repoPages.filter((p) => p.platform === 'desktop').length;
+    const mobileCount = repoPages.filter((p) => p.platform === 'mobile-web').length;
+    if ($('#pm-stat-total')) $('#pm-stat-total').textContent = repoPages.length;
+    if ($('#pm-stat-desktop')) $('#pm-stat-desktop').textContent = desktopCount;
+    if ($('#pm-stat-mobile')) $('#pm-stat-mobile').textContent = mobileCount;
+    if ($('#pm-total-pages-count')) $('#pm-total-pages-count').textContent = repoPages.length;
+    if ($('#pm-rail-count')) $('#pm-rail-count').textContent = repoPages.length;
+
+    populatePageSelectorDropdown();
+    renderPageManagerFiles();
+
+    // Nếu đang ở inspect mode hoặc chưa chọn page nào -> mở trang đầu tiên (ưu tiên desktop)
+    if (pageManagerMode === 'inspect') {
+      const defaultPage = (currentInspectedPage && repoPages.some((p) => p.relativePath === currentInspectedPage.relativePath))
+        ? currentInspectedPage.relativePath
+        : (repoPages.find((p) => p.relativePath.includes('HomePage.js'))?.relativePath || repoPages[0]?.relativePath);
+
+      if (defaultPage) {
+        await inspectPage(defaultPage, false);
+      }
+    } else {
+      switchToCreatePageMode();
+    }
+  } catch (error) {
+    notify(`Không thể tải danh sách Page Object: ${error.message}`);
+  }
+}
+
+async function createPageFromManager() {
+  syncPageManagerState();
+  const title = $('#page-manager-title').value.trim();
+  const className = $('#page-manager-class').value.trim();
+  if (!title || !className) { notify('Vui lòng nhập tên màn hình và tên class.'); return; }
+  const button = $('#page-manager-create');
+  button.disabled = true;
+  try {
+    const result = await request('/api/object-repository/create-page', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform: $('#page-manager-platform').value,
+        title,
+        className,
+        description: $('#page-manager-description').value,
+        locators: pageManagerLocators,
+        actions: pageManagerActions,
+        draftId: activePageDraftId,
+      }),
+    });
+    notify(result.message, 'success');
+    await clearPageDraft(true);
+    await openPageManager();
+    if (result.relativePath) {
+      await inspectPage(result.relativePath, true);
+    }
+    // Tự động gắn Page Object mới vào bản nháp BDD script nếu đang có draft
+    try {
+      const rawDraft = localStorage.getItem(BDD_WIZARD_DRAFT_KEY);
+      if (rawDraft) {
+        const draftObj = JSON.parse(rawDraft);
+        if (draftObj && Array.isArray(draftObj.selectedPoms)) {
+          if (!draftObj.selectedPoms.includes(result.relativePath)) {
+            draftObj.selectedPoms.push(result.relativePath);
+          }
+          if (!draftObj.primaryPage) {
+            draftObj.primaryPage = result.relativePath;
+          }
+          localStorage.setItem(BDD_WIZARD_DRAFT_KEY, JSON.stringify(draftObj));
+          saveWizardDraft(true);
+          showToast('Đã thêm Page Object mới vào bản nháp kịch bản BDD. Bạn có thể quay lại tab "Kịch bản test (BDD)" để tiếp tục.', 'success');
+        }
+      }
+    } catch (e) {}
   } catch (error) { notify(error.message); }
+  finally { button.disabled = false; }
+}
+
+function openPageStudio() {
+  pageStudioLocators = [];
+  pageStudioActions = [];
+  $('#new-page-platform').value = activeRepoCategory === 'mobile-web' ? 'mobile-web' : 'desktop';
+  $('#new-page-title').value = '';
+  $('#new-page-class').value = '';
+  $('#new-page-description').value = '';
+  renderPageStudioRows();
+  updatePageStudioPreview();
+  $('#modal-create-page').showModal();
+  $('#new-page-title').focus();
+}
+
+async function createPageFromStudio(event) {
+  event.preventDefault();
+  syncPageStudioState();
+  const submit = $('#create-page-submit');
+  submit.disabled = true;
+  try {
+    const result = await request('/api/object-repository/create-page', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform: $('#new-page-platform').value,
+        title: $('#new-page-title').value,
+        className: $('#new-page-class').value,
+        description: $('#new-page-description').value,
+        locators: pageStudioLocators,
+        actions: pageStudioActions,
+      }),
+    });
+    $('#modal-create-page').close();
+    notify(`${result.message}. Hãy mở BDD Studio để dùng Page Object mới.`);
+    selectedRepoPage = null;
+    await loadObjectRepository();
+  } catch (error) {
+    notify(error.message);
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+function initObjectRepository() {
+  if (objectRepoInitialized) return;
+  objectRepoInitialized = true;
+
+  // Mode Switcher
+  $('#btn-switch-visual-mode')?.addEventListener('click', () => setCodeViewMode('visual'));
+  $('#btn-switch-raw-mode')?.addEventListener('click', () => setCodeViewMode('raw'));
+
+  // Category Tabs
+  document.querySelectorAll('.repo-cat-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.repo-cat-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeRepoCategory = tab.dataset.cat;
+      if (activeRepoCategory === 'core') {
+        openCoreCapabilitiesView();
+      } else {
+        renderRepoPagesList();
+        if (repoPages.length > 0) {
+          const match = repoPages.find((p) => activeRepoCategory === 'all' || p.platform === activeRepoCategory);
+          if (match) selectRepoPage(match);
+        }
+      }
+    });
+  });
+
+  // Search Input
+  $('#repo-search-input')?.addEventListener('input', () => {
+    renderRepoPagesList();
+  });
+
+  // Subnav Tabs (Locators vs Actions)
+  document.querySelectorAll('.repo-subnav-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.repo-subnav-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      const target = tab.dataset.sub;
+      $('#repo-locators-pane').hidden = target !== 'locators';
+      $('#repo-actions-pane').hidden = target !== 'actions';
+    });
+  });
+
+  // Type Filter Chips for Locators
+  document.querySelectorAll('.repo-type-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.repo-type-chip').forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeRepoTypeFilter = chip.dataset.type;
+      renderLocatorsTable();
+    });
+  });
+
+  // Jump to raw code button
+  $('#repo-jump-to-code-btn')?.addEventListener('click', async () => {
+    if (!selectedRepoPage) return;
+    setCodeViewMode('raw');
+    await loadCodeFile(selectedRepoPage.relativePath);
+  });
+
+  // Modal event listeners
+  $('#btn-close-locator-modal')?.addEventListener('click', closeLocatorEditModal);
+  $('#btn-cancel-locator-edit')?.addEventListener('click', closeLocatorEditModal);
+  $('#btn-save-locator-edit')?.addEventListener('click', saveLocatorEdit);
+  $('#repo-add-page-button')?.addEventListener('click', openPageStudio);
+  $('#new-page-add-locator')?.addEventListener('click', () => { pageStudioLocators.push({ name: '', expression: '' }); renderPageStudioRows(); updatePageStudioPreview(); });
+  $('#new-page-add-action')?.addEventListener('click', () => { pageStudioActions.push({ name: '', locatorName: pageStudioLocators[0]?.name || '', operation: 'click' }); renderPageStudioRows(); updatePageStudioPreview(); });
+  $('#form-create-page')?.addEventListener('submit', createPageFromStudio);
+  $('#close-create-page')?.addEventListener('click', () => $('#modal-create-page').close());
+  $('#cancel-create-page')?.addEventListener('click', () => $('#modal-create-page').close());
+  ['#new-page-title', '#new-page-class', '#new-page-description'].forEach((selector) => $(selector)?.addEventListener('input', updatePageStudioPreview));
+}
+
+function setCodeViewMode(mode) {
+  activeCodeMode = mode;
+  $('#btn-switch-visual-mode')?.classList.toggle('active', mode === 'visual');
+  $('#btn-switch-raw-mode')?.classList.toggle('active', mode === 'raw');
+  $('#code-visual-container').hidden = mode !== 'visual';
+  $('#code-raw-container').hidden = mode !== 'raw';
+
+  if (mode === 'visual') {
+    loadObjectRepository();
+  } else {
+    request('/api/code-files').then((res) => {
+      codeFiles = res.files;
+      $('#code-file-count').textContent = `${codeFiles.length} tệp`;
+      renderCodeTree();
+    }).catch((e) => notify(e.message));
+  }
+}
+
+async function loadObjectRepository() {
+  initObjectRepository();
+  try {
+    const [pagesRes, capsRes] = await Promise.all([
+      request('/api/object-repository/pages'),
+      request('/api/core/capabilities'),
+    ]);
+
+    repoPages = pagesRes.pages || [];
+    repoCapabilities = capsRes.capabilities || [];
+
+    // Update count badges
+    const desktopCount = repoPages.filter((p) => p.platform === 'desktop').length;
+    const mobileCount = repoPages.filter((p) => p.platform === 'mobile-web').length;
+    if ($('#repo-total-count')) $('#repo-total-count').textContent = `${repoPages.length} màn hình`;
+    if ($('#count-repo-all')) $('#count-repo-all').textContent = repoPages.length;
+    if ($('#count-repo-desktop')) $('#count-repo-desktop').textContent = desktopCount;
+    if ($('#count-repo-mobile')) $('#count-repo-mobile').textContent = mobileCount;
+
+    renderRepoPagesList();
+
+    if (activeRepoCategory === 'core') {
+      openCoreCapabilitiesView();
+    } else {
+      const targetPage = selectedRepoPage ? repoPages.find((p) => p.className === selectedRepoPage.className) : repoPages[0];
+      if (targetPage) {
+        selectRepoPage(targetPage);
+      }
+    }
+  } catch (error) {
+    notify(`Lỗi nạp Kho phần tử: ${error.message}`);
+  }
+}
+
+function renderRepoPagesList() {
+  const query = $('#repo-search-input')?.value.trim().toLowerCase() || '';
+  const filtered = repoPages.filter((p) => {
+    const matchesCat = activeRepoCategory === 'all' || p.platform === activeRepoCategory;
+    const matchesQuery = !query || 
+      p.className.toLowerCase().includes(query) || 
+      p.title.toLowerCase().includes(query) ||
+      p.locators.some((l) => l.name.toLowerCase().includes(query) || l.expression.toLowerCase().includes(query));
+    return matchesCat && matchesQuery;
+  });
+
+  const listEl = $('#repo-pages-list');
+  if (!listEl) return;
+
+  const contextTitle = $('#repo-context-title');
+  const contextDescription = $('#repo-context-description');
+  const contextByCategory = {
+    all: ['pages/', 'Tất cả Page Object trong framework'],
+    desktop: ['pages/desktop/', 'Page Object cho Desktop Web'],
+    'mobile-web': ['pages/mobile-web/', 'Page Object cho Mobile Web'],
+  };
+  const [contextPath, contextText] = contextByCategory[activeRepoCategory] || ['core/', 'Năng lực dùng chung của framework'];
+  if (contextTitle) contextTitle.textContent = contextPath;
+  if (contextDescription) contextDescription.textContent = contextText;
+  const addPageButton = $('#repo-add-page-button');
+  if (addPageButton) {
+    addPageButton.disabled = activeRepoCategory === 'core';
+    addPageButton.title = activeRepoCategory === 'core' ? 'Chọn Desktop hoặc Mobile để tạo Page Object' : 'Tạo Page Object mới';
+  }
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<p style="padding:16px; color:var(--muted); font-size:12.5px; text-align:center;">Không tìm thấy màn hình nào phù hợp.</p>';
+    return;
+  }
+
+  listEl.innerHTML = filtered.map((p) => {
+    const isActive = selectedRepoPage?.className === p.className;
+    return `
+      <div class="repo-page-card ${isActive ? 'active' : ''}" data-class="${escapeHtml(p.className)}">
+        <div class="repo-page-card-icon">
+          <i class="ph-bold ${p.icon || 'ph-browsers'}"></i>
+        </div>
+        <div class="repo-page-card-info">
+          <div class="repo-page-card-title">${escapeHtml(p.title)}</div>
+          <div class="repo-page-card-file">${escapeHtml(p.className)}.js</div>
+          <div class="repo-page-card-badges">
+            <span class="repo-page-badge" style="background:${p.platform === 'desktop' ? 'rgba(37,99,235,0.08)' : 'rgba(16,185,129,0.08)'}; color:${p.platform === 'desktop' ? '#2563eb' : '#10b981'}; font-weight:600;">
+              ${p.platform === 'desktop' ? 'Desktop' : (p.platform === 'base' ? 'Base' : 'Mobile')}
+            </span>
+            <span class="repo-page-badge">${p.locatorCount} locators</span>
+            <span class="repo-page-badge">${p.methodCount} actions</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('.repo-page-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const cls = card.dataset.class;
+      const page = repoPages.find((p) => p.className === cls);
+      if (page) selectRepoPage(page);
+    });
+  });
+}
+
+function selectRepoPage(page) {
+  selectedRepoPage = page;
+  if ($('#repo-page-view')) $('#repo-page-view').hidden = false;
+  if ($('#repo-core-view')) $('#repo-core-view').hidden = true;
+
+  // Highlight in sidebar
+  document.querySelectorAll('.repo-page-card').forEach((card) => {
+    card.classList.toggle('active', card.dataset.class === page.className);
+  });
+
+  // Populate Banner
+  if ($('#repo-banner-icon')) $('#repo-banner-icon').innerHTML = `<i class="ph-bold ${page.icon || 'ph-browsers'}"></i>`;
+  if ($('#repo-banner-platform')) $('#repo-banner-platform').textContent = page.platform === 'desktop' ? 'Desktop Web' : (page.platform === 'base' ? 'Base Architecture' : 'Mobile Web');
+  if ($('#repo-banner-class')) $('#repo-banner-class').textContent = `${page.className}.js`;
+  if ($('#repo-banner-base')) $('#repo-banner-base').textContent = page.baseClass !== 'None' ? `extends ${page.baseClass}` : '';
+  if ($('#repo-banner-title')) $('#repo-banner-title').textContent = page.title;
+  if ($('#repo-banner-desc')) $('#repo-banner-desc').textContent = page.desc;
+
+  // Counts in subnav
+  if ($('#repo-sub-loc-count')) $('#repo-sub-loc-count').textContent = page.locators.length;
+  if ($('#repo-sub-act-count')) $('#repo-sub-act-count').textContent = page.methods.length;
+
+  // Render Locators Table & Actions Grid
+  renderLocatorsTable();
+  renderActionsGrid();
+}
+
+function renderLocatorsTable() {
+  if (!selectedRepoPage) return;
+  const locators = selectedRepoPage.locators || [];
+
+  // Update type counts
+  const counts = { all: locators.length, button: 0, input: 0, link: 0, modal: 0, other: 0 };
+  locators.forEach((l) => {
+    if (counts[l.category] !== undefined) counts[l.category]++;
+    else counts.other++;
+  });
+
+  if ($('#type-count-all')) $('#type-count-all').textContent = counts.all;
+  if ($('#type-count-button')) $('#type-count-button').textContent = counts.button;
+  if ($('#type-count-input')) $('#type-count-input').textContent = counts.input;
+  if ($('#type-count-link')) $('#type-count-link').textContent = counts.link;
+  if ($('#type-count-modal')) $('#type-count-modal').textContent = counts.modal;
+  if ($('#type-count-other')) $('#type-count-other').textContent = counts.other;
+
+  // Filter
+  const filtered = locators.filter((l) => {
+    if (activeRepoTypeFilter === 'all') return true;
+    if (activeRepoTypeFilter === 'other') return !['button', 'input', 'link', 'modal'].includes(l.category);
+    return l.category === activeRepoTypeFilter;
+  });
+
+  const tbody = $('#repo-locator-tbody');
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:var(--muted);">Chưa có phần tử nào trong nhóm này.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((l) => {
+    return `
+      <tr>
+        <td>
+          <span class="repo-element-tag" style="background:rgba(37,99,235,0.08); color:${l.badgeColor || 'var(--text)'};">
+            <i class="${l.categoryIcon}"></i> ${escapeHtml(l.categoryLabel)}
+          </span>
+        </td>
+        <td>
+          <strong style="font-family:var(--font-mono); font-size:12.5px; color:var(--text);">${escapeHtml(l.name)}</strong>
+        </td>
+        <td style="color:var(--muted); font-size:12.5px;">
+          ${escapeHtml(l.description || '')}
+        </td>
+        <td>
+          <span class="repo-expr-code">${escapeHtml(l.expression)}</span>
+        </td>
+        <td style="text-align:center;">
+          <button type="button" class="btn-edit-locator" data-name="${escapeHtml(l.name)}" data-expr="${escapeHtml(l.expression)}">
+            <i class="ph-bold ph-pencil-simple"></i> Sửa
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.btn-edit-locator').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const name = btn.dataset.name;
+      const expr = btn.dataset.expr;
+      openLocatorEditModal(name, expr);
+    });
+  });
+}
+
+function renderActionsGrid() {
+  if (!selectedRepoPage) return;
+  const actions = selectedRepoPage.methods || [];
+  const grid = $('#repo-actions-grid');
+  if (!grid) return;
+
+  if (actions.length === 0) {
+    grid.innerHTML = '<p style="padding:24px; color:var(--muted); text-align:center; grid-column:1/-1;">Trang này chưa định nghĩa hành động nghiệp vụ riêng.</p>';
+    return;
+  }
+
+  grid.innerHTML = actions.map((act) => {
+    return `
+      <div class="repo-action-card">
+        <div class="repo-action-sig">${escapeHtml(act.signature)}</div>
+        <div class="repo-action-flags">
+          ${act.hasCapture ? '<span class="repo-flag-pill repo-flag-capture"><i class="ph-bold ph-camera"></i> Có chụp Evidence</span>' : ''}
+          ${act.isNavigation ? '<span class="repo-flag-pill repo-flag-nav"><i class="ph-bold ph-compass"></i> Điều hướng URL</span>' : ''}
+          ${act.isAssertion ? '<span class="repo-flag-pill repo-flag-assert"><i class="ph-bold ph-check-circle"></i> Có Assertion</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openCoreCapabilitiesView() {
+  if ($('#repo-page-view')) $('#repo-page-view').hidden = true;
+  if ($('#repo-core-view')) $('#repo-core-view').hidden = false;
+  const addPageButton = $('#repo-add-page-button');
+  if (addPageButton) {
+    addPageButton.disabled = true;
+    addPageButton.title = 'Chọn Desktop hoặc Mobile để tạo Page Object';
+  }
+
+  document.querySelectorAll('.repo-page-card').forEach((c) => c.classList.remove('active'));
+
+  const grid = $('#repo-capabilities-grid');
+  if (!grid) return;
+
+  grid.innerHTML = repoCapabilities.map((cap) => {
+    return `
+      <div class="repo-capability-card" style="--cap-color: ${cap.color};">
+        <div class="repo-capability-accent"></div>
+        <div class="repo-capability-header">
+          <div class="repo-capability-icon">
+            <i class="ph-bold ${cap.icon}"></i>
+          </div>
+          <div>
+            <h3 class="repo-capability-title">${escapeHtml(cap.title)}</h3>
+          </div>
+        </div>
+        <p class="repo-capability-desc">${escapeHtml(cap.desc)}</p>
+        <div class="repo-capability-tags">
+          ${(cap.tags || []).map((t) => `<span class="repo-capability-tag">${escapeHtml(t)}</span>`).join('')}
+        </div>
+        <div class="repo-capability-footer">
+          <span class="repo-capability-status">
+            <i class="ph-bold ph-check-circle"></i> ${escapeHtml(cap.status)}
+          </span>
+          <button type="button" class="repo-capability-link" data-jump="${escapeHtml(cap.linkTab)}">
+            ${escapeHtml(cap.linkLabel)} <i class="ph-bold ph-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.repo-capability-link').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.dataset.jump;
+      if (tabName) {
+        const tabBtn = document.querySelector(`.view-tab[data-view="${tabName}"]`);
+        if (tabBtn) tabBtn.click();
+      }
+    });
+  });
+}
+
+function openLocatorEditModal(name, expr, pageRelativePath) {
+  const targetPath = pageRelativePath || selectedRepoPage?.relativePath || currentInspectedPage?.relativePath;
+  if (!targetPath) return;
+  currentEditingLocator = { name, pageRelativePath: targetPath };
+
+  $('#edit-loc-name').value = name;
+  $('#edit-loc-page').value = targetPath;
+  $('#edit-loc-expr').value = expr;
+  $('#modal-edit-locator').hidden = false;
+}
+
+function closeLocatorEditModal() {
+  $('#modal-edit-locator').hidden = true;
+  currentEditingLocator = null;
+}
+
+async function saveLocatorEdit() {
+  if (!currentEditingLocator) return;
+  const newExpr = $('#edit-loc-expr').value.trim();
+  if (!newExpr) {
+    notify('Vui lòng nhập biểu thức định vị (Selector expression).');
+    return;
+  }
+
+  try {
+    const res = await request('/api/object-repository/update-locator', {
+      method: 'POST',
+      body: JSON.stringify({
+        pageRelativePath: currentEditingLocator.pageRelativePath,
+        locatorName: currentEditingLocator.name,
+        newExpression: newExpr,
+      }),
+    });
+
+    notify(res.message || 'Đã cập nhật selector thành công!', 'success');
+    closeLocatorEditModal();
+
+    // Re-fetch page details
+    const updatedPage = await request(`/api/object-repository/page?file=${encodeURIComponent(currentEditingLocator.pageRelativePath)}`);
+    const idx = repoPages.findIndex((p) => p.relativePath === currentEditingLocator.pageRelativePath);
+    if (idx !== -1) repoPages[idx] = updatedPage;
+    if (selectedRepoPage && selectedRepoPage.relativePath === currentEditingLocator.pageRelativePath) {
+      selectRepoPage(updatedPage);
+    }
+    if (currentInspectedPage && currentInspectedPage.relativePath === currentEditingLocator.pageRelativePath) {
+      await inspectPage(currentEditingLocator.pageRelativePath);
+    }
+  } catch (error) {
+    notify(`Lỗi cập nhật selector: ${error.message}`);
+  }
+}
+
+async function openCodeWorkspace() {
+  if (activeCodeMode === 'visual') {
+    await loadObjectRepository();
+  } else {
+    try {
+      const result = await request('/api/code-files');
+      codeFiles = result.files;
+      $('#code-file-count').textContent = `${codeFiles.length} tệp`;
+      renderCodeTree();
+    } catch (error) { notify(error.message); }
+  }
 }
 
 function renderCodeTree() {
@@ -687,9 +2116,9 @@ async function loadCodeFile(filePath) {
     currentCodeFile = filePath;
     originalCodeContent = source.content;
     $('#code-file-name').textContent = filePath;
-    $('#code-language').textContent = filePath.endsWith('.json') ? 'JSON' : 'JAVASCRIPT';
+    $('#code-language').textContent = getCodeLanguageLabel(getCodeLanguage(filePath));
     $('#code-editor').value = source.content;
-    $('#code-preview code').innerHTML = highlightCode(source.content, filePath.endsWith('.json'));
+    $('#code-preview code').innerHTML = highlightCode(source.content, getCodeLanguage(filePath));
     $('#code-editor-stage').hidden = false;
     $('#code-editor-stage').classList.remove('editing');
     $('#code-editor').hidden = true;
@@ -703,19 +2132,36 @@ async function loadCodeFile(filePath) {
   } catch (error) { notify(error.message); }
 }
 
-function highlightCode(content, isJson = false) {
+const CODE_LANGUAGE_REGISTRY = Object.freeze({
+  js: 'javascript', spec: 'javascript', json: 'json', html: 'markup', htm: 'markup', css: 'css', md: 'markdown',
+});
+
+function getCodeLanguage(filePath = '') {
+  const extension = String(filePath).toLowerCase().split('.').pop();
+  return CODE_LANGUAGE_REGISTRY[extension] || 'plaintext';
+}
+
+function getCodeLanguageLabel(language) {
+  return ({ javascript: 'JAVASCRIPT', json: 'JSON', markup: 'HTML', css: 'CSS', markdown: 'MARKDOWN', plaintext: 'TEXT' })[language] || 'TEXT';
+}
+
+function highlightCode(content, languageOrJson = 'javascript') {
   if (!content) return '';
+  const language = typeof languageOrJson === 'boolean'
+    ? (languageOrJson ? 'json' : 'javascript')
+    : languageOrJson;
   if (typeof Prism !== 'undefined' && Prism.languages) {
     try {
-      const lang = isJson ? 'javascript' : 'javascript';
-      const grammar = Prism.languages[lang] || Prism.languages.javascript;
+      const grammar = Prism.languages[language];
       if (grammar) {
-        return Prism.highlight(content, grammar, lang);
+        return Prism.highlight(content, grammar, language);
       }
     } catch (e) {}
   }
+  if (!['javascript', 'json'].includes(language)) return escapeHtml(content);
+  const isJson = language === 'json';
   const pattern = isJson
-    ? /("(?:\\.|[^"\\])*")|\b(true|false|null)\b|(-?\b\d+(?:\.\d+)?\b)/g
+    ? /("(?:\\.|[^"\\])*")(?=\s*:)|("(?:\\.|[^"\\])*")|\b(true|false|null)\b|(-?\b\d+(?:\.\d+)?\b)/g
     : /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|\b(const|let|var|class|extends|new|function|async|await|return|if|else|for|while|try|catch|throw|require|module|exports|this|super|import|from|export|default|true|false|null|undefined)\b|\b(\d+(?:\.\d+)?)\b/g;
   let html = '';
   let cursor = 0;
@@ -723,12 +2169,133 @@ function highlightCode(content, isJson = false) {
     html += escapeHtml(content.slice(cursor, match.index));
     const token = match[0];
     let type = 'number';
-    if (isJson) type = match[1] ? 'string' : match[2] ? 'keyword' : 'number';
-    else type = match[1] ? 'comment' : match[2] ? 'string' : match[3] ? 'keyword' : 'number';
+    if (isJson) {
+      if (match[1]) type = 'property';
+      else if (match[2]) type = 'string';
+      else if (match[3]) type = 'keyword';
+      else type = 'number';
+    } else {
+      type = match[1] ? 'comment' : match[2] ? 'string' : match[3] ? 'keyword' : 'number';
+    }
     html += `<span class="syntax-${type}">${escapeHtml(token)}</span>`;
     cursor = match.index + token.length;
   }
   return html + escapeHtml(content.slice(cursor));
+}
+
+function createSharedCodeEditor({
+  textarea,
+  preview,
+  language = 'json',
+  badge = null,
+  revertBtn = null,
+  copyBtn = null,
+  saveBtn = null,
+  onInput = null,
+  onSave = null,
+} = {}) {
+  if (!textarea || !preview) return null;
+  if (textarea.__sharedEditor) return textarea.__sharedEditor;
+  const editor = {
+    original: '',
+    language,
+    setValue(value, options = {}) {
+      const markClean = options.markClean !== false;
+      const readOnly = options.readOnly;
+      textarea.value = value || '';
+      if (markClean) this.original = textarea.value;
+      if (typeof readOnly === 'boolean') {
+        if (readOnly) textarea.setAttribute('readonly', 'true');
+        else textarea.removeAttribute('readonly');
+      }
+      this.render();
+      this.updateState();
+    },
+    getValue() { return textarea.value; },
+    revert() {
+      this.setValue(this.original, { markClean: true });
+      if (typeof notify === 'function') notify('Đã khôi phục về mã nguồn gốc.');
+    },
+    isDirty() { return textarea.value !== this.original; },
+    setReadOnly(readOnly) {
+      if (readOnly) textarea.setAttribute('readonly', 'true');
+      else textarea.removeAttribute('readonly');
+    },
+    render() {
+      preview.innerHTML = highlightCode(textarea.value, this.language === 'json') + '\n';
+    },
+    updateState() {
+      const dirty = this.isDirty();
+      textarea.classList.toggle('is-dirty', dirty);
+      if (badge) {
+        if (dirty) {
+          badge.innerHTML = '<i class="ph-bold ph-pencil-simple"></i> Đã thay đổi (chưa lưu)';
+          badge.classList.add('modified');
+          badge.style.display = 'inline-flex';
+        } else {
+          badge.classList.remove('modified');
+          if (badge.dataset.hideWhenClean === 'true') {
+            badge.style.display = 'none';
+          } else if (typeof scriptBuilderMode !== 'undefined' && scriptBuilderMode === 'create') {
+            badge.innerHTML = '<i class="ph-bold ph-eye"></i> Bản xem trước realtime';
+            badge.style.display = 'inline-flex';
+          } else {
+            badge.innerHTML = '<i class="ph-bold ph-check"></i> Đang mở từ disk';
+            badge.style.display = 'inline-flex';
+          }
+        }
+      }
+      if (revertBtn) {
+        revertBtn.style.display = dirty ? 'inline-flex' : 'none';
+      }
+    },
+    markSaved(newContent = null) {
+      if (newContent !== null) textarea.value = newContent;
+      this.original = textarea.value;
+      this.render();
+      this.updateState();
+    },
+  };
+  textarea.addEventListener('input', () => {
+    editor.render();
+    editor.updateState();
+    onInput?.(editor);
+  });
+  textarea.addEventListener('scroll', () => {
+    preview.scrollTop = textarea.scrollTop;
+    preview.scrollLeft = textarea.scrollLeft;
+  });
+  textarea.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+      event.preventDefault();
+      if (saveBtn) saveBtn.click();
+      else onSave?.(editor);
+      return;
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const start = textarea.selectionStart;
+      textarea.setRangeText('  ', start, textarea.selectionEnd, 'end');
+      textarea.dispatchEvent(new Event('input'));
+    }
+  });
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      const val = editor.getValue();
+      if (val) {
+        navigator.clipboard.writeText(val);
+        if (typeof notify === 'function') notify('Đã sao chép mã nguồn vào bộ nhớ tạm!');
+      }
+    });
+  }
+  if (revertBtn) {
+    revertBtn.addEventListener('click', () => editor.revert());
+  }
+  if (saveBtn && onSave) {
+    saveBtn.addEventListener('click', () => onSave(editor));
+  }
+  textarea.__sharedEditor = editor;
+  return editor;
 }
 
 function enterCodeEditMode() {
@@ -737,7 +2304,7 @@ function enterCodeEditMode() {
   $('#code-editor').hidden = false;
   $('#code-editor').focus();
   $('#code-edit-button').hidden = true;
-  $('#code-format-button').hidden = !currentCodeFile.endsWith('.json');
+  $('#code-format-button').hidden = getCodeLanguage(currentCodeFile) !== 'json';
   $('#code-save-button').hidden = false;
   $('#code-save-button').disabled = true;
   $('#code-cancel-button').hidden = false;
@@ -746,7 +2313,7 @@ function enterCodeEditMode() {
 
 function leaveCodeEditMode() {
   $('#code-editor').value = originalCodeContent;
-  $('#code-preview code').innerHTML = highlightCode(originalCodeContent, currentCodeFile?.endsWith('.json'));
+  $('#code-preview code').innerHTML = highlightCode(originalCodeContent, getCodeLanguage(currentCodeFile));
   $('#code-editor-stage').classList.remove('editing');
   $('#code-editor').hidden = true;
   $('#code-edit-button').hidden = false;
@@ -757,13 +2324,13 @@ function leaveCodeEditMode() {
 }
 
 function formatCurrentCodeEditor() {
-  if (!currentCodeFile?.endsWith('.json')) {
+  if (getCodeLanguage(currentCodeFile) !== 'json') {
     notify('Chỉ hỗ trợ định dạng tự động cho JSON.');
     return;
   }
   try {
     $('#code-editor').value = formatJsonText($('#code-editor').value);
-    $('#code-preview code').innerHTML = highlightCode($('#code-editor').value, true) + '\n';
+    $('#code-preview code').innerHTML = highlightCode($('#code-editor').value, getCodeLanguage(currentCodeFile)) + '\n';
     $('#code-save-button').disabled = $('#code-editor').value === originalCodeContent;
     $('#code-cancel-button').hidden = $('#code-editor').value === originalCodeContent;
     $('#code-status-text').textContent = 'Đã định dạng';
@@ -777,14 +2344,14 @@ async function saveCodeFile() {
   const button = $('#code-save-button');
   button.disabled = true;
   try {
-    const content = currentCodeFile.endsWith('.json') ? formatJsonText($('#code-editor').value) : $('#code-editor').value;
+    const content = getCodeLanguage(currentCodeFile) === 'json' ? formatJsonText($('#code-editor').value) : $('#code-editor').value;
     const result = await request('/api/code', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: currentCodeFile, content }),
     });
     originalCodeContent = content;
     $('#code-editor').value = content;
-    $('#code-preview code').innerHTML = highlightCode(originalCodeContent, currentCodeFile.endsWith('.json'));
+    $('#code-preview code').innerHTML = highlightCode(originalCodeContent, getCodeLanguage(currentCodeFile));
     $('#code-editor-stage').classList.remove('editing');
     $('#code-editor').hidden = true;
     $('#code-edit-button').hidden = false;
@@ -866,6 +2433,20 @@ function updateSuiteSummaryBox(suiteId) {
   }
 }
 
+function parseSelectedTags(value = '') {
+  return Array.from(new Set(String(value).match(/@[\w-]+/g) || []));
+}
+
+function getManualGrepValue() {
+  const tags = parseSelectedTags($('#grep')?.value || '');
+  if (tags.length <= 1) return tags[0] || '';
+  return `(?:${tags.map((tag) => tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`;
+}
+
+function uniqueSpecs(specs = []) {
+  return Array.from(new Set(specs));
+}
+
 function renderTagChips(tags = []) {
   const container = $('#runner-tag-chips');
   if (!container) return;
@@ -882,13 +2463,14 @@ function renderTagChips(tags = []) {
       const tag = btn.dataset.tag;
       const grepInput = $('#grep');
       if (!grepInput) return;
-      if (grepInput.value.trim() === tag) {
-        grepInput.value = '';
-        btn.classList.remove('active');
+      const selectedTags = parseSelectedTags(grepInput.value);
+      const tagIndex = selectedTags.findIndex((selectedTag) => selectedTag.toLowerCase() === tag.toLowerCase());
+      if (tagIndex >= 0) {
+        selectedTags.splice(tagIndex, 1);
       } else {
-        grepInput.value = tag;
-        container.querySelectorAll('.tag-chip-btn').forEach((b) => b.classList.toggle('active', b === btn));
+        selectedTags.push(tag);
       }
+      grepInput.value = selectedTags.join(' ');
       updateManualSpecsPreview();
     });
   });
@@ -905,6 +2487,7 @@ function updateManualSpecsPreview() {
   const projectSpecs = project === 'all' || !hasProjectMapping
     ? (testCatalog.specs || [])
     : (testCatalog.specs || []).filter((spec) => testCatalog.specProjects[spec]?.includes(project));
+  const uniqueProjectSpecs = uniqueSpecs(projectSpecs);
 
   const titleSpan = $('#manual-specs-preview-title');
   const countSpan = $('#manual-specs-preview-count');
@@ -928,18 +2511,21 @@ function updateManualSpecsPreview() {
     }
   } else if (manualScope === 'grep') {
     const rawGrep = $('#grep')?.value.trim() || '';
+    const selectedTags = parseSelectedTags(rawGrep);
     const grepLower = rawGrep.toLowerCase();
 
     // Update active class on tag chips
     document.querySelectorAll('#runner-tag-chips .tag-chip-btn').forEach((b) => {
-      b.classList.toggle('active', b.dataset.tag.toLowerCase() === grepLower);
+      b.classList.toggle('active', selectedTags.some((tag) => tag.toLowerCase() === b.dataset.tag.toLowerCase()));
     });
 
     if (grepLower) {
-      const matchedSpecs = projectSpecs.filter((spec) => {
+      const matchedSpecs = uniqueSpecs(uniqueProjectSpecs.filter((spec) => {
         const tags = testCatalog.specTags?.[spec] || [];
-        return tags.some((t) => t.toLowerCase().includes(grepLower) || grepLower.includes(t.toLowerCase()));
-      });
+        return selectedTags.length > 0
+          ? selectedTags.some((selectedTag) => tags.some((tag) => tag.toLowerCase() === selectedTag.toLowerCase()))
+          : tags.some((tag) => tag.toLowerCase().includes(grepLower) || grepLower.includes(tag.toLowerCase()));
+      }));
 
       if (matchedSpecs.length > 0) {
         if (titleSpan) titleSpan.textContent = `Tìm thấy ${matchedSpecs.length} file có tag "${rawGrep}"`;
@@ -959,8 +2545,8 @@ function updateManualSpecsPreview() {
       }
     } else {
       if (titleSpan) titleSpan.textContent = 'Chọn hoặc nhập Tag để lọc file test';
-      if (countSpan) countSpan.textContent = `${projectSpecs.length} files sẵn có`;
-      listContainer.innerHTML = projectSpecs.map((s) => `
+      if (countSpan) countSpan.textContent = `${uniqueProjectSpecs.length} files sẵn có`;
+      listContainer.innerHTML = uniqueProjectSpecs.map((s) => `
         <span class="suite-summary-pill" title="${escapeHtml(s)}">
           <i class="ph-bold ph-file-js"></i> ${escapeHtml(s.split('/').pop())}
         </span>
@@ -969,11 +2555,11 @@ function updateManualSpecsPreview() {
   } else {
     // all
     if (titleSpan) titleSpan.textContent = project === 'all' ? 'Tất cả file test' : `File test thuộc ${project}`;
-    if (countSpan) countSpan.textContent = `${projectSpecs.length} files`;
-    if (projectSpecs.length === 0) {
+    if (countSpan) countSpan.textContent = `${uniqueProjectSpecs.length} files`;
+    if (uniqueProjectSpecs.length === 0) {
       listContainer.innerHTML = `<span style="color:var(--muted); font-size:11px; padding:4px;">Không có file test nào phù hợp với nhóm này</span>`;
     } else {
-      listContainer.innerHTML = projectSpecs.map((s) => `
+      listContainer.innerHTML = uniqueProjectSpecs.map((s) => `
         <span class="suite-summary-pill" title="${escapeHtml(s)}">
           <i class="ph-bold ph-file-js"></i> ${escapeHtml(s.split('/').pop())}
         </span>
@@ -1477,7 +3063,7 @@ function renderBotSettings(cfg, currentBranch = 'main') {
   }
 
   setInputValue('#settings-bot-gh-owner', cfg.githubOwner || 'hadinhkms');
-  setInputValue('#settings-bot-gh-repo', cfg.githubRepo || 'Automation_Carthings');
+  setInputValue('#settings-bot-gh-repo', cfg.githubRepo || 'Automation_playwright_SV');
   setInputValue('#settings-bot-gh-workflow', cfg.githubWorkflow || 'discord-run-playwright.yml');
   setInputValue('#settings-bot-gh-ref', cfg.githubRef || 'main');
   setInputValue('#settings-git-current-branch', `${currentBranch} (origin/${currentBranch})`);
@@ -1658,6 +3244,7 @@ document.querySelectorAll('.settings-subtab').forEach((tab) => {
     document.querySelectorAll('.settings-subtab').forEach((t) => t.classList.toggle('active', t === tab));
     
     const suitesPanel = document.querySelector('.settings-suites');
+    const documentsPanel = document.querySelector('.settings-documents');
     const brandingPanel = document.querySelector('.settings-branding');
     const discordPanel = document.querySelector('.settings-discord');
     const runtimePanel = document.querySelector('.settings-runtime');
@@ -1666,6 +3253,12 @@ document.querySelectorAll('.settings-subtab').forEach((tab) => {
     const artifactsPanel = document.querySelector('.settings-artifacts');
 
     if (suitesPanel) suitesPanel.hidden = target !== 'suites';
+    if (documentsPanel) {
+      documentsPanel.hidden = target !== 'documents';
+      if (target === 'documents') {
+        openSettingsDocuments();
+      }
+    }
     if (brandingPanel) brandingPanel.hidden = target !== 'branding';
     if (discordPanel) discordPanel.hidden = target !== 'discord';
     
@@ -1677,14 +3270,217 @@ document.querySelectorAll('.settings-subtab').forEach((tab) => {
   });
 });
 
+let settingsDocumentsCatalog = [];
+let currentSettingsDocument = null;
+
+async function openSettingsDocuments() {
+  try {
+    const resources = await request('/api/resources');
+    settingsDocumentsCatalog = resources.documents || [];
+    renderSettingsDocumentsList($('#doc-settings-search')?.value || '');
+    if (!currentSettingsDocument && settingsDocumentsCatalog.length > 0) {
+      const defaultDoc = settingsDocumentsCatalog.find((f) => f.includes('AI_PROMPTS.md')) || settingsDocumentsCatalog[0];
+      await loadSettingsDocument(defaultDoc);
+    }
+  } catch (err) {
+    notify(`Lỗi tải tài liệu: ${err.message}`);
+  }
+}
+
+function renderSettingsDocumentsList(filter = '') {
+  const container = $('#doc-settings-list');
+  if (!container) return;
+  const query = filter.trim().toLowerCase();
+  const filtered = settingsDocumentsCatalog.filter((f) => f.toLowerCase().includes(query));
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<p class="empty-resource" style="padding: 16px; text-align: center; color: var(--muted);">Không tìm thấy tài liệu phù hợp.</p>';
+    return;
+  }
+
+  const categories = [
+    {
+      name: 'Quy tắc & Prompt AI',
+      files: filtered.filter((f) => f.startsWith('ai/shared/') || f.startsWith('ai/dashboard/') || f === 'QA_AI_RULES.md'),
+    },
+    {
+      name: 'Chỉ thị Agent & Context',
+      files: filtered.filter((f) => ['AGENTS.md', 'GEMINI.md', 'CLAUDE.md'].includes(f) || f.includes('copilot')),
+    },
+    {
+      name: 'Bộ Kỹ năng (Skills)',
+      files: filtered.filter((f) => f.includes('.agents/skills/')),
+    },
+    {
+      name: 'Hướng dẫn & Kiến trúc',
+      files: filtered.filter((f) => !f.startsWith('ai/shared/') && !f.startsWith('ai/dashboard/') && f !== 'QA_AI_RULES.md' && !['AGENTS.md', 'GEMINI.md', 'CLAUDE.md'].includes(f) && !f.includes('copilot') && !f.includes('.agents/skills/')),
+    },
+  ];
+
+  container.innerHTML = categories
+    .filter((cat) => cat.files.length > 0)
+    .map((cat) => `
+      <section class="resource-group" style="margin-bottom: 16px;">
+        <h3 style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--muted); margin: 8px 0 6px; display: flex; justify-content: space-between;">
+          <span>${cat.name}</span>
+          <span>${cat.files.length}</span>
+        </h3>
+        ${cat.files.map((file) => `
+          <button class="resource-item${file === currentSettingsDocument ? ' active' : ''}" type="button" data-doc-path="${escapeHtml(file)}" style="width: 100%; text-align: left; margin-bottom: 4px;">
+            <span>M↓</span>
+            <div style="min-width: 0; flex: 1;">
+              <strong style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(file.split('/').pop())}</strong>
+              <small style="display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted);">${escapeHtml(file)}</small>
+            </div>
+          </button>
+        `).join('')}
+      </section>
+    `).join('');
+
+  container.querySelectorAll('[data-doc-path]').forEach((btn) => {
+    btn.addEventListener('click', () => loadSettingsDocument(btn.dataset.docPath));
+  });
+}
+
+async function loadSettingsDocument(filePath) {
+  if (!filePath) return;
+  currentSettingsDocument = filePath;
+  
+  document.querySelectorAll('#doc-settings-list [data-doc-path]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.docPath === filePath);
+  });
+
+  const nameEl = $('#doc-settings-name');
+  const typeEl = $('#doc-settings-type');
+  const contentEl = $('#doc-settings-content');
+  const emptyEl = $('#doc-settings-empty');
+  const editorContainer = $('#doc-settings-editor');
+  const editBtn = $('#doc-settings-toolbar-edit-btn');
+  const copyBtn = $('#doc-settings-toolbar-copy-btn');
+
+  if (nameEl) nameEl.textContent = filePath;
+  if (typeEl) typeEl.textContent = 'MARKDOWN';
+  if (emptyEl) emptyEl.hidden = true;
+  if (editorContainer) editorContainer.hidden = true;
+  if (contentEl) contentEl.hidden = false;
+  if (editBtn) editBtn.hidden = false;
+  if (copyBtn) copyBtn.hidden = false;
+
+  try {
+    const res = await request(`/api/resource?path=${encodeURIComponent(filePath)}&reveal=true`);
+    if (contentEl) {
+      contentEl.innerHTML = renderMarkdown(res.content);
+    }
+    const textarea = $('#doc-settings-edit-content');
+    if (textarea) textarea.value = res.content;
+  } catch (err) {
+    notify(`Lỗi tải tài liệu: ${err.message}`);
+  }
+}
+
+$('#doc-settings-search')?.addEventListener('input', (e) => {
+  renderSettingsDocumentsList(e.target.value);
+});
+
+$('#doc-settings-toolbar-copy-btn')?.addEventListener('click', () => {
+  if (currentSettingsDocument) {
+    navigator.clipboard?.writeText(currentSettingsDocument);
+    notify(`Đã sao chép đường dẫn: ${currentSettingsDocument}`);
+  }
+});
+
+$('#doc-settings-toolbar-edit-btn')?.addEventListener('click', () => {
+  if (!currentSettingsDocument) return;
+  const contentEl = $('#doc-settings-content');
+  const editorContainer = $('#doc-settings-editor');
+  const editBtn = $('#doc-settings-toolbar-edit-btn');
+  if (contentEl) contentEl.hidden = true;
+  if (editorContainer) editorContainer.hidden = false;
+  if (editBtn) editBtn.hidden = true;
+});
+
+$('#doc-settings-cancel-btn')?.addEventListener('click', () => {
+  const contentEl = $('#doc-settings-content');
+  const editorContainer = $('#doc-settings-editor');
+  const editBtn = $('#doc-settings-toolbar-edit-btn');
+  if (contentEl) contentEl.hidden = false;
+  if (editorContainer) editorContainer.hidden = true;
+  if (editBtn) editBtn.hidden = false;
+});
+
+$('#doc-settings-format-btn')?.addEventListener('click', () => {
+  const textarea = $('#doc-settings-edit-content');
+  if (textarea) {
+    textarea.value = formatMarkdownText(textarea.value);
+    notify('Đã định dạng Markdown.');
+  }
+});
+
+$('#doc-settings-save-btn')?.addEventListener('click', async () => {
+  const saveBtn = $('#doc-settings-save-btn');
+  if (!currentSettingsDocument) return;
+  saveBtn.disabled = true;
+  try {
+    const content = $('#doc-settings-edit-content')?.value || '';
+    const result = await request('/api/resource', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: currentSettingsDocument, content }),
+    });
+    notify(`${result.message || 'Đã lưu tài liệu!'} Backup: ${result.backup || ''}`);
+    await loadSettingsDocument(currentSettingsDocument);
+  } catch (err) {
+    notify(`Lỗi lưu tài liệu: ${err.message}`);
+  } finally {
+    saveBtn.disabled = false;
+  }
+});
+
+const GUIDE_STEP_TITLES = {
+  1: 'Tạo Bot trên Discord',
+  2: 'Lấy Channel ID & Webhook URL',
+  3: 'Tạo GitHub Personal Access Token',
+  4: 'Cấu hình GitHub Actions Secret',
+  5: 'Bật Bot & Bắt Đầu Thưởng Thức!',
+};
+
+function setGuideStep(step) {
+  const stepNum = parseInt(step, 10) || 1;
+  document.querySelectorAll('.guide-nav-btn').forEach((b) => {
+    const s = parseInt(b.dataset.guideStep, 10);
+    b.classList.toggle('active', s === stepNum);
+    b.classList.toggle('completed', s < stepNum);
+  });
+  document.querySelectorAll('.guide-pane').forEach((p) => {
+    p.classList.toggle('active', p.id === `guide-pane-${stepNum}`);
+  });
+  const numEl = document.getElementById('guide-current-step-num');
+  const titleEl = document.getElementById('guide-current-step-title');
+  const pctEl = document.getElementById('guide-progress-pct');
+  const barEl = document.getElementById('guide-progress-bar-fill');
+  if (numEl) numEl.textContent = stepNum;
+  if (titleEl) titleEl.textContent = GUIDE_STEP_TITLES[stepNum] || '';
+  if (pctEl) pctEl.textContent = `${stepNum * 20}% Hoàn thành`;
+  if (barEl) barEl.style.width = `${stepNum * 20}%`;
+}
+
 document.querySelectorAll('.guide-nav-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    const step = btn.dataset.guideStep;
-    document.querySelectorAll('.guide-nav-btn').forEach((b) => b.classList.toggle('active', b === btn));
-    document.querySelectorAll('.guide-pane').forEach((p) => {
-      p.classList.toggle('active', p.id === `guide-pane-${step}`);
-    });
+    setGuideStep(btn.dataset.guideStep);
   });
+});
+
+document.addEventListener('click', (e) => {
+  const nextBtn = e.target.closest('[data-next-step]');
+  if (nextBtn) {
+    setGuideStep(nextBtn.dataset.nextStep);
+    return;
+  }
+  const prevBtn = e.target.closest('[data-prev-step]');
+  if (prevBtn) {
+    setGuideStep(prevBtn.dataset.prevStep);
+    return;
+  }
 });
 
 $('#test-discord-button')?.addEventListener('click', async () => {
@@ -1746,7 +3542,7 @@ form.addEventListener('submit', async (event) => {
     if (manualScope === 'file') {
       spec = $('#spec')?.value || 'all';
     } else if (manualScope === 'grep') {
-      grep = $('#grep')?.value.trim() || '';
+      grep = getManualGrepValue();
     }
 
     payload = {
@@ -1803,7 +3599,7 @@ function selectedOptions() {
   if (manualScope === 'file') {
     spec = $('#spec')?.value || 'all';
   } else if (manualScope === 'grep') {
-    grep = $('#grep')?.value.trim() || '';
+    grep = getManualGrepValue();
   }
 
   return {
@@ -1840,14 +3636,22 @@ document.querySelectorAll('.view-tab').forEach((button) => button.addEventListen
   document.querySelectorAll('.view-tab').forEach((tab) => { tab.classList.toggle('active', tab === button); tab.setAttribute('aria-selected', String(tab === button)); });
   document.querySelectorAll('.dashboard-view').forEach((view) => { const active = view.id === button.dataset.view; view.hidden = !active; view.classList.toggle('active', active); });
   if (button.dataset.view === 'resources-view') await openExplorer();
+  if (button.dataset.view === 'page-manager-view') await openPageManager();
   if (button.dataset.view === 'code-view') await openCodeWorkspace();
   if (button.dataset.view === 'settings-view') await openSettings();
   if (button.dataset.view === 'recorder-view') await openRecorderStudio();
+  if (button.dataset.view === 'data-view') await openDataManager();
+  if (button.dataset.view === 'builder-view') await initVisualBuilder();
 }));
 document.querySelectorAll('.resource-filter').forEach((button) => button.addEventListener('click', () => {
   activeResourceCategory = button.dataset.category;
   document.querySelectorAll('.resource-filter').forEach((filter) => filter.classList.toggle('active', filter === button));
+  document.querySelectorAll('.results-orientation-item').forEach((item) => item.classList.toggle('active', item.dataset.resultsCategory === activeResourceCategory));
   renderResourceList($('#resource-search').value);
+}));
+document.querySelectorAll('.results-orientation-item').forEach((item) => item.addEventListener('click', () => {
+  const filter = document.querySelector(`.resource-filter[data-category="${item.dataset.resultsCategory}"]`);
+  if (filter) filter.click();
 }));
 $('#resource-search').addEventListener('input', (event) => renderResourceList(event.target.value));
 $('#reveal-button').addEventListener('click', () => loadResource(currentResource, $('#reveal-button').dataset.revealed !== 'true'));
@@ -1865,7 +3669,7 @@ document.querySelectorAll('.code-root-filter').forEach((button) => button.addEve
 }));
 $('#code-editor').addEventListener('input', () => {
   const changed = $('#code-editor').value !== originalCodeContent;
-  $('#code-preview code').innerHTML = highlightCode($('#code-editor').value, currentCodeFile?.endsWith('.json')) + '\n';
+  $('#code-preview code').innerHTML = highlightCode($('#code-editor').value, getCodeLanguage(currentCodeFile)) + '\n';
   $('#code-save-button').disabled = !changed;
   $('#code-cancel-button').hidden = !changed;
   $('#code-status-text').textContent = changed ? 'Đã chỉnh sửa' : 'Sẵn sàng';
@@ -1878,6 +3682,182 @@ $('#code-edit-button').addEventListener('click', enterCodeEditMode);
 $('#code-format-button').addEventListener('click', formatCurrentCodeEditor);
 $('#code-cancel-button').addEventListener('click', leaveCodeEditMode);
 $('#code-save-button').addEventListener('click', saveCodeFile);
+$('#page-manager-add-locator')?.addEventListener('click', () => { pageManagerLocators.push({ name: '', expression: '' }); renderPageManagerRows(); updatePageManagerPreview(); debounceSavePageDraft(); });
+$('#page-manager-add-action')?.addEventListener('click', () => { pageManagerActions.push({ name: '', locatorName: pageManagerLocators[0]?.name || '', operation: 'click' }); renderPageManagerRows(); updatePageManagerPreview(); debounceSavePageDraft(); });
+$('#page-manager-create')?.addEventListener('click', createPageFromManager);
+$('#pm-btn-save-draft')?.addEventListener('click', () => savePageDraft(true));
+$('#pm-btn-save-draft-footer')?.addEventListener('click', () => savePageDraft(true));
+$('#pm-btn-reset-draft')?.addEventListener('click', () => clearPageDraft(false));
+$('#page-manager-refresh')?.addEventListener('click', openPageManager);
+['#page-manager-platform', '#page-manager-title', '#page-manager-class', '#page-manager-description'].forEach((selector) => $(selector)?.addEventListener('input', () => { updatePageManagerPreview(); debounceSavePageDraft(); }));
+$('#page-manager-platform')?.addEventListener('change', () => { updatePageManagerPreview(); debounceSavePageDraft(); });
+
+// Event listeners mới cho Page Manager Side-by-Side
+$('#pm-btn-inspect-mode')?.addEventListener('click', () => {
+  if (currentInspectedPage) {
+    inspectPage(currentInspectedPage.relativePath);
+  } else if (repoPages.length > 0) {
+    inspectPage(repoPages[0].relativePath);
+  }
+});
+$('#pm-btn-create-mode')?.addEventListener('click', switchToCreatePageMode);
+$('#page-manager-select-page')?.addEventListener('change', (e) => {
+  if (e.target.value) inspectPage(e.target.value, false);
+});
+$('#pm-quick-search-input')?.addEventListener('input', () => {
+  if (currentInspectedPage) {
+    renderInspectedLocators(currentInspectedPage.locators || []);
+    renderInspectedActions(currentInspectedPage.methods || []);
+  }
+});
+$('#pm-btn-toggle-edit')?.addEventListener('click', () => toggleDirectCodeEdit());
+$('#pm-btn-save-code')?.addEventListener('click', saveCurrentPageCode);
+$('#pm-btn-copy-code')?.addEventListener('click', copyCurrentPageManagerCode);
+$('#page-manager-code-editor')?.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveCurrentPageCode();
+  } else if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = e.target.selectionStart;
+    const end = e.target.selectionEnd;
+    e.target.value = e.target.value.substring(0, start) + '  ' + e.target.value.substring(end);
+    e.target.selectionStart = e.target.selectionEnd = start + 2;
+  }
+});
+
+$('#pm-btn-add-quick-locator')?.addEventListener('click', openAddLocatorToPageModal);
+$('#btn-close-add-locator-modal')?.addEventListener('click', closeAddLocatorToPageModal);
+$('#btn-cancel-add-locator')?.addEventListener('click', closeAddLocatorToPageModal);
+$('#btn-save-add-locator')?.addEventListener('click', saveAddLocatorToPage);
+
+// Quick Add Locator Inline Form
+$('#pm-btn-inline-add-loc')?.addEventListener('click', addInlineLocatorToPage);
+['#pm-inline-loc-name', '#pm-inline-loc-expr'].forEach((sel) => {
+  $(sel)?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addInlineLocatorToPage();
+    }
+  });
+});
+
+$('#pm-filter-input')?.addEventListener('input', renderPageManagerFiles);
+document.querySelectorAll('.pm-filter-pill').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.pm-filter-pill').forEach((p) => p.classList.toggle('active', p === btn));
+    existingPageFilter = btn.dataset.platform || 'all';
+    renderPageManagerFiles();
+  });
+});
+
+// Sidebar Collapse / Expand feature for BDD Studio and Page Manager
+function initSidebarCollapse() {
+  // 1. BDD Studio Sidebar
+  const scriptWorkspace = document.querySelector('.script-workspace-panel');
+  const btnCollapseScript = document.getElementById('btn-collapse-script-sidebar');
+  const btnExpandScript = document.getElementById('btn-expand-script-sidebar');
+  const railScript = document.getElementById('script-sidebar-collapsed-strip');
+  const btnToggleScriptHead = document.getElementById('btn-toggle-script-sidebar-head');
+
+  function setScriptSidebarCollapsed(collapsed) {
+    if (!scriptWorkspace) return;
+    scriptWorkspace.classList.toggle('sidebar-collapsed', collapsed);
+    if (btnToggleScriptHead) {
+      btnToggleScriptHead.classList.toggle('btn-sidebar-toggle-active', collapsed);
+      btnToggleScriptHead.title = collapsed ? 'Mở rộng danh sách kịch bản' : 'Thu gọn danh sách kịch bản';
+    }
+    try { localStorage.setItem('bdd_sidebar_collapsed', collapsed ? '1' : '0'); } catch (_) {}
+  }
+
+  btnCollapseScript?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setScriptSidebarCollapsed(true);
+    notify('📐 Đã thu gọn danh sách kịch bản. Bấm vào thanh bên hoặc nút trên thanh công cụ để mở lại.');
+  });
+
+  btnExpandScript?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setScriptSidebarCollapsed(false);
+  });
+
+  railScript?.addEventListener('click', () => {
+    setScriptSidebarCollapsed(false);
+  });
+
+  btnToggleScriptHead?.addEventListener('click', () => {
+    const isCollapsed = scriptWorkspace?.classList.contains('sidebar-collapsed');
+    setScriptSidebarCollapsed(!isCollapsed);
+  });
+
+  try {
+    if (localStorage.getItem('bdd_sidebar_collapsed') === '1') {
+      setScriptSidebarCollapsed(true);
+    }
+  } catch (_) {}
+
+  // 2. Page Manager Sidebar
+  const pmWorkspace = document.getElementById('page-manager-workspace');
+  const btnCollapsePm = document.getElementById('btn-collapse-pm-sidebar');
+  const btnExpandPm = document.getElementById('btn-expand-pm-sidebar');
+  const railPm = document.getElementById('pm-sidebar-collapsed-strip');
+  const btnTogglePmHead = document.getElementById('btn-toggle-pm-sidebar-head');
+
+  function setPmSidebarCollapsed(collapsed) {
+    if (!pmWorkspace) return;
+    pmWorkspace.classList.toggle('sidebar-collapsed', collapsed);
+    if (btnTogglePmHead) {
+      btnTogglePmHead.classList.toggle('btn-sidebar-toggle-active', collapsed);
+      btnTogglePmHead.title = collapsed ? 'Mở rộng danh sách Page' : 'Thu gọn danh sách Page';
+    }
+    try { localStorage.setItem('pm_sidebar_collapsed', collapsed ? '1' : '0'); } catch (_) {}
+  }
+
+  btnCollapsePm?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setPmSidebarCollapsed(true);
+    notify('📐 Đã thu gọn danh sách Page. Bấm vào thanh bên hoặc nút trên thanh công cụ để mở lại.');
+  });
+
+  btnExpandPm?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setPmSidebarCollapsed(false);
+  });
+
+  railPm?.addEventListener('click', () => {
+    setPmSidebarCollapsed(false);
+  });
+
+  btnTogglePmHead?.addEventListener('click', () => {
+    const isCollapsed = pmWorkspace?.classList.contains('sidebar-collapsed');
+    setPmSidebarCollapsed(!isCollapsed);
+  });
+
+  try {
+    if (localStorage.getItem('pm_sidebar_collapsed') === '1') {
+      setPmSidebarCollapsed(true);
+    }
+  } catch (_) {}
+
+  // 3. Phím tắt Ctrl + B / Cmd + B để bật tắt sidebar
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+      const activeBuilder = document.getElementById('builder-view')?.classList.contains('active');
+      const activePm = document.getElementById('page-manager-view')?.classList.contains('active');
+      if (activeBuilder) {
+        e.preventDefault();
+        const isCollapsed = scriptWorkspace?.classList.contains('sidebar-collapsed');
+        setScriptSidebarCollapsed(!isCollapsed);
+      } else if (activePm) {
+        e.preventDefault();
+        const isCollapsed = pmWorkspace?.classList.contains('sidebar-collapsed');
+        setPmSidebarCollapsed(!isCollapsed);
+      }
+    }
+  });
+}
+initSidebarCollapse();
+
 $('#format-resource-button').addEventListener('click', formatCurrentResourceEditor);
 $('#reload-settings-button').addEventListener('click', openSettings);
 $('#save-settings-button').addEventListener('click', saveSettings);
@@ -1932,15 +3912,6 @@ document.querySelectorAll('.font-size-btn').forEach((btn) => {
   });
 });
 
-document.querySelectorAll('.guide-nav-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const step = btn.dataset.guideStep;
-    document.querySelectorAll('.guide-nav-btn').forEach((b) => b.classList.toggle('active', b === btn));
-    document.querySelectorAll('.guide-pane').forEach((pane) => {
-      pane.classList.toggle('active', pane.id === `guide-pane-${step}`);
-    });
-  });
-});
 
 // ==========================================================================
 // RECORDER STUDIO CONTROLLER
@@ -2313,7 +4284,9 @@ $('#rec-copy-raw-btn')?.addEventListener('click', () => {
 });
 
 $('#rec-start-btn')?.addEventListener('click', async () => {
-  const url = $('#rec-url')?.value.trim() || 'https://dev.carthings.vn';
+  const currentEnvKey = $('#filter-env')?.value || settingsCache?.runtime?.defaultEnvironment || 'qc';
+  const defaultUrl = settingsCache?.environments?.[currentEnvKey]?.baseURL || 'https://seeker.vl24hv2.qc.sieuviet-team.com';
+  const url = $('#rec-url')?.value.trim() || defaultUrl;
   const platform = $('#rec-platform')?.value || 'desktop';
   const device = platform === 'mobile-web' ? $('#rec-device')?.value : '';
   const startBtn = $('#rec-start-btn');
@@ -2508,6 +4481,63 @@ $('#draft-copy-btn')?.addEventListener('click', () => {
   notify('Đã sao chép mã nguồn vào Clipboard!');
 });
 
+// Auto Inject Evidence Capture in Step 3 of Recorder
+async function triggerRecorderAutoEvidenceCapture() {
+  const specEditor = document.getElementById('draft-spec-editor');
+  const specPreview = document.getElementById('draft-spec-code');
+  const currentCode = specEditor ? specEditor.value : '';
+
+  if (!currentCode || !currentCode.trim()) {
+    notify('Chưa có mã BDD Spec trong bản nháp Bước 3.');
+    return;
+  }
+
+  const autoBtns = [
+    document.getElementById('draft-auto-capture-btn'),
+    document.getElementById('rec-step3-auto-capture-btn'),
+  ].filter(Boolean);
+
+  autoBtns.forEach((btn) => {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang phân tích...';
+  });
+
+  try {
+    const res = await request('/api/builder/auto-capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        specCode: currentCode,
+        filePath: document.getElementById('draft-spec-path')?.textContent || 'draft.spec.js',
+      }),
+    });
+
+    if (res.alreadyOptimal || (res.addedCount === 0 && res.removedCount === 0)) {
+      notify('👌 Bản nháp BDD Spec đã có đầy đủ các mốc capture evidence chuẩn, không phát hiện điểm trùng lặp!');
+    } else {
+      if (specEditor) specEditor.value = res.modifiedCode;
+      if (specPreview) specPreview.innerHTML = highlightCode(res.modifiedCode) + '\n';
+
+      // Tự động kích hoạt tab BDD Spec trong Step 3 để tester nhìn thấy ngay
+      const specTab = document.querySelector('.code-draft-tab[data-draft="spec"]');
+      if (specTab) specTab.click();
+
+      notify(`📸 Đã tự động chèn ${res.addedCount} mốc capture evidence chuẩn vào bản nháp BDD Spec!`);
+    }
+  } catch (err) {
+    notify(`❌ Lỗi chèn evidence: ${err.message}`);
+  } finally {
+    autoBtns.forEach((btn) => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ph-bold ph-camera"></i> Tự động chèn Evidence';
+    });
+  }
+}
+
+document.getElementById('draft-auto-capture-btn')?.addEventListener('click', triggerRecorderAutoEvidenceCapture);
+document.getElementById('rec-step3-auto-capture-btn')?.addEventListener('click', triggerRecorderAutoEvidenceCapture);
+
+
 document.querySelectorAll('.code-draft-tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     const draftType = tab.dataset.draft;
@@ -2605,3 +4635,4489 @@ $('#rec-run-spec-btn')?.addEventListener('click', async () => {
 });
 
 initialize();
+initPlanThreeControls();
+
+/* ==========================================================================
+   NO-CODE TEST DATA STUDIO & RECORDER ASSERTION EXTENSIONS
+   ========================================================================== */
+
+let currentDataFile = null;
+let currentDataset = null;
+let dataViewMode = 'table';
+let datasetsCache = [];
+let lastFocusedDataInput = null;
+let isDataStudioInitialized = false;
+let dataRawEditorController = null;
+
+async function openDataManager() {
+  initDataStudioControls();
+  await loadDataFilesList();
+  if (datasetsCache.length > 0) {
+    const fileToSelect = currentDataFile || datasetsCache[0].fileName;
+    await selectDataset(fileToSelect);
+  }
+}
+
+async function loadDataFilesList() {
+  const container = document.getElementById('data-files-list');
+  if (!container) return;
+  try {
+    const res = await request('/api/data/datasets');
+    datasetsCache = res.datasets || [];
+
+    // Cap nhat stats
+    const statFiles = document.getElementById('stat-data-files');
+    const statRecords = document.getElementById('stat-data-records');
+    if (statFiles) statFiles.textContent = datasetsCache.length;
+    if (statRecords) {
+      const totalRecs = datasetsCache.reduce((acc, d) => acc + (d.recordCount || 0), 0);
+      statRecords.textContent = totalRecs;
+    }
+
+    if (datasetsCache.length === 0) {
+      container.innerHTML = '<small class="data-empty-hint" style="padding:16px;color:var(--muted);display:block;text-align:center;">Chưa có tệp dữ liệu nào trong data/</small>';
+      return;
+    }
+
+    const fileDescriptions = {
+      'users.json': 'Tài khoản đăng nhập',
+      'applyJobData.json': 'Dữ liệu nộp đơn & ứng tuyển',
+      'userProfileData.json': 'Hồ sơ người tìm việc',
+      'onboardingData.json': 'Thiết lập ban đầu Onboarding',
+      'aiProfileData.json': 'Gợi ý hồ sơ AI'
+    };
+
+    container.innerHTML = datasetsCache.map((ds) => {
+      const desc = fileDescriptions[ds.fileName] || (ds.isArray ? 'Danh sách dữ liệu' : 'Cấu trúc biểu mẫu');
+      return `
+      <button type="button" class="data-file-item ${currentDataFile === ds.fileName ? 'active' : ''}" data-file="${ds.fileName}">
+        <div class="data-file-info">
+          <i class="ph-bold ph-file-text"></i>
+          <div class="data-file-text">
+            <strong class="data-file-name">${escapeHtml(ds.fileName)}</strong>
+            <span class="data-file-desc">${desc}</span>
+            <span class="data-file-meta">${ds.recordCount} ${ds.isArray ? 'dòng dữ liệu' : 'mục'} • ${(ds.size / 1024).toFixed(1)} KB</span>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="data-file-badge">Biểu mẫu</span>
+          <span class="btn-icon-subtle item-delete-hover-btn data-file-delete-btn" data-file="${escapeHtml(ds.fileName)}" title="Xóa tệp dữ liệu" style="padding:2px; font-size:14px;">
+            <i class="ph ph-trash"></i>
+          </span>
+        </div>
+      </button>`;
+    }).join('');
+
+    container.querySelectorAll('.data-file-item').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        if (e.target.closest('.data-file-delete-btn')) return;
+        selectDataset(btn.dataset.file);
+      });
+    });
+
+    container.querySelectorAll('.data-file-delete-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const fileName = btn.dataset.file;
+        selectDataset(fileName).then(() => {
+          document.getElementById('data-delete-file-btn')?.click();
+        });
+      });
+    });
+  } catch (err) {
+    notify('Lỗi tải danh sách dữ liệu: ' + err.message);
+  }
+}
+
+async function selectDataset(fileName) {
+  currentDataFile = fileName;
+  document.querySelectorAll('.data-file-item').forEach((item) => {
+    item.classList.toggle('active', item.dataset.file === fileName);
+  });
+
+  try {
+    const res = await request(`/api/data/dataset?file=${encodeURIComponent(fileName)}`);
+    currentDataset = res.data;
+
+    // Giữ nguyên chế độ Mã JSON nếu đang mở, ngược lại mặc định luôn là Biểu mẫu
+    if (dataViewMode !== 'raw') {
+      dataViewMode = 'form';
+    }
+
+    const nameEl = document.getElementById('data-current-filename');
+    const metaEl = document.getElementById('data-current-meta');
+    if (nameEl) nameEl.textContent = res.fileName;
+    if (metaEl) metaEl.textContent = `${res.isArray ? res.data.length + ' bản ghi (dòng dữ liệu)' : Object.keys(res.data).length + ' nhóm thông tin'} • ${res.relativePath}`;
+
+    if (dataRawEditorController) dataRawEditorController.setValue(JSON.stringify(res.data, null, 2));
+
+    renderDataView();
+  } catch (err) {
+    notify('Lỗi đọc tệp dữ liệu: ' + err.message);
+  }
+}
+
+function renderDataView() {
+  const formPane = document.getElementById('data-form-view');
+  const rawPane = document.getElementById('data-raw-view');
+
+  // Cập nhật trạng thái nút chuyển đổi
+  document.getElementById('data-toggle-form')?.classList.toggle('active', dataViewMode === 'form');
+  document.getElementById('data-toggle-raw')?.classList.toggle('active', dataViewMode === 'raw');
+
+  if (dataViewMode === 'form') {
+    if (formPane) formPane.style.display = 'flex';
+    if (rawPane) rawPane.style.display = 'none';
+    renderGroupedFormView();
+  } else {
+    if (formPane) formPane.style.display = 'none';
+    if (rawPane) rawPane.style.display = 'flex';
+
+    if (dataRawEditorController && currentDataset !== null && currentDataset !== undefined) {
+      dataRawEditorController.setValue(JSON.stringify(currentDataset, null, 2));
+    }
+  }
+}
+
+function updateRawJsonPreview() {
+  const rawEditor = document.getElementById('data-raw-editor');
+  const rawCode = document.getElementById('data-raw-code');
+  if (!rawEditor || !rawCode) return;
+  rawCode.innerHTML = highlightCode(rawEditor.value, true) + '\n';
+}
+
+function renderTableGrid() {
+  const container = document.getElementById('data-table-container');
+  if (!container) return;
+
+  if (!Array.isArray(currentDataset) || currentDataset.length === 0) {
+    if (!Array.isArray(currentDataset)) {
+      container.innerHTML = `
+        <div class="data-empty-state">
+          <i class="ph-bold ph-textbox" style="font-size: 40px; color: var(--accent);"></i>
+          <h3 style="margin: 8px 0 4px 0;">Tệp này phù hợp với dạng Biểu mẫu</h3>
+          <p style="max-width: 480px;">Tệp dữ liệu này chứa cấu trúc phân nhóm (kinh nghiệm, học vấn, kỹ năng...). Hãy chuyển sang chế độ <strong>Biểu mẫu</strong> để xem và chỉnh sửa trực quan.</p>
+          <button type="button" class="btn-primary-sm" style="margin-top: 8px;" onclick="document.getElementById('data-toggle-form')?.click()"><i class="ph-bold ph-tree-structure"></i> Chuyển sang Biểu mẫu</button>
+        </div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="data-empty-state">
+        <i class="ph ph-table" style="font-size: 40px; color: var(--muted);"></i>
+        <p>Bảng này chưa có dòng dữ liệu nào.</p>
+        <button type="button" class="btn-primary-sm" onclick="document.getElementById('data-add-row-btn')?.click()"><i class="ph-bold ph-plus"></i> Thêm dòng đầu tiên</button>
+      </div>`;
+    return;
+  }
+
+  const columns = Object.keys(currentDataset[0]);
+
+  const headerHtml = columns
+    .map((col) => `<th>${escapeHtml(col)}</th>`)
+    .join('') + '<th style="width: 80px; text-align: center;">Hành động</th>';
+
+  const rowsHtml = currentDataset
+    .map((row, rIdx) => {
+      const cellsHtml = columns
+        .map(
+          (col) => `
+        <td>
+          <input 
+            type="text" 
+            class="data-cell-input" 
+            value="${escapeHtml(String(row[col] !== undefined ? row[col] : ''))}" 
+            data-row="${rIdx}" 
+            data-col="${escapeHtml(col)}"
+          />
+        </td>`
+        )
+        .join('');
+
+      return `
+      <tr>
+        <td style="width: 40px; text-align: center; color: var(--muted); font-size: 11px;">${rIdx + 1}</td>
+        ${cellsHtml}
+        <td style="text-align: center; white-space: nowrap;">
+          <button type="button" class="btn-icon-subtle" title="Nhân bản dòng này" onclick="window.cloneDataRow(${rIdx})"><i class="ph ph-copy"></i></button>
+          <button type="button" class="btn-icon-danger" title="Xóa dòng này" onclick="window.removeDataRow(${rIdx})"><i class="ph ph-trash"></i></button>
+        </td>
+      </tr>`;
+    })
+    .join('');
+
+  container.innerHTML = `
+    <table class="data-grid-table">
+      <thead>
+        <tr>
+          <th style="width: 40px; text-align: center;">#</th>
+          ${headerHtml}
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>`;
+
+  container.querySelectorAll('.data-cell-input').forEach((input) => {
+    input.addEventListener('focus', () => {
+      lastFocusedDataInput = input;
+    });
+    input.addEventListener('input', (e) => {
+      const r = parseInt(e.target.dataset.row, 10);
+      const c = e.target.dataset.col;
+      if (currentDataset && currentDataset[r]) {
+        currentDataset[r][c] = e.target.value;
+      }
+    });
+  });
+}
+
+function renderFormFieldUnit(pathArray, label, value) {
+  const pathStr = pathArray.join('.');
+  let inputHtml = '';
+  let hint = '';
+
+  if (Array.isArray(value)) {
+    const textVal = value.join(', ');
+    hint = '<small style="color: var(--muted); font-size: 10.5px; text-transform: none; font-weight: 500;">(Phân cách bằng dấu phẩy)</small>';
+    inputHtml = `
+      <input 
+        type="text" 
+        class="form-field-input" 
+        value="${escapeHtml(textVal)}" 
+        data-path="${escapeHtml(pathStr)}" 
+        data-type="array" 
+      />
+    `;
+  } else if (typeof value === 'boolean') {
+    inputHtml = `
+      <select class="form-field-input select-input" data-path="${escapeHtml(pathStr)}" data-type="boolean">
+        <option value="true" ${value === true ? 'selected' : ''}>true (Có / Đúng)</option>
+        <option value="false" ${value === false ? 'selected' : ''}>false (Không / Sai)</option>
+      </select>
+    `;
+  } else {
+    inputHtml = `
+      <input 
+        type="text" 
+        class="form-field-input" 
+        value="${escapeHtml(String(value !== undefined && value !== null ? value : ''))}" 
+        data-path="${escapeHtml(pathStr)}" 
+        data-type="${typeof value === 'number' ? 'number' : 'string'}" 
+      />
+    `;
+  }
+
+  return `
+    <div class="form-field-unit">
+      <label style="display: flex; justify-content: space-between; align-items: baseline;">
+        <span>${escapeHtml(label)}</span>
+        ${hint}
+      </label>
+      ${inputHtml}
+    </div>
+  `;
+}
+
+function renderGroupedFormView() {
+  const container = document.getElementById('data-form-container');
+  if (!container) return;
+
+  if (Array.isArray(currentDataset)) {
+    if (currentDataset.length === 0) {
+      container.innerHTML = '<div class="data-empty-state"><i class="ph ph-tree-structure"></i><p>Tệp dữ liệu đang rỗng.</p></div>';
+      return;
+    }
+    container.innerHTML = currentDataset
+      .map((item, idx) => {
+        if (typeof item === 'object' && item !== null) {
+          const fields = Object.entries(item)
+            .map(([fieldKey, fieldValue]) => renderFormFieldUnit([String(idx), fieldKey], fieldKey, fieldValue))
+            .join('');
+          return `
+            <div class="data-form-card">
+              <div class="data-form-card-header">
+                <div class="data-form-card-title"><i class="ph-bold ph-user"></i> <span>Dòng ${idx + 1} (${Object.keys(item).length} trường)</span></div>
+                <small style="color: var(--muted);">Bản ghi #${idx + 1}</small>
+              </div>
+              <div class="data-form-card-body">
+                ${fields}
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="data-form-card">
+              <div class="data-form-card-header">
+                <div class="data-form-card-title"><i class="ph-bold ph-tag"></i> <span>Mục ${idx + 1}</span></div>
+              </div>
+              <div class="data-form-card-body" style="grid-template-columns: 1fr;">
+                ${renderFormFieldUnit([String(idx)], `Giá trị ${idx + 1}:`, item)}
+              </div>
+            </div>
+          `;
+        }
+      })
+      .join('');
+
+    container.querySelectorAll('.form-field-input').forEach((input) => {
+      input.addEventListener('focus', () => {
+        lastFocusedDataInput = input;
+      });
+      const updateHandler = (e) => {
+        const pathStr = e.target.dataset.path;
+        if (!pathStr) return;
+        const type = e.target.dataset.type;
+        const path = pathStr.split('.');
+        let target = currentDataset;
+        for (let i = 0; i < path.length - 1; i++) {
+          target = target[path[i]];
+        }
+        const lastKey = path[path.length - 1];
+        let valToSet = e.target.value;
+        if (type === 'array') {
+          valToSet = valToSet.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+        } else if (type === 'boolean') {
+          valToSet = valToSet === 'true';
+        } else if (type === 'number') {
+          const num = Number(valToSet);
+          if (!isNaN(num) && valToSet.trim() !== '') valToSet = num;
+        }
+        target[lastKey] = valToSet;
+        dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2), false);
+      };
+      input.addEventListener('input', updateHandler);
+      if (input.tagName === 'SELECT') input.addEventListener('change', updateHandler);
+    });
+    return;
+  }
+
+  if (!currentDataset || typeof currentDataset !== 'object') {
+    container.innerHTML = '<div class="data-empty-state"><i class="ph ph-tree-structure"></i><p>Chưa có dữ liệu để hiển thị dạng biểu mẫu.</p></div>';
+    return;
+  }
+
+  const entries = Object.entries(currentDataset);
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="data-empty-state"><i class="ph ph-tree-structure"></i><p>Dữ liệu đang rỗng.</p></div>';
+    return;
+  }
+
+  container.innerHTML = entries
+    .map(([key, val]) => {
+      if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+        const hasNestedObjects = Object.values(val).some(
+          (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
+        );
+
+        if (hasNestedObjects) {
+          const subCardsHtml = Object.entries(val)
+            .map(([subKey, subVal]) => {
+              if (typeof subVal === 'object' && subVal !== null && !Array.isArray(subVal)) {
+                const subFields = Object.entries(subVal)
+                  .map(([fieldKey, fieldValue]) => renderFormFieldUnit([key, subKey, fieldKey], fieldKey, fieldValue))
+                  .join('');
+
+                return `
+                  <div class="data-form-subcard">
+                    <div class="data-form-subcard-header">
+                      <span class="data-form-subcard-title"><i class="ph-bold ph-caret-circle-right"></i> ${escapeHtml(subKey)}</span>
+                      <small style="color: var(--muted); font-size: 11px;">${Object.keys(subVal).length} trường</small>
+                    </div>
+                    <div class="data-form-subcard-body">
+                      ${subFields}
+                    </div>
+                  </div>
+                `;
+              } else {
+                return renderFormFieldUnit([key, subKey], subKey, subVal);
+              }
+            })
+            .join('');
+
+          return `
+            <div class="data-form-card compound-card">
+              <div class="data-form-card-header">
+                <div class="data-form-card-title"><i class="ph-bold ph-folder-notch-open"></i> <span>${escapeHtml(key)}</span></div>
+                <small style="color: var(--muted);">${Object.keys(val).length} mục chi tiết</small>
+              </div>
+              <div class="data-form-compound-body">
+                ${subCardsHtml}
+              </div>
+            </div>
+          `;
+        } else {
+          const fields = Object.entries(val)
+            .map(([subKey, subVal]) => renderFormFieldUnit([key, subKey], subKey, subVal))
+            .join('');
+
+          return `
+            <div class="data-form-card">
+              <div class="data-form-card-header">
+                <div class="data-form-card-title"><i class="ph-bold ph-folder"></i> <span>${escapeHtml(key)}</span></div>
+                <small style="color: var(--muted);">${Object.keys(val).length} trường</small>
+              </div>
+              <div class="data-form-card-body">
+                ${fields}
+              </div>
+            </div>
+          `;
+        }
+      } else {
+        const fieldHtml = renderFormFieldUnit([key], 'Giá trị:', val);
+        return `
+          <div class="data-form-card">
+            <div class="data-form-card-header">
+              <div class="data-form-card-title"><i class="ph-bold ph-tag"></i> <span>${escapeHtml(key)}</span></div>
+            </div>
+            <div class="data-form-card-body" style="grid-template-columns: 1fr;">
+              ${fieldHtml}
+            </div>
+          </div>
+        `;
+      }
+    })
+    .join('');
+
+  container.querySelectorAll('.form-field-input').forEach((input) => {
+    input.addEventListener('focus', () => {
+      lastFocusedDataInput = input;
+    });
+
+    const updateHandler = (e) => {
+      const pathStr = e.target.dataset.path;
+      if (!pathStr) return;
+      const type = e.target.dataset.type;
+      const path = pathStr.split('.');
+      let target = currentDataset;
+      for (let i = 0; i < path.length - 1; i++) {
+        if (!target[path[i]]) target[path[i]] = {};
+        target = target[path[i]];
+      }
+      const lastKey = path[path.length - 1];
+      let valToSet = e.target.value;
+
+      if (type === 'array') {
+        valToSet = valToSet.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+      } else if (type === 'boolean') {
+        valToSet = valToSet === 'true';
+      } else if (type === 'number') {
+        const num = Number(valToSet);
+        if (!isNaN(num) && valToSet.trim() !== '') valToSet = num;
+      }
+
+      target[lastKey] = valToSet;
+
+      dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2), false);
+    };
+
+    input.addEventListener('input', updateHandler);
+    if (input.tagName === 'SELECT') {
+      input.addEventListener('change', updateHandler);
+    }
+  });
+}
+
+window.cloneDataRow = function(idx) {
+  if (!Array.isArray(currentDataset)) return;
+  const clone = JSON.parse(JSON.stringify(currentDataset[idx]));
+  currentDataset.splice(idx + 1, 0, clone);
+  renderTableGrid();
+  dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2), false);
+  notify('Đã nhân bản dòng ' + (idx + 1));
+};
+
+window.removeDataRow = function(idx) {
+  if (!Array.isArray(currentDataset)) return;
+  currentDataset.splice(idx, 1);
+  renderTableGrid();
+  dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2), false);
+  notify('Đã xóa dòng ' + (idx + 1));
+};
+
+function initDataStudioControls() {
+  if (isDataStudioInitialized) return;
+  isDataStudioInitialized = true;
+
+  const toggleForm = document.getElementById('data-toggle-form');
+  const toggleRaw = document.getElementById('data-toggle-raw');
+  const saveBtn = document.getElementById('data-save-btn');
+  const refreshBtn = document.getElementById('data-refresh-btn');
+  const exportCsvBtn = document.getElementById('data-export-csv-btn');
+  const importCsvBtn = document.getElementById('data-import-csv-btn');
+  const csvInput = document.getElementById('data-csv-file-input');
+  const rawEditorEl = document.getElementById('data-raw-editor');
+  const rawPreviewEl = document.getElementById('data-raw-preview');
+  const rawEditor = createSharedCodeEditor({
+    textarea: rawEditorEl,
+    preview: rawPreviewEl,
+    language: 'json',
+    onInput: () => {
+      try { currentDataset = JSON.parse(rawEditorEl.value); } catch (_) {}
+      document.getElementById('data-revert-btn').disabled = !rawEditor.isDirty();
+    },
+  });
+  dataRawEditorController = rawEditor;
+
+  toggleForm?.addEventListener('click', () => {
+    dataViewMode = 'form';
+    renderDataView();
+  });
+  toggleRaw?.addEventListener('click', () => {
+    dataViewMode = 'raw';
+    if (dataRawEditorController && currentDataset) {
+      dataRawEditorController.setValue(JSON.stringify(currentDataset, null, 2));
+    }
+    renderDataView();
+  });
+
+  document.getElementById('data-copy-json-btn')?.addEventListener('click', async () => {
+    await navigator.clipboard.writeText(rawEditor?.getValue() || JSON.stringify(currentDataset, null, 2));
+    notify('Đã sao chép JSON.');
+  });
+  document.getElementById('data-revert-btn')?.addEventListener('click', () => {
+    rawEditor?.revert();
+    try { currentDataset = JSON.parse(rawEditor.getValue()); } catch (_) {}
+    document.getElementById('data-revert-btn').disabled = true;
+  });
+
+  saveBtn?.addEventListener('click', async () => {
+    if (!currentDataFile) return;
+    try {
+      let payloadData = currentDataset;
+      if (dataViewMode === 'raw') {
+        const rawVal = document.getElementById('data-raw-editor').value;
+        payloadData = JSON.parse(rawVal);
+        currentDataset = payloadData;
+      }
+      await request('/api/data/dataset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: currentDataFile, data: payloadData }),
+      });
+      dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2));
+      notify('Đã lưu dữ liệu vào ' + currentDataFile + ' (có tạo backup an toàn)');
+      await loadDataFilesList();
+    } catch (err) {
+      notify('Không thể lưu dữ liệu: ' + err.message);
+    }
+  });
+
+  refreshBtn?.addEventListener('click', async () => {
+    await loadDataFilesList();
+    if (currentDataFile) await selectDataset(currentDataFile);
+    notify('Đã làm mới dữ liệu.');
+  });
+
+  exportCsvBtn?.addEventListener('click', () => {
+    if (!currentDataFile) return notify('Vui lòng chọn tệp dữ liệu trước.');
+    const link = document.createElement('a');
+    link.href = `/api/data/export-csv?file=${encodeURIComponent(currentDataFile)}`;
+    link.download = currentDataFile.replace(/\.json$/i, '.csv');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  });
+
+  importCsvBtn?.addEventListener('click', () => {
+    if (!currentDataFile) return notify('Vui lòng chọn tệp dữ liệu trước.');
+    csvInput?.click();
+  });
+
+  csvInput?.addEventListener('change', async () => {
+    const file = csvInput.files?.[0];
+    if (!file || !currentDataFile) return;
+    try {
+      if (file.size > 1024 * 1024) throw new Error('CSV vượt quá giới hạn 1 MB.');
+      const csv = await file.text();
+      const result = await request('/api/data/import-csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: currentDataFile, csv }),
+      });
+      notify(`Đã nhập ${result.importedRows} dòng và tạo backup an toàn.`);
+      await loadDataFilesList();
+      await selectDataset(currentDataFile);
+    } catch (error) {
+      notify('Không thể nhập CSV: ' + error.message);
+    } finally {
+      csvInput.value = '';
+    }
+  });
+
+  document.getElementById('data-new-file-btn')?.addEventListener('click', () => {
+    document.getElementById('modal-new-dataset')?.showModal();
+  });
+
+  document.getElementById('confirm-create-dataset-btn')?.addEventListener('click', async () => {
+    const nameInput = document.getElementById('new-dataset-name');
+    const templateSelect = document.getElementById('new-dataset-template');
+    const fileName = nameInput?.value.trim();
+    if (!fileName) {
+      notify('Vui lòng nhập tên tệp dữ liệu.');
+      return;
+    }
+    try {
+      const res = await request('/api/data/create-dataset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName, templateType: templateSelect?.value || 'array' }),
+      });
+      notify(res.message);
+      document.getElementById('modal-new-dataset')?.close();
+      nameInput.value = '';
+      await loadDataFilesList();
+      await selectDataset(res.fileName || fileName);
+    } catch (err) {
+      notify('Không thể tạo tệp: ' + err.message);
+    }
+  });
+
+  document.getElementById('data-quick-preview-btn')?.addEventListener('click', async () => {
+    const modal = document.getElementById('modal-dynamic-preview');
+    const listEl = document.getElementById('dynamic-preview-list');
+    if (modal) modal.showModal();
+    if (listEl) {
+      try {
+        const res = await request('/api/data/dynamic-preview');
+        const items = [
+          { tag: '{{random_phone}}', label: 'Số điện thoại ngẫu nhiên', val: res.random_phone },
+          { tag: '{{random_email}}', label: 'Email test tự sinh', val: res.random_email },
+          { tag: '{{random_name}}', label: 'Họ tên ngẫu nhiên', val: res.random_name },
+          { tag: '{{timestamp}}', label: 'Timestamp hiện tại', val: res.timestamp },
+          { tag: '{{date}}', label: 'Ngày hôm nay (YYYY-MM-DD)', val: res.date },
+        ];
+        listEl.innerHTML = items.map((it) => `
+          <div class="dynamic-preview-item">
+            <div class="dynamic-preview-meta">
+              <span class="dynamic-preview-tag">${it.tag}</span>
+              <small style="color: var(--muted);">${it.label}</small>
+              <span class="dynamic-preview-val">${it.val}</span>
+            </div>
+            <button type="button" class="btn-secondary-sm" onclick="navigator.clipboard.writeText('${it.tag}'); notify('Đã copy ' + '${it.tag}');"><i class="ph ph-copy"></i> Copy</button>
+          </div>
+        `).join('');
+      } catch (err) {
+        listEl.innerHTML = '<p style="color:#ef4444;">Lỗi tải giá trị mẫu: ' + err.message + '</p>';
+      }
+    }
+  });
+
+  document.querySelectorAll('.dynamic-tag').forEach((tag) => {
+    tag.addEventListener('click', () => {
+      const text = tag.dataset.tag;
+      if (lastFocusedDataInput) {
+        lastFocusedDataInput.value += text;
+        const r = parseInt(lastFocusedDataInput.dataset.row, 10);
+        const c = lastFocusedDataInput.dataset.col;
+        if (currentDataset && currentDataset[r]) {
+          currentDataset[r][c] = lastFocusedDataInput.value;
+        }
+      }
+      navigator.clipboard.writeText(text);
+      notify('Đã chèn và sao chép: ' + text);
+    });
+  });
+
+  const addAssertBtn = document.getElementById('rec-add-assertion-btn');
+  const modalAssert = document.getElementById('modal-add-assertion');
+  const confirmAssertBtn = document.getElementById('confirm-add-assertion-btn');
+
+  if (addAssertBtn && modalAssert) {
+    addAssertBtn.addEventListener('click', () => {
+      modalAssert.showModal();
+    });
+  }
+
+  if (confirmAssertBtn && modalAssert) {
+    confirmAssertBtn.addEventListener('click', () => {
+      const aType = document.getElementById('assertion-type-select')?.value || 'toBeVisible';
+      const target = (document.getElementById('assertion-locator-input')?.value || '').trim();
+      const expected = (document.getElementById('assertion-value-input')?.value || '').trim();
+
+      if (!target && aType !== 'toHaveURL') {
+        notify('Vui lòng nhập selector / locator cần kiểm tra.');
+        return;
+      }
+
+      let locatorStr = target.startsWith('page.') ? target : target.startsWith('getBy') ? `page.${target}` : `page.locator('${target}')`;
+      let line = '';
+      if (aType === 'toBeVisible' || aType === 'toBeHidden') {
+        line = `  await expect(${locatorStr}).${aType}();`;
+      } else if (aType === 'toHaveURL') {
+        line = `  await expect(page).toHaveURL(/${expected}/);`;
+      } else {
+        line = `  await expect(${locatorStr}).${aType}('${expected}');`;
+      }
+
+      if (recorderState.rawScript) {
+        recorderState.rawScript = recorderState.rawScript.trimEnd() + '\n' + line + '\n';
+        const parsed = parsePlaywrightScript(recorderState.rawScript);
+        recorderState.parsedActions = parsed.actions;
+        recorderState.detectedUrl = parsed.detectedUrl || recorderState.detectedUrl;
+        renderStep2CodeView(recorderState.rawScript);
+      }
+
+      modalAssert.close();
+      notify('Đã thêm điểm kiểm tra vào kịch bản.');
+    });
+  }
+}
+
+/* ==========================================================================
+   VISUAL STEP BUILDER (NO-CODE BDD DESIGNER)
+   ========================================================================== */
+
+let builderPresetActions = [];
+let isVisualBuilderInitialized = false;
+let builderSteps = [];
+
+function populateBuilderSpecOptions() {
+  const select = $('#builder-template-select');
+  if (!select) return;
+
+  const currentVal = select.value;
+  select.innerHTML = `
+    <option value="custom" selected>-- Tự tạo kịch bản mới (Mặc định) --</option>
+    <optgroup label="✨ Mẫu kịch bản chuẩn hóa">
+      <option value="apply_nocv">⚡ Ứng tuyển nhanh không cần CV</option>
+      <option value="login_profile">👤 Đăng nhập & Cập nhật hồ sơ</option>
+      <option value="job_search">🔍 Tìm kiếm việc làm theo ngành nghề</option>
+    </optgroup>
+  `;
+
+  if (testCatalog && testCatalog.specs && testCatalog.specs.length > 0) {
+    const optGroup = document.createElement('optgroup');
+    optGroup.label = '📂 Chỉnh sửa file test có sẵn trong Framework';
+    testCatalog.specs.forEach((spec) => {
+      const opt = document.createElement('option');
+      opt.value = `spec:${spec}`;
+      opt.textContent = `📄 ${spec}`;
+      optGroup.appendChild(opt);
+    });
+    select.appendChild(optGroup);
+  }
+
+  if (currentVal && Array.from(select.options).some((o) => o.value === currentVal)) {
+    select.value = currentVal;
+  }
+}
+
+let projectScripts = [];
+let currentSelectedScript = null;
+let scriptPlatformFilter = 'all';
+let scriptSearchQuery = '';
+
+async function loadProjectScripts() {
+  const listEl = document.getElementById('script-files-list');
+  if (listEl) {
+    listEl.innerHTML = '<div class="data-loading-spinner"><i class="ph ph-spinner ph-spin"></i> Đang tải danh sách kịch bản...</div>';
+  }
+  try {
+    const res = await request('/api/builder/scripts');
+    projectScripts = res.scripts || [];
+    const totalCountEl = document.getElementById('stat-scripts-total');
+    if (totalCountEl) totalCountEl.textContent = projectScripts.length;
+    const statDeskEl = document.getElementById('stat-scripts-desktop');
+    if (statDeskEl) statDeskEl.textContent = projectScripts.filter((s) => s.platform === 'desktop').length;
+    const statMobEl = document.getElementById('stat-scripts-mobile');
+    if (statMobEl) statMobEl.textContent = projectScripts.filter((s) => s.platform === 'mobile-web').length;
+    const sidebarCountEl = document.getElementById('stat-scripts-sidebar-count');
+    if (sidebarCountEl) sidebarCountEl.textContent = projectScripts.length;
+    renderScriptSidebarList();
+    if (projectScripts.length > 0) {
+      if (!currentSelectedScript) {
+        selectProjectScript(projectScripts[0]);
+      } else {
+        const found = projectScripts.find((s) => s.id === currentSelectedScript.id);
+        selectProjectScript(found || projectScripts[0]);
+      }
+    }
+  } catch (err) {
+    if (listEl) {
+      listEl.innerHTML = `<div style="padding: 14px; color: #ef4444; font-size: 12.5px;">Lỗi nạp kịch bản: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+}
+
+function renderScriptSidebarList() {
+  const listEl = document.getElementById('script-files-list');
+  if (!listEl) return;
+
+  const countAll = projectScripts.length;
+  const countDesktop = projectScripts.filter((s) => s.platform === 'desktop').length;
+  const countMobile = projectScripts.filter((s) => s.platform === 'mobile-web').length;
+
+  const cAll = document.getElementById('count-filter-all');
+  const cDesk = document.getElementById('count-filter-desktop');
+  const cMob = document.getElementById('count-filter-mobile');
+  if (cAll) cAll.textContent = countAll;
+  if (cDesk) cDesk.textContent = countDesktop;
+  if (cMob) cMob.textContent = countMobile;
+
+  const sCount = document.getElementById('stat-scripts-sidebar-count');
+  if (sCount) sCount.textContent = countAll;
+  const sDesk = document.getElementById('stat-scripts-desktop');
+  if (sDesk) sDesk.textContent = countDesktop;
+  const sMob = document.getElementById('stat-scripts-mobile');
+  if (sMob) sMob.textContent = countMobile;
+
+  const scriptRailBadge = document.getElementById('script-rail-count');
+  if (scriptRailBadge) scriptRailBadge.textContent = countAll;
+
+  const q = scriptSearchQuery.trim().toLowerCase();
+  const filtered = projectScripts.filter((s) => {
+    if (scriptPlatformFilter !== 'all' && s.platform !== scriptPlatformFilter) return false;
+    if (!q) return true;
+    return (
+      (s.scenarioName && s.scenarioName.toLowerCase().includes(q)) ||
+      (s.featureName && s.featureName.toLowerCase().includes(q)) ||
+      (s.fileName && s.fileName.toLowerCase().includes(q)) ||
+      (s.tags && s.tags.toLowerCase().includes(q)) ||
+      (s.primaryDataFile && s.primaryDataFile.toLowerCase().includes(q))
+    );
+  });
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--muted); font-size: 12.5px;">Không tìm thấy kịch bản phù hợp.</div>';
+    return;
+  }
+
+  listEl.innerHTML = filtered
+    .map((s) => {
+      const isActive = currentSelectedScript && currentSelectedScript.id === s.id;
+      const isMobile = s.platform === 'mobile-web';
+      const rawTags = s.tags ? s.tags.match(/@[\w-]+/g) || [] : [];
+      const pagesCount = s.pageCount || (s.pages ? s.pages.length : 0);
+      return `
+      <div class="dashboard-list-card script-card-item ${isActive ? 'is-selected active' : ''}" data-id="${escapeHtml(s.id)}">
+        <span class="dashboard-list-card__icon script-card-platform-icon ${isMobile ? 'mobile' : 'desktop'}"><i class="ph-bold ${isMobile ? 'ph-device-mobile' : 'ph-desktop'}"></i></span>
+        <div class="dashboard-list-card__body">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+            <div class="script-card-title">${escapeHtml(s.scenarioName || s.featureName || s.fileName)}</div>
+            <button type="button" class="btn-icon-subtle item-delete-hover-btn script-item-delete-btn" data-id="${escapeHtml(s.id)}" title="Xóa kịch bản này" style="padding: 2px; font-size: 14px; flex-shrink: 0;">
+              <i class="ph ph-trash"></i>
+            </button>
+          </div>
+          <div class="script-card-file">
+            <i class="ph ph-file-js"></i> ${escapeHtml(s.fileName)}
+          </div>
+          <div class="script-card-pills">
+            <span class="script-card-badge-platform ${isMobile ? 'mobile' : 'desktop'}">
+              <i class="${isMobile ? 'ph ph-device-mobile' : 'ph ph-desktop'}"></i> ${isMobile ? 'Mobile' : 'Desktop'}
+            </span>
+            <span class="script-card-badge-pages">
+              <i class="ph ph-stack"></i> ${pagesCount} Pages
+            </span>
+            ${s.primaryDataFile ? `
+            <span class="script-card-badge-data" title="${escapeHtml(s.primaryDataFile)}">
+              <i class="ph ph-database"></i> ${escapeHtml(s.primaryDataFile)}
+            </span>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+    })
+    .join('');
+
+  listEl.querySelectorAll('.script-card-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.script-item-delete-btn')) return;
+      const id = item.dataset.id;
+      const s = projectScripts.find((p) => p.id === id);
+      if (s) selectProjectScript(s, true);
+    });
+  });
+
+  listEl.querySelectorAll('.script-item-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const s = projectScripts.find((p) => p.id === id);
+      if (s) {
+        selectProjectScript(s, false);
+        document.getElementById('script-delete-btn')?.click();
+      }
+    });
+  });
+}
+
+function selectProjectScript(script, doScroll = false) {
+  if (!script) return;
+  currentSelectedScript = script;
+
+  // Luôn chuyển về chế độ inspect khi chọn một kịch bản từ danh sách
+  if (typeof scriptBuilderMode !== 'undefined') {
+    scriptBuilderMode = 'inspect';
+    document.getElementById('btn-tab-script-inspect')?.classList.add('active');
+    document.getElementById('btn-tab-script-edit')?.classList.remove('active');
+    document.getElementById('btn-tab-script-create')?.classList.remove('active');
+    const inspectView = document.getElementById('script-inspect-view');
+    const editView = document.getElementById('script-edit-view');
+    const createView = document.getElementById('script-create-view');
+    if (inspectView) {
+      inspectView.style.display = 'flex';
+      inspectView.scrollTop = 0;
+    }
+    if (editView) editView.style.display = 'none';
+    if (createView) createView.style.display = 'none';
+  }
+
+  // Reset chế độ xem code về preview disk an toàn
+  scriptDirectEditMode = false;
+  const stage = document.getElementById('script-code-stage');
+  const editor = document.getElementById('script-spec-editor');
+  const saveBtn = document.getElementById('script-spec-save-btn');
+  const editBtnText = document.getElementById('script-edit-btn-text');
+  const statusPill = document.getElementById('script-spec-status-badge');
+  if (stage) stage.classList.remove('editing');
+  if (editor) editor.setAttribute('readonly', 'true');
+  if (saveBtn) saveBtn.style.display = 'none';
+  if (editBtnText) editBtnText.textContent = 'Chỉnh sửa';
+  if (statusPill) {
+    statusPill.innerHTML = '<i class="ph-bold ph-check"></i> Đang mở từ disk';
+    statusPill.classList.remove('modified');
+  }
+
+  // Highlight thẻ được chọn trong sidebar (đồng bộ is-selected và active)
+  document.querySelectorAll('.script-card-item').forEach((item) => {
+    const isThis = item.dataset.id === script.id;
+    item.classList.toggle('active', isThis);
+    item.classList.toggle('is-selected', isThis);
+  });
+
+  if (doScroll) {
+    const scriptWorkspace = document.querySelector('.script-workspace-panel');
+    scriptWorkspace?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Banner
+  const pTag = document.getElementById('script-banner-platform');
+  if (pTag) pTag.textContent = script.platform === 'mobile-web' ? 'Mobile Web' : 'Desktop Web';
+
+  const fBadge = document.getElementById('script-banner-file');
+  if (fBadge) fBadge.textContent = script.fileName;
+
+  const sTitle = document.getElementById('script-banner-title');
+  if (sTitle) sTitle.textContent = script.scenarioName || script.id;
+
+  const middleTitle = document.getElementById('script-middle-title');
+  if (middleTitle) middleTitle.textContent = script.fileName;
+
+  const codeTitle = document.getElementById('script-code-title');
+  if (codeTitle) codeTitle.textContent = script.fileName;
+
+  const scenarioNameText = document.getElementById('script-scenario-name-text');
+  if (scenarioNameText) scenarioNameText.textContent = script.scenarioName || script.id;
+
+  const inspectPlatform = document.getElementById('inspect-platform-value');
+  if (inspectPlatform) inspectPlatform.textContent = script.platform === 'mobile-web' ? 'Mobile Web' : 'Desktop Web';
+  const inspectFile = document.getElementById('inspect-file-value');
+  if (inspectFile) inspectFile.textContent = script.relativePath || script.fileName || 'Chưa xác định';
+  const inspectFeature = document.getElementById('inspect-feature-value');
+  if (inspectFeature) inspectFeature.textContent = script.featureName || 'Chưa xác định';
+  const inspectTags = document.getElementById('inspect-tags-value');
+  if (inspectTags) inspectTags.textContent = script.tags || 'Không có tag';
+
+  const preconditionMatch = String(script.specCode || '').match(/description:\s*(['"`])([\s\S]*?)\1/);
+  const authValue = document.getElementById('inspect-auth-value');
+  const specText = String(script.specCode || '');
+  const isAuthenticated = (script.fixtures || []).includes('authenticatedUser') || /\bauthenticatedUser\b/.test(specText);
+  if (authValue) authValue.textContent = isAuthenticated ? 'Đã đăng nhập (authenticatedUser)' : (preconditionMatch?.[2] || 'Chưa phân tích');
+  const landingValue = document.getElementById('inspect-landing-value');
+  if (landingValue) landingValue.textContent = (script.specCode || '').includes('expectHomepageVisible') ? 'Trang chủ sẵn sàng' : 'Không khai báo rõ';
+  const initialEvidence = String(script.specCode || '').match(/capture\(['"](precondition[^'"]*)['"]/i);
+  const evidenceValue = document.getElementById('inspect-precondition-evidence');
+  if (evidenceValue) evidenceValue.textContent = initialEvidence ? initialEvidence[1] : 'Không khai báo';
+
+  const bddStat = document.getElementById('pillar-bdd-count-stat');
+  if (bddStat) bddStat.textContent = (script.steps || []).length;
+
+  const pagesStat = document.getElementById('pillar-pages-count-stat');
+  if (pagesStat) pagesStat.textContent = (script.pages || []).length;
+
+  const dataStat = document.getElementById('pillar-data-count-stat');
+  if (dataStat) {
+    const dCount = (script.dataFiles || []).length || (script.primaryDataFile && script.primaryDataFile !== 'none' ? 1 : 0);
+    dataStat.textContent = dCount;
+  }
+
+  const scrollWrap = document.getElementById('script-middle-scroll');
+  if (scrollWrap) scrollWrap.scrollTop = 0;
+
+  const sFeature = document.getElementById('script-banner-feature');
+  if (sFeature) sFeature.innerHTML = `<i class="ph ph-folder"></i> Feature: ${escapeHtml(script.featureName || 'Kiểm thử')}`;
+
+  const tagsBox = document.getElementById('script-banner-tags');
+  if (tagsBox) {
+    const rawTags = script.tags ? script.tags.match(/@[\w-]+/g) || [] : [];
+    tagsBox.innerHTML = rawTags.map((t) => `<span class="script-tag-chip">${escapeHtml(t)}</span>`).join('');
+  }
+
+  // KHỐI 1: BDD Spec
+  const bddFilename = document.getElementById('pillar-bdd-filename');
+  if (bddFilename) bddFilename.textContent = `${script.relativePath}`;
+
+  const bddCount = document.getElementById('pillar-bdd-count');
+  const steps = script.steps || [];
+  if (bddCount) bddCount.textContent = `${steps.length} bước BDD`;
+
+  const timelineEl = document.getElementById('pillar-bdd-timeline');
+  if (timelineEl) {
+    if (steps.length === 0) {
+      timelineEl.innerHTML = '<div style="color: var(--muted); font-size: 13px;">Chưa có bước BDD nào được định nghĩa trong file này.</div>';
+    } else {
+      timelineEl.innerHTML = steps
+        .map((st, idx) => {
+          const type = (st.stepType || 'When').toUpperCase();
+          const typeCls = (st.stepType || 'When').toLowerCase();
+          const preset = builderPresetActions.find((action) => action.id === st.actionId);
+          const actionLabel = preset?.name || st.actionId || 'Chưa phân tích action';
+          const fixtureMatch = String(st.code || '').match(/(?:await\s+)?([A-Za-z_$][\w$]*)\.[A-Za-z_$][\w$]*\(/);
+          const evidenceMatches = String(st.code || '').match(/capture\(['"]([^'"]+)['"]/g) || [];
+          const evidenceLabel = evidenceMatches.length ? evidenceMatches.map((item) => item.replace(/^capture\(['"]|['"]\)$/g, '')).join(', ') : 'Không khai báo';
+          return `
+          <div class="bdd-step-unit" data-step-idx="${idx + 1}">
+            <span class="bdd-step-type-pill ${typeCls}">${escapeHtml(type)}</span>
+            <div class="bdd-step-content">
+              <div class="bdd-step-title">${escapeHtml(st.title)}</div>
+              <div class="bdd-step-runtime-grid">
+                <span><b>Action</b> ${escapeHtml(actionLabel)}</span>
+                <span><b>Fixture/Page</b> ${escapeHtml(fixtureMatch?.[1] || 'Chưa phân tích')}</span>
+                <span><b>Evidence</b> ${escapeHtml(evidenceLabel)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+        })
+        .join('');
+    }
+  }
+
+  // KHỐI 2: Page Objects
+  const pagesCount = document.getElementById('pillar-pages-count');
+  const pages = script.pages || [];
+  if (pagesCount) pagesCount.textContent = `${pages.length} Pages`;
+
+  const pagesGrid = document.getElementById('pillar-pages-grid');
+  if (pagesGrid) {
+    if (pages.length === 0) {
+      pagesGrid.innerHTML = '<div style="color: var(--muted); font-size: 13px;">Kịch bản này không sử dụng Page Objects từ fixtures.</div>';
+    } else {
+      pagesGrid.innerHTML = pages
+        .map((p) => {
+          const acts = p.actions || [];
+          return `
+          <div class="page-obj-card">
+            <div class="page-obj-head">
+              <div class="page-obj-icon-wrap">
+                <i class="ph-bold ph-browsers"></i>
+              </div>
+              <div class="page-obj-title-group">
+                <div class="page-obj-title">${escapeHtml(p.name)}</div>
+                <div class="page-obj-path">${escapeHtml(p.relativePath)}</div>
+              </div>
+              <span class="page-obj-counter-badge">${acts.length} hành động</span>
+            </div>
+            ${acts.length > 0 ? `
+            <div class="page-obj-actions-box">
+              <span class="page-obj-actions-label">HÀNH ĐỘNG GỌI TRONG KỊCH BẢN:</span>
+              <div class="page-obj-actions-chips">
+                ${acts.map((a) => `<span class="page-action-chip">${escapeHtml(a)}()</span>`).join('')}
+              </div>
+            </div>` : '<small class="page-obj-empty-note">Khởi tạo & kiểm tra giao diện cơ sở</small>'}
+            <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+              <button type="button" class="btn-page-view-code" onclick="openPageCodeModal('${escapeHtml(p.relativePath)}', '${escapeHtml(p.name)}')">
+                <i class="ph ph-file-code"></i> Xem mã
+              </button>
+              <button type="button" class="btn-page-view-code" style="background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent);" onclick="openInsertPomActionModal('${escapeHtml(p.relativePath)}')">
+                <i class="ph-bold ph-plus-circle"></i> Thêm Action
+              </button>
+            </div>
+          </div>
+        `;
+        })
+        .join('');
+    }
+  }
+
+  // KHỐI 3: Data File
+  const dataBox = document.getElementById('pillar-data-box');
+  if (dataBox) {
+    const dataFiles = script.dataFiles || [];
+    const primaryFile = script.primaryDataFile || (dataFiles.length > 0 ? dataFiles[0].name : null);
+
+    if (primaryFile && primaryFile !== 'none') {
+      dataBox.innerHTML = `
+        <div class="data-pillar-card-box">
+          <div class="data-pillar-left">
+            <div class="data-pillar-icon-tile">
+              <i class="ph-bold ph-database"></i>
+            </div>
+            <div class="data-pillar-info">
+              <div class="data-pillar-name-row">
+                <strong class="data-pillar-name">${escapeHtml(primaryFile)}</strong>
+                <span class="data-file-type-pill">JSON DATASET</span>
+              </div>
+              <div class="data-pillar-path">data/${escapeHtml(primaryFile)}</div>
+              <p class="data-pillar-desc">Tệp dữ liệu kiểm thử được kịch bản nạp vào tự động trong quá trình chạy test.</p>
+            </div>
+          </div>
+          <button type="button" class="btn-data-jump" onclick="jumpToDataFile('${escapeHtml(primaryFile)}')">
+            <i class="ph-bold ph-arrow-square-out"></i>
+            <span>Mở & Chỉnh sửa trong tab Dữ liệu test</span>
+          </button>
+        </div>
+      `;
+    } else {
+      dataBox.innerHTML = `
+        <div class="data-pillar-empty">
+          <i class="ph ph-info"></i>
+          <span>Kịch bản này không dùng file dữ liệu ngoài (hoặc dùng fixtures tự sinh).</span>
+        </div>
+      `;
+    }
+  }
+
+  // TAB 2: Spec Code
+  const specPathLabel = document.getElementById('script-spec-path-label');
+  if (specPathLabel) specPathLabel.textContent = script.relativePath;
+
+  const specEditor = document.getElementById('script-spec-editor');
+  const specPreview = document.getElementById('script-spec-code');
+  if (specEditor) specEditor.value = script.specCode || '';
+  if (specPreview) {
+    specPreview.innerHTML = highlightCode(script.specCode || '', false);
+  }
+  const specBadge = document.getElementById('script-spec-status-badge');
+  const specRevert = document.getElementById('script-spec-revert-btn');
+  if (specBadge) specBadge.style.display = 'none';
+  if (specRevert) specRevert.style.display = 'none';
+
+  // Đồng bộ sang Visual Step Builder để tester có thể sửa trực tiếp nếu muốn
+  if ($('#builder-feature-name')) $('#builder-feature-name').value = script.featureName || '';
+  if ($('#builder-scenario-name')) $('#builder-scenario-name').value = script.scenarioName || '';
+  if ($('#builder-platform')) $('#builder-platform').value = script.platform || 'desktop';
+  if ($('#builder-tags')) $('#builder-tags').value = script.tags || '@e2e';
+  if ($('#builder-data-source')) {
+    $('#builder-data-source').value = script.primaryDataFile || 'none';
+  }
+  builderSteps = script.steps ? JSON.parse(JSON.stringify(script.steps)) : [];
+  renderBuilderSteps();
+  compileBuilderScenario();
+}
+
+let currentModalPagePath = '';
+let currentModalPageOriginalContent = '';
+
+window.openPageCodeModal = async function (pagePath, pageName) {
+  const modal = document.getElementById('modal-view-page-code');
+  if (!modal) return;
+  const titleEl = document.getElementById('modal-page-title');
+  const pathEl = document.getElementById('modal-page-path');
+  const editor = document.getElementById('modal-page-editor');
+  const preview = document.getElementById('modal-page-code');
+  const dirtyBadge = document.getElementById('modal-page-dirty-badge');
+  const saveBtn = document.getElementById('modal-page-save-btn');
+
+  currentModalPagePath = pagePath;
+  if (titleEl) titleEl.innerHTML = `<i class="ph-bold ph-browsers" style="color: #10b981;"></i> Page Object: ${escapeHtml(pageName)}`;
+  if (pathEl) pathEl.textContent = pagePath;
+  if (editor) editor.value = 'Đang tải mã nguồn...';
+  if (preview) preview.innerHTML = '<span style="color: var(--muted);">Đang tải mã nguồn...</span>';
+  if (dirtyBadge) dirtyBadge.style.display = 'none';
+
+  modal.showModal();
+
+  try {
+    const res = await request(`/api/builder/page-content?file=${encodeURIComponent(pagePath)}`);
+    currentModalPageOriginalContent = res.content || '';
+    if (editor) {
+      editor.value = currentModalPageOriginalContent;
+      editor.scrollTop = 0;
+      editor.scrollLeft = 0;
+    }
+    if (preview) {
+      preview.innerHTML = highlightCode(currentModalPageOriginalContent, false);
+      preview.scrollTop = 0;
+      preview.scrollLeft = 0;
+    }
+
+    const copyBtn = document.getElementById('modal-page-copy-btn');
+    if (copyBtn) {
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(editor ? editor.value : currentModalPageOriginalContent);
+        notify('Đã sao chép mã nguồn Page Object!');
+      };
+    }
+
+    if (saveBtn) {
+      saveBtn.onclick = async () => {
+        if (!currentModalPagePath || !editor) return;
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang lưu...';
+        try {
+          const newContent = editor.value;
+          await request('/api/code', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path: currentModalPagePath,
+              content: newContent,
+            }),
+          });
+          currentModalPageOriginalContent = newContent;
+          if (dirtyBadge) dirtyBadge.style.display = 'none';
+          notify(`✅ Đã lưu file Page Object ${escapeHtml(pageName)} thành công!`);
+        } catch (saveErr) {
+          notify(`❌ Lỗi khi lưu Page Object: ${saveErr.message}`);
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = originalText;
+        }
+      };
+    }
+  } catch (err) {
+    if (editor) editor.value = `Lỗi: ${err.message}`;
+    if (preview) preview.innerHTML = `<span style="color: #ef4444;">${escapeHtml(err.message)}</span>`;
+  }
+};
+
+window.jumpToDataFile = function (dataFileName) {
+  const dataTabBtn = document.querySelector('.view-tab[data-view="data-view"]');
+  if (dataTabBtn) {
+    dataTabBtn.click();
+    setTimeout(() => {
+      const targetBtn = document.querySelector(`.data-file-item[data-filename="${dataFileName}"]`);
+      if (targetBtn) {
+        targetBtn.click();
+        notify(`Đã chuyển sang xem và chỉnh sửa tệp: ${dataFileName}`);
+      } else {
+        notify(`Đã mở tab Dữ liệu test (${dataFileName})`);
+      }
+    }, 150);
+  }
+};
+
+// =========================================================================
+// POM TO BDD LINKER ENGINE
+// =========================================================================
+
+let pomModalActiveType = 'method'; // 'method' | 'locator'
+let pomModalCurrentPageDetails = null;
+
+window.openInsertPomActionModal = async function (targetPageOrRelPath, preselectedActionName = null) {
+  const modal = document.getElementById('modal-insert-pom-action');
+  if (!modal) return;
+
+  const scriptSelect = document.getElementById('pom-modal-script-select');
+  const pageSelect = document.getElementById('pom-modal-page-select');
+
+  // Đảm bảo nạp danh sách BDD scripts
+  if (!projectScripts || projectScripts.length === 0) {
+    try {
+      const sRes = await request('/api/builder/scripts');
+      projectScripts = sRes.scripts || [];
+    } catch (e) {
+      console.error('Error loading scripts for modal:', e);
+    }
+  }
+
+  // Đảm bảo nạp danh sách repoPages
+  if (!repoPages || repoPages.length === 0) {
+    try {
+      const pRes = await request('/api/object-repository/pages');
+      repoPages = pRes.pages || [];
+    } catch (e) {
+      console.error('Error loading pages for modal:', e);
+    }
+  }
+
+  // 1. Render danh sách kịch bản BDD đích
+  if (scriptSelect) {
+    if (projectScripts.length === 0) {
+      scriptSelect.innerHTML = '<option value="">(Chưa có kịch bản BDD nào)</option>';
+    } else {
+      scriptSelect.innerHTML = projectScripts
+        .map((s) => {
+          const selected = currentSelectedScript && currentSelectedScript.relativePath === s.relativePath ? 'selected' : '';
+          return `<option value="${escapeHtml(s.relativePath)}" ${selected}>${escapeHtml(s.fileName)} — [${s.platform}] ${escapeHtml(s.scenarioName || s.featureName || '')}</option>`;
+        })
+        .join('');
+    }
+  }
+
+  // 2. Render danh sách Page Objects
+  let selectedRelPath = '';
+  if (targetPageOrRelPath) {
+    selectedRelPath = typeof targetPageOrRelPath === 'string' ? targetPageOrRelPath : targetPageOrRelPath.relativePath || '';
+  } else if (currentSelectedScript && currentSelectedScript.pages && currentSelectedScript.pages.length > 0) {
+    selectedRelPath = currentSelectedScript.pages[0].relativePath;
+  }
+
+  if (pageSelect) {
+    const desktopPages = repoPages.filter((p) => p.platform === 'desktop');
+    const mobilePages = repoPages.filter((p) => p.platform === 'mobile-web');
+    const basePages = repoPages.filter((p) => p.platform === 'base');
+
+    const formatPageLabel = (p) => {
+      const fName = p.fileName || (p.relativePath ? p.relativePath.split('/').pop() : `${p.className}.js`);
+      return `${escapeHtml(p.title || p.className)} (${escapeHtml(fName)})`;
+    };
+
+    let html = '';
+    if (desktopPages.length > 0) {
+      html += `<optgroup label="Desktop Web Pages">`;
+      html += desktopPages.map((p) => `<option value="${escapeHtml(p.relativePath)}">${formatPageLabel(p)}</option>`).join('');
+      html += `</optgroup>`;
+    }
+    if (mobilePages.length > 0) {
+      html += `<optgroup label="Mobile Web Pages">`;
+      html += mobilePages.map((p) => `<option value="${escapeHtml(p.relativePath)}">${formatPageLabel(p)}</option>`).join('');
+      html += `</optgroup>`;
+    }
+    if (basePages.length > 0) {
+      html += `<optgroup label="Base Classes">`;
+      html += basePages.map((p) => `<option value="${escapeHtml(p.relativePath)}">${formatPageLabel(p)}</option>`).join('');
+      html += `</optgroup>`;
+    }
+    pageSelect.innerHTML = html;
+
+    if (selectedRelPath) {
+      pageSelect.value = selectedRelPath;
+    }
+  }
+
+  // 3. Nạp chi tiết methods và locators của page được chọn
+  await loadPomModalPageDetails(preselectedActionName);
+
+  modal.showModal();
+};
+
+async function loadPomModalPageDetails(preselectedActionName = null) {
+  const pageSelect = document.getElementById('pom-modal-page-select');
+  const methodSelect = document.getElementById('pom-modal-method-select');
+  const locSelect = document.getElementById('pom-modal-loc-select');
+
+  if (!pageSelect || !pageSelect.value) return;
+  const relPath = pageSelect.value;
+
+  try {
+    const res = await request(`/api/object-repository/page?file=${encodeURIComponent(relPath)}`);
+    pomModalCurrentPageDetails = res;
+
+    // Populate methods
+    const methods = res.methods || [];
+    if (methodSelect) {
+      if (methods.length === 0) {
+        methodSelect.innerHTML = '<option value="">(Chưa có method hành động riêng)</option>';
+      } else {
+        methodSelect.innerHTML = methods
+          .map((m) => {
+            const paramsStr = (m.params || []).join(', ');
+            return `<option value="${escapeHtml(m.name)}" data-params="${escapeHtml(paramsStr)}">${escapeHtml(m.name)}(${escapeHtml(paramsStr)})</option>`;
+          })
+          .join('');
+
+        if (preselectedActionName && methods.some((m) => m.name === preselectedActionName)) {
+          methodSelect.value = preselectedActionName;
+        }
+      }
+    }
+
+    // Populate locators
+    const locators = res.locators || [];
+    if (locSelect) {
+      if (locators.length === 0) {
+        locSelect.innerHTML = '<option value="">(Chưa có locator)</option>';
+      } else {
+        locSelect.innerHTML = locators
+          .map((loc) => {
+            return `<option value="${escapeHtml(loc.name)}">${escapeHtml(loc.name)} [${escapeHtml(loc.categoryLabel)}] - ${escapeHtml(loc.description || loc.expression)}</option>`;
+          })
+          .join('');
+      }
+    }
+
+    updatePomModalParamsHint();
+    updatePomCodePreview();
+  } catch (err) {
+    console.error('Error loading page details for linker:', err);
+  }
+}
+
+function updatePomModalParamsHint() {
+  const methodSelect = document.getElementById('pom-modal-method-select');
+  const paramsHint = document.getElementById('pom-modal-params-hint');
+  const methodParamsInput = document.getElementById('pom-modal-method-params');
+  if (!methodSelect || !paramsHint) return;
+
+  const opt = methodSelect.options[methodSelect.selectedIndex];
+  if (!opt) return;
+  const params = opt.dataset.params || '';
+  if (params) {
+    paramsHint.textContent = `💡 Gợi ý tham số nhận: ${params}`;
+    if (methodParamsInput && !methodParamsInput.value) {
+      if (params.includes('data') || params.includes('profile')) {
+        methodParamsInput.value = 'applyData';
+      } else if (params.includes('otp')) {
+        methodParamsInput.value = "{ otpCode: '123456' }";
+      }
+    }
+  } else {
+    paramsHint.textContent = 'Hàm này không yêu cầu tham số truyền vào.';
+  }
+}
+
+function updatePomCodePreview() {
+  const pageSelect = document.getElementById('pom-modal-page-select');
+  const methodSelect = document.getElementById('pom-modal-method-select');
+  const locSelect = document.getElementById('pom-modal-loc-select');
+  const locAction = document.getElementById('pom-modal-loc-action');
+  const locVal = document.getElementById('pom-modal-loc-value');
+  const stepKeyword = document.getElementById('pom-modal-step-keyword')?.value || 'When';
+  const stepTitleInput = document.getElementById('pom-modal-step-title');
+  const includeEvidence = document.getElementById('pom-modal-include-evidence')?.checked;
+  const previewCode = document.getElementById('pom-modal-code-preview');
+  const methodParamsInput = document.getElementById('pom-modal-method-params');
+
+  if (!previewCode || !pageSelect || !pageSelect.value) return;
+
+  const pageRelPath = pageSelect.value;
+  const className = pomModalCurrentPageDetails?.className || pageRelPath.split('/').pop().replace(/\.js$/, '');
+  const fixtureName = className.charAt(0).toLowerCase() + className.slice(1);
+
+  let actionLine = '';
+  let autoTitle = '';
+  let evidenceName = '';
+
+  if (pomModalActiveType === 'locator') {
+    const locName = locSelect?.value || 'element';
+    const action = locAction?.value || 'click';
+    const val = (locVal?.value || '').trim();
+    evidenceName = `${stepKeyword.toLowerCase()}_click_${locName}`;
+
+    if (action === 'fill') {
+      actionLine = `      await ${fixtureName}.${locName}.fill(${JSON.stringify(val || 'giá trị nhập')});`;
+      autoTitle = `Tôi nhập giá trị vào ${locName}`;
+      evidenceName = `${stepKeyword.toLowerCase()}_fill_${locName}`;
+    } else if (action === 'check') {
+      actionLine = `      await ${fixtureName}.${locName}.check();`;
+      autoTitle = `Tôi tích chọn ${locName}`;
+      evidenceName = `${stepKeyword.toLowerCase()}_check_${locName}`;
+    } else if (action === 'visible') {
+      actionLine = `      await expect(${fixtureName}.${locName}).toBeVisible();`;
+      autoTitle = `Hệ thống hiển thị phần tử ${locName}`;
+    } else {
+      actionLine = `      await ${fixtureName}.${locName}.click();`;
+      autoTitle = `Tôi nhấn chuột vào ${locName}`;
+    }
+  } else {
+    const methodName = methodSelect?.value || 'actionMethod';
+    const params = (methodParamsInput?.value || '').trim();
+    actionLine = `      await ${fixtureName}.${methodName}(${params});`;
+    autoTitle = `Tôi thực hiện ${methodName}`;
+    evidenceName = `after_${methodName}`;
+  }
+
+  if (stepTitleInput && (!stepTitleInput.value || stepTitleInput.dataset.autoGenerated === 'true')) {
+    stepTitleInput.value = autoTitle;
+    stepTitleInput.dataset.autoGenerated = 'true';
+  }
+
+  const title = (stepTitleInput?.value || autoTitle).trim();
+  const evidenceCode = includeEvidence && locAction?.value !== 'visible' ? `\n      await ${fixtureName}.capture('${evidenceName}');` : '';
+
+  const finalCode = `await test.step('${stepKeyword} ${title}', async () => {
+${actionLine}${evidenceCode}
+});`;
+
+  previewCode.innerHTML = highlightCode(finalCode, 'javascript');
+}
+
+async function submitPomActionToBdd() {
+  const submitBtn = document.getElementById('btn-submit-pom-modal');
+  const scriptSelect = document.getElementById('pom-modal-script-select');
+  const pageSelect = document.getElementById('pom-modal-page-select');
+  const methodSelect = document.getElementById('pom-modal-method-select');
+  const locSelect = document.getElementById('pom-modal-loc-select');
+  const locAction = document.getElementById('pom-modal-loc-action');
+  const locVal = document.getElementById('pom-modal-loc-value');
+  const stepKeyword = document.getElementById('pom-modal-step-keyword');
+  const stepTitleInput = document.getElementById('pom-modal-step-title');
+  const includeEvidence = document.getElementById('pom-modal-include-evidence');
+  const methodParamsInput = document.getElementById('pom-modal-method-params');
+
+  if (!scriptSelect || !scriptSelect.value) {
+    notify('❌ Vui lòng chọn kịch bản BDD đích!');
+    return;
+  }
+  if (!pageSelect || !pageSelect.value) {
+    notify('❌ Vui lòng chọn Page Object!');
+    return;
+  }
+
+  const pageRelPath = pageSelect.value;
+  const className = pomModalCurrentPageDetails?.className || pageRelPath.split('/').pop().replace(/\.js$/, '');
+
+  const payload = {
+    scriptPath: scriptSelect.value,
+    pageFile: pageRelPath,
+    pageClassName: className,
+    actionType: pomModalActiveType,
+    actionName: pomModalActiveType === 'locator' ? (locSelect?.value || '') : (methodSelect?.value || ''),
+    actionParams: methodParamsInput ? methodParamsInput.value.trim() : '',
+    locatorInteraction: locAction ? locAction.value : 'click',
+    locatorValue: locVal ? locVal.value.trim() : '',
+    stepType: stepKeyword ? stepKeyword.value : 'When',
+    stepTitle: stepTitleInput ? stepTitleInput.value.trim() : '',
+    includeEvidence: includeEvidence ? includeEvidence.checked : true,
+  };
+
+  if (!payload.actionName) {
+    notify('❌ Vui lòng chọn một hành động hoặc phần tử hợp lệ!');
+    return;
+  }
+
+  const origHtml = submitBtn.innerHTML;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang chèn bước...';
+
+  try {
+    const res = await request('/api/builder/insert-step', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    document.getElementById('modal-insert-pom-action')?.close();
+    notify(`✅ ${res.message}`);
+
+    await loadProjectScripts();
+    const updated = projectScripts.find((s) => s.relativePath === payload.scriptPath);
+    if (updated) {
+      selectProjectScript(updated);
+    }
+
+    const currentView = document.querySelector('.view-tab.active')?.dataset.view;
+    if (currentView !== 'builder-view') {
+      const bddTab = document.querySelector('.view-tab[data-view="builder-view"]');
+      if (bddTab) bddTab.click();
+    }
+  } catch (err) {
+    notify(`❌ Lỗi: ${err.message}`);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = origHtml;
+  }
+}
+
+let scriptBuilderMode = 'inspect'; // 'inspect' | 'edit' | 'create'
+let editableSteps = [];
+
+function updateSpecCodeFromVisualEdit(originalCode, { scenarioName, featureName, tags, steps }) {
+  let code = originalCode || '';
+
+  // 1. Update Feature and Tags in test.describe
+  if (featureName || tags) {
+    code = code.replace(/test\.describe\(\s*(['"`])Feature:\s*([^'"`]+)\1/i, (match, quote) => {
+      return `test.describe(${quote}Feature: ${featureName || 'Kiểm thử'} ${tags || '@e2e'}${quote}`;
+    });
+  }
+
+  // 2. Update Scenario name in test(...)
+  if (scenarioName) {
+    code = code.replace(/test\(\s*(['"`])([^'"`]+)\1\s*,\s*async/i, (match, quote) => {
+      return `test(${quote}${scenarioName}${quote}, async`;
+    });
+  }
+
+  // 3. Synchronize steps if present
+  if (steps && steps.length > 0) {
+    const stepBlocksCode = steps
+      .map((st) => {
+        const type = st.stepType || 'When';
+        const title = st.title || 'Bước kiểm thử';
+        let body = st.code || `      // Thao tác cho bước: ${title}`;
+        if (!body.includes('\n') && !body.startsWith(' ')) {
+          body = `      ${body}`;
+        }
+        return `    await test.step('${type} ${title}', async () => {\n${body}\n    });`;
+      })
+      .join('\n\n');
+
+    const firstStepIdx = code.indexOf('await test.step(');
+    if (firstStepIdx !== -1) {
+      const lastStepIdx = code.lastIndexOf('await test.step(');
+      const endOfLastStep = code.indexOf('\n    });', lastStepIdx);
+      const closeOffset = endOfLastStep !== -1 ? endOfLastStep + '\n    });'.length : -1;
+
+      if (closeOffset !== -1) {
+        code = code.slice(0, firstStepIdx) + stepBlocksCode + code.slice(closeOffset);
+      }
+    }
+  }
+
+  return code;
+}
+
+function updateEditScriptPreview() {
+  if (scriptBuilderMode !== 'edit' || !currentSelectedScript) return;
+
+  const scenarioName = document.getElementById('edit-script-title')?.value.trim();
+  const featureName = document.getElementById('edit-script-feature')?.value.trim();
+  const tags = document.getElementById('edit-script-tags')?.value.trim();
+
+  const updatedCode = updateSpecCodeFromVisualEdit(currentSelectedScript.specCode, {
+    scenarioName,
+    featureName,
+    tags,
+    steps: editableSteps,
+  });
+
+  const codeEl = document.getElementById('script-spec-code');
+  if (codeEl) codeEl.innerHTML = highlightCode(updatedCode, false);
+
+  const editorEl = document.getElementById('script-spec-editor');
+  if (editorEl) editorEl.value = updatedCode;
+
+  const statusBadge = document.getElementById('script-spec-status-badge');
+  if (statusBadge) {
+    statusBadge.innerHTML = '<i class="ph-bold ph-pencil-simple"></i> Đã thay đổi (chưa lưu)';
+    statusBadge.classList.add('modified');
+  }
+}
+
+function renderEditableSteps() {
+  const container = document.getElementById('edit-steps-list');
+  const countEl = document.getElementById('edit-step-count');
+  if (!container) return;
+
+  if (countEl) countEl.textContent = editableSteps.length;
+
+  if (editableSteps.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 24px; text-align: center; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 13px;">
+        Chưa có bước BDD nào. Bấm các nút <strong>+ Given</strong>, <strong>+ When</strong>, <strong>+ Then</strong>, <strong>+ And</strong> ở trên để thêm bước mới.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = editableSteps
+    .map((step, idx) => {
+      const typeBadgeClass = `badge-${(step.stepType || 'When').toLowerCase()}`;
+      return `
+      <div class="builder-step-card" data-step-id="${step.id}" data-index="${idx}">
+        <div class="builder-step-top">
+          <span class="step-num-badge">#${idx + 1}</span>
+          <select class="builder-step-type-select step-type-badge ${typeBadgeClass}" style="outline: none; cursor: pointer; width: 90px !important; min-width: 90px !important; max-width: 90px !important; flex: 0 0 90px !important; text-align: center;">
+            <option value="Given" ${step.stepType === 'Given' ? 'selected' : ''}>Given</option>
+            <option value="When" ${step.stepType === 'When' ? 'selected' : ''}>When</option>
+            <option value="Then" ${step.stepType === 'Then' ? 'selected' : ''}>Then</option>
+            <option value="And" ${step.stepType === 'And' ? 'selected' : ''}>And</option>
+          </select>
+          <input type="text" class="builder-step-title-input" value="${escapeHtml(step.title || '')}" placeholder="Mô tả bước kiểm thử..." style="flex: 1 1 auto !important; min-width: 150px !important; width: auto !important;" />
+          <div class="builder-step-controls">
+            <button type="button" class="btn-step-ctrl move-up-btn" title="Di chuyển lên" ${idx === 0 ? 'disabled' : ''}><i class="ph-bold ph-arrow-up"></i></button>
+            <button type="button" class="btn-step-ctrl move-down-btn" title="Di chuyển xuống" ${idx === editableSteps.length - 1 ? 'disabled' : ''}><i class="ph-bold ph-arrow-down"></i></button>
+            <button type="button" class="btn-step-ctrl clone-step-btn" title="Nhân bản bước này"><i class="ph-bold ph-copy"></i></button>
+            <button type="button" class="btn-step-ctrl delete-btn remove-step-btn" title="Xóa bước này"><i class="ph-bold ph-trash"></i></button>
+          </div>
+        </div>
+      </div>`;
+    })
+    .join('');
+
+  container.querySelectorAll('.builder-step-card').forEach((card) => {
+    const idx = parseInt(card.dataset.index, 10);
+    const step = editableSteps[idx];
+    if (!step) return;
+
+    card.querySelector('.builder-step-type-select')?.addEventListener('change', (e) => {
+      step.stepType = e.target.value;
+      renderEditableSteps();
+      updateEditScriptPreview();
+    });
+
+    card.querySelector('.builder-step-title-input')?.addEventListener('input', (e) => {
+      step.title = e.target.value;
+      updateEditScriptPreview();
+    });
+
+    card.querySelector('.move-up-btn')?.addEventListener('click', () => {
+      if (idx > 0) {
+        const temp = editableSteps[idx];
+        editableSteps[idx] = editableSteps[idx - 1];
+        editableSteps[idx - 1] = temp;
+        renderEditableSteps();
+        updateEditScriptPreview();
+      }
+    });
+
+    card.querySelector('.move-down-btn')?.addEventListener('click', () => {
+      if (idx < editableSteps.length - 1) {
+        const temp = editableSteps[idx];
+        editableSteps[idx] = editableSteps[idx + 1];
+        editableSteps[idx + 1] = temp;
+        renderEditableSteps();
+        updateEditScriptPreview();
+      }
+    });
+
+    card.querySelector('.clone-step-btn')?.addEventListener('click', () => {
+      const clone = { ...step, id: `s_${Date.now()}`, title: `${step.title} (bản sao)` };
+      editableSteps.splice(idx + 1, 0, clone);
+      renderEditableSteps();
+      updateEditScriptPreview();
+      notify(`Đã nhân bản bước #${idx + 1}`);
+    });
+
+    card.querySelector('.remove-step-btn')?.addEventListener('click', () => {
+      editableSteps.splice(idx, 1);
+      renderEditableSteps();
+      updateEditScriptPreview();
+    });
+  });
+}
+
+function switchToEditScriptMode() {
+  if (!currentSelectedScript) {
+    notify('Vui lòng chọn một kịch bản test trước khi chỉnh sửa.');
+    return;
+  }
+
+  scriptBuilderMode = 'edit';
+  scriptDirectEditMode = false;
+
+  // Tabs in toolbar
+  document.getElementById('btn-tab-script-inspect')?.classList.remove('active');
+  document.getElementById('btn-tab-script-edit')?.classList.add('active');
+  document.getElementById('btn-tab-script-create')?.classList.remove('active');
+
+  // Hint
+  const hint = document.getElementById('script-toolbar-hint');
+  if (hint) {
+    hint.innerHTML = `<i class="ph ph-pencil-simple" style="color: var(--accent);"></i> Đang chỉnh sửa: <strong>${escapeHtml(currentSelectedScript.fileName)}</strong> · Mã nguồn ở cột bên phải được cập nhật thời gian thực`;
+  }
+
+  // Views
+  const inspectView = document.getElementById('script-inspect-view');
+  const editView = document.getElementById('script-edit-view');
+  const createView = document.getElementById('script-create-view');
+  if (inspectView) inspectView.style.display = 'none';
+  if (createView) createView.style.display = 'none';
+  if (editView) editView.style.display = 'flex';
+
+  const subnavActions = document.getElementById('script-subnav-actions');
+  if (subnavActions) subnavActions.style.display = 'flex';
+
+  // Fill form fields
+  const titleInput = document.getElementById('edit-script-title');
+  const featInput = document.getElementById('edit-script-feature');
+  const tagsInput = document.getElementById('edit-script-tags');
+  const panelTitle = document.getElementById('script-edit-panel-title');
+
+  if (titleInput) titleInput.value = currentSelectedScript.scenarioName || '';
+  if (featInput) featInput.value = currentSelectedScript.featureName || '';
+  if (tagsInput) tagsInput.value = currentSelectedScript.tags || '@e2e @custom';
+  if (panelTitle) panelTitle.innerHTML = `<i class="ph-bold ph-pencil-simple-line" style="color: var(--accent);"></i> Chỉnh sửa: ${escapeHtml(currentSelectedScript.fileName)}`;
+
+  // Steps
+  editableSteps = currentSelectedScript.steps ? JSON.parse(JSON.stringify(currentSelectedScript.steps)) : [];
+  renderEditableSteps();
+
+  // Column 3 Code Panel
+  const eyebrow = document.getElementById('script-code-eyebrow');
+  if (eyebrow) eyebrow.textContent = 'MÃ NGUỒN BDD SPEC (CHỈNH SỬA)';
+
+  const specTitle = document.getElementById('script-code-title');
+  if (specTitle) specTitle.textContent = currentSelectedScript.fileName;
+
+  const statusBadge = document.getElementById('script-spec-status-badge');
+  if (statusBadge) {
+    statusBadge.innerHTML = '<i class="ph-bold ph-pencil-simple"></i> Sẵn sàng chỉnh sửa';
+    statusBadge.classList.remove('modified');
+  }
+
+  const helpText = document.getElementById('script-code-help-text');
+  if (helpText) {
+    helpText.textContent = 'Chỉnh sửa thông tin bên trái hoặc gõ trực tiếp vào mã nguồn. Bấm "Lưu kịch bản" hoặc Ctrl+S để lưu lại.';
+  }
+
+  const stage = document.getElementById('script-code-stage');
+  const editor = document.getElementById('script-spec-editor');
+  if (stage) stage.classList.remove('editing');
+  if (editor) editor.setAttribute('readonly', 'true');
+
+  const editBtnText = document.getElementById('script-edit-btn-text');
+  if (editBtnText) editBtnText.textContent = 'Chỉnh sửa';
+
+  const insertPomBtn = document.getElementById('script-spec-insert-pom-btn');
+  const toggleEditBtn = document.getElementById('script-btn-toggle-edit');
+  const saveBtn = document.getElementById('script-spec-save-btn');
+  if (insertPomBtn) insertPomBtn.style.display = 'inline-flex';
+  if (toggleEditBtn) toggleEditBtn.style.display = 'inline-flex';
+  if (saveBtn) saveBtn.style.display = 'none';
+
+  const codeEl = document.getElementById('script-spec-code');
+  if (codeEl) codeEl.innerHTML = highlightCode(currentSelectedScript.specCode || '', false);
+
+  const editorEl = document.getElementById('script-spec-editor');
+  if (editorEl) editorEl.value = currentSelectedScript.specCode || '';
+
+  // Attach input listeners once
+  if (titleInput && !titleInput._editBound) {
+    titleInput._editBound = true;
+    titleInput.addEventListener('input', () => updateEditScriptPreview());
+    featInput?.addEventListener('input', () => updateEditScriptPreview());
+    tagsInput?.addEventListener('input', () => updateEditScriptPreview());
+  }
+}
+
+async function saveEditedScript() {
+  if (!currentSelectedScript) return;
+  const saveBtns = [
+    document.getElementById('btn-save-edit-script'),
+    document.getElementById('btn-save-edit-script-2'),
+    document.getElementById('script-spec-save-btn'),
+  ];
+  saveBtns.forEach((b) => {
+    if (b) {
+      b.disabled = true;
+      b._orig = b.innerHTML;
+      b.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang lưu...';
+    }
+  });
+
+  try {
+    const editor = document.getElementById('script-spec-editor');
+    const content = editor?.value || currentSelectedScript.specCode;
+
+    await request('/api/code', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: currentSelectedScript.relativePath,
+        content,
+      }),
+    });
+
+    notify(`✅ Đã lưu kịch bản ${currentSelectedScript.fileName} thành công!`);
+
+    await loadProjectScripts();
+    const updated = projectScripts.find((s) => s.id === currentSelectedScript.id || s.relativePath === currentSelectedScript.relativePath);
+    if (updated) {
+      currentSelectedScript = updated;
+    }
+    switchToInspectScriptMode();
+  } catch (err) {
+    notify(`❌ Lỗi khi lưu kịch bản: ${err.message}`);
+  } finally {
+    saveBtns.forEach((b) => {
+      if (b) {
+        b.disabled = false;
+        if (b._orig) b.innerHTML = b._orig;
+      }
+    });
+  }
+}
+
+// --- PLAN-05: STEP-BY-STEP SCRIPT STUDIO WIZARD ENGINE ---
+let wizardCurrentStep = 1;
+let wizardSelectedPoms = new Set(['pages/desktop/HomePage.js']);
+let wizardSelectedDataset = '';
+let wizardPomLoadError = '';
+let wizardBddSteps = [];
+let wizardAvailableDatasets = [];
+
+function buildWizardLivePreview(state, validationMessage = '') {
+  const fixturePath = state.platform === 'mobile-web'
+    ? '../../../core/fixtures/mobileWebTest'
+    : '../../../core/fixtures/baseTest';
+  const tags = Array.isArray(state.tags) ? state.tags.join(' ') : String(state.tags || '@e2e');
+  const fixtures = [
+    'authenticatedUser',
+    'onboardingPopup',
+    ...(state.precondition?.verifyLandingPage || state.precondition?.captureInitial ? ['homePage'] : []),
+    ...state.pageObjects.map((page) => {
+    const fileName = page.split('/').pop().replace(/\.js$/, '');
+    return fileName.charAt(0).toLowerCase() + fileName.slice(1);
+    }),
+  ];
+  const uniqueFixtures = Array.from(new Set(fixtures));
+  const dataImports = state.dataSources.map((source) => `const ${source.variable} = require('../../../${source.file}');`);
+  const precondition = state.precondition || {};
+  const lines = [
+    `const { test, expect } = require(${JSON.stringify(fixturePath)});`,
+    ...dataImports,
+    '',
+    `test.describe(${JSON.stringify(`Feature: ${state.featureName} ${tags}`)}, () => {`,
+    `  test(${JSON.stringify(state.scenarioName)}, async ({`,
+    ...uniqueFixtures.map((fixture) => `    ${fixture},`),
+    '  }, testInfo) => {',
+    '    test.slow();',
+    '    test.setTimeout(600000);',
+    '',
+    '    testInfo.annotations.push({',
+    '      type: "Precondition",',
+    `      description: ${JSON.stringify(precondition.description || 'Tiền điều kiện chưa hoàn thiện')},`,
+    '    });',
+    '',
+    `    await test.step(${JSON.stringify(`Given ${precondition.description || 'Tiền điều kiện ban đầu'}`)}, async () => {`,
+    precondition.closeOnboarding ? '      await onboardingPopup.closeIfVisible();' : '      // Chưa bật xử lý onboarding popup.',
+    precondition.verifyLandingPage ? '      await homePage.expectHomepageVisible();' : '      // Chưa bật kiểm tra trang bắt đầu.',
+    precondition.captureInitial ? "      await homePage.capture('precondition_initial_state');" : '      // Chưa bật evidence ban đầu.',
+    '    });',
+    '',
+  ];
+
+  state.steps.forEach((step, index) => {
+    const title = `${step.stepType || 'When'} ${step.title || `Bước ${index + 1}`}`;
+    lines.push(`    await test.step(${JSON.stringify(title)}, async () => {`);
+    if (step.actionId) {
+      lines.push(`      // Action runtime: ${step.actionId}`);
+      lines.push('      // Đang chờ backend compile action này theo registry.');
+    } else {
+      lines.push('      // Chưa chọn action runtime cho bước này.');
+    }
+    lines.push('    });', '');
+  });
+
+  lines.push('  });', '});');
+  if (validationMessage) {
+    lines.unshift(`// BẢN NHÁP LIVE - Chưa thể lưu: ${validationMessage}`);
+    lines.unshift('// Preview này phản ánh state hiện tại; hoàn thiện các trường còn thiếu để sinh mã chạy thật.');
+  }
+  return lines.join('\n');
+}
+
+let isResettingWizard = false;
+let currentCompileRequestId = 0;
+
+function updateCreateScriptPreview() {
+  if (scriptBuilderMode !== 'create') return;
+  if (isResettingWizard) return;
+
+  const rawTitle = document.getElementById('create-script-title')?.value.trim() || '';
+  const rawFeature = document.getElementById('create-script-feature')?.value.trim() || '';
+  const rawFileName = document.getElementById('create-script-filename')?.value.trim() || '';
+  const isBlankDraft = !rawTitle && !rawFeature && !rawFileName && (!wizardBddSteps || wizardBddSteps.length === 0);
+
+  const specTitle = document.getElementById('script-code-title');
+  let fileName = rawFileName || (rawTitle ? `${rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_flow-bdd.spec.js` : '');
+  if (fileName && !fileName.endsWith('.spec.js')) fileName += '.spec.js';
+  if (specTitle) specTitle.textContent = fileName || '(Bản nháp mới)';
+
+  const eyebrow = document.getElementById('script-code-eyebrow');
+  if (eyebrow) eyebrow.textContent = 'LIVE PREVIEW (.spec.js)';
+
+  const applyPreviewControls = () => {
+    const statusBadge = document.getElementById('script-spec-status-badge');
+    if (statusBadge) {
+      statusBadge.innerHTML = '<i class="ph-bold ph-eye"></i> Bản xem trước realtime';
+      statusBadge.classList.remove('modified');
+      statusBadge.style.display = 'inline-flex';
+    }
+    const toggleEditBtn = document.getElementById('script-btn-toggle-edit');
+    if (toggleEditBtn) toggleEditBtn.style.display = 'none';
+    const saveBtn = document.getElementById('script-spec-save-btn');
+    if (saveBtn) saveBtn.style.display = 'none';
+    const revertBtn = document.getElementById('script-spec-revert-btn');
+    if (revertBtn) revertBtn.style.display = 'none';
+    const insertPomBtn = document.getElementById('script-spec-insert-pom-btn');
+    if (insertPomBtn) insertPomBtn.style.display = 'none';
+    const copyBtn = document.getElementById('script-spec-copy-btn');
+    if (copyBtn) copyBtn.style.display = 'inline-flex';
+  };
+
+  if (isBlankDraft) {
+    currentCompileRequestId++;
+    if (window.specCodeEditor) {
+      window.specCodeEditor.setValue('', { markClean: true, readOnly: true });
+    }
+    const codeEl = document.getElementById('script-spec-code');
+    if (codeEl) codeEl.innerHTML = '';
+    const editorEl = document.getElementById('script-spec-editor');
+    if (editorEl) {
+      editorEl.value = '';
+      editorEl.setAttribute('readonly', 'true');
+    }
+    applyPreviewControls();
+    return;
+  }
+
+  const reqId = ++currentCompileRequestId;
+  const payload = buildWizardState({ previewMode: true });
+  request('/api/builder/compile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    .then((result) => {
+      if (reqId !== currentCompileRequestId || isResettingWizard) return;
+      const curTitle = document.getElementById('create-script-title')?.value.trim() || '';
+      const curFeature = document.getElementById('create-script-feature')?.value.trim() || '';
+      const curFile = document.getElementById('create-script-filename')?.value.trim() || '';
+      if (!curTitle && !curFeature && !curFile && (!wizardBddSteps || wizardBddSteps.length === 0)) {
+        if (window.specCodeEditor) window.specCodeEditor.setValue('', { markClean: true, readOnly: true });
+        return;
+      }
+
+      if (window.specCodeEditor) {
+        window.specCodeEditor.setValue(result.specCode || '', { markClean: true, readOnly: true });
+      } else {
+        const codeEl = document.getElementById('script-spec-code');
+        if (codeEl) codeEl.innerHTML = highlightCode(result.specCode || '', false);
+        const editorEl = document.getElementById('script-spec-editor');
+        if (editorEl) {
+          editorEl.value = result.specCode || '';
+          editorEl.setAttribute('readonly', 'true');
+        }
+      }
+      applyPreviewControls();
+    })
+    .catch((error) => {
+      if (reqId !== currentCompileRequestId || isResettingWizard) return;
+      const draftCode = buildWizardLivePreview(payload, error.message);
+      if (window.specCodeEditor) {
+        window.specCodeEditor.setValue(draftCode, { markClean: true, readOnly: true });
+      } else {
+        const codeEl = document.getElementById('script-spec-code');
+        if (codeEl) {
+          codeEl.innerHTML = highlightCode(draftCode, false);
+        }
+        const editorEl = document.getElementById('script-spec-editor');
+        if (editorEl) {
+          editorEl.value = draftCode;
+          editorEl.setAttribute('readonly', 'true');
+        }
+      }
+      applyPreviewControls();
+    });
+}
+
+function buildWizardState(options = {}) {
+  const previewMode = options.previewMode !== false;
+  const platform = document.getElementById('create-script-platform')?.value || 'desktop';
+  const pageObjects = Array.from(wizardSelectedPoms).filter((relativePath) => relativePath.startsWith(`pages/${platform}/`));
+  const dataPath = document.getElementById('wizard-data-path')?.value.trim() || '';
+  const hasValidDataPath = Boolean(wizardSelectedDataset && dataPath);
+  const dataSources = wizardSelectedDataset ? [{
+    file: `data/${wizardSelectedDataset}`,
+    variable: wizardSelectedDataset.replace(/\.json$/, '').replace(/[^a-zA-Z0-9]+(.)/g, (_, char) => char.toUpperCase()),
+    dataPath: dataPath || (previewMode ? 'default' : ''),
+  }] : [];
+  let fileName = document.getElementById('create-script-filename')?.value.trim() || 'new_scenario_flow-bdd.spec.js';
+  if (!fileName.endsWith('.spec.js')) fileName += '.spec.js';
+  return {
+    schemaVersion: 1,
+    previewMode,
+    fileName,
+    platform,
+    featureName: document.getElementById('create-script-feature')?.value.trim() || 'Tính năng kiểm thử',
+    scenarioName: document.getElementById('create-script-title')?.value.trim() || 'Kịch bản kiểm thử mới',
+    tags: (document.getElementById('create-script-tags')?.value || '@e2e').split(/\s+/).filter(Boolean),
+    precondition: {
+      auth: document.querySelector('input[name="wizard-auth-type"]:checked')?.value || 'authenticated',
+      description: document.getElementById('wizard-precondition-desc')?.value.trim(),
+      closeOnboarding: document.getElementById('wizard-precond-onboarding')?.checked ?? true,
+      verifyLandingPage: document.getElementById('wizard-precond-verify-home')?.checked ?? true,
+      captureInitial: document.getElementById('wizard-precond-capture')?.checked ?? true,
+    },
+    pageObjects: pageObjects.length > 0 ? pageObjects : [`pages/${platform}/HomePage.js`],
+    dataSources,
+    steps: wizardBddSteps.map((step, idx) => ({
+      id: step.id || `ws_${idx + 1}`,
+      stepType: step.type || 'When',
+      title: step.text || `Bước kiểm thử ${idx + 1}`,
+      actionId: step.actionId || '',
+      locator: step.locator || '',
+      pageObject: pageObjects[0] || `pages/${platform}/HomePage.js`,
+      dataRef: step.dataRef || (hasValidDataPath && step.actionId === 'fill_mini_profile' ? {
+        variable: wizardSelectedDataset.replace(/\.json$/, '').replace(/[^a-zA-Z0-9]+(.)/g, (_, char) => char.toUpperCase()),
+        path: dataPath,
+      } : null),
+      evidence: step.evidence !== false ? (step.evidence || null) : false,
+    })),
+  };
+}
+
+const BDD_WIZARD_DRAFT_KEY = 'vieclam24h_bdd_wizard_draft';
+let activeScriptDraftId = 'draft_script_active';
+
+function updateScriptDraftStatusBadge(statusText, state = 'saved') {
+  const badge = document.getElementById('script-wizard-draft-badge');
+  if (!badge) return;
+  if (state === 'none' || !statusText) {
+    badge.style.display = 'none';
+    return;
+  }
+  badge.style.display = 'inline-flex';
+  badge.className = 'draft-status-pill ' + state;
+  let icon = '<i class="ph-bold ph-floppy-disk"></i>';
+  if (state === 'saved') icon = '<i class="ph-bold ph-check"></i>';
+  if (state === 'modified') icon = '<i class="ph-bold ph-pencil-simple"></i>';
+  badge.innerHTML = `${icon} <span>${escapeHtml(statusText)}</span>`;
+}
+
+function hideScriptDraftBanner() {
+  const banner = document.getElementById('script-wizard-draft-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+async function checkServerScriptDrafts() {
+  try {
+    const res = await fetch('/api/drafts?type=script');
+    const data = await res.json();
+    const drafts = data.drafts || [];
+    if (drafts.length > 0) {
+      const latest = drafts[0];
+      const draftData = latest.data;
+      if (draftData && (draftData.scenarioName || draftData.featureName || (draftData.steps && draftData.steps.length > 0))) {
+        activeScriptDraftId = latest.id;
+        const banner = document.getElementById('script-wizard-draft-banner');
+        const text = document.getElementById('script-wizard-draft-text');
+        if (banner && text) {
+          const name = draftData.scenarioName || draftData.fileName || 'Kịch bản chưa đặt tên';
+          const timeStr = latest.updatedAt ? new Date(latest.updatedAt).toLocaleTimeString('vi-VN') : '';
+          text.textContent = `Phát hiện bản nháp "${name}"${timeStr ? ` (lưu lúc ${timeStr} trên máy chủ)` : ''}.`;
+          banner.style.display = 'flex';
+
+          const btnRestore = document.getElementById('btn-restore-script-draft');
+          if (btnRestore) {
+            btnRestore.onclick = () => {
+              restoreWizardDraftFromData(draftData);
+              hideScriptDraftBanner();
+            };
+          }
+          const btnDismiss = document.getElementById('btn-dismiss-script-draft');
+          if (btnDismiss) {
+            btnDismiss.onclick = () => {
+              hideScriptDraftBanner();
+            };
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Lỗi kiểm tra server script drafts:', e.message);
+  }
+}
+
+function restoreWizardDraftFromData(draft) {
+  if (!draft) return;
+  if (draft.scenarioName && document.getElementById('create-script-title')) {
+    document.getElementById('create-script-title').value = draft.scenarioName;
+  }
+  if (draft.platform && document.getElementById('create-script-platform')) {
+    document.getElementById('create-script-platform').value = draft.platform;
+  }
+  if (draft.featureName && document.getElementById('create-script-feature')) {
+    document.getElementById('create-script-feature').value = draft.featureName;
+  }
+  if (draft.fileName && document.getElementById('create-script-filename')) {
+    document.getElementById('create-script-filename').value = draft.fileName;
+  }
+  if (draft.tags && document.getElementById('create-script-tags')) {
+    document.getElementById('create-script-tags').value = draft.tags;
+  }
+  if (Array.isArray(draft.selectedPoms)) {
+    wizardSelectedPoms = new Set(draft.selectedPoms);
+  }
+  if (draft.selectedDataset !== undefined) {
+    wizardSelectedDataset = draft.selectedDataset;
+    const select = document.getElementById('wizard-select-dataset');
+    if (select) select.value = draft.selectedDataset;
+  }
+  if (draft.authType) {
+    const radio = document.querySelector(`input[name="wizard-auth-type"][value="${draft.authType}"]`);
+    if (radio) radio.checked = true;
+  }
+  if (draft.preconditionDesc && document.getElementById('wizard-precondition-desc')) {
+    document.getElementById('wizard-precondition-desc').value = draft.preconditionDesc;
+  }
+  if (Array.isArray(draft.steps) && draft.steps.length > 0) {
+    wizardBddSteps = draft.steps;
+  }
+
+  const stepToRestore = draft.currentStep || 1;
+  updateWizardStep(stepToRestore);
+  if (draft.primaryPage && document.getElementById('create-script-primary-page')) {
+    setTimeout(() => {
+      const sel = document.getElementById('create-script-primary-page');
+      if (sel) sel.value = draft.primaryPage;
+    }, 100);
+  }
+  updateCreateScriptPreview();
+  updateScriptDraftStatusBadge('Đã khôi phục', 'saved');
+  showToast('Đã khôi phục bản nháp kịch bản thành công!', 'success');
+}
+
+function saveWizardDraft(forceServer = false) {
+  if (isResettingWizard) return null;
+  if (typeof scriptBuilderMode !== 'undefined' && scriptBuilderMode !== 'create') return null;
+
+  const scenarioName = document.getElementById('create-script-title')?.value.trim() || '';
+  const featureName = document.getElementById('create-script-feature')?.value.trim() || '';
+  const fileName = document.getElementById('create-script-filename')?.value.trim() || '';
+  const dataPath = document.getElementById('wizard-data-path')?.value.trim() || '';
+
+  const hasUserProgress = Boolean(
+    scenarioName ||
+    featureName ||
+    (fileName && fileName !== 'new_scenario_flow-bdd.spec.js') ||
+    wizardSelectedDataset ||
+    dataPath ||
+    wizardCurrentStep > 1 ||
+    (wizardSelectedPoms && (wizardSelectedPoms.size > 1 || !wizardSelectedPoms.has('pages/desktop/HomePage.js')))
+  );
+
+  if (!hasUserProgress && !forceServer) {
+    return null;
+  }
+
+  try {
+    const draft = {
+      scenarioName: document.getElementById('create-script-title')?.value || '',
+      platform: document.getElementById('create-script-platform')?.value || 'desktop',
+      featureName: document.getElementById('create-script-feature')?.value || '',
+      fileName: document.getElementById('create-script-filename')?.value || '',
+      tags: document.getElementById('create-script-tags')?.value || '',
+      selectedPoms: Array.from(wizardSelectedPoms || []),
+      primaryPage: document.getElementById('create-script-primary-page')?.value || '',
+      selectedDataset: wizardSelectedDataset || '',
+      authType: document.querySelector('input[name="wizard-auth-type"]:checked')?.value || 'authenticated',
+      preconditionDesc: document.getElementById('wizard-precondition-desc')?.value || '',
+      steps: wizardBddSteps || [],
+      currentStep: wizardCurrentStep || 1,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(BDD_WIZARD_DRAFT_KEY, JSON.stringify(draft));
+
+    if (!activeScriptDraftId) {
+      activeScriptDraftId = 'draft_script_active';
+    }
+
+    updateScriptDraftStatusBadge('Đang lưu máy chủ...', 'modified');
+
+    fetch('/api/drafts/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'script',
+        id: activeScriptDraftId,
+        data: draft,
+      }),
+    }).then(r => r.json()).then(res => {
+      if (res.success) {
+        const timeStr = new Date().toLocaleTimeString('vi-VN');
+        updateScriptDraftStatusBadge(`Bản nháp máy chủ (${timeStr})`, 'saved');
+        if (forceServer) {
+          showToast('Đã lưu bản nháp kịch bản vào máy chủ (.dashboard-drafts/scripts/)', 'success');
+        }
+      }
+    }).catch(err => {
+      console.warn('Lỗi sync script draft:', err);
+      updateScriptDraftStatusBadge('Đã lưu cục bộ', 'saved');
+    });
+
+    return draft;
+  } catch (err) {
+    console.warn('Could not save wizard draft:', err);
+    return null;
+  }
+}
+
+function restoreWizardDraft() {
+  try {
+    const raw = localStorage.getItem(BDD_WIZARD_DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    if (!draft) return null;
+
+    const hasMeaningfulContent = Boolean(
+      (draft.scenarioName && draft.scenarioName.trim()) ||
+      (draft.featureName && draft.featureName.trim()) ||
+      (draft.selectedDataset) ||
+      (draft.currentStep && draft.currentStep > 1) ||
+      (draft.selectedPoms && draft.selectedPoms.length > 1)
+    );
+    if (!hasMeaningfulContent) {
+      clearWizardDraft();
+      return null;
+    }
+
+    restoreWizardDraftFromData(draft);
+    return draft;
+  } catch (err) {
+    console.warn('Could not restore wizard draft:', err);
+    return null;
+  }
+}
+
+function clearWizardDraft() {
+  try {
+    localStorage.removeItem(BDD_WIZARD_DRAFT_KEY);
+    const draftIdToDelete = activeScriptDraftId || 'draft_script_active';
+    fetch('/api/drafts/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'script', id: draftIdToDelete }),
+    }).catch(() => {});
+
+    if (draftIdToDelete !== 'draft_script_active') {
+      fetch('/api/drafts/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'script', id: 'draft_script_active' }),
+      }).catch(() => {});
+    }
+
+    activeScriptDraftId = null;
+    updateScriptDraftStatusBadge('', 'none');
+    hideScriptDraftBanner();
+  } catch (err) {
+    // ignore
+  }
+}
+
+function resetWizardToDefaults(skipConfirm = false) {
+  if (!skipConfirm) {
+    const hasAnyInput = Boolean(
+      document.getElementById('create-script-title')?.value.trim() ||
+      document.getElementById('create-script-feature')?.value.trim() ||
+      document.getElementById('create-script-filename')?.value.trim() ||
+      wizardSelectedDataset ||
+      (wizardBddSteps && wizardBddSteps.length > 0) ||
+      (wizardCurrentStep > 1)
+    );
+    if (hasAnyInput) {
+      const shouldReset = window.confirm('Bạn có chắc muốn xóa bản nháp và làm mới toàn bộ kịch bản cùng mã xem trước?');
+      if (!shouldReset) return;
+    }
+  }
+
+  isResettingWizard = true;
+  currentCompileRequestId++;
+  clearWizardDraft();
+
+  // 1. Reset state variables
+  wizardCurrentStep = 1;
+  wizardSelectedPoms = new Set(['pages/desktop/HomePage.js']);
+  wizardSelectedDataset = '';
+  wizardBddSteps = [];
+
+  // 2. Reset Step 1 form fields
+  const defaults = {
+    '#create-script-platform': 'desktop',
+    '#create-script-title': '',
+    '#create-script-feature': '',
+    '#create-script-filename': '',
+    '#create-script-tags': '@e2e @custom',
+    '#wizard-precondition-desc': 'Đã đăng nhập tài khoản ứng viên hợp lệ (authSetup)',
+    '#wizard-data-path': '',
+    '#wizard-select-dataset': '',
+    '#create-script-primary-page': 'pages/desktop/HomePage.js',
+  };
+  Object.entries(defaults).forEach(([selector, value]) => {
+    const element = document.querySelector(selector);
+    if (element) element.value = value;
+  });
+
+  // 3. Clear Step 3 (Test Data) preview, hints & drawer
+  const previewBox = document.getElementById('wizard-data-preview-box');
+  if (previewBox) previewBox.style.display = 'none';
+  const previewJson = document.getElementById('wizard-data-preview-json');
+  if (previewJson) previewJson.innerHTML = '';
+  const dataPathHints = document.getElementById('wizard-data-path-hints');
+  if (dataPathHints) dataPathHints.innerHTML = '';
+  const dataPathHelp = document.getElementById('wizard-data-path-help');
+  if (dataPathHelp) {
+    dataPathHelp.textContent = 'Tùy chọn: Nhập nhánh dữ liệu cụ thể cần trích xuất (nếu để trống, toàn bộ tệp sẽ được nạp).';
+  }
+  const dataPathInput = document.getElementById('wizard-data-path');
+  if (dataPathInput) {
+    dataPathInput.value = '';
+    dataPathInput.placeholder = 'Ví dụ: introduction hoặc experience';
+  }
+  const drawerData = document.getElementById('wizard-drawer-data');
+  if (drawerData) drawerData.classList.remove('open');
+  const drawerFilename = document.getElementById('drawer-data-filename');
+  if (drawerFilename) drawerFilename.value = '';
+
+  // 4. Reset Step 4 (Preconditions)
+  document.querySelectorAll('input[name="wizard-auth-type"]').forEach((radio) => {
+    radio.checked = radio.value === 'authenticated';
+  });
+  ['#wizard-precond-onboarding', '#wizard-precond-verify-home', '#wizard-precond-capture'].forEach((selector) => {
+    const checkbox = document.querySelector(selector);
+    if (checkbox) checkbox.checked = true;
+  });
+
+  // 5. Reset Step 6 (Summary Card)
+  const sumTitle = document.getElementById('wizard-sum-title');
+  if (sumTitle) sumTitle.textContent = '---';
+  const sumFile = document.getElementById('wizard-sum-file');
+  if (sumFile) sumFile.textContent = '---';
+  const sumPoms = document.getElementById('wizard-sum-poms');
+  if (sumPoms) sumPoms.textContent = '---';
+  const sumData = document.getElementById('wizard-sum-data');
+  if (sumData) sumData.textContent = '---';
+  const sumPrecond = document.getElementById('wizard-sum-precond');
+  if (sumPrecond) sumPrecond.textContent = '---';
+  const sumSteps = document.getElementById('wizard-sum-steps-count');
+  if (sumSteps) sumSteps.textContent = '0 bước';
+
+  // 6. Re-render dynamic components
+  renderWizardPomList();
+  renderWizardPrimaryPageOptions();
+  renderWizardBddSteps();
+
+  // 7. Reset Stepper to Step 1
+  updateWizardStep(1);
+
+  // 8. Scroll wizard body back to top
+  const scrollWrap = document.querySelector('.script-middle-scroll-wrap');
+  if (scrollWrap) scrollWrap.scrollTop = 0;
+
+  // 9. Reset live preview code completely
+  if (window.specCodeEditor) {
+    window.specCodeEditor.setValue('', { markClean: true, readOnly: true });
+  }
+  const codeEl = document.getElementById('script-spec-code');
+  if (codeEl) codeEl.innerHTML = '';
+  const editorEl = document.getElementById('script-spec-editor');
+  if (editorEl) {
+    editorEl.value = '';
+    editorEl.setAttribute('readonly', 'true');
+  }
+  const specTitle = document.getElementById('script-code-title');
+  if (specTitle) specTitle.textContent = '(Bản nháp mới)';
+
+  const statusBadge = document.getElementById('script-spec-status-badge');
+  if (statusBadge) {
+    statusBadge.innerHTML = '<i class="ph-bold ph-eye"></i> Bản xem trước realtime';
+    statusBadge.classList.remove('modified');
+    statusBadge.style.display = 'inline-flex';
+  }
+
+  // 10. Ensure localStorage draft is completely cleared
+  clearWizardDraft();
+  setTimeout(() => {
+    isResettingWizard = false;
+  }, 100);
+
+  if (!skipConfirm) {
+    showToast('Đã làm mới toàn bộ bản nháp và mã xem trước', 'info');
+  }
+}
+
+function navigateToCreatePageObjectFromWizard() {
+  saveWizardDraft();
+  showToast('Đã lưu bản nháp kịch bản BDD. Đang chuyển sang Quản lý Page...', 'success');
+
+  pageManagerMode = 'create';
+  const pageTab = document.querySelector('.view-tab[data-view="page-manager-view"]');
+  if (pageTab) {
+    pageTab.click();
+  }
+  setTimeout(() => {
+    switchToCreatePageMode();
+    const platform = document.getElementById('create-script-platform')?.value || 'desktop';
+    const pmPlatform = document.getElementById('page-manager-platform');
+    if (pmPlatform) pmPlatform.value = platform;
+  }, 120);
+}
+
+function updateWizardStep(step) {
+  wizardCurrentStep = Math.max(1, Math.min(6, step));
+  if (!isResettingWizard) {
+    saveWizardDraft();
+  }
+
+  for (let i = 1; i <= 6; i++) {
+    const tab = document.getElementById(`wizard-tab-${i}`);
+    const div = document.getElementById(`wizard-div-${i}`);
+    const panel = document.getElementById(`wizard-panel-${i}`);
+
+    if (tab) {
+      tab.classList.toggle('active', i === wizardCurrentStep);
+      tab.classList.toggle('completed', i < wizardCurrentStep);
+    }
+    if (div) {
+      div.classList.toggle('completed', i < wizardCurrentStep);
+    }
+    if (panel) {
+      panel.classList.toggle('active', i === wizardCurrentStep);
+    }
+  }
+
+  const counter = document.getElementById('wizard-step-counter');
+  if (counter) counter.textContent = wizardCurrentStep;
+
+  const prevBtn = document.getElementById('btn-wizard-prev');
+  if (prevBtn) prevBtn.disabled = wizardCurrentStep === 1;
+
+  const nextBtn = document.getElementById('btn-wizard-next');
+  if (nextBtn) {
+    if (wizardCurrentStep === 6) {
+      nextBtn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Lưu kịch bản BDD';
+    } else {
+      nextBtn.innerHTML = 'Tiếp theo <i class="ph-bold ph-caret-right"></i>';
+    }
+  }
+
+  if (wizardCurrentStep === 2) {
+    if (!repoPages || repoPages.length === 0) {
+      loadWizardPageObjects();
+    } else {
+      renderWizardPomList();
+    }
+  }
+
+  if (wizardCurrentStep === 6) {
+    renderWizardSummary();
+  }
+
+  updateCreateScriptPreview();
+}
+
+function renderWizardSummary() {
+  const title = document.getElementById('create-script-title')?.value.trim() || 'Chưa đặt tên kịch bản';
+  const platform = document.getElementById('create-script-platform')?.value || 'desktop';
+  let fileName = document.getElementById('create-script-filename')?.value.trim() || 'scenario.spec.js';
+  if (!fileName.endsWith('.spec.js')) fileName += '.spec.js';
+
+  const sumTitle = document.getElementById('wizard-sum-title');
+  if (sumTitle) sumTitle.textContent = title;
+
+  const sumFile = document.getElementById('wizard-sum-file');
+  if (sumFile) sumFile.textContent = `tests/e2e/${platform}/${fileName}`;
+
+  const poms = Array.from(wizardSelectedPoms).map(p => p.split('/').pop().replace(/\.js$/, ''));
+  const sumPoms = document.getElementById('wizard-sum-poms');
+  if (sumPoms) sumPoms.textContent = poms.length ? poms.join(', ') : 'HomePage';
+
+  const sumData = document.getElementById('wizard-sum-data');
+  if (sumData) sumData.textContent = wizardSelectedDataset ? `data/${wizardSelectedDataset}` : 'Không dùng data ngoài';
+
+  const authType = document.querySelector('input[name="wizard-auth-type"]:checked')?.value;
+  const sumPrecond = document.getElementById('wizard-sum-precond');
+  if (sumPrecond) sumPrecond.textContent = authType === 'guest' ? 'Khách vãng lai (Chưa đăng nhập)' : 'Đã đăng nhập (authSetup)';
+
+  const sumSteps = document.getElementById('wizard-sum-steps-count');
+  if (sumSteps) sumSteps.textContent = `${wizardBddSteps.length} bước BDD`;
+}
+
+function getWizardCompatiblePages() {
+  const platform = document.getElementById('create-script-platform')?.value || 'desktop';
+  return (repoPages || []).filter((page) => {
+    const matchesPlatform = page.platform === platform || (!page.platform && platform === 'desktop');
+    const isReady = page.readiness ? page.readiness.ready !== false : true;
+    return matchesPlatform && isReady;
+  });
+}
+
+function renderWizardPrimaryPageOptions() {
+  const select = document.getElementById('create-script-primary-page');
+  if (!select) return;
+
+  const platform = document.getElementById('create-script-platform')?.value || 'desktop';
+  const platformLabel = platform === 'mobile-web' ? 'Mobile Web' : 'Desktop Web';
+  const compatiblePages = getWizardCompatiblePages();
+  const selectedPath = select.value;
+  select.innerHTML = compatiblePages.length
+    ? '<option value="">-- Chọn Page Object chính --</option>' + compatiblePages.map((page) => `<option value="${escapeHtml(page.relativePath)}">${escapeHtml(page.title || page.className)} (${escapeHtml(page.relativePath)})</option>`).join('')
+    : `<option value="" selected disabled>-- Chưa có Page Object cho ${platformLabel} --</option>`;
+  if (compatiblePages.some((page) => page.relativePath === selectedPath)) select.value = selectedPath;
+}
+
+function renderWizardPomList() {
+  const container = document.getElementById('wizard-pom-list');
+  if (!container) return;
+
+  if (wizardPomLoadError) {
+    container.innerHTML = `<div class="dependency-empty-state dependency-error-state"><i class="ph ph-warning-circle"></i><strong>Không tải được danh sách Page Object</strong><span>${escapeHtml(wizardPomLoadError)} Vui lòng thử lại.</span><button type="button" class="btn-secondary-sm" id="wizard-retry-load-pom"><i class="ph-bold ph-arrows-clockwise"></i> Thử lại</button></div>`;
+    container.querySelector('#wizard-retry-load-pom')?.addEventListener('click', () => loadWizardPageObjects());
+    return;
+  }
+
+  if (!repoPages) {
+    container.innerHTML = '<div class="data-loading-spinner"><i class="ph ph-spinner ph-spin"></i> Đang tải danh sách Page Objects...</div>';
+    return;
+  }
+
+  const platform = document.getElementById('create-script-platform')?.value || 'desktop';
+  const platformLabel = platform === 'mobile-web' ? 'Mobile Web' : 'Desktop Web';
+  const compatiblePages = getWizardCompatiblePages();
+  wizardSelectedPoms = new Set(Array.from(wizardSelectedPoms).filter((relativePath) => compatiblePages.some((page) => page.relativePath === relativePath)));
+  if (!compatiblePages.length) {
+    const hasPlatformPages = repoPages.some((page) => page.platform === platform);
+    container.innerHTML = `
+      <div class="dependency-empty-state">
+        <i class="ph ph-browsers"></i>
+        <strong>Chưa có Page Object dùng được cho ${platformLabel}</strong>
+        <span>${hasPlatformPages ? 'Các Page Object của nền tảng này chưa đạt trạng thái sẵn sàng.' : 'Chưa có Page Object nào được khai báo cho nền tảng này.'} Hãy tạo mới hoặc kiểm tra lại trong Quản lý Page.</span>
+        <button type="button" class="btn-secondary-sm" id="wizard-empty-create-pom"><i class="ph-bold ph-plus-circle"></i> Tạo Page Object mới</button>
+      </div>`;
+    container.querySelector('#wizard-empty-create-pom')?.addEventListener('click', () => navigateToCreatePageObjectFromWizard());
+    renderWizardPrimaryPageOptions();
+    return;
+  }
+  renderWizardPrimaryPageOptions();
+  container.innerHTML = compatiblePages.map((page) => {
+    const isChecked = wizardSelectedPoms.has(page.relativePath);
+    return `
+      <div class="dependency-card-item ${isChecked ? 'selected' : ''}" data-path="${escapeHtml(page.relativePath)}">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" class="wizard-pom-checkbox" value="${escapeHtml(page.relativePath)}" ${isChecked ? 'checked' : ''} style="cursor: pointer;" />
+          <div>
+            <strong style="font-size: 12px; display: block;">${escapeHtml(page.title || page.className)}</strong>
+            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--muted);">${escapeHtml(page.relativePath || `${page.className}.js`)}</span>
+          </div>
+        </div>
+        <span class="dependency-badge-ready"><i class="ph-bold ph-check"></i> Sẵn có</span>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.dependency-card-item').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      if (e.target.tagName.toLowerCase() === 'input') return;
+      const checkbox = card.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
+      }
+    });
+    const cb = card.querySelector('input[type="checkbox"]');
+    cb?.addEventListener('change', () => {
+      const p = card.dataset.path;
+      if (cb.checked) {
+        wizardSelectedPoms.add(p);
+        card.classList.add('selected');
+      } else {
+        wizardSelectedPoms.delete(p);
+        card.classList.remove('selected');
+      }
+      updateCreateScriptPreview();
+    });
+  });
+}
+
+async function loadWizardPageObjects() {
+  wizardPomLoadError = '';
+  renderWizardPomList();
+  try {
+    const result = await request('/api/object-repository/pages');
+    repoPages = result.pages || [];
+    renderWizardPomList();
+    renderWizardPrimaryPageOptions();
+  } catch (error) {
+    wizardPomLoadError = 'Không thể kết nối tới Kho Page Object.';
+    renderWizardPomList();
+    console.error('Failed to load Page Objects for wizard:', error);
+  }
+}
+
+function renderWizardBddSteps() {
+  const container = document.getElementById('wizard-bdd-steps-list');
+  if (!container) return;
+
+  if (!wizardBddSteps.length) {
+    container.innerHTML = `<div style="text-align: center; color: var(--muted); padding: 14px; font-size: 12px;">Chưa có bước kiểm thử nào. Bấm nút + When, + And, + Then phía trên để thêm bước.</div>`;
+    return;
+  }
+
+  const renderActionOptions = (step) => builderPresetActions.length
+    ? `<option value="">-- Chọn hành động runtime --</option>${builderPresetActions.map((action) => `<option value="${escapeHtml(action.id)}" ${action.id === step.actionId ? 'selected' : ''}>[${escapeHtml(action.stepType || 'When')}] ${escapeHtml(action.name)}</option>`).join('')}`
+    : '<option value="">Đang tải thư viện hành động...</option>';
+
+  container.innerHTML = wizardBddSteps.map((step, idx) => `
+    <div class="bdd-step-card" data-idx="${idx}" style="display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;">
+      <select class="wizard-step-type-select" data-idx="${idx}" style="padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); font-weight: 700; font-size: 11.5px; color: var(--accent);">
+        <option value="Given" ${step.type === 'Given' ? 'selected' : ''}>Given</option>
+        <option value="When" ${step.type === 'When' ? 'selected' : ''}>When</option>
+        <option value="And" ${step.type === 'And' ? 'selected' : ''}>And</option>
+        <option value="Then" ${step.type === 'Then' ? 'selected' : ''}>Then</option>
+      </select>
+      <input type="text" class="wizard-step-text-input" data-idx="${idx}" value="${escapeHtml(step.text)}" style="flex: 1; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 12px;" />
+      <select class="wizard-step-action-select" data-idx="${idx}" title="Hành động runtime của bước" style="min-width: 190px; max-width: 240px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 11px;">${renderActionOptions(step)}</select>
+      <button type="button" class="btn-icon-subtle btn-wizard-del-step" data-idx="${idx}" title="Xóa bước" style="color: #ef4444;"><i class="ph ph-trash"></i></button>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.wizard-step-type-select').forEach((sel) => {
+    sel.addEventListener('change', (e) => {
+      const i = parseInt(e.target.dataset.idx, 10);
+      if (wizardBddSteps[i]) {
+        wizardBddSteps[i].type = e.target.value;
+        updateCreateScriptPreview();
+      }
+    });
+  });
+
+  container.querySelectorAll('.wizard-step-text-input').forEach((inp) => {
+    inp.addEventListener('input', (e) => {
+      const i = parseInt(e.target.dataset.idx, 10);
+      if (wizardBddSteps[i]) {
+        wizardBddSteps[i].text = e.target.value;
+        updateCreateScriptPreview();
+      }
+    });
+  });
+
+  container.querySelectorAll('.wizard-step-action-select').forEach((sel) => {
+    sel.addEventListener('change', (e) => {
+      const i = parseInt(e.target.dataset.idx, 10);
+      if (wizardBddSteps[i]) {
+        wizardBddSteps[i].actionId = e.target.value;
+        const action = builderPresetActions.find((item) => item.id === e.target.value);
+        if (action && (!wizardBddSteps[i].text || wizardBddSteps[i].text.startsWith('Bước '))) {
+          wizardBddSteps[i].text = action.name;
+          wizardBddSteps[i].type = action.stepType || wizardBddSteps[i].type;
+          renderWizardBddSteps();
+        }
+        updateCreateScriptPreview();
+      }
+    });
+  });
+
+  container.querySelectorAll('.btn-wizard-del-step').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const i = parseInt(btn.dataset.idx, 10);
+      wizardBddSteps.splice(i, 1);
+      renderWizardBddSteps();
+      updateCreateScriptPreview();
+    });
+  });
+}
+
+function validateWizardStep(step) {
+  if (step === 1) {
+    const titleInput = document.getElementById('create-script-title');
+    if (!titleInput?.value.trim()) {
+      titleInput?.setCustomValidity('Vui lòng nhập tên kịch bản.');
+      titleInput?.reportValidity();
+      titleInput?.focus();
+      return false;
+    }
+    titleInput.setCustomValidity('');
+  }
+
+  if (step === 2 && wizardSelectedPoms.size === 0) {
+    notify('Vui lòng chọn ít nhất một Page Object trước khi tiếp tục.');
+    document.getElementById('wizard-pom-list')?.scrollIntoView({ block: 'nearest' });
+    return false;
+  }
+
+  if (step === 5) {
+    const missingAction = wizardBddSteps.findIndex((item) => !item.actionId);
+    if (missingAction !== -1) {
+      notify(`Bước BDD số ${missingAction + 1} chưa có hành động runtime. Vui lòng chọn hành động.`);
+      renderWizardBddSteps();
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function loadWizardDatasets() {
+  try {
+    const res = await fetch('/api/data/datasets');
+    if (res.ok) {
+      const data = await res.json();
+      wizardAvailableDatasets = data.datasets || [];
+      const select = document.getElementById('wizard-select-dataset');
+      if (select) {
+        select.innerHTML = '<option value="">-- Không sử dụng file data ngoài --</option>' +
+          wizardAvailableDatasets.map(d => {
+            const count = d.recordCount ?? d.itemCount ?? 0;
+            return `<option value="${escapeHtml(d.fileName)}">${escapeHtml(d.fileName)} (${count} mục)</option>`;
+          }).join('');
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load wizard datasets:', e);
+  }
+}
+
+async function submitCreateScriptFromWizard() {
+  const platform = document.getElementById('create-script-platform')?.value || 'desktop';
+  const scenarioName = document.getElementById('create-script-title')?.value.trim();
+  const featureName = document.getElementById('create-script-feature')?.value.trim();
+  let fileName = document.getElementById('create-script-filename')?.value.trim() || 'new_scenario_flow-bdd.spec.js';
+  if (!fileName.endsWith('.spec.js')) fileName += '.spec.js';
+  const tags = document.getElementById('create-script-tags')?.value.trim();
+  const primaryPage = document.getElementById('create-script-primary-page')?.value;
+
+  if (!scenarioName) {
+    updateWizardStep(1);
+    document.getElementById('create-script-title')?.focus();
+    notify('⚠️ Vui lòng nhập Tên kịch bản (Scenario Name)');
+    return;
+  }
+
+  const nextBtn = document.getElementById('btn-wizard-next');
+  if (nextBtn) {
+    nextBtn.disabled = true;
+    nextBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang lưu...';
+  }
+
+  try {
+    const state = buildWizardState();
+    const validation = await fetch('/api/builder/validate-spec', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state),
+    });
+    const validationData = await validation.json();
+    if (!validation.ok || !validationData.valid) throw new Error((validationData.errors || []).map((item) => item.message || item).join(' ') || 'Spec chưa hợp lệ.');
+    const res = await fetch('/api/builder/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...state,
+        expectedHash: validationData.compiledHash,
+        draftId: activeScriptDraftId,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Lỗi khi tạo kịch bản');
+
+    // Dọn dẹp bản nháp sau khi lưu thành công vào framework
+    try {
+      localStorage.removeItem(BDD_WIZARD_DRAFT_KEY);
+      if (activeScriptDraftId) {
+        await fetch('/api/drafts/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'script', id: activeScriptDraftId }),
+        });
+        activeScriptDraftId = null;
+      }
+    } catch {}
+    updateScriptDraftStatusBadge('', 'none');
+    hideScriptDraftBanner();
+
+    notify(data.message || `✅ Đã tạo ${fileName} thành công! Kịch bản đã được lưu vào tests/e2e/${platform}/.`);
+    await loadProjectScripts();
+    const createdScript = projectScripts.find((s) => s.relativePath === data.script?.relativePath || s.fileName === fileName);
+    if (createdScript) {
+      selectProjectScript(createdScript);
+    } else {
+      switchToInspectScriptMode();
+    }
+  } catch (err) {
+    notify(`❌ Không thể tạo kịch bản: ${err.message}`);
+  } finally {
+    if (nextBtn) {
+      nextBtn.disabled = false;
+      nextBtn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Lưu kịch bản BDD';
+    }
+  }
+}
+
+async function switchToCreateScriptMode() {
+  scriptBuilderMode = 'create';
+  scriptDirectEditMode = false;
+
+  // Tabs
+  document.getElementById('btn-tab-script-inspect')?.classList.remove('active');
+  document.getElementById('btn-tab-script-edit')?.classList.remove('active');
+  document.getElementById('btn-tab-script-create')?.classList.add('active');
+
+  // Hint
+  const hint = document.getElementById('script-toolbar-hint');
+  if (hint) {
+    hint.innerHTML = '<i class="ph-bold ph-magic-wand" style="color: var(--accent);"></i> Script Studio Wizard: Tạo kịch bản theo thứ tự phụ thuộc · Xem trước realtime tại cột bên phải';
+  }
+
+  // Views
+  const inspectView = document.getElementById('script-inspect-view');
+  const editView = document.getElementById('script-edit-view');
+  const createView = document.getElementById('script-create-view');
+  if (inspectView) inspectView.style.display = 'none';
+  if (editView) editView.style.display = 'none';
+  if (createView) createView.style.display = 'flex';
+
+  const subnavActions = document.getElementById('script-subnav-actions');
+  if (subnavActions) subnavActions.style.display = 'none';
+
+  // Deselect sidebar cards
+  document.querySelectorAll('.script-card-item').forEach((card) => card.classList.remove('active'));
+
+  // Refresh Page Objects so the Wizard does not use a stale repository snapshot.
+  await loadWizardPageObjects();
+
+  // Initialize Page Objects & Datasets
+  renderWizardPrimaryPageOptions();
+  renderWizardPomList();
+  loadWizardDatasets();
+  renderWizardBddSteps();
+
+  // Khôi phục bản nháp nếu có, ngược lại bắt đầu ở bước 1 với form sạch
+  const restoredDraft = restoreWizardDraft();
+  if (restoredDraft) {
+    showToast('Đã khôi phục bản nháp kịch bản BDD', 'info');
+  } else {
+    resetWizardToDefaults(true);
+    await checkServerScriptDrafts();
+  }
+
+  // Column 3 Code Panel -> Live Preview Mode
+  const eyebrow = document.getElementById('script-code-eyebrow');
+  if (eyebrow) eyebrow.textContent = 'LIVE PREVIEW (.spec.js)';
+
+  const statusBadge = document.getElementById('script-spec-status-badge');
+  if (statusBadge) {
+    statusBadge.innerHTML = '<i class="ph-bold ph-eye"></i> Bản xem trước realtime';
+    statusBadge.classList.remove('modified');
+  }
+
+  const helpText = document.getElementById('script-code-help-text');
+  if (helpText) {
+    helpText.textContent = 'Mã nguồn Playwright BDD Spec được sinh realtime theo từng bước của Wizard. File chỉ được tạo khi bạn bấm "Lưu kịch bản BDD".';
+  }
+
+  const insertPomBtn = document.getElementById('script-spec-insert-pom-btn');
+  const toggleEditBtn = document.getElementById('script-btn-toggle-edit');
+  const saveBtn = document.getElementById('script-spec-save-btn');
+  const revertBtn = document.getElementById('script-spec-revert-btn');
+  if (insertPomBtn) insertPomBtn.style.display = 'none';
+  if (toggleEditBtn) toggleEditBtn.style.display = 'none';
+  if (saveBtn) saveBtn.style.display = 'none';
+  if (revertBtn) revertBtn.style.display = 'none';
+
+  const stage = document.getElementById('script-code-stage');
+  const editor = document.getElementById('script-spec-editor');
+  if (stage) stage.classList.remove('editing');
+  if (editor) editor.setAttribute('readonly', 'true');
+
+  // Deselect sidebar cards
+  document.querySelectorAll('.script-card-item').forEach((item) => item.classList.remove('active'));
+
+  // Title & Filename Bindings
+  const titleInput = document.getElementById('create-script-title');
+  const filenameInput = document.getElementById('create-script-filename');
+  if (titleInput && filenameInput && !titleInput._previewBound) {
+    titleInput._previewBound = true;
+    titleInput.addEventListener('input', () => {
+      const slug = titleInput.value
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+      filenameInput.value = slug ? `${slug}_flow-bdd.spec.js` : '';
+      updateCreateScriptPreview();
+    });
+    filenameInput.addEventListener('input', () => updateCreateScriptPreview());
+    document.getElementById('create-script-feature')?.addEventListener('input', () => updateCreateScriptPreview());
+    document.getElementById('create-script-tags')?.addEventListener('input', () => updateCreateScriptPreview());
+    document.getElementById('create-script-platform')?.addEventListener('change', () => { renderWizardPomList(); renderWizardPrimaryPageOptions(); updateCreateScriptPreview(); });
+    document.getElementById('create-script-primary-page')?.addEventListener('change', () => updateCreateScriptPreview());
+
+    // Precondition bindings
+    document.querySelectorAll('input[name="wizard-auth-type"]').forEach((r) => {
+      r.addEventListener('change', () => updateCreateScriptPreview());
+    });
+    document.getElementById('wizard-precondition-desc')?.addEventListener('input', () => updateCreateScriptPreview());
+    document.getElementById('wizard-precond-onboarding')?.addEventListener('change', () => updateCreateScriptPreview());
+    document.getElementById('wizard-precond-verify-home')?.addEventListener('change', () => updateCreateScriptPreview());
+    document.getElementById('wizard-precond-capture')?.addEventListener('change', () => updateCreateScriptPreview());
+    document.getElementById('wizard-data-path')?.addEventListener('input', () => updateCreateScriptPreview());
+
+    // Data selector binding
+    document.getElementById('wizard-select-dataset')?.addEventListener('change', async (e) => {
+      wizardSelectedDataset = e.target.value;
+      const previewBox = document.getElementById('wizard-data-preview-box');
+      const previewJson = document.getElementById('wizard-data-preview-json');
+      const dataPathInput = document.getElementById('wizard-data-path');
+      const dataPathHints = document.getElementById('wizard-data-path-hints');
+      const dataPathHelp = document.getElementById('wizard-data-path-help');
+
+      if (wizardSelectedDataset && previewBox && previewJson) {
+        previewBox.style.display = 'block';
+        previewJson.textContent = `// Đang tải cấu trúc data/${wizardSelectedDataset}...`;
+
+        try {
+          const res = await request(`/api/data/dataset?file=${encodeURIComponent(wizardSelectedDataset)}`);
+          if (res?.data) {
+            const keys = Object.keys(res.data);
+            previewJson.innerHTML = highlightCode(JSON.stringify(res.data, null, 2), true);
+            if (dataPathHints) {
+              dataPathHints.innerHTML = keys.map(k => `<option value="${escapeHtml(k)}"></option>`).join('');
+            }
+            if (dataPathHelp) {
+              dataPathHelp.innerHTML = `Gợi ý các nhánh data có sẵn: <strong>${escapeHtml(keys.slice(0, 4).join(', '))}${keys.length > 4 ? '...' : ''}</strong>`;
+            }
+            if (dataPathInput && !dataPathInput.value) {
+              dataPathInput.placeholder = `Ví dụ: ${keys[0] || 'nhánh_data'}`;
+            }
+          }
+        } catch (err) {
+          previewJson.textContent = `// Data file: data/${wizardSelectedDataset}\n// Biến tương ứng sẽ được tự động require vào đầu spec`;
+        }
+      } else if (previewBox) {
+        previewBox.style.display = 'none';
+        if (dataPathHelp) {
+          dataPathHelp.textContent = 'Tùy chọn: Nhập nhánh dữ liệu cụ thể cần trích xuất (nếu để trống, toàn bộ tệp sẽ được nạp).';
+        }
+      }
+      updateCreateScriptPreview();
+    });
+
+    // Stepper Tabs Navigation
+    for (let i = 1; i <= 6; i++) {
+      document.getElementById(`wizard-tab-${i}`)?.addEventListener('click', () => updateWizardStep(i));
+    }
+
+    // Prev / Next Navigation
+    document.getElementById('btn-wizard-prev')?.addEventListener('click', () => {
+      if (wizardCurrentStep > 1) updateWizardStep(wizardCurrentStep - 1);
+    });
+
+    document.getElementById('btn-wizard-next')?.addEventListener('click', () => {
+      if (wizardCurrentStep < 6) {
+        if (validateWizardStep(wizardCurrentStep)) updateWizardStep(wizardCurrentStep + 1);
+      } else {
+        submitCreateScriptFromWizard();
+      }
+    });
+    document.getElementById('create-script-title')?.addEventListener('input', (event) => event.target.setCustomValidity(''));
+
+    // Quick Add Steps in Step 5
+    document.getElementById('btn-wizard-add-when')?.addEventListener('click', () => {
+      wizardBddSteps.push({ id: `ws_${Date.now()}`, type: 'When', text: 'Người dùng thực hiện hành động kiểm thử mới', actionId: '' });
+      renderWizardBddSteps();
+      updateCreateScriptPreview();
+    });
+    document.getElementById('btn-wizard-add-and')?.addEventListener('click', () => {
+      wizardBddSteps.push({ id: `ws_${Date.now()}`, type: 'And', text: 'Người dùng tiếp tục thao tác tiếp theo', actionId: '' });
+      renderWizardBddSteps();
+      updateCreateScriptPreview();
+    });
+    document.getElementById('btn-wizard-add-then')?.addEventListener('click', () => {
+      wizardBddSteps.push({ id: `ws_${Date.now()}`, type: 'Then', text: 'Hệ thống hiển thị kết quả mong đợi', actionId: '' });
+      renderWizardBddSteps();
+      updateCreateScriptPreview();
+    });
+
+    // Tạo Page Object: Lưu nháp và chuyển sang Quản lý Page
+    document.getElementById('btn-wizard-open-create-pom')?.addEventListener('click', () => {
+      navigateToCreatePageObjectFromWizard();
+    });
+
+    // Drawer Test Data
+    const dataDrawer = document.getElementById('wizard-drawer-data');
+    document.getElementById('btn-wizard-open-create-data')?.addEventListener('click', () => {
+      dataDrawer?.classList.add('open');
+      document.getElementById('drawer-data-filename')?.focus();
+    });
+    document.getElementById('btn-close-drawer-data')?.addEventListener('click', () => dataDrawer?.classList.remove('open'));
+    document.getElementById('btn-cancel-drawer-data')?.addEventListener('click', () => dataDrawer?.classList.remove('open'));
+    document.getElementById('btn-submit-drawer-data')?.addEventListener('click', async () => {
+      let fn = document.getElementById('drawer-data-filename')?.value.trim();
+      if (!fn) {
+        showToast('Vui lòng nhập Tên file data (.json)', 'error');
+        return;
+      }
+      if (!fn.endsWith('.json')) fn += '.json';
+      const content = document.getElementById('drawer-data-content')?.value.trim() || '{}';
+
+      try {
+        JSON.parse(content);
+      } catch (e) {
+        showToast('Cú pháp JSON không hợp lệ: ' + e.message, 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/data/create-dataset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName: fn, content }),
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || 'Lỗi tạo dataset');
+
+        showToast(`Đã tạo file ${fn} thành công!`, 'success');
+        dataDrawer?.classList.remove('open');
+        await loadWizardDatasets();
+        const select = document.getElementById('wizard-select-dataset');
+        if (select) select.value = fn;
+        wizardSelectedDataset = fn;
+        updateCreateScriptPreview();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
+  }
+
+  updateCreateScriptPreview();
+}
+
+function switchToInspectScriptMode() {
+  scriptBuilderMode = 'inspect';
+  scriptDirectEditMode = false;
+
+  // Tabs
+  document.getElementById('btn-tab-script-inspect')?.classList.add('active');
+  document.getElementById('btn-tab-script-edit')?.classList.remove('active');
+  document.getElementById('btn-tab-script-create')?.classList.remove('active');
+
+  // Hint
+  const hint = document.getElementById('script-toolbar-hint');
+  if (hint) {
+    hint.innerHTML = '<i class="ph ph-info"></i> Chọn kịch bản từ danh sách hoặc chỉnh sửa/tạo mới kịch bản chuẩn Playwright BDD';
+  }
+
+  // Views
+  const inspectView = document.getElementById('script-inspect-view');
+  const editView = document.getElementById('script-edit-view');
+  const createView = document.getElementById('script-create-view');
+  if (inspectView) inspectView.style.display = 'flex';
+  if (editView) editView.style.display = 'none';
+  if (createView) createView.style.display = 'none';
+
+  const subnavActions = document.getElementById('script-subnav-actions');
+  if (subnavActions) subnavActions.style.display = 'flex';
+
+  // Restore tools
+  const insertPomBtn = document.getElementById('script-spec-insert-pom-btn');
+  const toggleEditBtn = document.getElementById('script-btn-toggle-edit');
+  const saveBtn = document.getElementById('script-spec-save-btn');
+  if (insertPomBtn) insertPomBtn.style.display = 'inline-flex';
+  if (toggleEditBtn) toggleEditBtn.style.display = 'inline-flex';
+  if (saveBtn) saveBtn.style.display = 'none';
+
+  const eyebrow = document.getElementById('script-code-eyebrow');
+  if (eyebrow) eyebrow.textContent = 'MÃ NGUỒN BDD SPEC (.spec.js)';
+
+  const helpText = document.getElementById('script-code-help-text');
+  if (helpText) {
+    helpText.textContent = 'Nhấn "Chỉnh sửa" để gõ trực tiếp hoặc Ctrl+S để lưu file. Tự động sao lưu backup (.bak) an toàn.';
+  }
+
+  if (currentSelectedScript) {
+    selectProjectScript(currentSelectedScript);
+  }
+}
+
+window.openCreateBddScriptModal = function () {
+  switchToCreateScriptMode();
+};
+
+async function submitCreateBddScript() {
+  const submitBtn = document.getElementById('btn-submit-create-script');
+  const platform = document.getElementById('create-script-platform')?.value || 'desktop';
+  const scenarioName = document.getElementById('create-script-title')?.value.trim();
+  const featureName = document.getElementById('create-script-feature')?.value.trim();
+  const fileName = document.getElementById('create-script-filename')?.value.trim();
+  const tags = document.getElementById('create-script-tags')?.value.trim();
+  const primaryPage = document.getElementById('create-script-primary-page')?.value;
+
+  if (!scenarioName) {
+    notify('❌ Vui lòng nhập tên kịch bản!');
+    document.getElementById('create-script-title')?.focus();
+    return;
+  }
+
+  const origHtml = submitBtn.innerHTML;
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang tạo...';
+
+  try {
+    const res = await request('/api/builder/create-script', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform,
+        scenarioName,
+        featureName,
+        fileName,
+        tags,
+        primaryPage,
+      }),
+    });
+
+    clearWizardDraft();
+    switchToInspectScriptMode();
+    notify(`✅ ${res.message}`);
+
+    await loadProjectScripts();
+    const created = projectScripts.find((s) => s.relativePath === res.script.filePath);
+    if (created) {
+      selectProjectScript(created);
+    }
+  } catch (err) {
+    notify(`❌ Lỗi: ${err.message}`);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = origHtml;
+  }
+}
+
+async function initVisualBuilder() {
+  if (!isVisualBuilderInitialized) {
+    isVisualBuilderInitialized = true;
+    initVisualBuilderControls();
+  }
+  populateBuilderSpecOptions();
+  await loadProjectScripts();
+  try {
+    const res = await request('/api/builder/actions');
+    builderPresetActions = res.presetActions || [];
+    renderPresetLibrary();
+    renderBuilderSteps();
+    await compileBuilderScenario();
+  } catch (err) {
+    console.error('Lỗi khởi tạo Visual Builder:', err);
+  }
+}
+
+window.initBlankStarterSteps = function () {
+  if ($('#builder-feature-name') && !$('#builder-feature-name').value) {
+    $('#builder-feature-name').value = 'Tính năng kiểm thử mới';
+  }
+  if ($('#builder-scenario-name') && !$('#builder-scenario-name').value) {
+    $('#builder-scenario-name').value = 'Kịch bản kiểm thử quy trình cơ bản';
+  }
+  builderSteps = [
+    { id: `s_${Date.now()}_1`, stepType: 'Given', title: 'Người dùng truy cập trang chủ', actionId: 'navigate_url' },
+    { id: `s_${Date.now()}_2`, stepType: 'When', title: 'Người dùng thực hiện hành động kiểm thử', actionId: 'click_element' },
+    { id: `s_${Date.now()}_3`, stepType: 'Then', title: 'Hệ thống hiển thị kết quả mong đợi', actionId: 'assert_visible' },
+  ];
+  renderBuilderSteps();
+  compileBuilderScenario();
+  notify('Đã khởi tạo khung 3 bước cơ bản.');
+};
+
+function initVisualBuilderControls() {
+  // Subtabs switching
+  document.querySelectorAll('.script-subtab').forEach((tabBtn) => {
+    tabBtn.addEventListener('click', () => {
+      document.querySelectorAll('.script-subtab').forEach((b) => b.classList.remove('active'));
+      tabBtn.classList.add('active');
+
+      const targetSubtab = tabBtn.dataset.subtab;
+      document.querySelectorAll('.script-pane').forEach((pane) => {
+        pane.classList.remove('active');
+        pane.setAttribute('hidden', 'true');
+      });
+
+      const activePane = document.getElementById(`script-pane-${targetSubtab}`);
+      if (activePane) {
+        activePane.classList.add('active');
+        activePane.removeAttribute('hidden');
+      }
+    });
+  });
+
+  // Filter buttons (All, Desktop, Mobile)
+  document.querySelectorAll('.script-filter-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.script-filter-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      scriptPlatformFilter = btn.dataset.platform || 'all';
+      renderScriptSidebarList();
+    });
+  });
+
+  // Search input
+  const searchInput = document.getElementById('script-search-input');
+  searchInput?.addEventListener('input', (e) => {
+    scriptSearchQuery = e.target.value;
+    renderScriptSidebarList();
+  });
+
+  // Refresh button
+  document.getElementById('script-refresh-btn')?.addEventListener('click', () => {
+    loadProjectScripts();
+    notify('Đã làm mới danh sách kịch bản.');
+  });
+
+  // Run this test directly
+  document.getElementById('script-run-this-btn')?.addEventListener('click', async () => {
+    if (!currentSelectedScript) {
+      notify('Vui lòng chọn một kịch bản test trước khi chạy.');
+      return;
+    }
+
+    if (currentRun && currentRun.status === 'running') {
+      notify('⚠️ Đang có kịch bản test đang chạy. Đang chuyển sang tab Chạy test để bạn quan sát.');
+      const runnerTab = document.querySelector('.view-tab[data-view="runner-view"]');
+      if (runnerTab) runnerTab.click();
+      return;
+    }
+
+    const targetSpecPath = currentSelectedScript.relativePath;
+    const targetSpecName = currentSelectedScript.fileName;
+
+    // 1. Chuyển sang tab "Chạy test" (runner-view)
+    const runnerTab = document.querySelector('.view-tab[data-view="runner-view"]');
+    if (runnerTab) runnerTab.click();
+
+    // 2. Chuyển sang chế độ Tùy chỉnh (manual)
+    setRunnerMode('manual');
+
+    // 3. Chọn phạm vi chạy: 1 File test
+    const scopeFileBtn = document.querySelector('.runner-scope-tab-btn[data-manual-scope="file"]');
+    if (scopeFileBtn) scopeFileBtn.click();
+
+    // 4. Đồng bộ config specs nếu cần
+    if (!testCatalog.specs || testCatalog.specs.length === 0) {
+      try {
+        const cfg = await request('/api/config');
+        testCatalog = {
+          specs: cfg.specs || [],
+          specTags: cfg.specTags || {},
+          availableTags: cfg.availableTags || [],
+          specProjects: cfg.specProjects || {},
+          projects: cfg.projects || [],
+        };
+        refreshSpecOptions();
+      } catch (e) {}
+    }
+
+    // 5. Chọn đúng file test trong dropdown #spec
+    const specSelect = document.getElementById('spec');
+    if (specSelect) {
+      let exists = Array.from(specSelect.options).some((o) => o.value === targetSpecPath);
+      if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = targetSpecPath;
+        opt.textContent = targetSpecPath;
+        specSelect.appendChild(opt);
+      }
+      specSelect.value = targetSpecPath;
+      if (typeof updateWorkersForSpec === 'function') updateWorkersForSpec();
+      if (typeof updateManualSpecsPreview === 'function') updateManualSpecsPreview();
+    }
+
+    notify(`🚀 Đang chuyển sang tab Chạy test và khởi chạy kịch bản: ${targetSpecName}...`);
+
+    // 6. Tự động kích hoạt chạy test ngay lập tức!
+    setTimeout(() => {
+      const runForm = document.getElementById('run-form');
+      if (runForm) {
+        runForm.requestSubmit();
+      }
+    }, 250);
+  });
+
+  // Auto Inject Evidence Capture
+  async function triggerAutoEvidenceCapture() {
+    if (!currentSelectedScript) {
+      notify('Vui lòng chọn một kịch bản test trước khi thực hiện.');
+      return;
+    }
+    const editor = document.getElementById('script-spec-editor');
+    const preview = document.getElementById('script-spec-code');
+    const badge = document.getElementById('script-spec-status-badge');
+    const revertBtn = document.getElementById('script-spec-revert-btn');
+    const currentCode = editor && editor.value ? editor.value : (currentSelectedScript.specCode || '');
+
+    const autoBtns = [
+      document.getElementById('script-auto-capture-btn'),
+      document.getElementById('script-spec-auto-capture-btn'),
+    ].filter(Boolean);
+
+    autoBtns.forEach((btn) => {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang phân tích...';
+    });
+
+    try {
+      const res = await request('/api/builder/auto-capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          specCode: currentCode,
+          filePath: currentSelectedScript.relativePath,
+        }),
+      });
+
+      if (res.alreadyOptimal || (res.addedCount === 0 && res.removedCount === 0)) {
+        notify('👌 Kịch bản đã có đầy đủ các mốc capture evidence chuẩn, không phát hiện điểm trùng lặp!');
+      } else {
+        if (editor) editor.value = res.modifiedCode;
+        if (preview) preview.innerHTML = highlightCode(res.modifiedCode, false);
+        if (badge) {
+          badge.innerHTML = `<i class="ph-bold ph-camera"></i> Đã chèn ${res.addedCount} mốc evidence${res.removedCount > 0 ? ` (xóa ${res.removedCount} điểm trùng)` : ''}`;
+          badge.style.display = 'inline-flex';
+        }
+        if (revertBtn) revertBtn.style.display = 'inline-flex';
+
+        // Tự động chuyển người dùng sang subtab "Mã nguồn .spec.js" để xem diff trực quan
+        const specSubtab = document.querySelector('.script-subtab[data-subtab="spec-code"]');
+        if (specSubtab) specSubtab.click();
+
+        notify(`📸 Đã tự động chèn ${res.addedCount} mốc capture evidence chuẩn vào script! Hãy bấm "Lưu thay đổi" để hoàn tất.`);
+      }
+    } catch (err) {
+      notify(`❌ Lỗi phân tích evidence: ${err.message}`);
+    } finally {
+      autoBtns.forEach((btn) => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ph-bold ph-camera"></i> Tự động chèn Evidence';
+      });
+    }
+  }
+
+  document.getElementById('script-auto-capture-btn')?.addEventListener('click', triggerAutoEvidenceCapture);
+  document.getElementById('script-spec-auto-capture-btn')?.addEventListener('click', triggerAutoEvidenceCapture);
+
+  // Copy Spec code
+  document.getElementById('script-spec-copy-btn')?.addEventListener('click', () => {
+    const editor = document.getElementById('script-spec-editor');
+    const code = editor ? editor.value : (currentSelectedScript?.specCode || '');
+    if (code) {
+      navigator.clipboard.writeText(code);
+      notify('Đã sao chép mã BDD Spec vào bộ nhớ tạm!');
+    }
+  });
+
+  // Initialize Shared Code Editors for Spec Code and Page Object Modal
+  window.specCodeEditor = createSharedCodeEditor({
+    textarea: document.getElementById('script-spec-editor'),
+    preview: document.getElementById('script-spec-code'),
+    language: 'javascript',
+    badge: document.getElementById('script-spec-status-badge'),
+    revertBtn: document.getElementById('script-spec-revert-btn'),
+    copyBtn: document.getElementById('script-spec-copy-btn'),
+    saveBtn: document.getElementById('script-spec-save-btn'),
+    onSave: async (editor) => {
+      if (!currentSelectedScript) {
+        notify('Vui lòng chọn một kịch bản test trước khi lưu.');
+        return;
+      }
+      const saveBtn = document.getElementById('script-spec-save-btn');
+      const originalText = saveBtn ? saveBtn.innerHTML : '';
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang lưu...';
+      }
+
+      try {
+        const content = editor.getValue();
+        await request('/api/code', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            path: currentSelectedScript.relativePath,
+            content,
+          }),
+        });
+
+        currentSelectedScript.specCode = content;
+        editor.markSaved();
+        notify(`✅ Đã lưu kịch bản ${currentSelectedScript.fileName} thành công!`);
+
+        try {
+          const scriptsRes = await request('/api/builder/scripts');
+          if (scriptsRes?.scripts) {
+            projectScripts = scriptsRes.scripts;
+            const updated = projectScripts.find((s) => s.id === currentSelectedScript.id);
+            if (updated) {
+              currentSelectedScript = updated;
+              const bddCount = document.getElementById('pillar-bdd-count');
+              const steps = updated.steps || [];
+              if (bddCount) bddCount.textContent = `${steps.length} bước BDD`;
+              const timelineEl = document.getElementById('pillar-bdd-timeline');
+              if (timelineEl) {
+                if (steps.length === 0) {
+                  timelineEl.innerHTML = '<div style="color: var(--muted); font-size: 13px;">Chưa có bước BDD nào được định nghĩa trong file này.</div>';
+                } else {
+                  timelineEl.innerHTML = steps
+                    .map((st) => {
+                      const type = (st.stepType || 'When').toLowerCase();
+                      return `
+                      <div class="bdd-step-unit">
+                        <span class="bdd-step-type-pill ${type}">${escapeHtml(st.stepType || 'When')}</span>
+                        <div class="bdd-step-title">${escapeHtml(st.title)}</div>
+                      </div>`;
+                    })
+                    .join('');
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      } catch (err) {
+        notify(`❌ Lỗi khi lưu mã kịch bản: ${err.message}`);
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = originalText;
+        }
+      }
+    },
+  });
+
+  window.pageCodeEditor = createSharedCodeEditor({
+    textarea: document.getElementById('modal-page-editor'),
+    preview: document.getElementById('modal-page-code'),
+    language: 'javascript',
+    badge: document.getElementById('modal-page-dirty-badge'),
+    saveBtn: document.getElementById('modal-page-save-btn'),
+    onSave: async (editor) => {
+      const modalPath = document.getElementById('modal-page-path-display')?.textContent;
+      if (!modalPath) return;
+      try {
+        await request('/api/code', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: modalPath, content: editor.getValue() }),
+        });
+        currentModalPageOriginalContent = editor.getValue();
+        editor.markSaved();
+        notify('✅ Đã lưu thay đổi Page Object!');
+      } catch (err) {
+        notify(`❌ Lỗi lưu Page Object: ${err.message}`);
+      }
+    },
+  });
+
+  const pageModalEl = document.getElementById('modal-view-page-code');
+  pageModalEl?.addEventListener('click', (e) => {
+    if (e.target === pageModalEl) pageModalEl.close();
+  });
+
+  // POM to BDD Linker Event Listeners
+  document.getElementById('btn-add-step-from-pom')?.addEventListener('click', () => openInsertPomActionModal());
+  document.getElementById('btn-link-pom-to-script')?.addEventListener('click', () => openInsertPomActionModal());
+  document.getElementById('script-spec-insert-pom-btn')?.addEventListener('click', () => openInsertPomActionModal());
+  document.getElementById('btn-tab-script-inspect')?.addEventListener('click', () => switchToInspectScriptMode());
+  document.getElementById('btn-tab-script-edit')?.addEventListener('click', () => switchToEditScriptMode());
+  document.getElementById('btn-tab-script-create')?.addEventListener('click', () => switchToCreateScriptMode());
+  document.getElementById('btn-save-draft-script')?.addEventListener('click', () => saveWizardDraft(true));
+  document.getElementById('btn-reset-create-script')?.addEventListener('click', () => resetWizardToDefaults(false));
+  document.getElementById('btn-sidebar-create-script')?.addEventListener('click', () => switchToCreateScriptMode());
+  document.getElementById('script-edit-this-btn')?.addEventListener('click', () => switchToEditScriptMode());
+  document.getElementById('btn-edit-script-info')?.addEventListener('click', () => switchToEditScriptMode());
+  document.getElementById('btn-edit-script-steps')?.addEventListener('click', () => switchToEditScriptMode());
+  document.getElementById('btn-cancel-edit-script')?.addEventListener('click', () => switchToInspectScriptMode());
+  document.getElementById('btn-cancel-edit-script-2')?.addEventListener('click', () => switchToInspectScriptMode());
+  document.getElementById('btn-save-edit-script')?.addEventListener('click', () => saveEditedScript());
+  document.getElementById('btn-save-edit-script-2')?.addEventListener('click', () => saveEditedScript());
+  document.getElementById('btn-cancel-create-script')?.addEventListener('click', () => {
+    saveWizardDraft(false);
+    switchToInspectScriptMode();
+  });
+  document.getElementById('btn-cancel-create-script-2')?.addEventListener('click', () => {
+    saveWizardDraft(false);
+    switchToInspectScriptMode();
+  });
+  document.getElementById('btn-wizard-open-create-pom')?.addEventListener('click', () => {
+    navigateToCreatePageObjectFromWizard();
+  });
+
+  // Quick step add in edit mode
+  document.querySelectorAll('.btn-quick-step').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.type || 'When';
+      editableSteps.push({
+        id: `s_${Date.now()}`,
+        stepType: type,
+        title: `Bước kiểm thử mới (${type})`,
+        code: `      // Thao tác kiểm thử cho ${type}`,
+      });
+      renderEditableSteps();
+      updateEditScriptPreview();
+    });
+  });
+
+  // BDD Script Spec Edit Mode Toggle & Copy
+  document.getElementById('script-btn-toggle-edit')?.addEventListener('click', () => {
+    scriptDirectEditMode = !scriptDirectEditMode;
+    const stage = document.getElementById('script-code-stage');
+    const editor = document.getElementById('script-spec-editor');
+    const viewWrap = document.getElementById('script-code-view-wrap');
+    const saveBtn = document.getElementById('script-spec-save-btn');
+    const editBtnText = document.getElementById('script-edit-btn-text');
+    const statusPill = document.getElementById('script-spec-status-badge');
+
+    if (scriptDirectEditMode) {
+      if (stage) stage.classList.add('editing');
+      if (editor) {
+        editor.removeAttribute('readonly');
+        if (viewWrap) {
+          editor.scrollTop = viewWrap.scrollTop;
+          editor.scrollLeft = viewWrap.scrollLeft;
+        }
+        editor.focus();
+      }
+      if (saveBtn) saveBtn.style.display = 'inline-flex';
+      if (editBtnText) editBtnText.textContent = 'Xem mã';
+      if (statusPill) {
+        statusPill.innerHTML = '<i class="ph-bold ph-pencil-simple"></i> Đang chỉnh sửa';
+        statusPill.classList.add('modified');
+      }
+    } else {
+      if (stage) stage.classList.remove('editing');
+      if (editor) {
+        editor.setAttribute('readonly', 'true');
+        if (viewWrap) {
+          viewWrap.scrollTop = editor.scrollTop;
+          viewWrap.scrollLeft = editor.scrollLeft;
+        }
+      }
+      if (saveBtn) saveBtn.style.display = 'none';
+      if (editBtnText) editBtnText.textContent = 'Chỉnh sửa';
+      if (statusPill) {
+        const isDirty = currentSelectedScript && editor && editor.value !== (currentSelectedScript.specCode || '');
+        statusPill.innerHTML = isDirty ? '<i class="ph-bold ph-pencil-simple"></i> Đã thay đổi (chưa lưu)' : '<i class="ph-bold ph-check"></i> Đang mở từ disk';
+        statusPill.classList.toggle('modified', isDirty);
+      }
+    }
+  });
+
+  document.getElementById('script-spec-copy-btn')?.addEventListener('click', () => {
+    const code = document.getElementById('script-spec-editor')?.value || currentSelectedScript?.specCode || '';
+    if (code) {
+      navigator.clipboard.writeText(code).then(() => {
+        notify('📋 Đã sao chép mã kịch bản BDD vào clipboard!');
+      }).catch(() => {
+        notify('Không thể sao chép mã.');
+      });
+    }
+  });
+
+  document.getElementById('btn-close-pom-modal')?.addEventListener('click', () => document.getElementById('modal-insert-pom-action')?.close());
+  document.getElementById('btn-cancel-pom-modal')?.addEventListener('click', () => document.getElementById('modal-insert-pom-action')?.close());
+  document.getElementById('btn-submit-pom-modal')?.addEventListener('click', () => submitPomActionToBdd());
+  document.getElementById('btn-submit-create-script')?.addEventListener('click', () => submitCreateBddScript());
+
+  document.querySelectorAll('.pom-type-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.pom-type-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      pomModalActiveType = tab.dataset.type;
+      const methodPanel = document.getElementById('pom-panel-method');
+      const locPanel = document.getElementById('pom-panel-locator');
+      if (pomModalActiveType === 'locator') {
+        if (methodPanel) methodPanel.style.display = 'none';
+        if (locPanel) locPanel.style.display = 'block';
+      } else {
+        if (methodPanel) methodPanel.style.display = 'block';
+        if (locPanel) locPanel.style.display = 'none';
+      }
+      updatePomCodePreview();
+    });
+  });
+
+  document.getElementById('pom-modal-page-select')?.addEventListener('change', () => loadPomModalPageDetails());
+  document.getElementById('pom-modal-method-select')?.addEventListener('change', () => {
+    updatePomModalParamsHint();
+    updatePomCodePreview();
+  });
+  document.getElementById('pom-modal-method-params')?.addEventListener('input', () => updatePomCodePreview());
+  document.getElementById('pom-modal-loc-select')?.addEventListener('change', () => updatePomCodePreview());
+  document.getElementById('pom-modal-loc-action')?.addEventListener('change', () => updatePomCodePreview());
+  document.getElementById('pom-modal-loc-value')?.addEventListener('input', () => updatePomCodePreview());
+  document.getElementById('pom-modal-step-keyword')?.addEventListener('change', () => updatePomCodePreview());
+  document.getElementById('pom-modal-step-title')?.addEventListener('input', () => {
+    const titleInput = document.getElementById('pom-modal-step-title');
+    if (titleInput) titleInput.dataset.autoGenerated = 'false';
+    updatePomCodePreview();
+  });
+  document.getElementById('pom-modal-include-evidence')?.addEventListener('change', () => updatePomCodePreview());
+
+  // Quick add buttons
+  document.querySelectorAll('.btn-quick-step').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.type || 'When';
+      builderSteps.push({
+        id: `s_${Date.now()}`,
+        stepType: type,
+        title: `Bước ${builderSteps.length + 1}`,
+        actionId: type === 'Then' ? 'assert_visible' : 'click_element',
+      });
+      renderBuilderSteps();
+      compileBuilderScenario();
+    });
+  });
+
+  $('#builder-new-scenario-btn')?.addEventListener('click', () => {
+    if (confirm('Bạn có muốn tạo một kịch bản mới hoàn toàn?')) {
+      if ($('#builder-feature-name')) $('#builder-feature-name').value = '';
+      if ($('#builder-scenario-name')) $('#builder-scenario-name').value = '';
+      if ($('#builder-tags')) $('#builder-tags').value = '@smoke @e2e @visualBuilder';
+      if ($('#builder-template-select')) $('#builder-template-select').value = 'custom';
+      builderSteps = [];
+      renderBuilderSteps();
+      compileBuilderScenario();
+      notify('Đã đưa về trạng thái tạo kịch bản mới (trống).');
+    }
+  });
+
+  $('#builder-copy-code-btn')?.addEventListener('click', () => {
+    const code = rawCompiledBddCode || $('#builder-compiled-code')?.textContent;
+    if (code) {
+      navigator.clipboard.writeText(code);
+      notify('Đã sao chép mã BDD Spec vào clipboard!');
+    }
+  });
+
+  $('#builder-preview-btn')?.addEventListener('click', compileBuilderScenario);
+  $('#builder-save-btn')?.addEventListener('click', saveBuilderScenario);
+
+  $('#builder-feature-name')?.addEventListener('input', compileBuilderScenario);
+  $('#builder-scenario-name')?.addEventListener('input', compileBuilderScenario);
+  $('#builder-platform')?.addEventListener('change', compileBuilderScenario);
+  $('#builder-tags')?.addEventListener('input', compileBuilderScenario);
+
+  $('#builder-template-select')?.addEventListener('change', async (e) => {
+    const val = e.target.value;
+
+    // 1. Nạp file spec có sẵn trong Framework
+    if (val.startsWith('spec:')) {
+      const specPath = val.replace(/^spec:/, '');
+      try {
+        const parsed = await request(`/api/builder/load-spec?file=${encodeURIComponent(specPath)}`);
+        if ($('#builder-feature-name')) $('#builder-feature-name').value = parsed.featureName || '';
+        if ($('#builder-scenario-name')) $('#builder-scenario-name').value = parsed.scenarioName || '';
+        if ($('#builder-platform')) $('#builder-platform').value = parsed.platform || 'desktop';
+        if ($('#builder-tags')) $('#builder-tags').value = parsed.tags || '@visualBuilder';
+        if ($('#builder-data-source')) {
+          $('#builder-data-source').value = parsed.dataSource || 'none';
+        }
+        builderLoadedFixtures = parsed.fixtures || [];
+        builderSteps = parsed.steps || [];
+        renderBuilderSteps();
+        compileBuilderScenario();
+        renderNonTechOverview();
+        notify(`Đã nạp file test: ${parsed.filePath} (${builderSteps.length} bước)`);
+      } catch (err) {
+        notify(`Lỗi nạp file test: ${err.message}`);
+      }
+      return;
+    }
+
+    // 2. Tự tạo kịch bản mới (Trống)
+    if (val === 'custom') {
+      if ($('#builder-feature-name')) $('#builder-feature-name').value = '';
+      if ($('#builder-scenario-name')) $('#builder-scenario-name').value = '';
+      if ($('#builder-tags')) $('#builder-tags').value = '@smoke @e2e @visualBuilder';
+      builderSteps = [];
+      renderBuilderSteps();
+      compileBuilderScenario();
+      return;
+    }
+
+    // 3. Các mẫu kịch bản có sẵn
+    if (val === 'apply_nocv') {
+      if ($('#builder-feature-name')) $('#builder-feature-name').value = 'Ứng tuyển nhanh việc làm không cần CV';
+      if ($('#builder-scenario-name')) $('#builder-scenario-name').value = 'Người dùng nộp hồ sơ mini profile và kiểm tra danh sách đã ứng tuyển';
+      if ($('#builder-tags')) $('#builder-tags').value = '@applyjob @e2e @visualBuilder';
+      builderSteps = [
+        { id: 's_1', stepType: 'Given', title: 'Người dùng đã truy cập trang chủ và đăng nhập', actionId: 'auth_login_precondition' },
+        { id: 's_2', stepType: 'And', title: 'Người dùng thấy popup Onboarding và đóng', actionId: 'close_onboarding_popup' },
+        { id: 's_3', stepType: 'When', title: 'Người dùng mở việc làm không cần CV', actionId: 'open_nocv_job_list' },
+        { id: 's_4', stepType: 'And', title: 'Người dùng nộp hồ sơ ứng tuyển nhanh với SĐT ngẫu nhiên', actionId: 'apply_fast_profile' },
+        { id: 's_5', stepType: 'Then', title: 'Hệ thống thông báo nộp hồ sơ thành công', actionId: 'assert_apply_success' },
+      ];
+    } else if (val === 'login_profile') {
+      if ($('#builder-feature-name')) $('#builder-feature-name').value = 'Đăng nhập & Cập nhật hồ sơ';
+      if ($('#builder-scenario-name')) $('#builder-scenario-name').value = 'Người dùng đăng nhập tài khoản và cập nhật thông tin cá nhân';
+      if ($('#builder-tags')) $('#builder-tags').value = '@profile @smoke @visualBuilder';
+      builderSteps = [
+        { id: 's_1', stepType: 'Given', title: 'Người dùng đã truy cập trang chủ và đăng nhập', actionId: 'auth_login_precondition' },
+        { id: 's_2', stepType: 'When', title: 'Người dùng mở trang quản lý hồ sơ cá nhân', actionId: 'navigate_to_page' },
+        { id: 's_3', stepType: 'Then', title: 'Hệ thống hiển thị đúng thông tin người dùng', actionId: 'assert_element_visible' },
+      ];
+    } else if (val === 'job_search') {
+      if ($('#builder-feature-name')) $('#builder-feature-name').value = 'Tìm kiếm việc làm theo ngành nghề';
+      if ($('#builder-scenario-name')) $('#builder-scenario-name').value = 'Tìm kiếm việc làm theo từ khóa và lọc ngành nghề';
+      if ($('#builder-tags')) $('#builder-tags').value = '@search @regression @visualBuilder';
+      builderSteps = [
+        { id: 's_1', stepType: 'Given', title: 'Người dùng truy cập trang chủ Vieclam24h', actionId: 'navigate_to_page' },
+        { id: 's_2', stepType: 'When', title: 'Người dùng nhập từ khóa tìm kiếm và chọn ngành nghề', actionId: 'input_text' },
+        { id: 's_3', stepType: 'And', title: 'Người dùng nhấn nút Tìm kiếm', actionId: 'click_element' },
+        { id: 's_4', stepType: 'Then', title: 'Danh sách việc làm phù hợp được hiển thị', actionId: 'assert_element_visible' },
+      ];
+    }
+    renderBuilderSteps();
+    compileBuilderScenario();
+    renderNonTechOverview();
+  });
+
+  $('#builder-data-source')?.addEventListener('change', () => {
+    renderNonTechOverview();
+    compileBuilderScenario();
+  });
+
+  document.querySelectorAll('.builder-tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.builder-tab-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+
+      $('#builder-tab-nontech')?.setAttribute('hidden', 'true');
+      $('#builder-tab-code')?.setAttribute('hidden', 'true');
+      $('#builder-tab-library')?.setAttribute('hidden', 'true');
+
+      if (tab === 'nontech') {
+        $('#builder-tab-nontech')?.removeAttribute('hidden');
+        renderNonTechOverview();
+      } else if (tab === 'code') {
+        $('#builder-tab-code')?.removeAttribute('hidden');
+      } else if (tab === 'library') {
+        $('#builder-tab-library')?.removeAttribute('hidden');
+      }
+    });
+  });
+}
+
+async function initPlanThreeControls() {
+  document.getElementById('diagnostics-analyze-btn')?.addEventListener('click', async () => {
+    const input = document.getElementById('diagnostics-error-input');
+    const results = document.getElementById('diagnostics-results');
+    if (!input?.value.trim()) return notify('Vui lòng dán lỗi hoặc stack trace.');
+    try {
+      const result = await request('/api/diagnostics/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: input.value, testTitle: currentRun?.options?.spec || '' }),
+      });
+      results.innerHTML = result.findings.map((finding) => `
+        <article class="diagnostic-finding">
+          <strong>${escapeHtml(finding.code)}</strong>
+          <p>${escapeHtml(finding.message)}</p>
+          <small>Confidence: ${Math.round(finding.confidence * 100)}%</small>
+          ${finding.suggestedFix ? `<div class="diagnostic-fix-preview">Preview: ${escapeHtml(finding.suggestedFix.preview)}</div>` : ''}
+        </article>`).join('');
+    } catch (error) {
+      results.textContent = error.message;
+    }
+  });
+}
+
+let builderLoadedFixtures = [];
+
+function renderNonTechOverview() {
+  const dataSelect = $('#builder-data-source');
+  const selectedData = dataSelect?.value || 'none';
+  
+  // 1. Data Details
+  const dataBadge = $('#nontech-data-badge');
+  const dataDetails = $('#nontech-data-details');
+  if (dataBadge) dataBadge.textContent = selectedData !== 'none' ? selectedData : 'Không dùng data ngoài';
+
+  const dataMap = {
+    'applyJobData.json': {
+      title: 'Hồ sơ ứng viên nộp nhanh (applyJobData.json)',
+      desc: 'Chứa các trường: <code>fullName</code>, <code>phone</code>, <code>birthYear</code>, <code>location</code>, <code>experience</code>, <code>education</code>. Dùng cho luồng nộp hồ sơ không cần CV.',
+    },
+    'users.json': {
+      title: 'Tài khoản người dùng chuẩn (users.json)',
+      desc: 'Chứa các trường: <code>phone</code>, <code>password</code>, <code>otp</code>, <code>fullName</code>. Dùng cho luồng đăng ký/đăng nhập.',
+    },
+    'userProfileData.json': {
+      title: 'Thông tin hồ sơ cá nhân đầy đủ (userProfileData.json)',
+      desc: 'Chứa các trường: <code>fullName</code>, <code>jobTitle</code>, <code>bio</code>, <code>skills</code>. Dùng cho luồng cập nhật hồ sơ người tìm việc.',
+    },
+    'onboardingData.json': {
+      title: 'Khảo sát Onboarding sau đăng nhập (onboardingData.json)',
+      desc: 'Chứa các trường: <code>preferredJobs</code>, <code>careerLevel</code>, <code>salaryExpectation</code>.',
+    },
+    'aiProfileData.json': {
+      title: 'Dữ liệu AI gợi ý hồ sơ (aiProfileData.json)',
+      desc: 'Chứa các trường: <code>keywords</code>, <code>matchScore</code>, <code>extractedSkills</code>.',
+    },
+    'dynamic': {
+      title: 'Dữ liệu ngẫu nhiên (Fakers)',
+      desc: 'Tự động tạo số điện thoại ngẫu nhiên <code>generateRandomVNPhone()</code>, email <code>generateRandomEmail()</code> mỗi lần chạy.',
+    },
+    'none': {
+      title: 'Không ràng buộc file data ngoài',
+      desc: 'Kịch bản thao tác tĩnh trực tiếp trên giao diện trình duyệt.',
+    },
+  };
+
+  const currentDataInfo = dataMap[selectedData] || { title: selectedData, desc: `Sử dụng file <code>data/${escapeHtml(selectedData)}</code>.` };
+  if (dataDetails) {
+    dataDetails.innerHTML = `
+      <div style="font-weight: 700; color: var(--text); font-size: 13px; margin-bottom: 4px;">
+        <i class="ph-bold ph-check-circle" style="color: var(--accent);"></i> ${escapeHtml(currentDataInfo.title)}
+      </div>
+      <p class="nontech-text-muted" style="margin: 0; line-height: 1.5;">${currentDataInfo.desc}</p>
+    `;
+  }
+
+  // 2. Page Objects Identification
+  const pagesList = $('#nontech-pages-list');
+  const pagesCount = $('#nontech-pages-count');
+  const detectedPages = new Map();
+
+  const fixtureMap = {
+    loginPopup: { icon: 'ph-lock-key', label: 'Form Đăng Ký / Đăng Nhập (LoginPopup.js)' },
+    homePage: { icon: 'ph-house', label: 'Trang Chủ Việc Làm 24h (HomePage.js)' },
+    jobSearchPage: { icon: 'ph-magnifying-glass', label: 'Tìm Kiếm Việc Làm (JobSearchPage.js)' },
+    jobApplyNoCVPage: { icon: 'ph-file-text', label: 'Nộp Hồ Sơ Nhanh (JobApplyNoCVPage.js)' },
+    jobApplyPage: { icon: 'ph-paperclip', label: 'Nộp Hồ Sơ Có CV (JobApplyPage.js)' },
+    onboardingPopup: { icon: 'ph-sparkle', label: 'Popup Onboarding (OnboardingPopup.js)' },
+    popupConsent: { icon: 'ph-shield-check', label: 'Popup Cookie / Điều Khoản (PopupConsent.js)' },
+    userProfilePage: { icon: 'ph-user', label: 'Hồ Sơ Ứng Viên (UserProfilePage.js)' },
+    authenticatedUser: { icon: 'ph-user-check', label: 'Precondition Đăng Nhập Sẵn' },
+  };
+
+  // Check loaded fixtures first
+  if (builderLoadedFixtures && builderLoadedFixtures.length > 0) {
+    builderLoadedFixtures.forEach((fix) => {
+      const info = fixtureMap[fix] || { icon: 'ph-browsers', label: `${fix}.js` };
+      detectedPages.set(fix, { icon: info.icon, label: info.label, count: 1 });
+    });
+  }
+
+  // Also check step contents
+  builderSteps.forEach((step) => {
+    const act = builderPresetActions.find((a) => a.id === step.actionId);
+    const text = `${step.title || ''} ${act?.fixture || ''} ${step.code || ''}`.toLowerCase();
+
+    if (text.includes('homepage') || text.includes('trang chủ') || text.includes('quảng cáo')) {
+      const cur = detectedPages.get('homePage') || { icon: 'ph-house', label: 'Trang Chủ Việc Làm 24h (HomePage.js)', count: 0 };
+      cur.count += 1;
+      detectedPages.set('homePage', cur);
+    }
+    if (text.includes('login') || text.includes('đăng nhập') || text.includes('đăng ký') || text.includes('otp')) {
+      const cur = detectedPages.get('loginPopup') || { icon: 'ph-lock-key', label: 'Form Đăng Ký / Đăng Nhập (LoginPopup.js)', count: 0 };
+      cur.count += 1;
+      detectedPages.set('loginPopup', cur);
+    }
+    if (text.includes('jobsearch') || text.includes('tìm việc') || text.includes('danh sách việc')) {
+      const cur = detectedPages.get('jobSearchPage') || { icon: 'ph-magnifying-glass', label: 'Tìm Kiếm Việc Làm (JobSearchPage.js)', count: 0 };
+      cur.count += 1;
+      detectedPages.set('jobSearchPage', cur);
+    }
+    if (text.includes('apply') || text.includes('ứng tuyển') || text.includes('nộp hồ sơ')) {
+      const cur = detectedPages.get('jobApplyNoCVPage') || { icon: 'ph-file-text', label: 'Nộp Hồ Sơ Nhanh (JobApplyNoCVPage.js)', count: 0 };
+      cur.count += 1;
+      detectedPages.set('jobApplyNoCVPage', cur);
+    }
+    if (text.includes('onboarding') || text.includes('khảo sát')) {
+      const cur = detectedPages.get('onboardingPopup') || { icon: 'ph-sparkle', label: 'Popup Onboarding (OnboardingPopup.js)', count: 0 };
+      cur.count += 1;
+      detectedPages.set('onboardingPopup', cur);
+    }
+  });
+
+  if (detectedPages.size === 0) {
+    detectedPages.set('homePage', { icon: 'ph-house', label: 'Trang Chủ Việc Làm 24h (HomePage.js)', count: 1 });
+  }
+
+  if (pagesCount) pagesCount.textContent = `${detectedPages.size} màn hình`;
+  if (pagesList) {
+    pagesList.innerHTML = Array.from(detectedPages.values())
+      .map(
+        (p) => `
+        <div class="nontech-page-chip">
+          <i class="ph-bold ${p.icon}"></i>
+          <span>${escapeHtml(p.label)}</span>
+        </div>`
+      )
+      .join('');
+  }
+
+  // 3. Execution Summary & Quick Run
+  const execEl = $('#nontech-execution-details');
+  const typeBadge = $('#nontech-scenario-type-badge');
+  const platform = $('#builder-platform')?.value || 'desktop';
+  const tags = $('#builder-tags')?.value || '@e2e';
+
+  if (typeBadge) {
+    typeBadge.textContent = `${builderSteps.length} bước BDD`;
+  }
+
+  if (execEl) {
+    execEl.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12.5px;">
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--line); padding-bottom: 6px;">
+          <span style="color: var(--muted);"><i class="ph-bold ph-browsers"></i> Môi trường thực thi:</span>
+          <strong style="color: var(--text);">${platform === 'mobile-web' ? '📱 Mobile Web (Pixel 5)' : '💻 Desktop Web (Chromium)'}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--line); padding-bottom: 6px;">
+          <span style="color: var(--muted);"><i class="ph-bold ph-tag"></i> Nhãn phân loại:</span>
+          <span style="color: var(--accent); font-weight: 600;">${escapeHtml(tags)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--line); padding-bottom: 6px;">
+          <span style="color: var(--muted);"><i class="ph-bold ph-list-checks"></i> Quy mô kịch bản:</span>
+          <strong style="color: var(--text);">${builderSteps.length} bước kiểm thử BDD</strong>
+        </div>
+        <div style="margin-top: 6px; display: flex; gap: 8px;">
+          <button type="button" class="btn-primary-sm" style="flex: 1; padding: 8px 12px;" onclick="window.runBuilderScenarioDirectly()"><i class="ph-bold ph-play"></i> 🚀 Chạy thử kịch bản này ngay</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+window.runBuilderScenarioDirectly = async function() {
+  const currentBadge = $('#builder-file-path-badge')?.textContent;
+  if (!currentBadge || currentBadge.includes('kich-ban-moi')) {
+    notify('Vui lòng nhấn "Lưu kịch bản vào Framework" trước khi chạy thử.');
+    return;
+  }
+  // Chuyển sang Tab Runner và cấu hình file test
+  const runnerTab = document.querySelector('.nav-item[data-view="runner-view"]');
+  if (runnerTab) {
+    runnerTab.click();
+    if ($('#spec')) {
+      $('#spec').value = currentBadge;
+    }
+    notify(`Đã chuyển sang Test Runner với file: ${currentBadge}. Bạn có thể bấm "Chạy test" ngay!`);
+  }
+};
+
+function renderPresetLibrary() {
+  const container = $('#builder-action-library-list');
+  if (!container) return;
+
+  container.innerHTML = builderPresetActions
+    .map(
+      (act) => `
+    <div class="action-lib-item" style="padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; background: var(--surface);">
+      <div style="font-weight: 700; color: var(--text); display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 13px;">${escapeHtml(act.name)}</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span class="step-type-badge badge-${act.stepType.toLowerCase()}">${act.stepType}</span>
+          <button type="button" class="btn-quick-step btn-quick-${act.stepType.toLowerCase()}" onclick="window.addBuilderStepFromAction('${act.id}')" title="Thêm hành động này vào kịch bản">+ Thêm</button>
+        </div>
+      </div>
+      <p style="color: var(--muted); font-size: 12px; margin: 0; line-height: 1.4;">${escapeHtml(act.desc || '')}</p>
+    </div>`
+    )
+    .join('');
+}
+
+window.addBuilderStepFromAction = function(actionId) {
+  const matched = builderPresetActions.find((a) => a.id === actionId);
+  if (!matched) return;
+  builderSteps.push({
+    id: `s_${Date.now()}`,
+    stepType: matched.stepType || 'When',
+    title: matched.name,
+    actionId: matched.id,
+  });
+  renderBuilderSteps();
+  compileBuilderScenario();
+  notify(`Đã thêm bước: [${matched.stepType}] ${matched.name}`);
+};
+
+function renderBuilderSteps() {
+  const container = $('#builder-steps-list');
+  const countEl = $('#builder-step-count');
+  if (!container) return;
+
+  if (countEl) countEl.textContent = builderSteps.length;
+
+  if (builderSteps.length === 0) {
+    container.innerHTML = `
+      <div class="builder-empty-state-box">
+        <div class="builder-empty-icon"><i class="ph-bold ph-sparkle"></i></div>
+        <h4>Kịch bản mới chưa có bước nào</h4>
+        <p>Nhấn các nút màu phía trên (<strong>+ Given</strong>, <strong>+ When</strong>, <strong>+ Then</strong>, <strong>+ And</strong>) hoặc chọn tùy chọn khởi tạo nhanh:</p>
+        <div class="builder-empty-actions">
+          <button type="button" class="btn-primary-sm" onclick="window.initBlankStarterSteps()"><i class="ph-bold ph-magic-wand"></i> Tạo khung 3 bước cơ bản (Given - When - Then)</button>
+          <button type="button" class="btn-secondary-sm" onclick="document.getElementById('builder-template-select').value='apply_nocv'; document.getElementById('builder-template-select').dispatchEvent(new Event('change'));"><i class="ph-bold ph-bookmarks"></i> Nạp mẫu: Ứng tuyển không cần CV</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = builderSteps
+    .map((step, idx) => {
+      const typeBadgeClass = `badge-${(step.stepType || 'When').toLowerCase()}`;
+      const actionOptions = builderPresetActions
+        .map(
+          (act) =>
+            `<option value="${act.id}" ${act.id === step.actionId ? 'selected' : ''}>[${act.stepType}] ${escapeHtml(act.name)}</option>`
+        )
+        .join('');
+
+      return `
+      <div class="builder-step-card" data-step-id="${step.id}" data-index="${idx}">
+        <div class="builder-step-top">
+          <span class="step-num-badge">#${idx + 1}</span>
+          <select class="builder-step-type-select step-type-badge ${typeBadgeClass}" style="outline: none; cursor: pointer;">
+            <option value="Given" ${step.stepType === 'Given' ? 'selected' : ''}>Given</option>
+            <option value="When" ${step.stepType === 'When' ? 'selected' : ''}>When</option>
+            <option value="Then" ${step.stepType === 'Then' ? 'selected' : ''}>Then</option>
+            <option value="And" ${step.stepType === 'And' ? 'selected' : ''}>And</option>
+          </select>
+          <input type="text" class="builder-step-title-input" value="${escapeHtml(step.title || '')}" placeholder="Mô tả bước kiểm thử (vd: Người dùng nhấn nút Đăng nhập)..." />
+          <div class="builder-step-controls">
+            <button type="button" class="btn-step-ctrl move-up-btn" title="Di chuyển lên" ${idx === 0 ? 'disabled' : ''}><i class="ph-bold ph-arrow-up"></i></button>
+            <button type="button" class="btn-step-ctrl move-down-btn" title="Di chuyển xuống" ${idx === builderSteps.length - 1 ? 'disabled' : ''}><i class="ph-bold ph-arrow-down"></i></button>
+            <button type="button" class="btn-step-ctrl clone-step-btn" title="Nhân bản bước này"><i class="ph-bold ph-copy"></i></button>
+            <button type="button" class="btn-step-ctrl delete-btn remove-step-btn" title="Xóa bước này"><i class="ph-bold ph-trash"></i></button>
+          </div>
+        </div>
+        <div class="builder-step-bottom">
+          <select class="builder-step-action-select">
+            <option value="">🎯 -- Chọn hành động chuẩn hóa hoặc tự động phân tích --</option>
+            ${actionOptions}
+          </select>
+        </div>
+      </div>`;
+    })
+    .join('');
+
+  container.querySelectorAll('.builder-step-card').forEach((card) => {
+    const idx = parseInt(card.dataset.index, 10);
+    const step = builderSteps[idx];
+
+    card.querySelector('.builder-step-type-select')?.addEventListener('change', (e) => {
+      step.stepType = e.target.value;
+      renderBuilderSteps();
+      compileBuilderScenario();
+    });
+
+    card.querySelector('.builder-step-title-input')?.addEventListener('input', (e) => {
+      step.title = e.target.value;
+      compileBuilderScenario();
+    });
+
+    card.querySelector('.builder-step-action-select')?.addEventListener('change', (e) => {
+      step.actionId = e.target.value;
+      const matched = builderPresetActions.find((a) => a.id === step.actionId);
+      if (matched && (!step.title || step.title.startsWith('Bước '))) {
+        step.title = matched.name;
+        step.stepType = matched.stepType;
+        renderBuilderSteps();
+      }
+      compileBuilderScenario();
+    });
+
+    card.querySelector('.move-up-btn')?.addEventListener('click', () => {
+      if (idx > 0) {
+        const temp = builderSteps[idx];
+        builderSteps[idx] = builderSteps[idx - 1];
+        builderSteps[idx - 1] = temp;
+        renderBuilderSteps();
+        compileBuilderScenario();
+      }
+    });
+
+    card.querySelector('.move-down-btn')?.addEventListener('click', () => {
+      if (idx < builderSteps.length - 1) {
+        const temp = builderSteps[idx];
+        builderSteps[idx] = builderSteps[idx + 1];
+        builderSteps[idx + 1] = temp;
+        renderBuilderSteps();
+        compileBuilderScenario();
+      }
+    });
+
+    card.querySelector('.clone-step-btn')?.addEventListener('click', () => {
+      const clone = { ...step, id: `s_${Date.now()}`, title: `${step.title} (bản sao)` };
+      builderSteps.splice(idx + 1, 0, clone);
+      renderBuilderSteps();
+      compileBuilderScenario();
+      notify(`Đã nhân bản bước #${idx + 1}`);
+    });
+
+    card.querySelector('.remove-step-btn')?.addEventListener('click', () => {
+      builderSteps.splice(idx, 1);
+      renderBuilderSteps();
+      compileBuilderScenario();
+    });
+  });
+}
+
+let rawCompiledBddCode = '';
+
+function highlightJsTokens(str) {
+  if (!str) return '';
+
+  return str
+    .replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`|'.*?'|".*?")/g, '<span class="tok-string">$1</span>')
+    .replace(/\b(test\.describe|test\.step|test\.slow|test\.setTimeout|test|expect)\b/g, '<span class="tok-api">$1</span>')
+    .replace(/\b(const|let|var|async|await|function|return|require|import|from|export|new|class|extends|if|else|try|catch|throw|finally)\b/g, '<span class="tok-keyword">$1</span>')
+    .replace(/\b(page|authenticatedUser|onboardingPopup|homePage|jobSearchPage|jobApplyNoCVPage|usersData)\b/g, '<span class="tok-fixture">$1</span>')
+    .replace(/\.(toBeVisible|toBeHidden|toHaveText|toContainText|toHaveValue|toBeEnabled|click|fill|waitFor|goto|closeIfVisible|clickNoCVJobLink|startApplyNoCV|capture)\b/g, '.<span class="tok-method">$1</span>')
+    .replace(/\b(true|false|null|undefined|\d+)\b/g, '<span class="tok-number">$1</span>');
+}
+
+function formatJavaScriptSyntax(code) {
+  if (!code) {
+    return `<div class="code-line"><span class="line-num">1</span><span class="code-content tok-comment">// Trạng thái kịch bản mới. Thêm các bước ở bên trái để sinh mã BDD tự động.</span></div>`;
+  }
+
+  const lines = code.split(/\r?\n/);
+  return lines
+    .map((rawLine, idx) => {
+      let line = escapeHtml(rawLine);
+
+      if (line.includes('//')) {
+        const idxComment = line.indexOf('//');
+        const beforeComment = highlightJsTokens(line.slice(0, idxComment));
+        const commentText = line.slice(idxComment);
+        line = `${beforeComment}<span class="tok-comment">${commentText}</span>`;
+      } else {
+        line = highlightJsTokens(line);
+      }
+
+      return `<div class="code-line"><span class="line-num">${idx + 1}</span><span class="code-content">${line || '&nbsp;'}</span></div>`;
+    })
+    .join('');
+}
+
+async function compileBuilderScenario() {
+  const featName = $('#builder-feature-name')?.value?.trim() || '';
+  const scenName = $('#builder-scenario-name')?.value?.trim() || '';
+
+  if (builderSteps.length === 0 && !featName && !scenName) {
+    rawCompiledBddCode = '';
+    const codeEl = $('#builder-compiled-code');
+    const badgeEl = $('#builder-file-path-badge');
+    if (codeEl) {
+      codeEl.innerHTML = formatJavaScriptSyntax(
+        `// Trạng thái kịch bản mới.\n// Hãy nhập Tên Tính năng, Tên Kịch bản và thêm các bước BDD ở cột bên trái để xem mã Playwright sinh tự động tại đây.`
+      );
+    }
+    if (badgeEl) badgeEl.textContent = 'tests/e2e/desktop/kich-ban-moi.spec.js';
+    return;
+  }
+
+  const payload = {
+    schemaVersion: 1,
+    featureName: featName || 'Tính năng kiểm thử mới',
+    scenarioName: scenName || 'Kịch bản kiểm thử mới',
+    platform: $('#builder-platform')?.value || 'desktop',
+    tags: ($('#builder-tags')?.value || '@visualBuilder').split(/\s+/).filter(Boolean),
+    steps: builderSteps,
+  };
+
+  try {
+    const res = await request('/api/builder/compile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    rawCompiledBddCode = res.specCode || '';
+    const codeEl = $('#builder-compiled-code');
+    const badgeEl = $('#builder-file-path-badge');
+    if (codeEl) codeEl.innerHTML = formatJavaScriptSyntax(res.specCode);
+    if (badgeEl) badgeEl.textContent = res.specRelativePath;
+  } catch (err) {
+    console.error('Lỗi compile BDD:', err);
+  } finally {
+    renderNonTechOverview();
+  }
+}
+
+async function saveBuilderScenario() {
+  const saveBtn = $('#builder-save-btn');
+  if (saveBtn) saveBtn.disabled = true;
+
+  const payload = {
+    schemaVersion: 1,
+    featureName: $('#builder-feature-name')?.value || 'Visual Feature',
+    scenarioName: $('#builder-scenario-name')?.value || 'Scenario',
+    platform: $('#builder-platform')?.value || 'desktop',
+    tags: ($('#builder-tags')?.value || '@visualBuilder').split(/\s+/).filter(Boolean),
+    steps: builderSteps,
+    expectedHash: currentSelectedScript?.compiledHash || undefined,
+  };
+
+  try {
+    const res = await request('/api/builder/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    notify(`${res.message} [${res.specPath}]`);
+  } catch (err) {
+    notify(`Lỗi lưu kịch bản: ${err.message}`);
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+// =============================================================================
+// THỐNG NHẤT MODAL XÁC NHẬN XÓA (TEST SCRIPT, DATASET, PAGE OBJECT)
+// =============================================================================
+let pendingDeleteAction = null;
+
+function showConfirmDeleteModal({ title, subtitle, targetName, targetPath, iconClass, message, onConfirm }) {
+  const modal = document.getElementById('modal-confirm-delete');
+  if (!modal) {
+    if (confirm(`Bạn có chắc chắn muốn xóa ${targetName || targetPath}?`)) {
+      onConfirm().catch((err) => notify(`Lỗi khi xóa: ${err.message}`));
+    }
+    return;
+  }
+
+  const titleEl = document.getElementById('modal-confirm-delete-title');
+  const subEl = document.getElementById('modal-confirm-delete-subtitle');
+  const nameEl = document.getElementById('modal-confirm-delete-filename');
+  const pathEl = document.getElementById('modal-confirm-delete-filepath');
+  const iconEl = document.getElementById('modal-confirm-delete-file-icon');
+  const msgEl = document.getElementById('modal-confirm-delete-message');
+  const submitBtn = document.getElementById('modal-confirm-delete-submit-btn');
+
+  if (titleEl) titleEl.textContent = title || 'Xác nhận xóa';
+  if (subEl) subEl.textContent = subtitle || 'Thao tác này sẽ xóa file khỏi ổ đĩa';
+  if (nameEl) nameEl.textContent = targetName || 'Tệp không tên';
+  if (pathEl) pathEl.textContent = targetPath || '';
+  if (iconEl && iconClass) iconEl.className = iconClass;
+  if (msgEl && message) msgEl.innerHTML = message;
+
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="ph-bold ph-trash"></i> Xóa vĩnh viễn';
+  }
+
+  pendingDeleteAction = async () => {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang xóa...';
+    }
+    try {
+      await onConfirm();
+      modal.close();
+    } catch (err) {
+      notify(`Lỗi khi xóa: ${err.message}`);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="ph-bold ph-trash"></i> Thử lại';
+      }
+    }
+  };
+
+  modal.showModal();
+}
+
+document.getElementById('modal-confirm-delete-submit-btn')?.addEventListener('click', async () => {
+  if (typeof pendingDeleteAction === 'function') {
+    await pendingDeleteAction();
+  }
+});
+
+// 1. Xóa Kịch bản Test (BDD Script)
+document.getElementById('script-delete-btn')?.addEventListener('click', () => {
+  if (!currentSelectedScript) {
+    notify('Vui lòng chọn một kịch bản để xóa.');
+    return;
+  }
+  const scriptName = currentSelectedScript.scenarioName || currentSelectedScript.fileName;
+  const scriptPath = currentSelectedScript.relativePath || currentSelectedScript.fileName;
+  const isMobile = currentSelectedScript.platform === 'mobile-web';
+
+  showConfirmDeleteModal({
+    title: 'Xác nhận xóa kịch bản test',
+    subtitle: 'Kịch bản Playwright BDD sẽ bị xóa vĩnh viễn khỏi thư mục tests/',
+    targetName: scriptName,
+    targetPath: scriptPath,
+    iconClass: isMobile ? 'ph-bold ph-device-mobile' : 'ph-bold ph-desktop',
+    message: `Hệ thống sẽ tự động lưu 1 bản sao lưu trong <code>.dashboard-backups/</code> trước khi xóa kịch bản <strong>${escapeHtml(currentSelectedScript.fileName)}</strong>. Bạn có chắc chắn muốn xóa vĩnh viễn?`,
+    onConfirm: async () => {
+      const res = await request('/api/builder/delete-script', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spec: scriptPath }),
+      });
+      notify(`🗑️ ${res.message || 'Đã xóa kịch bản thành công!'}`);
+      currentSelectedScript = null;
+      await loadProjectScripts();
+    },
+  });
+});
+
+// 2. Xóa Tệp Dữ Liệu Test (JSON Dataset)
+document.getElementById('data-delete-file-btn')?.addEventListener('click', () => {
+  if (!currentDataFile) {
+    notify('Vui lòng chọn một tệp dữ liệu để xóa.');
+    return;
+  }
+
+  showConfirmDeleteModal({
+    title: 'Xác nhận xóa tệp dữ liệu',
+    subtitle: 'Tệp dữ liệu JSON sẽ bị xóa khỏi thư mục data/',
+    targetName: currentDataFile,
+    targetPath: `data/${currentDataFile}`,
+    iconClass: 'ph-bold ph-database',
+    message: `Hệ thống sẽ tự động lưu 1 bản sao lưu trong <code>.dashboard-backups/</code> trước khi xóa tệp <strong>${escapeHtml(currentDataFile)}</strong>. Bạn có chắc chắn muốn xóa vĩnh viễn?`,
+    onConfirm: async () => {
+      const res = await request('/api/data/delete-dataset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: currentDataFile }),
+      });
+      notify(`🗑️ ${res.message || 'Đã xóa tệp dữ liệu thành công!'}`);
+      currentDataFile = null;
+      await loadDataFilesList();
+      if (datasetsCache && datasetsCache.length > 0) {
+        await selectDataset(datasetsCache[0].fileName);
+      }
+    },
+  });
+});
+
+// 3. Xóa Page Object
+document.getElementById('pm-btn-delete-page')?.addEventListener('click', () => {
+  if (!currentInspectedPage) {
+    notify('Vui lòng chọn một Page Object để xóa.');
+    return;
+  }
+  if (currentInspectedPage.relativePath === 'pages/BasePage.js') {
+    notify('⚠️ Không thể xóa BasePage.js vì đây là lớp nền tảng dùng chung của toàn bộ framework.');
+    return;
+  }
+
+  showConfirmDeleteModal({
+    title: 'Xác nhận xóa Page Object',
+    subtitle: 'Class Page Object sẽ bị xóa khỏi thư mục pages/',
+    targetName: `${currentInspectedPage.className}.js`,
+    targetPath: currentInspectedPage.relativePath,
+    iconClass: 'ph-bold ph-browsers',
+    message: `Hệ thống sẽ tự động lưu 1 bản sao lưu trong <code>.dashboard-backups/</code> trước khi xóa Page Object <strong>${escapeHtml(currentInspectedPage.className)}.js</strong> (${escapeHtml(currentInspectedPage.relativePath)}). Bạn có chắc chắn muốn xóa vĩnh viễn?`,
+    onConfirm: async () => {
+      const res = await request('/api/object-repository/delete-page', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relativePath: currentInspectedPage.relativePath }),
+      });
+      notify(`🗑️ ${res.message || 'Đã xóa Page Object thành công!'}`);
+      currentInspectedPage = null;
+      await openPageManager();
+    },
+  });
+});
+
+// URL query parameter tab router (?tab=settings&subtab=documents)
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  const subtabParam = urlParams.get('subtab');
+  if (tabParam) {
+    const tabMap = {
+      'runner': 'runner-view',
+      'recorder': 'recorder-view',
+      'data': 'data-view',
+      'bdd': 'builder-view',
+      'reports': 'resources-view',
+      'resources': 'resources-view',
+      'pages': 'page-manager-view',
+      'code': 'code-view',
+      'compare': 'compare-view',
+      'settings': 'settings-view',
+      'config': 'settings-view',
+    };
+    const targetViewId = tabMap[tabParam.toLowerCase()] || tabParam;
+    const tabBtn = document.querySelector(`.view-tab[data-view="${targetViewId}"]`);
+    if (tabBtn) {
+      tabBtn.click();
+      if (targetViewId === 'settings-view' && subtabParam) {
+        setTimeout(() => {
+          const subtabBtn = document.querySelector(`.settings-subtab[data-subtab="${subtabParam}"]`);
+          if (subtabBtn) subtabBtn.click();
+        }, 150);
+      }
+    }
+  }
+} catch (e) {
+  // Ignored
+}
+

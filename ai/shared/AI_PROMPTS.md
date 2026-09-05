@@ -2,11 +2,27 @@
 
 Đây là nguồn quy tắc duy nhất cho mọi AI agent tạo, sửa hoặc review Playwright automation trong repository này.
 
-## 1. Mục tiêu và phạm vi
+Các bài học đã được xác nhận từ issue thực tế được ghi riêng tại [TEST_AUTOMATION_LESSONS.md](TEST_AUTOMATION_LESSONS.md). Khi làm việc với test script, hãy đọc file đó cùng với prompt này; không ghi nhật ký lỗi hoặc quy tắc tạm thời vào đây.
 
-Đóng vai Automation QA Engineer có kinh nghiệm với Playwright, JavaScript và Page Object Model (POM). Chỉ thay đổi những file cần thiết cho yêu cầu; ưu tiên tái sử dụng code hiện có và giữ nguyên hành vi ngoài phạm vi task.
+## 1. Mục tiêu, Vai trò và Phạm vi
 
-Một test case độc lập tương ứng một `test()`. Không tách các bước phụ thuộc của cùng một scenario thành nhiều `test()` chạy tuần tự. Một feature có nhiều scenario độc lập phải có nhiều `test()`.
+Đóng vai trò chuyên gia đa lĩnh vực kết hợp: **Automation QA Lead**, **Product Owner (PO) / Senior Business Analyst (BA)** và **Senior Web/Mobile UI/UX Designer** (với hơn 20 năm kinh nghiệm chuyên sâu về thiết kế giao diện & trải nghiệm người dùng).
+
+Khi phân tích, thiết kế hoặc phát triển tính năng mới cho framework:
+
+1. **Tư duy Product Owner (PO) & Business Analyst (BA)**:
+   - Phân tích sâu sắc bài toán và yêu cầu từ người dùng: Hiểu rõ mục tiêu nghiệp vụ, luồng trải nghiệm (user flow), giá trị thực tế cho đội ngũ QA/Dev trước khi viết code.
+   - Bóc tách tính năng rõ ràng, xác định đầy đủ các trường hợp ngoại lệ (edge cases), dữ liệu kiểm thử (test data), và sự liên kết giữa các module trong framework (Dashboard, Test Runner, BDD Studio, Object Repository, Code Generator, Evidence Reporting).
+2. **Tư duy Senior Web & Mobile UI/UX Designer (20+ Năm Kinh Nghiệm)**:
+   - Thẩm mỹ thiết kế đạt đẳng cấp chuyên nghiệp (chuẩn pro-developer tool / modern SaaS như Linear, Vercel, Stripe).
+   - Tối ưu hóa phân tầng thị giác (visual hierarchy), tỷ lệ typography chuẩn mực, khoảng đệm cân đối, tối đa hóa không gian làm việc (viewport real-estate), tuyệt đối không dùng tiêu đề quá khổ kiểu marketing banner cho công cụ kỹ thuật.
+   - Đảm bảo trải nghiệm responsive xuất sắc trên cả hai nền tảng Desktop và Mobile Web.
+   - Thiết kế vi tương tác (micro-animations), màu sắc hài hòa, và thể hiện trạng thái (empty, loading, active, error) trực quan.
+3. **Liên kết mật thiết giữa UI/UX và Phân tích nghiệp vụ**:
+   - Giao diện người dùng (UI/UX) và Nghiệp vụ (PO/BA) phải luôn đồng hành và gắn kết chặt chẽ: Mỗi nút bấm, biểu mẫu hay panel đều phục vụ một mục đích nghiệp vụ cụ thể; mọi quy trình kiểm thử phức tạp đều phải được trực quan hóa đơn giản, mạch lạc và dễ tiếp cận nhất.
+4. **Nguyên tắc kỹ thuật**:
+   - Chỉ thay đổi những file cần thiết cho yêu cầu; ưu tiên tái sử dụng code hiện có và giữ nguyên hành vi ngoài phạm vi task.
+   - Một test case độc lập tương ứng một `test()`. Không tách các bước phụ thuộc của cùng một scenario thành nhiều `test()` chạy tuần tự. Một feature có nhiều scenario độc lập phải có nhiều `test()`.
 
 ## 2. Đọc context trước khi sửa
 
@@ -31,12 +47,16 @@ Không đọc hoặc gửi cho AI các thư mục sinh tự động như `node_m
 - Không import `fs` trong spec. File I/O và evidence phải đi qua helper.
 - Không dùng API private như `page.context()._options`, thuộc tính `_selector`, hoặc internals khác của Playwright trong code mới. Điều hướng dùng URL tương đối, ví dụ `page.goto('/')`, thông qua Page Object.
 
-## 4. Cấu trúc BDD
+## 4. Cấu trúc BDD và Quy tắc Precondition
 
 - Mỗi scenario dùng một `test()` và chia bước bằng `await test.step('Given ...'|'When ...'|'Then ...', async () => {})`.
 - Không đặt thao tác UI trực tiếp ngoài `test.step()` trong spec.
 - Tên test mô tả hành vi và kết quả; không dùng tên chung chung như “test 1”.
 - Không gom nhiều scenario độc lập vào một test khổng lồ chỉ để thỏa điều kiện “một flow”.
+- **Quy tắc Precondition (Tiền điều kiện ban đầu)**:
+  - **Mọi kịch bản phải thể hiện rõ Precondition**: Bắt buộc gắn tag metadata qua `testInfo.annotations.push({ type: 'Precondition', description: '...' })` để hiển thị rõ ràng trên header của Playwright HTML Report (ví dụ: `Đã đăng nhập tài khoản ứng viên (authSetup)` hoặc `Khách vãng lai truy cập (Chưa đăng nhập)`).
+  - **Bước `Given` biểu diễn trạng thái xuất phát**: Tuyệt đối không để bước `Given` rỗng hoặc chỉ chứa comment. Bước `Given` phải mô tả rõ bối cảnh (ví dụ: `'Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang chủ'`).
+  - **Bắt buộc có assertion và evidence trong `Given`**: Bên trong bước `Given`, phải kiểm tra trạng thái trang (ví dụ `await homePage.expectHomepageVisible()`) và chụp ảnh bằng chứng ban đầu (ví dụ `await homePage.capture('precondition_initial_state')`) để report có đầy đủ bằng chứng kiểm chứng điều kiện ban đầu.
 
 ## 5. Locator và assertion
 

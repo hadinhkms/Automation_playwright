@@ -65,8 +65,14 @@ const test = base.extend({
   createPopupConsent: async ({ featureName }, use) => {
     await use((targetPage) => new PopupConsent(targetPage, featureName));
   },
-  authenticatedUser: async ({ page, workerUserData }, use) => {
-    const user = await loginUserFromDataForPrecondition(page, workerUserData.user);
+  authenticatedUser: async ({ page, workerUserData }, use, testInfo) => {
+    testInfo.annotations.push({
+      type: 'Precondition',
+      description: `Đã đăng nhập tài khoản ứng viên (authSetup: ${workerUserData.user?.phone || 'Test User'})`,
+    });
+    const user = await test.step('[Precondition] Đăng nhập tự động bằng tài khoản ứng viên (authSetup)', async () => {
+      return await loginUserFromDataForPrecondition(page, workerUserData.user);
+    });
     await use({ ...user, runtimeDataPath: workerUserData.filePath });
   },
 });

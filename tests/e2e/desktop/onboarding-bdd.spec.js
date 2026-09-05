@@ -5,9 +5,9 @@ test.describe('Feature: Cập nhật thông tin Onboarding sau khi đăng nhập
   test('Kiểm tra luồng Onboarding của người dùng đã đăng nhập', async ({ authenticatedUser, onboardingPopup }) => {
     test.setTimeout(240000);
 
-    await test.step('Given Người dùng thấy modal Onboarding (Bước 1) sau khi đăng nhập', async () => {
+    await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và thấy modal Onboarding (Bước 1)', async () => {
       await expect(onboardingPopup.locationInput).toBeVisible({ timeout: 30000 }); // Chờ input khu vực hiển thị
-      // await onboardingPopup.capture('after_login_onboarding_shown');
+      await onboardingPopup.capture('precondition_onboarding_modal_shown');
     });
 
     await test.step('When Tôi chọn khu vực tìm việc', async () => {

@@ -3,22 +3,16 @@
     "qc": {
       "label": "QC",
       "baseURL": "https://seeker.vl24hv2.qc.sieuviet-team.com",
-      "companyURL": "https://company.carthings.vn",
-      "carthingsURL": "https://qc.carthings.vn",
       "apiBaseURL": "https://api.vl24hv2.qc.sieuviet-team.com"
     },
     "stg": {
       "label": "Staging",
       "baseURL": "https://seeker.vl24hv2.staging.sieuviet-team.com",
-      "companyURL": "https://seeker.vl24hv2.staging.sieuviet-team.com",
-      "carthingsURL": "https://seeker.vl24hv2.staging.sieuviet-team.com",
       "apiBaseURL": "https://api.vl24hv2.staging.sieuviet-team.com"
     },
     "prod": {
       "label": "Production",
-      "baseURL": "https://seeker.vl24hv2.staging.sieuviet-team.com",
-      "companyURL": "https://company.carthings.vn",
-      "carthingsURL": "https://carthings.vn",
+      "baseURL": "https://vieclam24h.vn",
       "apiBaseURL": "https://api.vl24hv2.staging.sieuviet-team.com"
     }
   },

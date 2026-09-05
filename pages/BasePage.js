@@ -8,8 +8,14 @@ class BasePage {
   constructor(page, featureName) {
     this.page = page;
     this.actions = new UiActions(page);
-    this.accountMenuButton = page.getByRole('button', { name: /avt_invalid|tài khoản|hồ sơ/i });
-    this.appliedJobsButton = page.getByRole('button', { name: /Việc làm đã ứng tuyển/i });
+    this.accountMenuButton = page.getByRole('button', { name: /avt_invalid|tài khoản/i })
+      .or(page.getByAltText('avt_invalid'))
+      .or(page.locator('figure img[alt="avt_invalid"]'))
+      .first();
+    this.appliedJobsButton = page.getByRole('button', { name: /Việc làm đã ứng tuyển/i })
+      .or(page.getByRole('link', { name: /Việc làm đã ứng tuyển/i }))
+      .or(page.getByText('Việc làm đã ứng tuyển'))
+      .first();
     this.appliedJobsList = page.locator('[data-test-id="applied-job__list-jobs"]');
     const resolvedFeatureName = featureName || this.constructor.name.toLowerCase();
     this.screenshotHelper = new ScreenshotHelper(page, resolvedFeatureName);
@@ -47,15 +53,25 @@ class BasePage {
   async waitForElement(locator) {
     return locator.waitFor({ state: 'visible', timeout: 15000 });
   }
+  /**
+   * Phát hiện xem hiện tại trên màn hình có Modal / Popup / Dialog / Drawer đang mở không.
+   * @returns {Promise<boolean>}
+   */
+  async isModalOrPopupVisible() {
+    if (this.screenshotHelper && typeof this.screenshotHelper.isModalOrPopupVisible === 'function') {
+      return this.screenshotHelper.isModalOrPopupVisible();
+    }
+    return false;
+  }
 
-  async _capture(actionName, details = '', fullPage = false, options = {}) {
+  async _capture(actionName, details = '', fullPage = null, options = {}) {
     if (this.screenshotHelper) {
       const fileName = `${actionName}${details ? `-${details}` : ''}`;
       await this.screenshotHelper.takeScreenshot(fileName, fullPage, options);
     }
   }
 
-  async capture(stepName, fullPage = false, options = {}) {
+  async capture(stepName, fullPage = null, options = {}) {
     // Chờ mạng cơ bản ổn định (không bắt buộc, catch lỗi timeout để không gián đoạn)
     await this.page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => null);
 
@@ -395,8 +411,54 @@ class BasePage {
   }
 
   async openAppliedJobs() {
+    try {
+      const applyModal = this.page.locator('#apply-job-modal');
+      if (await applyModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+        // First check if modal has a direct link/button to applied jobs
+        const directAppliedLink = applyModal.locator('button, a').filter({ hasText: /Xem việc làm đã ứng tuyển|Việc làm đã ứng tuyển/i }).first();
+        if (await directAppliedLink.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await Promise.all([
+            this.page.waitForURL(/\/ntv-trang-quan-tri-viec-lam-da-ung-tuyen\.html(?:[?#]|$)/i, { timeout: 30000 }),
+            this.clickElement(directAppliedLink),
+          ]);
+          return;
+        }
+
+        // Otherwise close or dismiss modal
+        const modalCloseBtn = applyModal.locator('[data-test-id="common__close-button"], button:has(.svicon-close), .svicon-close, button:has-text("Đóng"), button:has-text("Xong")').first();
+        if (await modalCloseBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await modalCloseBtn.click({ force: true }).catch(() => null);
+        } else {
+          await this.page.keyboard.press('Escape');
+        }
+
+        try {
+          await applyModal.waitFor({ state: 'hidden', timeout: 5000 });
+        } catch (hideErr) {
+          await this.page.evaluate(() => {
+            const el = document.getElementById('apply-job-modal');
+            if (el) el.style.display = 'none';
+          }).catch(() => null);
+        }
+      }
+    } catch (err) {
+      console.log('Notice while handling apply modal in openAppliedJobs:', err.message);
+    }
+
     await this.clickElement(this.accountMenuButton);
     await this.capture('account_menu_opened');
+
+    // On mobile web, "Quản lý việc làm" is an accordion menu that needs to be expanded first
+    const jobManagementAccordion = this.page.getByRole('button', { name: /Quản lý việc làm/i })
+      .or(this.page.getByText('Quản lý việc làm', { exact: true }))
+      .first();
+    if (await jobManagementAccordion.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const isExpanded = (await jobManagementAccordion.getAttribute('aria-expanded').catch(() => 'false')) === 'true';
+      if (!isExpanded) {
+        await this.clickElement(jobManagementAccordion);
+      }
+    }
+
     await Promise.all([
       this.page.waitForURL(/\/ntv-trang-quan-tri-viec-lam-da-ung-tuyen\.html(?:[?#]|$)/i, {
         timeout: 30000,

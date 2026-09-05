@@ -15,8 +15,9 @@ test.describe('Mobile Feature: Hoàn thành profile mini và ứng tuyển job k
 
     let jobApplyNoCVPage;
 
-    await test.step('Given Người dùng mobile đã đăng nhập bằng thông tin từ authSetup', async () => {
-      // authenticatedUser fixture đã hoàn tất precondition đăng nhập mobile.
+    await test.step('Given Tiền điều kiện: Người dùng mobile đã đăng nhập và sẵn sàng tại trang chủ', async () => {
+      await homePage.expectHomepageVisible();
+      await homePage.capture('precondition_mobile_logged_in_state');
     });
 
     await test.step('And Người dùng mobile đóng onboarding nếu popup hiển thị', async () => {
@@ -45,7 +46,7 @@ test.describe('Mobile Feature: Hoàn thành profile mini và ứng tuyển job k
       await jobApplyNoCVPage.capture('mobile_profile1_submitted');
     });
 
-    await test.step('And Người dùng mobile ứng tuyển các công việc được gợi ý', async () => {
+    await test.step('And Người dùng mobile thực hiện Bulk Apply các công việc được gợi ý', async () => {
       const didBulkApply = await jobApplyNoCVPage.bulkApply(applyData.noCVApply.job2);
       if (didBulkApply) {
         await jobApplyNoCVPage.capture('mobile_bulk_apply_completed');

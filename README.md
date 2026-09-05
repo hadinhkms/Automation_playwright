@@ -51,8 +51,11 @@ Các URL được quản lý tập trung trong `core/config/env.js` và được
 │   └── setup/           # Setup scripts
 ├── evidence/            # Evidence sinh khi chạy test
 ├── playwright-report/   # HTML reports được nhóm theo ngày và lần chạy
-├── AI_PROMPTS.md        # Quy tắc chuẩn khi viết/sửa Playwright
-├── QA_AI_RULES.md       # Entry point trỏ tới AI_PROMPTS.md
+├── ai/                   # Prompt và lessons của AI
+│   ├── shared/           # Prompt dùng chung, được commit
+│   ├── dashboard/        # Quy tắc Dashboard dùng chung, được commit
+│   └── personal/         # Prompt cá nhân, bị Git ignore
+├── QA_AI_RULES.md       # Entry point tới prompt automation
 └── playwright.config.js # Playwright projects và runtime config
 ```
 
@@ -241,7 +244,7 @@ Chỉ gắn `@applyjob` cho script có business apply. Các script chỉ cập n
 
 ## Kiến trúc và quy ước bắt buộc
 
-Nguồn quy tắc chính thức là `AI_PROMPTS.md`. Khi viết hoặc sửa Playwright, phải tuân thủ các nguyên tắc chính sau:
+Nguồn quy tắc chính thức là `ai/shared/AI_PROMPTS.md`. Khi viết hoặc sửa Playwright, phải tuân thủ các nguyên tắc chính sau:
 
 - Mỗi scenario độc lập tương ứng một `test()`.
 - Spec dùng `test.step()` theo Given/When/Then và chỉ điều phối hành vi.

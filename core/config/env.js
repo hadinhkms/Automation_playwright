@@ -3,7 +3,8 @@ const { getDashboardConfig } = require('./dashboardConfig');
 
 const dashboardConfig = getDashboardConfig();
 const environments = dashboardConfig.environments;
-const ENV = process.env.NODE_ENV || dashboardConfig.runtime.defaultEnvironment || 'qc';
+const rawEnv = process.env.NODE_ENV || dashboardConfig.runtime.defaultEnvironment || 'qc';
+const ENV = typeof rawEnv === 'string' ? rawEnv.trim() : 'qc';
 
 if (!environments[ENV]) {
   throw new Error(`Unknown NODE_ENV "${ENV}". Supported values: ${Object.keys(environments).join(', ')}`);

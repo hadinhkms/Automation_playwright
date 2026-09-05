@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 const {
   generateLocatorName,
@@ -7,7 +7,7 @@ const {
 } = require('./namingUtils');
 
 /**
- * Phân tích mã nguồn raw Playwright Codegen thành cấu trúc Intermediate JSON Actions
+ * Phan tich ma nguon raw Playwright Codegen thanh cau truc Intermediate JSON Actions
  * @param {string} rawScript
  * @returns {{ scenarioName: string, detectedUrl: string, actionsCount: number, actions: Array, globalWarnings: string[] }}
  */
@@ -20,9 +20,8 @@ function parsePlaywrightScript(rawScript) {
   const actions = [];
   const globalWarnings = [];
   let detectedUrl = '';
-  let scenarioName = 'Thao tác giao diện người dùng';
+  let scenarioName = 'Thao tac giao dien nguoi dung';
 
-  // Trích xuất tên test nếu có: test('...', async ({ page }) => {
   const testTitleMatch = rawScript.match(/test\(\s*['"`]([^'"`]+)['"`]/);
   if (testTitleMatch && testTitleMatch[1] !== 'test') {
     scenarioName = testTitleMatch[1];
@@ -41,14 +40,36 @@ function parsePlaywrightScript(rawScript) {
         type: 'goto',
         url: detectedUrl,
         raw: line,
-        summary: `Điều hướng đến: ${detectedUrl}`,
+        summary: `Dieu huong den: ${detectedUrl}`,
         warnings: [],
       });
       continue;
     }
 
-    // 2. Click: await page.locator(...).click(...) hoặc await page.getBy*(...).click(...)
-    const clickMatch = line.match(/(?:await\s+)?(page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText)[^;]+)\.click\s*\(([^)]*)\)/);
+    // 2. Assertions: await expect(page.locator(...)).toBeVisible()
+    const expectMatch = line.match(/(?:await\s+)?expect\s*\(\s*(page\..*?)\s*\)\.(toBeVisible|toBeHidden|toHaveText|toContainText|toHaveValue|toBeEnabled|toBeDisabled|toHaveURL|toHaveTitle)\s*\(([^)]*)\)/);
+    if (expectMatch) {
+      const locatorExpr = expectMatch[1].trim();
+      const assertionType = expectMatch[2];
+      const expectedVal = expectMatch[3] ? expectMatch[3].trim().replace(/^['"`]|['"`]$/g, '') : '';
+      const locatorVar = generateLocatorName(locatorExpr);
+      const warnings = analyzeLocatorWarnings(locatorExpr);
+      actions.push({
+        id: `act_${actions.length + 1}`,
+        type: 'assertion',
+        locator: locatorExpr,
+        locatorVar,
+        assertionType,
+        expectedVal,
+        raw: line,
+        summary: `Kiem tra: ${locatorVar} ${assertionType}(${expectedVal || ''})`,
+        warnings,
+      });
+      continue;
+    }
+
+    // 3. Click: await page.locator(...).click(...) hoac await page.getBy*(...).click(...)
+    const clickMatch = line.match(/(?:await\s+)?(page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText).*?)\.click\s*\(([^)]*)\)/);
     if (clickMatch) {
       const locatorExpr = clickMatch[1].trim();
       const locatorVar = generateLocatorName(locatorExpr);
@@ -59,14 +80,14 @@ function parsePlaywrightScript(rawScript) {
         locator: locatorExpr,
         locatorVar,
         raw: line,
-        summary: `Click vào ${locatorVar}`,
+        summary: `Click vao ${locatorVar}`,
         warnings,
       });
       continue;
     }
 
-    // 3. Fill: await page.locator(...).fill('value')
-    const fillMatch = line.match(/(?:await\s+)?(page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText)[^;]+)\.fill\s*\(\s*(['"`].*?['"`]|[^)]+)\s*\)/);
+    // 4. Fill: await page.locator(...).fill('value')
+    const fillMatch = line.match(/(?:await\s+)?(page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText).*?)\.fill\s*\(\s*(['"`].*?['"`]|[^)]+)\s*\)/);
     if (fillMatch) {
       const locatorExpr = fillMatch[1].trim();
       const value = fillMatch[2].replace(/^['"`]|['"`]$/g, '');
@@ -79,14 +100,14 @@ function parsePlaywrightScript(rawScript) {
         locatorVar,
         value,
         raw: line,
-        summary: `Nhập '${value}' vào ${locatorVar}`,
+        summary: `Nhap '${value}' vao ${locatorVar}`,
         warnings,
       });
       continue;
     }
 
-    // 4. Select Option: await page.locator(...).selectOption(...)
-    const selectMatch = line.match(/(?:await\s+)?(page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText)[^;]+)\.selectOption\s*\(\s*(['"`].*?['"`]|[^)]+)\s*\)/);
+    // 5. Select Option: await page.locator(...).selectOption(...)
+    const selectMatch = line.match(/(?:await\s+)?(page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText).*?)\.selectOption\s*\(\s*(['"`].*?['"`]|[^)]+)\s*\)/);
     if (selectMatch) {
       const locatorExpr = selectMatch[1].trim();
       const value = selectMatch[2].replace(/^['"`]|['"`]$/g, '');
@@ -98,15 +119,14 @@ function parsePlaywrightScript(rawScript) {
         locator: locatorExpr,
         locatorVar,
         value,
-        raw: line,
-        summary: `Chọn option '${value}' tại ${locatorVar}`,
+        summary: `Chon option '${value}' tai ${locatorVar}`,
         warnings,
       });
       continue;
     }
 
-    // 5. Check / Uncheck
-    const checkMatch = line.match(/(?:await\s+)?(page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText)[^;]+)\.(check|uncheck)\s*\(/);
+    // 6. Check / Uncheck
+    const checkMatch = line.match(/(?:await\s+)?(page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText).*?)\.(check|uncheck)\s*\(/);
     if (checkMatch) {
       const locatorExpr = checkMatch[1].trim();
       const actionType = checkMatch[2];
@@ -117,37 +137,14 @@ function parsePlaywrightScript(rawScript) {
         type: actionType,
         locator: locatorExpr,
         locatorVar,
-        raw: line,
-        summary: `${actionType === 'check' ? 'Tick chọn' : 'Bỏ chọn'} ${locatorVar}`,
-        warnings,
-      });
-      continue;
-    }
-
-    // 6. Assertions: await expect(page.locator(...)).toBeVisible()
-    const expectMatch = line.match(/(?:await\s+)?expect\s*\(\s*(page\.[^)]+)\s*\)\.(toBeVisible|toBeHidden|toHaveText|toContainText|toHaveValue|toBeEnabled|toBeDisabled)\s*\(([^)]*)\)/);
-    if (expectMatch) {
-      const locatorExpr = expectMatch[1].trim();
-      const assertionType = expectMatch[2];
-      const expectedVal = expectMatch[3] ? expectMatch[3].trim() : '';
-      const locatorVar = generateLocatorName(locatorExpr);
-      const warnings = analyzeLocatorWarnings(locatorExpr);
-      actions.push({
-        id: `act_${actions.length + 1}`,
-        type: 'assertion',
-        locator: locatorExpr,
-        locatorVar,
-        assertionType,
-        expectedVal,
-        raw: line,
-        summary: `Kiểm tra: ${locatorVar} ${assertionType}(${expectedVal})`,
+        summary: `${actionType === 'check' ? 'Tick chon' : 'Bo chon'} ${locatorVar}`,
         warnings,
       });
       continue;
     }
   }
 
-  // Tổng hợp cảnh báo chung
+  // Tong hop canh bao chung
   actions.forEach((act) => {
     if (act.warnings && act.warnings.length > 0) {
       act.warnings.forEach((w) => {
@@ -167,7 +164,7 @@ function parsePlaywrightScript(rawScript) {
 }
 
 /**
- * Quét toàn bộ Page Objects trong thư mục pages/
+ * Quet toan bo Page Objects trong thu muc pages/
  * @param {'desktop' | 'mobile-web'} platform
  * @param {string} rootDir
  */
@@ -183,12 +180,10 @@ function scanPages(platform = 'desktop', rootDir = process.cwd()) {
     const fullPath = path.join(pagesDir, file);
     const content = fs.readFileSync(fullPath, 'utf8');
 
-    // 1. Trích xuất Class Name
     const classMatch = content.match(/class\s+([A-Za-z0-9_]+)\s+extends\s+([A-Za-z0-9_]+)/);
     const className = classMatch ? classMatch[1] : path.basename(file, '.js');
     const baseClass = classMatch ? classMatch[2] : 'BasePage';
 
-    // 2. Trích xuất Locators trong constructor
     const locators = [];
     const locatorRegex = /this\.([a-zA-Z0-9_]+)\s*=\s*(?:page|this\.page)\.([a-zA-Z0-9_().,'"`\s{}://=-]+);/g;
     let locMatch;
@@ -199,7 +194,6 @@ function scanPages(platform = 'desktop', rootDir = process.cwd()) {
       });
     }
 
-    // 3. Trích xuất Methods
     const methods = [];
     const methodRegex = /(?:async\s+)?([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
     let methMatch;

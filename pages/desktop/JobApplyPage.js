@@ -101,7 +101,7 @@ class JobApplyPage extends BasePage {
     }
   }
 
-  async capture(stepName, fullPage = false, options = {}) {
+  async capture(stepName, fullPage = null, options = {}) {
     await this.waitForApplyModalStable({
       timeout: options.modalStableTimeout ?? 15000,
       stableFrameCount: options.modalStableFrameCount ?? 10,

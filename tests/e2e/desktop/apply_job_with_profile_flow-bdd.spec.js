@@ -19,7 +19,7 @@ test.describe('Feature: Ứng tuyển việc làm @applyjob @e2e', () => {
   }) => {
     test.setTimeout(600000); // Luồng điền nhiều section và capture evidence
 
-    await test.step('Given Tôi đang ở trang chủ sau khi đã đăng nhập', async () => {
+    await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang chủ', async () => {
       await onboardingPopup.closeIfVisible();
       await homePage.expectHomepageVisible();
       await expect(homePage.logo).toBeVisible();

@@ -14,7 +14,7 @@ class HomePage extends BasePage {
       '#common__modal [data-test-id="common__close-button"], [data-test-id="common__form-modal"] [data-test-id="common__close-button"]'
     ).first();
     this.allLinks = page.locator('a[href]');
-    this.logo = page.locator('a[href="/"] svg').first();
+    this.logo = page.locator('a[href="/"] img, a[href="/"] svg').first();
     this.privacyConsentAgreeBtn = page.getByRole('button', { name: 'Đồng ý', exact: true });
 
     this.jobMenuBtn = page.getByRole('button', { name: /Việc làm/ });

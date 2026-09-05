@@ -10,9 +10,14 @@ test.describe('Feature: Guest ứng tuyển việc không cần CV bằng OTP @a
     jobSearchPage,
     createJobApplyNoCVPage,
     createPopupConsent,
-  }) => {
+  }, testInfo) => {
     test.slow();
     test.setTimeout(600000);
+
+    testInfo.annotations.push({
+      type: 'Precondition',
+      description: 'Chưa đăng nhập (Khách vãng lai ứng tuyển)',
+    });
 
     let jobApplyNoCVPage;
     let popupConsent;
@@ -20,7 +25,7 @@ test.describe('Feature: Guest ứng tuyển việc không cần CV bằng OTP @a
       ...applyData.noCVApply.guestJob,
       phone: generateRandomVNPhone(),
     };
-    await test.step('Given Người dùng chưa đăng nhập và truy cập trang chủ', async () => {
+    await test.step('Given Tiền điều kiện: Người dùng chưa đăng nhập và truy cập trang chủ', async () => {
       await homePage.navigate();
       await homePage.expectHomepageVisible();
       await homePage.capture('guest_homepage_opened');
@@ -63,7 +68,7 @@ test.describe('Feature: Guest ứng tuyển việc không cần CV bằng OTP @a
       await jobApplyNoCVPage.capture('guest_nocv_application_submitted');
     });
 
-    await test.step('Then Người dùng ứng tuyển nhiều việc tương tự  với thông tin Profile mini đã điền', async () => {
+    await test.step('Then Người dùng thực hiện Bulk Apply nhiều việc tương tự với thông tin Profile mini đã điền', async () => {
       const didBulkApply = await jobApplyNoCVPage.bulkApply(applyData.noCVApply.job2);
       if (didBulkApply) {
         await jobApplyNoCVPage.capture('guest_nocv_bulk_apply_done');

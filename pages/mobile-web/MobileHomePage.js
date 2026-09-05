@@ -17,10 +17,15 @@ class MobileHomePage extends HomePage {
       .locator('.fixed.inset-0:visible')
       .filter({ has: page.locator('button:has(.svicon-close)') });
     this.fullscreenPopupCloseBtn = this.fullscreenPopup.locator('button:has(.svicon-close)');
+
+    // Mobile specific search button or link
+    this.mobileSearchLink = page.getByRole('link', { name: /Tìm việc làm/i })
+      .or(page.locator('a[href*="tim-kiem-viec-lam-nhanh"]'))
+      .first();
   }
 
-  async navigate() {
-    await super.navigate();
+  async navigate(relativeUrl = '/') {
+    await super.navigate(relativeUrl);
     await this.closeNavigationPopups();
   }
 
@@ -33,7 +38,7 @@ class MobileHomePage extends HomePage {
 
   async closePopupIfVisible(popup, closeButton, popupName) {
     const visiblePopup = popup.first();
-    if (!(await visiblePopup.isVisible())) return false;
+    if (!(await visiblePopup.isVisible().catch(() => false))) return false;
 
     const visibleCloseButton = closeButton.first();
     await this.actions.click(visibleCloseButton, { force: true, timeout: 10000 });
@@ -43,6 +48,27 @@ class MobileHomePage extends HomePage {
       throw new Error(`Không thể đóng ${popupName} đang che màn hình: ${error.message}`);
     }
     return true;
+  }
+
+  /**
+   * Mở trang tìm kiếm việc làm trên Mobile:
+   * Click link tìm việc hoặc điều hướng URL tương đối
+   */
+  async openJobSearch() {
+    await this.closeNavigationPopups();
+    try {
+      if (await this.mobileSearchLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await Promise.all([
+          this.page.waitForURL(/\/tim-kiem-viec-lam-nhanh(?:[/?#]|$)/i, { timeout: 30000 }),
+          this.actions.click(this.mobileSearchLink),
+        ]);
+        return;
+      }
+    } catch (e) {
+      // Tiếp tục fallback
+    }
+
+    await this.navigate('/tim-kiem-viec-lam-nhanh.html');
   }
 }
 

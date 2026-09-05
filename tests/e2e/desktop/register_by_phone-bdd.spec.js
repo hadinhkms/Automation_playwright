@@ -3,12 +3,18 @@ const userData = require('../../../data/users.json');
 const { generateRandomVNPhone, generateRandomEmail } = require('../../../core/utils/commonUtils');
 
 test.describe('Feature: Đăng ký tài khoản người tìm việc bằng Số điện thoại @register @smoke @e2e', () => {
-  test('Kiểm tra luồng đăng ký bằng Số điện thoại', async ({ loginPopup, homePage, popupConsent }) => {
+  test('Kiểm tra luồng đăng ký bằng Số điện thoại', async ({ loginPopup, homePage, popupConsent }, testInfo) => {
     test.setTimeout(120000);
+
+    testInfo.annotations.push({
+      type: 'Precondition',
+      description: 'Chưa đăng nhập (Khách vãng lai đăng ký)',
+    });
+
     const randomEmail = generateRandomEmail();
     let randomPhone;
 
-    await test.step('Given Tôi truy cập vào trang chủ', async () => {
+    await test.step('Given Tiền điều kiện: Người dùng chưa đăng nhập và truy cập trang chủ', async () => {
       await homePage.navigate();
       await homePage.expectHomepageVisible();
       await homePage.capture('after_homepage_loaded');

@@ -7,28 +7,22 @@ const DEFAULT_CONFIG = Object.freeze({
   environments: {
     qc: {
       label: 'QC',
-      baseURL: 'https://admin.carthings.vn',
-      companyURL: 'https://company.carthings.vn',
-      carthingsURL: 'https://qc.carthings.vn',
-      apiBaseURL: 'https://api.carthings.vn',
+      baseURL: 'https://seeker.vl24hv2.qc.sieuviet-team.com',
+      apiBaseURL: 'https://api.vl24hv2.qc.sieuviet-team.com',
     },
-    dev: {
-      label: 'Development',
-      baseURL: 'https://admin-dev.carthings.vn',
-      companyURL: 'https://company-dev.carthings.vn',
-      carthingsURL: 'https://dev.carthings.vn',
-      apiBaseURL: 'https://api-dev.carthings.vn',
+    stg: {
+      label: 'Staging',
+      baseURL: 'https://seeker.vl24hv2.staging.sieuviet-team.com',
+      apiBaseURL: 'https://api.vl24hv2.staging.sieuviet-team.com',
     },
     prod: {
       label: 'Production',
-      baseURL: 'https://admin.carthings.vn',
-      companyURL: 'https://company.carthings.vn',
-      carthingsURL: 'https://carthings.vn',
-      apiBaseURL: 'https://api.carthings.vn',
+      baseURL: 'https://vieclam24h.vn',
+      apiBaseURL: 'https://api.vl24hv2.staging.sieuviet-team.com',
     },
   },
   runtime: {
-    defaultEnvironment: 'dev',
+    defaultEnvironment: 'qc',
     workers: 2,
     testTimeout: 60000,
     navigationTimeout: 60000,
@@ -150,14 +144,22 @@ function normalizeDashboardConfig(input = {}, existingConfig = DEFAULT_CONFIG) {
     const fallback = existing.environments[envKey] || {};
     const label = asString(envValue.label, fallback.label || envKey.toUpperCase()).slice(0, 40);
     const baseURL = asString(envValue.baseURL, fallback.baseURL);
-    const companyURL = asString(envValue.companyURL, fallback.companyURL || baseURL);
-    const carthingsURL = asString(envValue.carthingsURL, fallback.carthingsURL || baseURL);
     const apiBaseURL = asString(envValue.apiBaseURL, fallback.apiBaseURL);
     assertUrl(baseURL, `${envKey}.baseURL`);
-    assertUrl(companyURL, `${envKey}.companyURL`);
-    assertUrl(carthingsURL, `${envKey}.carthingsURL`);
-    assertUrl(apiBaseURL, `${envKey}.apiBaseURL`);
-    environments[envKey] = { label, baseURL, companyURL, carthingsURL, apiBaseURL };
+    if (apiBaseURL) {
+      assertUrl(apiBaseURL, `${envKey}.apiBaseURL`);
+    }
+
+    const envEntry = { label, baseURL, apiBaseURL };
+
+    // Retain any project-defined custom URLs without hardcoding specific names
+    for (const [propKey, propVal] of Object.entries(envValue)) {
+      if (!['label', 'baseURL', 'apiBaseURL', 'carthingsURL', 'companyURL'].includes(propKey) && typeof propVal === 'string') {
+        envEntry[propKey] = propVal.trim();
+      }
+    }
+
+    environments[envKey] = envEntry;
   }
 
   if (!Object.keys(environments).length) throw new Error('At least one environment is required.');

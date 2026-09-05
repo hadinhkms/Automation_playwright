@@ -2,7 +2,7 @@ const path = require('path');
 const { sanitizeToIdentifier } = require('./namingUtils');
 
 /**
- * Sinh draft Page Object và draft BDD Spec theo quy chuẩn AI_PROMPTS.md
+ * Sinh draft Page Object va draft BDD Spec theo quy chuan AI_PROMPTS.md
  */
 function transformToPomAndSpec({
   platform = 'desktop',
@@ -14,7 +14,7 @@ function transformToPomAndSpec({
   existingContent = '',
   methodName = 'performRecordedActions',
   featureName = 'Recorded Feature',
-  testName = 'Thực hiện kịch bản thao tác đã ghi',
+  testName = 'Thuc hien kich ban thao tac da ghi',
   includeEvidence = true,
   url = '',
 }) {
@@ -25,17 +25,21 @@ function transformToPomAndSpec({
 
   const cleanMethodName = sanitizeToIdentifier(methodName) || 'performRecordedActions';
   const cleanFeatureName = featureName.trim() || 'Recorded Feature';
-  const cleanTestName = testName.trim() || 'Thực hiện kịch bản thao tác đã ghi';
+  const cleanTestName = testName.trim() || 'Thuc hien kich ban thao tac da ghi';
 
-  // 1. Thu thập locators duy nhất
+  // 1. Thu thap locators duy nhat
   const locatorMap = new Map();
   const collectedWarnings = [];
+  let hasAssertions = false;
 
   actions.forEach((act) => {
     if (act.locator && act.locatorVar) {
       if (!locatorMap.has(act.locatorVar)) {
         locatorMap.set(act.locatorVar, act.locator.replace(/^page\./, ''));
       }
+    }
+    if (act.type === 'assertion') {
+      hasAssertions = true;
     }
     if (act.warnings && act.warnings.length > 0) {
       act.warnings.forEach((w) => {
@@ -45,7 +49,7 @@ function transformToPomAndSpec({
     }
   });
 
-  // 2. Tạo thân hàm Page Object method
+  // 2. Tao than ham Page Object method
   const methodLines = [];
   actions.forEach((act) => {
     if (act.type === 'goto') {
@@ -63,6 +67,17 @@ function transformToPomAndSpec({
       methodLines.push(`    await this.${act.locatorVar}.check();`);
     } else if (act.type === 'uncheck') {
       methodLines.push(`    await this.${act.locatorVar}.uncheck();`);
+    } else if (act.type === 'assertion') {
+      const target = act.locatorVar ? `this.${act.locatorVar}` : 'this.page';
+      const aType = act.assertionType || 'toBeVisible';
+      const val = act.expectedVal ? `'${act.expectedVal}'` : '';
+      if (aType === 'toHaveURL') {
+        methodLines.push(`    await expect(this.page).toHaveURL(/${act.expectedVal || ''}/);`);
+      } else if (val) {
+        methodLines.push(`    await expect(${target}).${aType}(${val});`);
+      } else {
+        methodLines.push(`    await expect(${target}).${aType}();`);
+      }
     }
   });
 
@@ -72,16 +87,18 @@ function transformToPomAndSpec({
 
   const methodCode = `  async ${cleanMethodName}() {\n${methodLines.join('\n')}\n  }`;
 
-  // 3. Dựng mã Page Object
+  // 3. Dung ma Page Object
   let pomCode = '';
   let pomRelativePath = existingPagePath || `pages/${platform}/${finalClassName}.js`;
+
+  const expectImport = hasAssertions ? 'const { expect } = require("@playwright/test");\n' : '';
 
   if (isNewPage || !existingContent) {
     const locatorsCode = Array.from(locatorMap.entries())
       .map(([name, expr]) => `    this.${name} = page.${expr};`)
       .join('\n');
 
-    pomCode = `const { ${baseClass} } = require('../${baseClass}');
+    pomCode = `${expectImport}const { ${baseClass} } = require('../${baseClass}');
 
 class ${finalClassName} extends ${baseClass} {
   /**
@@ -91,7 +108,7 @@ class ${finalClassName} extends ${baseClass} {
   constructor(page, featureName) {
     super(page, featureName);
 
-${locatorsCode ? locatorsCode : '    // Khởi tạo các locators'}
+${locatorsCode ? locatorsCode : '    // Khoi tao cac locators'}
   }
 
 ${methodCode}
@@ -100,10 +117,13 @@ ${methodCode}
 module.exports = { ${finalClassName} };
 `;
   } else {
-    // Bổ sung vào class hiện có
+    // Bo sung vao class hien co
     let updatedContent = existingContent;
+    if (hasAssertions && !updatedContent.includes('expect')) {
+      updatedContent = `${expectImport}${updatedContent}`;
+    }
     
-    // Thêm locator còn thiếu vào constructor
+    // Them locator con thieu vao constructor
     const missingLocators = [];
     locatorMap.forEach((expr, name) => {
       const checkRegex = new RegExp(`this\\.${name}\\s*=`);
@@ -122,7 +142,7 @@ module.exports = { ${finalClassName} };
       }
     }
 
-    // Thêm method mới trước dấu đóng ngoặc cuối
+    // Them method moi truoc dau dong ngoac cuoi
     const lastBraceIdx = updatedContent.lastIndexOf('}');
     if (lastBraceIdx !== -1) {
       updatedContent =
@@ -133,7 +153,7 @@ module.exports = { ${finalClassName} };
     pomCode = updatedContent;
   }
 
-  // 4. Dựng mã Spec BDD
+  // 4. Dung ma Spec BDD
   const pageVar = finalClassName.charAt(0).toLowerCase() + finalClassName.slice(1);
   const specFileName = `${sanitizeToIdentifier(cleanFeatureName).toLowerCase() || 'recorded_flow'}-bdd.spec.js`;
   const specRelativePath = `tests/e2e/${platform}/${specFileName}`;
@@ -147,18 +167,25 @@ const { ${finalClassName} } = require('../../../pages/${platform}/${finalClassNa
 
 test.describe('Feature: ${cleanFeatureName} @record @e2e', () => {
 
-  test('${cleanTestName}', async ({ page }) => {
+  test('${cleanTestName}', async ({ page }, testInfo) => {
     const ${pageVar} = new ${finalClassName}(page, '${sanitizeToIdentifier(cleanFeatureName).toLowerCase()}');
 
-    await test.step('Given Người dùng truy cập và chuẩn bị trang kiểm thử', async () => {
-${url ? `      await ${pageVar}.navigate('${url}');\n` : ''}    });
+    // Khai báo Precondition hiển thị trên header của Playwright Report
+    testInfo.annotations.push({
+      type: 'Precondition',
+      description: 'Khách vãng lai truy cập màn hình kiểm thử (Chưa đăng nhập)',
+    });
+
+    await test.step('Given Tiền điều kiện: Người dùng truy cập và chuẩn bị trang kiểm thử', async () => {
+${url ? `      await ${pageVar}.navigate('${url}');\n` : ''}      await ${pageVar}.capture('precondition_initial_state');
+    });
 
     await test.step('When Người dùng thực hiện các thao tác đã ghi', async () => {
       await ${pageVar}.${cleanMethodName}();
     });
 
     await test.step('Then Kiểm tra trạng thái hoàn tất thành công', async () => {
-      // Bổ sung các web-first assertion tại đây nếu cần thiết
+      // Các assertion đã được tổng hợp trong Page Object hoặc bổ sung thêm tại đây
     });
   });
 

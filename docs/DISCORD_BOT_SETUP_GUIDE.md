@@ -12,7 +12,7 @@ Tài liệu này được viết theo phong cách **"Cầm tay chỉ việc"**, 
    - Truy cập vào trang: [https://discord.com/developers/applications](https://discord.com/developers/applications) *(Đăng nhập tài khoản Discord nếu được hỏi)*.
 2. **Tạo hồ sơ Bot:**
    - Nhìn lên **góc trên bên phải màn hình**, bấm nút màu tím **"New Application"**.
-   - Ở ô **NAME**, gõ tên: `CarThings QA Bot` -> Tích vào ô vuông nhỏ đồng ý điều khoản -> Bấm nút **Create**.
+   - Ở ô **NAME**, gõ tên: `Vieclam24h QA Bot` -> Tích vào ô vuông nhỏ đồng ý điều khoản -> Bấm nút **Create**.
 3. **Lấy mã chìa khóa của Bot (Token):**
    - Nhìn sang **cột menu bên trái**, bấm vào chữ **"Bot"** (có biểu tượng hình con robot).
    - Ở giữa màn hình, tìm chữ **TOKEN** -> Bấm nút **"Reset Token"** -> Bấm xác nhận **"Yes, do it!"**.
@@ -32,7 +32,7 @@ Tài liệu này được viết theo phong cách **"Cầm tay chỉ việc"**, 
      - `[x] Embed Links` (Gửi thẻ kết quả)
    - Cuộn xuống đáy trang, bấm nút **Copy** ở ô **GENERATED URL**.
    - Dán link đó vào tab trình duyệt mới -> Chọn Server Discord của bạn -> Bấm **Tiếp tục (Continue)** -> Bấm **Phê duyệt (Authorize)**.
-   - ✅ **Kiểm tra:** Mở Discord lên, thấy con bot `CarThings QA Bot` xuất hiện trong danh sách thành viên là xong Bước 1!
+   - ✅ **Kiểm tra:** Mở Discord lên, thấy con bot `Vieclam24h QA Bot` xuất hiện trong danh sách thành viên là xong Bước 1!
 
 ---
 
@@ -84,7 +84,7 @@ Tài liệu này được viết theo phong cách **"Cầm tay chỉ việc"**, 
 > **🎯 Mục đích:** Cho máy chủ GitHub biết link Discord để sau khi chạy test xong, nó tự động bắn kết quả về kênh chat.
 
 1. **Mở trang Secrets của dự án:**
-   - Truy cập vào trang: [https://github.com/hadinhkms/Automation_Carthings/settings/secrets/actions](https://github.com/hadinhkms/Automation_Carthings/settings/secrets/actions).
+   - Truy cập vào trang: [https://github.com/hadinhkms/Automation_playwright_SV/settings/secrets/actions](https://github.com/hadinhkms/Automation_playwright_SV/settings/secrets/actions).
 2. **Tạo Secret mới:**
    - Nhìn lên **góc trên bên phải**, bấm nút màu xanh lá **"New repository secret"**.
    - Điền chính xác 2 ô như sau:
@@ -105,12 +105,12 @@ Tài liệu này được viết theo phong cách **"Cầm tay chỉ việc"**, 
    - Mở cửa sổ dòng lệnh (Terminal hoặc PowerShell) trên máy tính.
    - Dán nguyên vẹn dòng lệnh sau rồi bấm **Enter**:
      ```bash
-     cd D:\_CarThings\discord-qa-bot && node bot.js
+     cd D:\_Automation-Project\discord-qa-bot && node bot.js
      ```
-   - ✅ Khi thấy màn hình hiện chữ: `Ready: CarThings QA Bot...` là Bot đã chính thức thức dậy và sẵn sàng!
+   - ✅ Khi thấy màn hình hiện chữ: `Ready: Vieclam24h QA Bot...` là Bot đã chính thức thức dậy và sẵn sàng!
 3. **Trải nghiệm ra lệnh trên Discord:**
    - Mở kênh chat Discord đã cài đặt ở Bước 2, gõ câu lệnh sau rồi bấm gửi:
      ```text
-     @CarThings QA Bot run carthings_site dev
+     @Vieclam24h QA Bot run smoke qc
      ```
    - 🎉 **Kết quả:** Bot sẽ trả lời ngay và kích hoạt test trên GitHub. Sau vài phút, thẻ báo cáo kết quả (Pass/Fail) sẽ tự động gửi thẳng về kênh chat cho bạn!

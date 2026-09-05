@@ -45,20 +45,30 @@ const viewport = {
 const trace = readOptionEnv('PW_TRACE', runtimeConfig.trace, ['off', 'on', 'retain-on-failure', 'on-first-retry']);
 const screenshot = readOptionEnv('PW_SCREENSHOT', runtimeConfig.screenshot, ['off', 'on', 'only-on-failure']);
 const video = readOptionEnv('PW_VIDEO', runtimeConfig.video, ['off', 'on', 'retain-on-failure', 'on-first-retry']);
+const specArg = process.argv.find(arg => arg.endsWith('.spec.js'));
+const scriptFolder = specArg ? path.basename(specArg).replace(/\.spec\.js$/, '') : 'all-scripts';
+const normalizedSpecArg = specArg ? specArg.replace(/\\/g, '/').toLowerCase() : '';
+
 let platformDir = 'all';
 const argsStr = process.argv.join(' ').toLowerCase();
-if (argsStr.includes('desktop')) {
+
+if (normalizedSpecArg.includes('/mobile-web/') || normalizedSpecArg.includes('.mobile.')) {
+  platformDir = 'mobile-web';
+} else if (normalizedSpecArg.includes('/desktop/')) {
   platformDir = 'desktop';
+} else if (normalizedSpecArg.includes('/api/')) {
+  platformDir = 'api';
 } else if (argsStr.includes('mobile-web') || argsStr.includes('mobile chrome') || argsStr.includes('mobile safari')) {
   platformDir = 'mobile-web';
+} else if (argsStr.includes('desktop')) {
+  platformDir = 'desktop';
 } else if (argsStr.includes('mobile-app')) {
   platformDir = 'mobile-app';
+} else if (argsStr.includes('api')) {
+  platformDir = 'api';
 } else if (process.env.TEST_PLATFORM) {
   platformDir = process.env.TEST_PLATFORM;
 }
-
-const specArg = process.argv.find(arg => arg.endsWith('.spec.js'));
-const scriptFolder = specArg ? path.basename(specArg).replace(/\.spec\.js$/, '') : 'all-scripts';
 
 const reportDir = path.join(
   'playwright-report',
@@ -78,7 +88,8 @@ module.exports = defineConfig({
   retries,
   workers: workerCount,
   reporter: [
-    ['json'],
+    ['list'],
+    ['json', { outputFile: path.join(reportDir, 'results.json') }],
     [
       'html',
       {

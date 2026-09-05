@@ -52,3 +52,23 @@ test('dashboard config rejects invalid environment URLs', () => {
     /valid http\(s\) URL/
   );
 });
+
+test('normalizeDashboardConfig strips legacy project-specific keys', () => {
+  const result = normalizeDashboardConfig({
+    ...DEFAULT_CONFIG,
+    environments: {
+      qc: {
+        label: 'QC',
+        baseURL: 'https://seeker.vl24hv2.qc.sieuviet-team.com',
+        apiBaseURL: 'https://api.vl24hv2.qc.sieuviet-team.com',
+        carthingsURL: 'https://qc.carthings.vn',
+        companyURL: 'https://company.carthings.vn',
+      },
+    },
+  });
+
+  assert.equal(result.environments.qc.carthingsURL, undefined);
+  assert.equal(result.environments.qc.companyURL, undefined);
+  assert.equal(result.environments.qc.baseURL, 'https://seeker.vl24hv2.qc.sieuviet-team.com');
+});
+

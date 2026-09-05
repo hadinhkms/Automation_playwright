@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { UiActions } = require('./commonUtils');
+const { UiActions, ScreenshotHelper } = require('./commonUtils');
 
 class MockLocator {
   constructor(name) {
@@ -94,4 +94,50 @@ test('UiActions rejects bare locator methods like .first instead of .first()', a
     () => actions.waitForVisible(page.locator('#submit').first),
     /call \.first\(\) /i
   );
+});
+
+test('ScreenshotHelper detects modal presence and adjusts fullPage automatically', async () => {
+  class MockScreenshotPage {
+    constructor(modalVisible = false) {
+      this.modalVisible = modalVisible;
+      this.screenshotCalls = [];
+    }
+
+    async evaluate(fn) {
+      return this.modalVisible;
+    }
+
+    async waitForLoadState() {}
+    async waitForFunction() {}
+
+    async screenshot(options) {
+      this.screenshotCalls.push(options);
+    }
+  }
+
+  // 1. When modal is visible, auto-detect (fullPage = null) should capture viewport (fullPage = false)
+  const modalPage = new MockScreenshotPage(true);
+  const helperWithModal = new ScreenshotHelper(modalPage, 'test-feature');
+  const isModal = await helperWithModal.isModalOrPopupVisible();
+  assert.equal(isModal, true);
+
+  await helperWithModal.takeScreenshot('step_with_modal');
+  assert.equal(modalPage.screenshotCalls.length, 1);
+  assert.equal(modalPage.screenshotCalls[0].fullPage, false);
+
+  // 2. When NO modal is visible, auto-detect should capture fullPage = true
+  const normalPage = new MockScreenshotPage(false);
+  const helperWithoutModal = new ScreenshotHelper(normalPage, 'test-feature');
+  const isNoModal = await helperWithoutModal.isModalOrPopupVisible();
+  assert.equal(isNoModal, false);
+
+  await helperWithoutModal.takeScreenshot('step_without_modal');
+  assert.equal(normalPage.screenshotCalls.length, 1);
+  assert.equal(normalPage.screenshotCalls[0].fullPage, true);
+
+  // 3. Explicit parameter (fullPage = false or true) overrides auto-detection
+  const overridePage = new MockScreenshotPage(false);
+  const helperOverride = new ScreenshotHelper(overridePage, 'test-feature');
+  await helperOverride.takeScreenshot('step_forced_viewport', false);
+  assert.equal(overridePage.screenshotCalls[0].fullPage, false);
 });

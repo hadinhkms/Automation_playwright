@@ -49,6 +49,8 @@ class ScreenshotHelper {
     let scriptName = '';
     let parallelIndex = 0;
     let configuredRunId = '';
+    let testFilePath = '';
+    let projectName = '';
     try {
       const { test } = require('@playwright/test');
       const info = test.info();
@@ -56,6 +58,8 @@ class ScreenshotHelper {
         scriptName = path.basename(info.file).replace(/\.spec\.js$|\.js$/, '');
         parallelIndex = info.parallelIndex;
         configuredRunId = info.config?.metadata?.runId || '';
+        testFilePath = info.file;
+        projectName = info.project?.name || '';
       }
     } catch(e) {}
 
@@ -63,7 +67,7 @@ class ScreenshotHelper {
       scriptName = String(this.featureName || 'unknown');
     }
 
-    const safeName = scriptName.replace(/[^a-zA-Z0-9-_\s]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').trim();
+    const safeName = scriptName.replace(/[^a-zA-Z0-9-_\s.]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').trim();
     const dateStr = this.runDateInfo.dateStr;
     const runId = String(configuredRunId || process.env.QA_RUN_ID || fallbackRunId)
       .replace(/[^a-zA-Z0-9-_]+/g, '-');
@@ -77,7 +81,34 @@ class ScreenshotHelper {
       runFolder = `[${d} ${t} ${r}] evidence`;
     }
 
-    const platformStr = process.env.QA_PLATFORM || 'desktop';
+    // Auto-detect platform from actual test file location and project
+    let platformStr = '';
+    if (testFilePath) {
+      const normalizedPath = testFilePath.replace(/\\/g, '/').toLowerCase();
+      if (normalizedPath.includes('/mobile-web/') || normalizedPath.includes('.mobile.')) {
+        platformStr = 'mobile-web';
+      } else if (normalizedPath.includes('/desktop/')) {
+        platformStr = 'desktop';
+      } else if (normalizedPath.includes('/api/')) {
+        platformStr = 'api';
+      }
+    }
+    if (!platformStr && projectName) {
+      const lowerProj = projectName.toLowerCase();
+      if (lowerProj.includes('mobile')) {
+        platformStr = 'mobile-web';
+      } else if (lowerProj.includes('desktop')) {
+        platformStr = 'desktop';
+      } else if (lowerProj.includes('api')) {
+        platformStr = 'api';
+      }
+    }
+    if (!platformStr && process.env.QA_PLATFORM) {
+      platformStr = process.env.QA_PLATFORM;
+    }
+    if (!platformStr) {
+      platformStr = 'desktop';
+    }
 
     return `evidence/${dateStr}/${platformStr}/${safeName}/${runFolder}`;
   }
@@ -209,13 +240,93 @@ class ScreenshotHelper {
     }
   }
 
-  async takeScreenshot(stepName, fullPage = false, options = {}) {
+  /**
+   * Phát hiện xem hiện tại trên màn hình có Modal / Popup / Dialog / Drawer đang hiển thị không
+   * Tuân thủ quy định tại AI_PROMPTS.md Section 7:
+   * "Khi không có popup/modal hiển thị, capture full page. Khi popup/modal đang hiển thị, chỉ capture viewport để tập trung vào popup/modal."
+   * @returns {Promise<boolean>}
+   */
+  async isModalOrPopupVisible() {
+    try {
+      return await this.page.evaluate(() => {
+        // 1. Kiểm tra class trên body hoặc html báo hiệu modal đang mở / khóa cuộn
+        if (
+          document.body.classList.contains('modal-open') ||
+          document.body.classList.contains('overflow-hidden') ||
+          document.documentElement.classList.contains('modal-open') ||
+          document.body.style.overflow === 'hidden'
+        ) {
+          return true;
+        }
+
+        // 2. Danh sách selector nhận diện Modal, Dialog, Popup, Onboarding, SweetAlert...
+        const modalSelectors = [
+          'dialog[open]',
+          '[role="dialog"]',
+          '[role="alertdialog"]',
+          '[aria-modal="true"]',
+          '.modal.show',
+          '.modal.in',
+          '.modal:not([style*="display: none"])',
+          '[class*="modal"][class*="open"]',
+          '[class*="modal"][class*="active"]',
+          '[class*="modal"][class*="show"]',
+          '[class*="popup"][class*="open"]',
+          '[class*="popup"][class*="active"]',
+          '[class*="popup"][class*="show"]',
+          '.onboarding-modal',
+          '.onboarding-popup',
+          '.swal2-container',
+          '.swal2-shown',
+          '.ant-modal-root',
+          '.ant-modal-wrap',
+          '.MuiDialog-root',
+          '.MuiModal-root',
+          'div[id*="popup-blocking"]',
+          'div[id*="popup-consent"]',
+          'div[id*="onboarding"]',
+          'div[data-test-id*="modal"]',
+          'div[data-test-id*="popup"]',
+        ];
+
+        const isVisibleModal = (element) => {
+          if (!element) return false;
+          const rect = element.getBoundingClientRect();
+          const style = window.getComputedStyle(element);
+
+          return (
+            style.display !== 'none' &&
+            style.visibility !== 'hidden' &&
+            Number(style.opacity) !== 0 &&
+            rect.width >= 100 &&
+            rect.height >= 80 &&
+            (style.position === 'fixed' || style.position === 'absolute')
+          );
+        };
+
+        return modalSelectors.some((selector) =>
+          Array.from(document.querySelectorAll(selector)).some(isVisibleModal)
+        );
+      });
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async takeScreenshot(stepName, fullPage = null, options = {}) {
     const captureSequence = ++globalScreenshotSequence;
     this.screenshotCount = captureSequence;
 
+    // Tự động detect nếu fullPage không được chỉ định rõ (null hoặc undefined)
+    let shouldCaptureFullPage = fullPage;
+    if (shouldCaptureFullPage === null || shouldCaptureFullPage === undefined) {
+      const hasModal = await this.isModalOrPopupVisible();
+      shouldCaptureFullPage = !hasModal;
+    }
+
     const {
       waitForNetworkIdle = false,
-      scrollDuringStabilization = fullPage,
+      scrollDuringStabilization = shouldCaptureFullPage,
       waitForAnimations = true,
       stabilizationMs = 0,
       waitForLoadState = true,
@@ -296,7 +407,7 @@ class ScreenshotHelper {
 
     fs.mkdirSync(dir, { recursive: true });
     try {
-      await this.page.screenshot({ path, fullPage, animations: 'disabled' });
+      await this.page.screenshot({ path, fullPage: shouldCaptureFullPage, animations: 'disabled' });
     } catch (error) {
       // Bỏ qua nếu không thể chụp ảnh do context đã bị hủy
     }

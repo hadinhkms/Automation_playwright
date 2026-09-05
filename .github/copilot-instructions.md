@@ -1,3 +1,7 @@
-﻿When assisting with Playwright test automation in this repository, you MUST read and follow the shared prompt rules defined in the AI_PROMPTS.md file at the root of this workspace.
+﻿When assisting with Playwright test automation, read only `ai/shared/AI_PROMPTS.md` and `ai/shared/TEST_AUTOMATION_LESSONS.md` for that task.
 
-If you need to update the prompt rules, edit the shared file so all AI entry points stay consistent.
+Before creating, modifying, reviewing, or debugging anything under `dashboard/`, read only `ai/dashboard/DASHBOARD_AI_PROMPT.md` and `ai/dashboard/AI_LESSONS.md` for that task. Reuse the shared dashboard layout, design tokens, panels, responsive behavior, and code editor before introducing a new implementation.
+
+Treat those linked files as the canonical sources. Update the canonical source instead of duplicating detailed rules in this entry point.
+
+After every implementation, perform a Senior QA verification pass with more than 10 years of QA experience before reporting completion. Apply risk-based, equivalence-partition, boundary-value, exploratory, and regression testing. Validate happy/failure/security/retry/empty/loading/error paths; check UI at 1920x1080, 1440x900, 1280px, and mobile for clipped or overlapping text, keyboard/focus access, contrast, overflow, and both themes. Audit duplicate components/styles/listeners and scan rendered UI for implementation notes, debug narration, raw errors, `undefined`, `null`, TODOs, and redundant visible code comments. Run executable tests and inspect console output, then report exact results, unavailable checks, and remaining risks. Syntax or compilation alone is not sufficient evidence of completion.

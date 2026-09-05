@@ -4,10 +4,10 @@ test.describe('Feature: Tải lên và chuyển đổi CV tại Hồ sơ của t
   test('Người dùng tải lên và chuyển đổi CV thành công', async ({ authenticatedUser, userProfilePage }) => {
     test.setTimeout(120000); // Tăng timeout cho luồng detect CV tốn thời gian
 
-    await test.step('Given Tôi đang ở trang Hồ sơ của tôi', async () => {
+    await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang Hồ sơ', async () => {
       // Đăng nhập trước khi vào hồ sơ
       await userProfilePage.navigate('/ho-so-cua-toi.html');
-      await userProfilePage.capture('ho_so_cua_toi_loaded', true);
+      await userProfilePage.capture('precondition_ho_so_cua_toi_loaded', true);
     });
 
     await test.step('When Tôi nhấn nút Tải lên CV và chọn file template', async () => {
