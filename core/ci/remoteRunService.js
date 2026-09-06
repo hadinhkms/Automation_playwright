@@ -30,7 +30,7 @@ function postGithubDispatch({ owner, repo, workflow, ref, token, inputs, timeout
   if (!/^[A-Za-z0-9_.-]+$/.test(owner) || !/^[A-Za-z0-9_.-]+$/.test(repo) || !/^[A-Za-z0-9_.-]+\.ya?ml$/.test(workflow) || !/^[A-Za-z0-9_.\/-]+$/.test(ref)) throw new Error('GitHub dispatch target không hợp lệ.');
   const body = JSON.stringify({ ref, inputs });
   return new Promise((resolve, reject) => {
-    const request = https.request({ hostname: 'api.github.com', path: `/repos/${owner}/${repo}/actions/workflows/${workflow}/dispatches`, method: 'POST', timeout: timeoutMs, headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`, 'User-Agent': 'vieclam24h-dashboard', 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, (response) => {
+    const request = https.request({ hostname: 'api.github.com', path: `/repos/${owner}/${repo}/actions/workflows/${workflow}/dispatches`, method: 'POST', timeout: timeoutMs, headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${token}`, 'User-Agent': 'qa-automation-dashboard', 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, (response) => {
       let text = '';
       response.on('data', (chunk) => { text += chunk; });
       response.on('end', () => response.statusCode >= 200 && response.statusCode < 300 ? resolve({ status: response.statusCode }) : reject(new Error(`GitHub phản hồi ${response.statusCode}.`)));

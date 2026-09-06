@@ -26,7 +26,7 @@ const TRACE_OPTIONS = ['off', 'on', 'retain-on-failure', 'on-first-retry'];
 const SCREENSHOT_OPTIONS = ['off', 'on', 'only-on-failure'];
 const VIDEO_OPTIONS = ['off', 'on', 'retain-on-failure', 'on-first-retry'];
 
-const DISCORD_BOT_DIR = path.resolve(ROOT, '../discord-qa-bot');
+const DISCORD_BOT_DIR = process.env.DISCORD_BOT_DIR ? path.resolve(process.env.DISCORD_BOT_DIR) : path.resolve(ROOT, '../discord-qa-bot');
 const DISCORD_BOT_ENV_PATH = path.join(DISCORD_BOT_DIR, '.env');
 
 const { checkForUpdates, applyUpdate, getCurrentVersion } = require('../core/system/updater');
@@ -1058,18 +1058,18 @@ const server = http.createServer(async (request, response) => {
       const testEmbed = {
         title: '🧪 Kiểm Tra Kết Nối Discord Webhook Thành Công!',
         color: 0x3b82f6,
-        description: 'Vieclam24h Automation Dashboard đã kết nối thành công tới kênh Discord này.\nBạn sẽ nhận được thông báo tự động mỗi khi có lượt chạy test!',
+        description: `${settings.branding?.projectName || 'QA Automation'} Dashboard đã kết nối thành công tới kênh Discord này.\nBạn sẽ nhận được thông báo tự động mỗi khi có lượt chạy test!`,
         fields: [
-          { name: '🖥️ Hệ thống', value: settings.branding?.projectName || 'Vieclam24h Automation', inline: true },
+          { name: '🖥️ Hệ thống', value: settings.branding?.projectName || 'QA Automation Studio', inline: true },
           { name: '⏰ Thời gian', value: new Date().toLocaleString('vi-VN'), inline: true },
         ],
-        footer: { text: 'Vieclam24h QA Automation Bot' },
+        footer: { text: `${settings.branding?.projectName || 'QA Automation'} Bot` },
         timestamp: new Date().toISOString(),
       };
 
       await sendDiscordWebhook(webhookUrl, {
-        username: 'Vieclam24h QA Bot',
-        avatar_url: settings.branding?.logoUrl || 'https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png',
+        username: `${settings.branding?.projectName || 'QA Automation'} Bot`,
+        avatar_url: settings.branding?.logoUrl || undefined,
         embeds: [testEmbed],
       });
 

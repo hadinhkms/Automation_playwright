@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const { sanitizeToIdentifier } = require('./namingUtils');
 
@@ -158,9 +159,14 @@ module.exports = { ${finalClassName} };
   const specFileName = `${sanitizeToIdentifier(cleanFeatureName).toLowerCase() || 'recorded_flow'}-bdd.spec.js`;
   const specRelativePath = `tests/e2e/${platform}/${specFileName}`;
 
-  const fixtureImport = platform === 'mobile-web'
-    ? "const { test } = require('../../../core/fixtures/mobileWebTest');"
-    : "const { test } = require('../../../core/fixtures/baseTest');";
+  const projectRoot = process.env.QA_PROJECT_ROOT || process.cwd();
+  const hasLocalFixtures = fs.existsSync(path.join(projectRoot, 'core', 'fixtures', platform === 'mobile-web' ? 'mobileWebTest.js' : 'baseTest.js'));
+
+  const fixtureImport = hasLocalFixtures
+    ? (platform === 'mobile-web'
+        ? "const { test } = require('../../../core/fixtures/mobileWebTest');"
+        : "const { test } = require('../../../core/fixtures/baseTest');")
+    : "const { test, expect } = require('@playwright/test');";
 
   const specCode = `${fixtureImport}
 const { ${finalClassName} } = require('../../../pages/${platform}/${finalClassName}');

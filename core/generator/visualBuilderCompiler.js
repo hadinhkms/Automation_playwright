@@ -48,100 +48,28 @@ function compileStepEvidence(step, context) {
  */
 const PRESET_ACTIONS = [
   {
-    id: 'auth_login_precondition',
-    category: 'business',
-    stepType: 'Given',
-    name: 'Tiền điều kiện: Đăng nhập tự động bằng tài khoản hợp lệ (authSetup)',
-    desc: 'Tạo tài khoản hoặc đăng nhập tự động trước khi vào luồng test, chụp ảnh bằng chứng ban đầu',
-    fixture: 'authenticatedUser, homePage',
-    codeTemplate: (step, ctx) => `      await homePage.expectHomepageVisible();
-      await homePage.capture('precondition_logged_in_state');`,
-  },
-  {
-    id: 'close_onboarding_popup',
-    category: 'business',
-    stepType: 'And',
-    name: 'Đóng popup Onboarding nếu hiển thị',
-    desc: 'Tự động kiểm tra và đóng popup giới thiệu/quảng cáo',
-    fixture: 'onboardingPopup',
-    codeTemplate: (step, ctx) => `      await onboardingPopup.closeIfVisible(undefined, {
-        modalTimeout: 15000,
-        closeBtnTimeout: 5000,
-        modalHiddenTimeout: 10000,
-        modalDetachedTimeout: 10000,
-      });`,
-  },
-  {
-    id: 'open_nocv_job_list',
-    category: 'business',
-    stepType: 'When',
-    name: 'Xem danh sách việc làm không cần CV',
-    desc: 'Đóng modal chặn và bấm link việc không cần CV trên trang chủ',
-    fixture: 'homePage',
-    codeTemplate: (step, ctx) => `      await homePage.closeBlockingModalIfVisible();
-      await homePage.clickNoCVJobLink();
-      await jobSearchPage.firstJobLink.waitFor({ state: 'visible', timeout: 15000 });`,
-  },
-  {
-    id: 'select_first_job',
-    category: 'business',
-    stepType: 'When',
-    name: 'Mở chi tiết việc làm đầu tiên và bắt đầu ứng tuyển',
-    desc: 'Mở tab việc làm mới và khởi tạo trang JobApplyNoCVPage',
-    fixture: 'jobSearchPage, createJobApplyNoCVPage',
-    codeTemplate: (step, ctx) => `      const newPage = await jobSearchPage.clickFirstJob();
-      jobApplyNoCVPage = createJobApplyNoCVPage(newPage);
-      await jobApplyNoCVPage.capture('job_detail_opened', true);
-      await jobApplyNoCVPage.startApplyNoCV({ otpCode: usersData[0]?.otp });`,
-  },
-  {
-    id: 'fill_mini_profile',
-    category: 'business',
-    stepType: 'And',
-    name: 'Điền thông tin Profile mini',
-    desc: 'Tự động điền học vấn, năm sinh, địa điểm và nộp hồ sơ',
-    fixture: 'jobApplyNoCVPage',
-    codeTemplate: (step, ctx) => `      await jobApplyNoCVPage.capture('and_profile_start');
-      await jobApplyNoCVPage.fillMiniProfile(applyData.noCVApply.job1);
-      await jobApplyNoCVPage.capture('and_profile_filled');
-      await jobApplyNoCVPage.submitProfile();
-      await jobApplyNoCVPage.capture('and_profile_submitted');`,
-  },
-  {
-    id: 'bulk_apply_all',
-    category: 'business',
-    stepType: 'And',
-    name: 'Ứng tuyển hàng loạt các công việc gợi ý',
-    desc: 'Bấm nút ứng tuyển tất cả việc làm phù hợp còn lại (Bulk Apply)',
-    fixture: 'jobApplyNoCVPage, jobApplyPage',
-    codeTemplate: (step, ctx) => {
-      if (ctx?.pages?.some((p) => p.name === 'JobApplyPage') || (ctx?.fixture && ctx.fixture.includes('jobApplyPage'))) {
-        return `      await jobApplyPage.bulkApply();\n      await jobApplyPage.capture('after_bulk_apply', true);`;
-      }
-      return `      const didBulkApply = await jobApplyNoCVPage.bulkApply(applyData.noCVApply.job2);\n      if (didBulkApply) {\n        await jobApplyNoCVPage.capture('and_bulk_apply_completed');\n      }`;
-    },
-  },
-  {
-    id: 'verify_applied_jobs',
-    category: 'business',
-    stepType: 'Then',
-    name: 'Kiểm tra việc làm xuất hiện trong danh sách đã ứng tuyển',
-    desc: 'Mở trang việc làm đã ứng tuyển và verify danh sách hiển thị',
-    fixture: 'jobApplyNoCVPage, jobApplyPage',
-    codeTemplate: (step, ctx) => {
-      if (ctx?.pages?.some((p) => p.name === 'JobApplyPage') || (ctx?.fixture && ctx.fixture.includes('jobApplyPage'))) {
-        return `      await jobApplyPage.openAppliedJobs();\n      await jobApplyPage.expectAppliedJobsVisible();\n      await jobApplyPage.capture('applied_jobs_list_visible', true);`;
-      }
-      return `      await jobApplyNoCVPage.openAppliedJobs();\n      await jobApplyNoCVPage.expectAppliedJobsVisible();\n      await jobApplyNoCVPage.capture('applied_jobs_list_visible', true);`;
-    },
-  },
-  {
     id: 'navigate_url',
     category: 'interaction',
     stepType: 'Given',
     name: 'Mở đường dẫn URL',
     desc: 'Điều hướng trình duyệt đến một trang cụ thể',
-    codeTemplate: (step, ctx) => `      await page.goto(${quote(step.url || 'https://seeker.vl24hv2.qc.sieuviet-team.com')});`,
+    codeTemplate: (step, ctx) => `      await page.goto(${quote(step.url || 'https://example.com')});`,
+  },
+  {
+    id: 'wait_visible',
+    category: 'interaction',
+    stepType: 'Then',
+    name: 'Chờ phần tử hiển thị',
+    desc: 'Chờ cho phần tử xuất hiện trên DOM và hiển thị',
+    codeTemplate: (step, ctx) => `      await page.locator(${quote(step.locator || 'div')}).waitFor({ state: 'visible', timeout: 15000 });`,
+  },
+  {
+    id: 'take_screenshot',
+    category: 'evidence',
+    stepType: 'And',
+    name: 'Chụp ảnh màn hình (Evidence)',
+    desc: 'Chụp ảnh màn hình lưu vào bằng chứng kiểm thử',
+    codeTemplate: (step, ctx) => `      await page.screenshot({ path: \`evidence/\${Date.now()}_screenshot.png\` });`,
   },
   {
     id: 'click_element',

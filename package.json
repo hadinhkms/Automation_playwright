@@ -32,8 +32,13 @@
     "report": "playwright show-report",
     "check:framework": "node scripts/check-framework-structure.js"
   },
-  "devDependencies": {
-    "@playwright/test": "^1.40.0",
+  "dependencies": {
     "dotenv": "^16.3.1"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.35.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
   }
 }

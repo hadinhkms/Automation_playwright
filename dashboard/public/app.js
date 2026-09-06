@@ -2743,7 +2743,7 @@ function createSharedCodeEditor({
       return "'Tên bước kiểm thử', async () => {\n    \n  });";
     }
     if (/^\s*(?:await\s+)?expect\($/.test(currentLine)) {
-      return "page).toHaveURL(/vieclam24h/);";
+      return "page).toHaveURL(/example/);";
     }
 
     // 3. Framework Page Objects & Fixture Actions
@@ -4166,8 +4166,8 @@ function renderSettings(settings) {
 }
 
 function updateBrandingPreview() {
-  const name = $('#settings-project-name')?.value.trim() || 'Vieclam24h Automation';
-  const subtitle = $('#settings-project-subtitle')?.value.trim() || 'Siêu Việt Group • Playwright';
+  const name = $('#settings-project-name')?.value.trim() || 'QA Automation Studio';
+  const subtitle = $('#settings-project-subtitle')?.value.trim() || 'Playwright Automation Platform';
   const title = $('#settings-page-title')?.value.trim() || name;
   const logoUrl = $('#settings-logo-url')?.value.trim();
   const primaryColor = $('#settings-primary-color')?.value.trim() || '#0A65CC';
@@ -11332,14 +11332,14 @@ function initVisualBuilderControls() {
         { id: 's_3', stepType: 'Then', title: 'Hệ thống hiển thị đúng thông tin người dùng', actionId: 'assert_element_visible' },
       ];
     } else if (val === 'job_search') {
-      if ($('#builder-feature-name')) $('#builder-feature-name').value = 'Tìm kiếm việc làm theo ngành nghề';
-      if ($('#builder-scenario-name')) $('#builder-scenario-name').value = 'Tìm kiếm việc làm theo từ khóa và lọc ngành nghề';
-      if ($('#builder-tags')) $('#builder-tags').value = '@search @regression @visualBuilder';
+      if ($('#builder-feature-name')) $('#builder-feature-name').value = 'Kiểm tra luồng đăng nhập và điều hướng';
+      if ($('#builder-scenario-name')) $('#builder-scenario-name').value = 'Truy cập trang web và thao tác tương tác';
+      if ($('#builder-tags')) $('#builder-tags').value = '@smoke @regression @visualBuilder';
       builderSteps = [
-        { id: 's_1', stepType: 'Given', title: 'Người dùng truy cập trang chủ Vieclam24h', actionId: 'navigate_to_page' },
-        { id: 's_2', stepType: 'When', title: 'Người dùng nhập từ khóa tìm kiếm và chọn ngành nghề', actionId: 'input_text' },
-        { id: 's_3', stepType: 'And', title: 'Người dùng nhấn nút Tìm kiếm', actionId: 'click_element' },
-        { id: 's_4', stepType: 'Then', title: 'Danh sách việc làm phù hợp được hiển thị', actionId: 'assert_element_visible' },
+        { id: 's_1', stepType: 'Given', title: 'Người dùng truy cập trang chủ hệ thống', actionId: 'navigate_to_page' },
+        { id: 's_2', stepType: 'When', title: 'Người dùng nhập dữ liệu vào ô tìm kiếm', actionId: 'input_text' },
+        { id: 's_3', stepType: 'And', title: 'Người dùng nhấn nút Xác nhận', actionId: 'click_element' },
+        { id: 's_4', stepType: 'Then', title: 'Kết quả hiển thị chính xác', actionId: 'assert_element_visible' },
       ];
     }
     renderBuilderSteps();

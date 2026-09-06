@@ -1,4 +1,4 @@
-﻿const ACTION_TYPES = {
+const ACTION_TYPES = {
   GOTO: 'goto',
   CLICK: 'click',
   FILL: 'fill',
@@ -42,7 +42,7 @@ const ACTION_DEFINITIONS = [
     label: 'Điều hướng đến trang (Navigate)',
     category: 'navigation',
     icon: 'ph-globe',
-    params: [{ name: 'url', label: 'URL / Đường dẫn', type: 'text', placeholder: 'https://vieclam24h.vn/...' }],
+    params: [{ name: 'url', label: 'URL / Đường dẫn', type: 'text', placeholder: 'https://example.com/...' }],
   },
   {
     type: 'click',

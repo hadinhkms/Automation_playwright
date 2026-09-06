@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vieclam24h Automation Dashboard</title>
-  <link rel="icon" href="https://vieclam24h.vn/favicon.ico" id="favicon">
+  <title>QA Automation Studio</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='20' font-size='20'>⚡</text></svg>" id="favicon">
   <link rel="stylesheet" href="/styles.css?v=4.6">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,11 +21,11 @@
   <main class="shell">
     <nav class="topbar">
       <div class="topbar-left">
-        <a class="brand" href="/" aria-label="Vieclam24h Automation">
-          <img class="brand-mark" id="brand-logo" src="https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png" alt="Vieclam24h" onerror="this.onerror=null; this.src='https://vieclam24h.vn/favicon.ico';">
+        <a class="brand" href="/" aria-label="QA Automation Studio">
+          <div class="brand-mark-badge" id="brand-logo" style="width:32px;height:32px;background:var(--accent,#0A65CC);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;box-shadow:0 2px 6px rgba(10,101,204,0.3);">QA</div>
           <span class="brand-meta">
-            <strong id="brand-name">Vieclam24h Automation</strong>
-            <small id="brand-subtitle">Siêu Việt Group • Playwright</small>
+            <strong id="brand-name">QA Automation Studio</strong>
+            <small id="brand-subtitle">Playwright Platform</small>
           </span>
         </a>
       </div>
@@ -2692,16 +2692,16 @@
                 <div class="settings-card-title"><i class="ph ph-identification-badge"></i><span>Nhận diện thương hiệu</span></div>
                 <div class="settings-card-grid">
                   <label>Tên hệ thống<small>Hiển thị ở góc trên bên trái Dashboard.</small>
-                    <input id="settings-project-name" type="text" placeholder="Vieclam24h Automation">
+                    <input id="settings-project-name" type="text" placeholder="QA Automation Studio">
                   </label>
                   <label>Dòng phụ đề (Subtitle)<small>Hiển thị nhỏ bên dưới tên hệ thống.</small>
-                    <input id="settings-project-subtitle" type="text" placeholder="Siêu Việt Group • Playwright">
+                    <input id="settings-project-subtitle" type="text" placeholder="Playwright Automation Platform">
                   </label>
                   <label>Tiêu đề trang (Tab Title)<small>Tiêu đề hiển thị trên thẻ tab trình duyệt.</small>
-                    <input id="settings-page-title" type="text" placeholder="Vieclam24h Automation Dashboard">
+                    <input id="settings-page-title" type="text" placeholder="QA Automation Dashboard">
                   </label>
-                  <label>Logo URL<small>Đường dẫn đến file ảnh SVG/PNG logo.</small>
-                    <input id="settings-logo-url" type="url" placeholder="https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png">
+                  <label>Logo URL<small>Đường dẫn đến file ảnh SVG/PNG logo (để trống để dùng badge mặc định).</small>
+                    <input id="settings-logo-url" type="url" placeholder="https://example.com/logo.png">
                   </label>
                 </div>
               </div>
@@ -2806,8 +2806,8 @@
                     <span class="light green"></span>
                   </div>
                   <div class="mockup-tab">
-                    <img id="mockup-tab-favicon" src="https://vieclam24h.vn/favicon.ico" alt="Favicon">
-                    <span id="branding-preview-title" class="mockup-tab-title">Vieclam24h Automation Dashboard</span>
+                    <span style="font-size: 13px;">⚡</span>
+                    <span id="branding-preview-title" class="mockup-tab-title">QA Automation Dashboard</span>
                     <i class="ph ph-x mockup-tab-close"></i>
                   </div>
                 </div>
@@ -2817,10 +2817,10 @@
                   <!-- APP TOPBAR -->
                   <div class="mockup-topbar">
                     <div class="mockup-brand">
-                      <img id="branding-preview-logo" class="brand-mark" style="width: 24px; height: 24px; object-fit: contain; padding: 2px;" src="https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png" alt="Logo">
+                      <div id="branding-preview-logo" style="width: 20px; height: 20px; border-radius: 4px; background: var(--primary, #0a65cc); color: #fff; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center;">QA</div>
                       <div>
-                        <div id="branding-preview-name" class="mockup-brand-name">Vieclam24h Automation</div>
-                        <div id="branding-preview-subtitle" class="mockup-brand-sub">Siêu Việt Group • Playwright</div>
+                        <div id="branding-preview-name" class="mockup-brand-name">QA Automation Studio</div>
+                        <div id="branding-preview-subtitle" class="mockup-brand-sub">Playwright Platform</div>
                       </div>
                     </div>
                     <div class="mockup-topbar-nav">
