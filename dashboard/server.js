@@ -11,6 +11,7 @@ const {
 } = require('../core/config/dashboardConfig');
 
 const ROOT = path.resolve(__dirname, '..');
+require('dotenv').config({ path: path.join(ROOT, '.env') });
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const REPORT_DIR = path.join(ROOT, 'playwright-report');
 const EVIDENCE_DIR = path.join(ROOT, 'evidence');
@@ -53,6 +54,8 @@ const {
 const { hashText } = require('../core/generator/wizardSchema');
 const { createRemoteRunService } = require('../core/ci/remoteRunService');
 const { createCopilotService } = require('../core/ai/copilotService');
+const { createAgentService } = require('../core/ai/agentService');
+const { createAgentRoutes } = require('../core/ai/agentRoutes');
 const { analyzeDiagnostics } = require('../core/diagnostics/diagnosticsAnalyzer');
 
 const {
@@ -77,6 +80,16 @@ let activeRecorder = null;
 const remoteRunConfig = { environments: {}, suites: {}, github: {} };
 const remoteRunService = createRemoteRunService({ config: remoteRunConfig, allowProd: process.env.DASHBOARD_ALLOW_PROD_REMOTE === '1' });
 const copilotService = createCopilotService({ quota: Number(process.env.DASHBOARD_AI_QUOTA || 20) });
+const agentService = createAgentService({ root: ROOT });
+let pendingDashboardWrites = 0;
+const agentRoutes = createAgentRoutes({ service: agentService, parseBody, sendJson,
+  isBusy: () => Boolean(activeRun || activeRecorder || pendingDashboardWrites) });
+const AGENT_SAFE_POST_ROUTES = new Set([
+  '/api/stop', '/api/shutdown', '/api/recorder/stop', '/api/recorder/scan-pages',
+  '/api/recorder/convert', '/api/recorder/generate-draft', '/api/ai/generate-state',
+  '/api/ai/config', '/api/ai/test-connection', '/api/ai/inline-suggest',
+  '/api/diagnostics/analyze', '/api/builder/compile',
+]);
 
 function ensureRecordingsDir() {
   if (!fs.existsSync(RECORDINGS_DIR)) {
@@ -139,6 +152,7 @@ const CANONICAL_DOCUMENTS = [
   '.agents/skills/dashboard-maintainer/SKILL.md',
   'README.md',
   'GIT_WORKFLOW.md',
+  'docs/SETUP_GUIDE.md',
   'docs/DISCORD_BOT_SETUP_GUIDE.md',
 ];
 
@@ -653,10 +667,10 @@ function parseBody(request, maxBytes = 32_768) {
     let body = '';
     request.on('data', (chunk) => {
       body += chunk;
-      if (Buffer.byteLength(body, 'utf8') > maxBytes) reject(new Error('Request body quá lớn.'));
+      if (Buffer.byteLength(body, 'utf8') > maxBytes) reject(Object.assign(new Error('Request body quá lớn.'), { statusCode: 400 }));
     });
     request.on('end', () => {
-      try { resolve(body ? JSON.parse(body) : {}); } catch { reject(new Error('JSON không hợp lệ.')); }
+      try { resolve(body ? JSON.parse(body) : {}); } catch { reject(Object.assign(new Error('JSON không hợp lệ.'), { statusCode: 400 })); }
     });
     request.on('error', reject);
   });
@@ -935,6 +949,20 @@ function serveFile(response, filePath, cache = false) {
 
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  if (url.pathname.startsWith('/api/agent/')) {
+    await agentRoutes(request, response, url);
+    return;
+  }
+  const dashboardWrite = url.pathname.startsWith('/api/') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
+    && !(request.method === 'POST' && AGENT_SAFE_POST_ROUTES.has(url.pathname));
+  if (dashboardWrite) {
+    if (agentService.isRunning()) return sendJson(response, 409, { error: 'Agent đang làm việc. Hãy chờ hoặc dừng tác vụ trước khi thay đổi dữ liệu hay chạy test.' });
+    pendingDashboardWrites += 1;
+    let released = false;
+    const release = () => { if (!released) { released = true; pendingDashboardWrites -= 1; } };
+    response.once('finish', release);
+    response.once('close', release);
+  }
 
   if (request.method === 'GET' && url.pathname === '/api/config') {
     const settings = getDashboardConfig();
@@ -1067,6 +1095,88 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, 200, { message: 'Đã lưu cấu hình Discord QA Bot thành công!' });
     } catch (error) {
       return sendJson(response, 400, { error: `Không thể lưu cấu hình Bot: ${error.message}` });
+    }
+  }
+  if (request.method === 'GET' && url.pathname === '/api/ai/config') {
+    const envPath = path.join(ROOT, '.env');
+    const env = parseEnvFile(envPath);
+    const activeKey = env.AI_API_KEY || env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.DEEPSEEK_API_KEY || '';
+    const provider = env.AI_PROVIDER || (env.OPENAI_API_KEY ? 'openai' : env.DEEPSEEK_API_KEY ? 'deepseek' : 'gemini');
+    const model = env.AI_MODEL || (provider === 'gemini' ? (env.DASHBOARD_GEMINI_MODEL || 'gemini-2.5-flash') : provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini');
+    return sendJson(response, 200, {
+      provider,
+      baseURL: env.AI_BASE_URL || '',
+      model,
+      hasKey: Boolean(activeKey),
+      maskedKey: activeKey ? `${activeKey.slice(0, 6)}...${activeKey.slice(-4)}` : '',
+    });
+  }
+  if ((request.method === 'PUT' || request.method === 'POST') && url.pathname === '/api/ai/config') {
+    try {
+      const body = await parseBody(request);
+      const envPath = path.join(ROOT, '.env');
+      const current = parseEnvFile(envPath);
+      if (body.provider) current.AI_PROVIDER = body.provider;
+      if (body.baseURL !== undefined) {
+        if (body.provider === 'gemini' && body.baseURL && !body.baseURL.includes('googleapis') && !body.baseURL.includes('gemini')) {
+          current.AI_BASE_URL = '';
+        } else {
+          current.AI_BASE_URL = body.baseURL;
+        }
+      }
+      if (body.model) {
+        current.AI_MODEL = body.model;
+        if (body.provider === 'gemini') current.DASHBOARD_GEMINI_MODEL = body.model;
+      }
+      if (body.apiKey && !body.apiKey.includes('...')) {
+        current.AI_API_KEY = body.apiKey;
+        if (body.provider === 'gemini') current.GEMINI_API_KEY = body.apiKey;
+        else if (body.provider === 'openai') current.OPENAI_API_KEY = body.apiKey;
+        else if (body.provider === 'deepseek') current.DEEPSEEK_API_KEY = body.apiKey;
+      }
+      writeEnvFile(envPath, current);
+      try { require('dotenv').config({ path: envPath, override: true }); } catch {}
+      return sendJson(response, 200, { message: 'Đã lưu cấu hình AI vào file .env thành công!' });
+    } catch (error) {
+      return sendJson(response, 400, { error: `Không thể lưu cấu hình AI: ${error.message}` });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/ai/test-connection') {
+    try {
+      const body = await parseBody(request);
+      let keyToTest = body.apiKey;
+      if (!keyToTest || keyToTest.includes('...')) {
+        const env = parseEnvFile(path.join(ROOT, '.env'));
+        keyToTest = env.AI_API_KEY || (body.provider === 'gemini' ? env.GEMINI_API_KEY : body.provider === 'openai' ? env.OPENAI_API_KEY : body.provider === 'deepseek' ? env.DEEPSEEK_API_KEY : env.GEMINI_API_KEY);
+      }
+      const result = await agentService.testConnection({
+        provider: body.provider,
+        apiKey: keyToTest,
+        baseURL: body.baseURL,
+        model: body.model
+      });
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 400, { error: error.message || 'Kiểm tra kết nối thất bại.' });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/ai/inline-suggest') {
+    try {
+      const body = await parseBody(request, 64 * 1024);
+      let clientConfig = body.clientConfig || null;
+      if (!clientConfig && request.headers['x-ai-config']) {
+        try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
+      }
+      const result = await agentService.inlineSuggest({
+        prefix: body.prefix,
+        suffix: body.suffix,
+        language: body.language,
+        clientConfig,
+        model: body.model,
+      });
+      return sendJson(response, 200, result);
+    } catch (error) {
+      return sendJson(response, 200, { success: false, suggestion: '', error: error.message });
     }
   }
   if (request.method === 'POST' && url.pathname === '/api/git/sync') {
@@ -2219,6 +2329,7 @@ server.on('error', (error) => {
 tryListen(currentPort);
 
 function shutdown() {
+  agentService.shutdown();
   if (activeRun?.child) activeRun.child.kill('SIGTERM');
   if (activeRecorder?.child) {
     try {

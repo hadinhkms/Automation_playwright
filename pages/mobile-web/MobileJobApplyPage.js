@@ -39,22 +39,57 @@ class MobileJobApplyPage extends JobApplyPage {
   }
 
   /**
+   * Đóng bottom sheet chọn nguồn tải CV nếu còn hiển thị trên Mobile Web
+   */
+  async closeUploadMethodSheetIfVisible() {
+    const sheet = this.page.locator('[data-test-id="common__dialog"]').filter({ hasText: /Tải lên CV|Google Drive/i });
+    if (await sheet.isVisible({ timeout: 2000 }).catch(() => false)) {
+      const closeBtn = sheet.locator('button:has(.svicon-close), button:has(.svicon-x), i.svicon-close').first();
+      if (await closeBtn.isVisible().catch(() => false)) {
+        await this.clickElement(closeBtn);
+      } else {
+        await this.page.locator('body').click({ position: { x: 10, y: 10 }, force: true }).catch(() => {});
+      }
+      await sheet.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    }
+  }
+
+  /**
+   * Upload CV trên Mobile: đóng sheet nguồn upload nếu mở
+   */
+  async uploadCV(filePath) {
+    const fileInput = this.page.locator('input[type="file"]').first();
+    if ((await fileInput.count().catch(() => 0)) > 0) {
+      await fileInput.setInputFiles(filePath);
+    } else {
+      await super.uploadCV(filePath);
+    }
+    await this.waitForGlobalLoadingHidden(15000);
+    await this.page.waitForTimeout(1000);
+    await this.closeUploadMethodSheetIfVisible();
+  }
+
+  /**
+   * Tiếp tục ứng tuyển bằng CV trên Mobile
+   */
+  async continueApplyCV() {
+    await this.closeUploadMethodSheetIfVisible();
+    await super.continueApplyCV();
+  }
+
+  /**
    * Override mở danh sách việc đã ứng tuyển trên Mobile:
    * Nếu menu header bị ẩn vào drawer/hamburger, điều hướng URL tương đối hoặc mở drawer
    */
   async openAppliedJobs() {
     try {
-      const isVisible = await this.btnAppliedJobs.isVisible({ timeout: 3000 });
-      if (isVisible) {
-        await this.actions.click(this.btnAppliedJobs);
-        return;
-      }
+      await super.openAppliedJobs();
+      return;
     } catch (e) {
-      // Tiếp tục fallback
+      // Fallback: Điều hướng trực tiếp URL tương đối chuẩn trên Mobile
+      await this.navigate('/ntv-trang-quan-tri-viec-lam-da-ung-tuyen.html');
+      await this.page.waitForLoadState('domcontentloaded');
     }
-
-    // Fallback: Điều hướng trực tiếp URL tương đối trên Mobile
-    await this.page.goto('/viec-lam-da-ung-tuyen.html');
   }
 
   /**
@@ -62,10 +97,13 @@ class MobileJobApplyPage extends JobApplyPage {
    */
   async expectAppliedJobsVisible() {
     await this.page.waitForLoadState('domcontentloaded');
-    const appliedList = this.appliedJobsList
-      .or(this.page.locator('.applied-job-item, [data-test-id*="applied-job"]'))
-      .or(this.page.getByRole('heading', { name: /Việc làm đã ứng tuyển/i }))
-      .first();
+    const appliedList = this.page.locator(
+      'h1:has-text("Việc làm đã ứng tuyển"):visible, ' +
+      'h2:has-text("Việc làm đã ứng tuyển"):visible, ' +
+      '[data-test-id="applied-job__list-jobs"]:visible, ' +
+      'div:has-text("Hồ sơ đã đến nhà tuyển dụng"):visible, ' +
+      'span:has-text("CV ứng tuyển"):visible'
+    ).first();
     await this.waitForElement(appliedList, 20000);
   }
 }

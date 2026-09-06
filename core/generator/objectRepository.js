@@ -2,13 +2,13 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const PAGE_ROOTS = ['pages/', 'pages/desktop/', 'pages/mobile-web/'];
+const PAGE_ROOTS = ['pages/', 'pages/desktop/', 'pages/mobile-web/', 'core/fixtures/'];
 const LOCATOR_EXPRESSION = /^(?:this\.)?page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText|getByAltText|getByTitle)\s*\(/;
 
 function normalizePagePath(relativePath) {
   const value = String(relativePath || '').replace(/\\/g, '/');
-  if (path.isAbsolute(value) || value.includes('..') || !value.startsWith('pages/')) {
-    throw new Error('Đường dẫn Page Object phải thuộc thư mục pages/.');
+  if (path.isAbsolute(value) || value.includes('..') || (!value.startsWith('pages/') && !value.startsWith('core/fixtures/'))) {
+    throw new Error('Đường dẫn phải thuộc thư mục pages/ hoặc core/fixtures/.');
   }
   return value;
 }
@@ -22,9 +22,18 @@ function validateLocatorExpression(expression) {
 }
 
 function getReadiness({ relativePath, className, baseClass, content }) {
+  const isFixture = relativePath.startsWith('core/fixtures/');
   const syntax = (() => {
     try { new Function(content); return true; } catch (_) { return false; }
   })();
+  if (isFixture) {
+    const exportReady = /module\.exports\s*=\s*\{[^}]*test\b/.test(content);
+    const importReady = /require\(['"][^'"]+['"]\)/.test(content);
+    const platformReady = true;
+    const checks = { syntax, export: exportReady, import: importReady, platform: platformReady };
+    const passed = Object.values(checks).every(Boolean);
+    return { status: passed ? 'ready' : 'blocked', ready: passed, checks, reason: passed ? null : Object.entries(checks).filter(([, value]) => !value).map(([key]) => key).join(', ') };
+  }
   const exportReady = new RegExp(`module\\.exports\\s*=\\s*\\{[^}]*\\b${className}\\b`).test(content);
   const importReady = /require\(['"][^'"]+['"]\)/.test(content) || baseClass === 'BasePage';
   const platformReady = relativePath === 'pages/BasePage.js' || PAGE_ROOTS.slice(1).some((root) => relativePath.startsWith(root));
@@ -156,6 +165,20 @@ const PAGE_METADATA = {
     platform: 'mobile-web',
     category: 'Mobile Web',
   },
+  'core/fixtures/baseTest.js': {
+    title: 'Fixture Nền Tảng Desktop (baseTest)',
+    desc: 'Fixture gốc cho Desktop: Quản lý Precondition, Injected Page Objects và Worker Sessions.',
+    icon: 'ph-lightning',
+    platform: 'fixture',
+    category: 'Fixture Nền tảng',
+  },
+  'core/fixtures/mobileWebTest.js': {
+    title: 'Fixture Nền Tảng Mobile Web (mobileWebTest)',
+    desc: 'Fixture mở rộng cho Mobile Web: Kế thừa baseTest, nạp Mobile Page Objects và Failure Tracing.',
+    icon: 'ph-device-mobile',
+    platform: 'fixture',
+    category: 'Fixture Nền tảng',
+  },
 };
 
 /**
@@ -229,8 +252,77 @@ function parsePageObject(relativePath, rootDir = process.cwd()) {
   const content = fs.readFileSync(fullPath, 'utf8');
   const safeRelativePath = normalizePagePath(path.relative(rootDir, fullPath));
   const normalizedRel = safeRelativePath.replace(/^pages\//, '');
-  const isMobile = relativePath.includes('mobile-web');
+  const isFixture = safeRelativePath.startsWith('core/fixtures/');
+  const isMobile = relativePath.includes('mobile-web') || relativePath.includes('mobileWebTest');
   const isBase = path.basename(relativePath) === 'BasePage.js';
+
+  if (isFixture) {
+    const fixtureFileName = path.basename(relativePath, '.js');
+    const meta = PAGE_METADATA[safeRelativePath] || {
+      title: fixtureFileName === 'baseTest' ? 'Fixture Nền Tảng Desktop (baseTest)' : 'Fixture Nền Tảng Mobile Web (mobileWebTest)',
+      desc: 'Playwright Fixture quản lý Dependency Injection và vòng đời kiểm thử.',
+      icon: fixtureFileName === 'mobileWebTest' ? 'ph-device-mobile' : 'ph-lightning',
+      platform: 'fixture',
+      category: 'Fixture Nền tảng',
+    };
+
+    const fixtureItems = [];
+    const extendMatch = content.match(/\.extend\s*\(\s*\{([\s\S]*?)\}\s*\)/);
+    if (extendMatch) {
+      const extendBody = extendMatch[1];
+      const fixRegex = /([a-zA-Z0-9_]+)\s*:\s*async\s*\(\s*([^)]*)\s*\)\s*=>/g;
+      let fMatch;
+      while ((fMatch = fixRegex.exec(extendBody)) !== null) {
+        const fixName = fMatch[1];
+        const fixArgs = fMatch[2].trim();
+        let cat = 'Page Object Injection';
+        let badgeColor = '#10b981';
+        let icon = 'ph-bold ph-browsers';
+        if (fixName.includes('User') || fixName.includes('auth') || fixName.includes('worker')) {
+          cat = 'Xác thực & Precondition';
+          badgeColor = '#8b5cf6';
+          icon = 'ph-bold ph-user-circle';
+        } else if (fixName.startsWith('create')) {
+          cat = 'Factory (Multi-Tab / Popup)';
+          badgeColor = '#06b6d4';
+          icon = 'ph-bold ph-tabs';
+        } else if (fixName === 'pageClasses' || fixName === 'featureName' || fixName === 'basePage') {
+          cat = 'Hạ tầng & Nền tảng';
+          badgeColor = '#6366f1';
+          icon = 'ph-bold ph-gear';
+        }
+
+        fixtureItems.push({
+          name: fixName,
+          params: fixArgs ? [fixArgs] : [],
+          signature: `${fixName}`,
+          category: cat,
+          badgeColor,
+          icon,
+          isFixture: true,
+          description: `Injected Fixture: ${fixName}`,
+        });
+      }
+    }
+
+    return {
+      relativePath: safeRelativePath,
+      className: fixtureFileName,
+      baseClass: fixtureFileName === 'mobileWebTest' ? 'baseTest' : '@playwright/test',
+      title: meta.title,
+      desc: meta.desc,
+      icon: meta.icon,
+      platform: 'fixture',
+      category: meta.category,
+      locatorCount: 0,
+      methodCount: fixtureItems.length,
+      locators: [],
+      methods: fixtureItems,
+      fixtureName: fixtureFileName,
+      readiness: getReadiness({ relativePath: safeRelativePath, className: fixtureFileName, baseClass: 'none', content }),
+      rawCode: content,
+    };
+  }
 
   // 1. Class name & Base class
   const classMatch = content.match(/class\s+([A-Za-z0-9_]+)(?:\s+extends\s+([A-Za-z0-9_]+))?/);
@@ -303,13 +395,16 @@ function parsePageObject(relativePath, rootDir = process.cwd()) {
     }
   }
 
-  // 4. Trích xuất Actions (Methods)
+  // 4. Trích xuất Actions (chỉ các hàm async method hợp lệ của class)
   const methods = [];
-  const methodRegex = /(?:async\s+)?([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{([\s\S]*?)\n\s*\}/g;
+  const methodRegex = /async\s+([a-zA-Z0-9_$]+)\s*\(([^)]*)\)\s*\{([\s\S]*?)\n\s*\}/g;
+  const reservedKeywords = new Set([
+    'constructor', '_capture', 'for', 'if', 'while', 'catch', 'switch', 'function', 'return', 'try', 'finally'
+  ]);
   let mMatch;
   while ((mMatch = methodRegex.exec(content)) !== null) {
     const methodName = mMatch[1];
-    if (['constructor', '_capture'].includes(methodName) || methodName.startsWith('_')) {
+    if (reservedKeywords.has(methodName) || methodName.startsWith('_')) {
       continue;
     }
     const params = mMatch[2].trim().split(',').map((p) => p.trim()).filter(Boolean);
@@ -352,6 +447,7 @@ function parsePageObject(relativePath, rootDir = process.cwd()) {
  */
 function scanAllPageObjects(rootDir = process.cwd()) {
   const pagesDir = path.join(rootDir, 'pages');
+  const fixturesDir = path.join(rootDir, 'core', 'fixtures');
   const results = [];
 
   const visit = (dir) => {
@@ -372,9 +468,12 @@ function scanAllPageObjects(rootDir = process.cwd()) {
   };
 
   visit(pagesDir);
+  visit(fixturesDir);
   return results.sort((a, b) => {
     if (a.platform === 'base') return -1;
     if (b.platform === 'base') return 1;
+    if (a.platform === 'fixture' && b.platform !== 'fixture') return 1;
+    if (b.platform === 'fixture' && a.platform !== 'fixture') return -1;
     if (a.platform !== b.platform) return a.platform.localeCompare(b.platform);
     return a.className.localeCompare(b.className);
   });

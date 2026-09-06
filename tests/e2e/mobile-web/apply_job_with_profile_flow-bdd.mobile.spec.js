@@ -38,16 +38,13 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
 
       await jobApplyPage.capture('after_mobile_job_detail_opened');
       await jobApplyPage.startApply({ otpCode: usersData[0]?.otp });
-      await jobApplyPage.capture('after_mobile_start_apply');
       await jobApplyPage.applyByProfile();
-      await jobApplyPage.capture('after_mobile_apply_by_profile');
       await jobApplyPage.continueApply();
       await jobApplyPage.capture('after_mobile_continue_to_profile_form');
     });
 
     await test.step('And Tôi điền thông tin Giới thiệu bản thân trên mobile', async () => {
       await jobApplyPage.clickAddIntroduction();
-      await jobApplyPage.capture('before_mobile_fill_introduction');
       await jobApplyPage.fillIntroduction(applyData.intro);
       await jobApplyPage.capture('before_mobile_save_introduction');
       await jobApplyPage.saveSection();
@@ -56,7 +53,6 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
 
     await test.step('And Tôi điền Kinh nghiệm làm việc trên mobile', async () => {
       await jobApplyPage.clickAddExperience();
-      await jobApplyPage.capture('before_mobile_fill_experience');
       await jobApplyPage.fillExperience(applyData.experience);
       await jobApplyPage.capture('before_mobile_save_experience');
       await jobApplyPage.saveSection();
@@ -65,7 +61,6 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
 
     await test.step('And Tôi điền thông tin Học vấn trên mobile', async () => {
       await jobApplyPage.clickAddEducation();
-      await jobApplyPage.capture('before_mobile_fill_education');
       await jobApplyPage.fillEducation(applyData.education);
       await jobApplyPage.capture('before_mobile_save_education');
       await jobApplyPage.saveSection();
@@ -74,7 +69,6 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
 
     await test.step('And Tôi thêm Kỹ năng trên mobile', async () => {
       await jobApplyPage.clickAddSkill();
-      await jobApplyPage.capture('before_mobile_fill_skill');
       await jobApplyPage.fillSkill(applyData.skill);
       await jobApplyPage.capture('before_mobile_save_skill');
       await jobApplyPage.saveSection();
@@ -83,7 +77,6 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
 
     await test.step('And Tôi thêm Thành tựu trên mobile', async () => {
       await jobApplyPage.clickAddAchievement();
-      await jobApplyPage.capture('before_mobile_fill_achievement');
       await jobApplyPage.fillAchievement(applyData.achievement);
       await jobApplyPage.capture('before_mobile_save_achievement');
       await jobApplyPage.saveSection();
@@ -92,7 +85,6 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
 
     await test.step('And Tôi thêm Chứng chỉ trên mobile', async () => {
       await jobApplyPage.clickAddCertificate();
-      await jobApplyPage.capture('before_mobile_fill_certificate');
       await jobApplyPage.fillCertificate(applyData.certificate);
       await jobApplyPage.capture('before_mobile_save_certificate');
       await jobApplyPage.saveSection();
@@ -101,7 +93,6 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
 
     await test.step('And Tôi thêm Ngoại ngữ trên mobile', async () => {
       await jobApplyPage.clickAddForeignLanguage();
-      await jobApplyPage.capture('before_mobile_fill_language');
       await jobApplyPage.fillForeignLanguage(applyData.language);
       await jobApplyPage.capture('before_mobile_save_language');
       await jobApplyPage.saveSection();

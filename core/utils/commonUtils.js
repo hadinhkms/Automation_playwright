@@ -282,11 +282,16 @@ class ScreenshotHelper {
           '.ant-modal-wrap',
           '.MuiDialog-root',
           '.MuiModal-root',
-          'div[id*="popup-blocking"]',
-          'div[id*="popup-consent"]',
+          '#common__modal',
+          '.mbep-popup',
+          'div[id*="popup"]',
+          'div[id*="modal"]',
           'div[id*="onboarding"]',
           'div[data-test-id*="modal"]',
           'div[data-test-id*="popup"]',
+          'div[data-test-id*="apply-method-selector"]',
+          'div[class*="bottom-sheet"]',
+          'div[class*="drawer"]',
         ];
 
         const isVisibleModal = (element) => {
@@ -317,11 +322,16 @@ class ScreenshotHelper {
     const captureSequence = ++globalScreenshotSequence;
     this.screenshotCount = captureSequence;
 
-    // Tự động detect nếu fullPage không được chỉ định rõ (null hoặc undefined)
-    let shouldCaptureFullPage = fullPage;
-    if (shouldCaptureFullPage === null || shouldCaptureFullPage === undefined) {
-      const hasModal = await this.isModalOrPopupVisible();
-      shouldCaptureFullPage = !hasModal;
+    // Tiêu chí: nếu có modal hiển thị thì screenshot màn hình (viewport: fullPage = false),
+    // không có modal thì full screen (fullPage = true)
+    const hasModal = await this.isModalOrPopupVisible();
+    let shouldCaptureFullPage;
+    if (hasModal) {
+      // Khi modal đang mở: luôn chụp viewport màn hình để tập trung vào modal, tránh biến dạng modal
+      shouldCaptureFullPage = options.forceFullPage ? true : false;
+    } else {
+      // Khi không có modal: mặc định chụp full screen
+      shouldCaptureFullPage = (fullPage === false) ? false : true;
     }
 
     const {

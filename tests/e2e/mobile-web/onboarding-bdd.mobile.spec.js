@@ -17,7 +17,6 @@ test.describe('Mobile Feature: Cập nhật thông tin Onboarding sau khi đăng
       await expect(onboardingPopup.locationInput).toBeVisible({ timeout: 15000 });
       await onboardingPopup.capture('before_mobile_select_location');
       await onboardingPopup.selectLocationButton(onboardingData.location.button);
-      await onboardingPopup.capture('after_mobile_select_location_btn');
       await onboardingPopup.selectLocationOption(onboardingData.location.option);
       await onboardingPopup.capture('after_mobile_select_location_opt');
       await onboardingPopup.clickNextAndWaitForNextStep(onboardingPopup.step2Title);

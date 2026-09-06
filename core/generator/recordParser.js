@@ -1,4 +1,4 @@
-﻿const fs = require('fs');
+const fs = require('fs');
 const path = require('path');
 const {
   generateLocatorName,
@@ -195,11 +195,14 @@ function scanPages(platform = 'desktop', rootDir = process.cwd()) {
     }
 
     const methods = [];
-    const methodRegex = /(?:async\s+)?([a-zA-Z0-9_]+)\s*\(([^)]*)\)\s*\{/g;
+    const methodRegex = /async\s+([a-zA-Z0-9_$]+)\s*\(([^)]*)\)\s*\{/g;
+    const reservedKeywords = new Set([
+      'constructor', '_capture', 'for', 'if', 'while', 'catch', 'switch', 'function', 'return', 'try', 'finally'
+    ]);
     let methMatch;
     while ((methMatch = methodRegex.exec(content)) !== null) {
       const methodName = methMatch[1];
-      if (methodName !== 'constructor' && !methodName.startsWith('_')) {
+      if (!reservedKeywords.has(methodName) && !methodName.startsWith('_')) {
         const params = methMatch[2].trim().split(',').map((p) => p.trim()).filter(Boolean);
         methods.push({
           name: methodName,

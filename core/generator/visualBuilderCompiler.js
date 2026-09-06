@@ -622,18 +622,20 @@ function scanAllProjectScripts(rootDir = process.cwd()) {
   const dirsToScan = [
     { dir: 'tests/e2e/desktop', platform: 'desktop' },
     { dir: 'tests/e2e/mobile-web', platform: 'mobile-web' },
+    { dir: 'tests/api', platform: 'api' },
+    { dir: 'tests/setup', platform: 'setup' },
   ];
 
   for (const item of dirsToScan) {
     const fullDir = path.join(rootDir, item.dir);
     if (fs.existsSync(fullDir)) {
-      const files = fs.readdirSync(fullDir).filter((f) => f.endsWith('.spec.js'));
+      const files = fs.readdirSync(fullDir).filter((f) => f.endsWith('.spec.js') || f.endsWith('.setup.js') || f.endsWith('.js'));
       for (const file of files) {
         try {
           const relPath = path.join(item.dir, file).replace(/\\/g, '/');
           const parsed = parseExistingSpecFile(relPath, rootDir);
           scripts.push({
-            id: path.basename(file, '.spec.js'),
+            id: path.basename(file, '.spec.js').replace(/\.setup$/, '').replace(/\.js$/, ''),
             fileName: file,
             relativePath: relPath,
             featureName: parsed.featureName,

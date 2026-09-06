@@ -36,9 +36,7 @@ test.describe('Mobile Feature: Hoàn thành hồ sơ với thông tin cá nhân,
     });
 
     await test.step('And Người dùng mobile chỉnh sửa thông tin cá nhân', async () => {
-      await userProfilePage.capture('and_mobile_personal_info_start', true);
       await userProfilePage.clickEditPersonalInfo();
-      await userProfilePage.capture('and_mobile_personal_info_modal_opened');
       await userProfilePage.fillPersonalInfo(profileData.personalInfo);
       await userProfilePage.capture('and_mobile_personal_info_filled');
       await userProfilePage.savePersonalInfo();

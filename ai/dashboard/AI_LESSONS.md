@@ -17,6 +17,26 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 ## Confirmed lessons
 
+### 2026-09-05 — Base fixtures must be parsed as DI capabilities, not UI Page Objects
+
+- Area: Object Repository & Page Manager / BDD Inspector.
+- Symptom: Base test fixtures (`baseTest.js`, `mobileWebTest.js`) have no class constructor or UI locators, so standard page object parsers fail or misclassify them.
+- Root cause: Fixtures use `base.extend({ ... })` for dependency injection (preconditions, worker data, injected pages, factories) rather than `class extends BasePage`.
+- Correct pattern: Parse fixtures specifically by extracting injected keys from `.extend({ ... })`, categorize capabilities (`Xác thực & Precondition`, `Page Object Injection`, `Factory`, `Hạ tầng`), protect them from deletion, and adapt the UI (hide locator inputs, render capability pills with copy actions, provide direct code modal/editor access).
+- Preventive rule: Always distinguish UI Page Objects (locators + actions) from Test Fixtures (Dependency Injection & lifecycle hooks) in framework visual inspection tools.
+- Regression check: Run `core/generator/objectRepository.test.js` to ensure 17 pages + 2 fixtures scan cleanly; verify fixture filter and inspection in Page Manager.
+- Related files: `core/generator/objectRepository.js`, `dashboard/public/app.js`, `dashboard/public/index.html`, `dashboard/public/styles.css`.
+
+### 2026-09-05 — Codex/Ollama schema errors must fail fast
+
+- Area: AI Agent local model startup.
+- Symptom: A request stayed on “Đang khởi động mô hình local…” for many minutes without a response.
+- Root cause: Codex CLI requested the Ollama model list through an OpenAI-compatible response (`object`/`data`) but attempted to parse it as a native Ollama response with `models`.
+- Correct pattern: Surface the first sanitized Codex stderr event, detect the known model-schema mismatch, terminate the subprocess, and report an actionable compatibility error; keep a bounded startup timeout as a fallback.
+- Preventive rule: Never leave a local Agent session waiting indefinitely when the provider emits a startup error; test both stderr failure and no-output timeout paths.
+- Regression check: Start a local session against the incompatible provider, verify the error event and stopped session, then verify service, route, and UI controller regression tests remain green.
+- Related files: `core/ai/agentService.js`, `dashboard/public/agent.js`, `dashboard/agent-ui.test.js`.
+
 ### 2026-09-03 — Shared UI behavior must have one implementation
 
 - Area: Dashboard layout and source-code editors.
@@ -76,5 +96,30 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 - Preventive rule: Never apply inline `max-width` or inline horizontal padding overrides to modal inner containers. Verify computed box bounds match dialog bounds exactly and test programmatic autofocus across both light and dark themes.
 - Regression check: Measure `.app-modal` and `.app-modal-box` bounding rects in Chromium; verify `Math.abs(modalWidth - boxWidth) <= 2`, zero horizontal page overflow, symmetric 22px padding on all sides, and clean theme-aligned focus rings.
 - Related files: `dashboard/public/index.html`, `dashboard/public/styles.css`, `dashboard/public/app.js`.
+
+### 2026-09-06 — Multi-user AI configurations must support client-scoped storage without server overwrite
+
+- Area: Dashboard AI Settings & Agent execution.
+- Symptom: When multiple team members access the Dashboard concurrently from different machines, modifying the AI Provider or API Key in the server `.env` causes key collisions, quota exhaustion, and overwrites other members' active settings.
+- Root cause: Storing AI credentials exclusively in the server-side environment (`.env`) assumes a single-tenant local runtime.
+- Correct pattern: Provide a dual-scope storage model: Server scope (`.env` for single-user local machines) vs Client scope (`localStorage` for multi-user team networks). Transmit client credentials via secure headers (`X-AI-Config`) and request payloads (`clientConfig`) so that individual browser sessions execute with their own provider/key/model while falling back cleanly to server defaults when unconfigured.
+- Preventive rule: Always design developer AI tooling with dual-scope storage (Server `.env` + Client `localStorage`) to accommodate both local solo developers and shared team servers.
+- Regression check: Run `core/ai/agentService.test.js`, `core/ai/agentRoutes.test.js`, and `dashboard/agent-ui.test.js` to ensure clientConfig override, server fallback, and status reporting pass 100%.
+- Related files: `core/ai/agentService.js`, `core/ai/agentRoutes.js`, `dashboard/server.js`, `dashboard/public/index.html`, `dashboard/public/app.js`, `dashboard/public/agent.js`.
+
+### 2026-09-06 — Top-level Dashboard studio views must adhere to the canonical 3-frame layout
+
+- Area: Dashboard Layout & Workspace Architecture (Page Manager, BDD Studio, Test Suites).
+- Symptom: Implementing new management views (such as Test Suites) as card grids or 2-column layouts creates visual inconsistency, breaks muscle memory, and deviates from the established 3-column architecture (`290px minmax(360px, 1fr) minmax(380px, 1fr)`).
+- Root cause: Treating new views as standalone settings cards rather than first-class studio workspaces consuming the shared 3-panel layout system.
+- Correct pattern: Structure top-level studio views with the canonical 3-frame layout:
+  - Khung 1 (Cột 1, 290px): Danh sách thực thể (search, filter pills, counters, collapsible rail strip).
+  - Khung 2 (Cột 2, minmax(360px, 1fr)): Thiết lập chi tiết & form inputs / inspector.
+  - Khung 3 (Cột 3, minmax(380px, 1fr)): Tổng quan thực thi, live code/spec preview, lệnh CLI, and primary run/save actions.
+- Preventive rule: Never introduce 2-column card layouts or unstructured panels for primary dashboard studios; always consume `.suites-workspace` or equivalent 3-column grid tokens with collapsible sidebars.
+- Regression check: Assert presence of all 3 panels (`sidebar`, `middle-panel`, `right-panel`) in DOM, test sidebar collapse/expand rail, verify responsive grid stacking on 1400px, 1050px, and 375px mobile, and verify zero horizontal overflow.
+- Related files: `dashboard/public/index.html`, `dashboard/public/styles.css`, `dashboard/public/app.js`.
+
+
 
 

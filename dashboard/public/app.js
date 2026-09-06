@@ -721,7 +721,7 @@ function renderPageStudioRows() {
     locators.innerHTML = pageStudioLocators.map((item, index) => `
       <div class="page-studio-row" data-index="${index}">
         <input class="new-page-locator-name" placeholder="Tên biến, ví dụ: submitButton" value="${escapeHtml(item.name)}">
-        <input class="new-page-locator-expression" placeholder="this.page.getByRole('button', { name: 'Lưu' })" value="${escapeHtml(item.expression)}">
+        <input class="new-page-locator-expression" placeholder="page.getByRole('button', { name: 'Lưu' })" value="${escapeHtml(item.expression)}">
         <button type="button" class="btn-icon-subtle page-studio-remove" aria-label="Xóa locator"><i class="ph-bold ph-trash"></i></button>
       </div>`).join('');
   }
@@ -762,7 +762,13 @@ function syncPageStudioState() {
 function pageStudioCode() {
   const className = $('#new-page-class')?.value.trim() || 'NewPage';
   const basePageImport = $('#new-page-platform')?.value === 'mobile-web' ? "require('../../pages/BasePage')" : "require('../BasePage')";
-  const locatorLines = pageStudioLocators.filter((item) => item.name && item.expression).map((item) => `    this.${item.name} = ${item.expression};`).join('\n') || '    // Thêm locator của màn hình tại đây.';
+  const locatorLines = pageStudioLocators.filter((item) => item.name && item.expression).map((item) => {
+    let expr = item.expression.trim();
+    if (expr.startsWith('this.page.')) {
+      expr = expr.replace(/^this\./, '');
+    }
+    return `    this.${item.name} = ${expr};`;
+  }).join('\n') || '    // Thêm locator của màn hình tại đây.';
   const methodLines = pageStudioActions.filter((item) => item.name).map((item) => item.operation === 'fill'
     ? `  async ${item.name}(value) {\n    await this.${item.locatorName || 'page'}.fill(value);\n  }`
     : `  async ${item.name}() {\n    await this.${item.locatorName || 'page'}.click();\n  }`).join('\n\n');
@@ -782,12 +788,18 @@ let pageManagerMode = 'inspect'; // 'inspect' | 'create'
 let currentInspectedPage = null;
 let pageDirectEditMode = false;
 let currentInspectedCode = '';
-let existingPageFilter = 'all';
+let existingPageFilter = 'desktop';
 
 function pageManagerCode() {
   const className = $('#page-manager-class')?.value.trim() || 'NewPage';
   const basePageImport = $('#page-manager-platform')?.value === 'mobile-web' ? "require('../../pages/BasePage')" : "require('../BasePage')";
-  const locatorLines = pageManagerLocators.filter((item) => item.name && item.expression).map((item) => `    this.${item.name} = ${item.expression};`).join('\n') || '    // Thêm locator của màn hình tại đây.';
+  const locatorLines = pageManagerLocators.filter((item) => item.name && item.expression).map((item) => {
+    let expr = item.expression.trim();
+    if (expr.startsWith('this.page.')) {
+      expr = expr.replace(/^this\./, '');
+    }
+    return `    this.${item.name} = ${expr};`;
+  }).join('\n') || '    // Thêm locator của màn hình tại đây.';
   const methodLines = pageManagerActions.filter((item) => item.name && item.locatorName).map((item) => item.operation === 'fill'
     ? `  async ${item.name}(value) {\n    await this.${item.locatorName}.fill(value);\n  }`
     : `  async ${item.name}() {\n    await this.${item.locatorName}.click();\n  }`).join('\n\n');
@@ -798,7 +810,7 @@ function renderPageManagerRows() {
   const locatorContainer = $('#page-manager-locators');
   const actionContainer = $('#page-manager-actions');
   if (locatorContainer) locatorContainer.innerHTML = pageManagerLocators.map((item, index) => `
-    <div class="page-manager-row" data-index="${index}"><input class="page-manager-locator-name" placeholder="Tên biến, ví dụ: submitButton" value="${escapeHtml(item.name)}"><input class="page-manager-locator-expression" placeholder="this.page.getByRole('button', { name: 'Lưu' })" value="${escapeHtml(item.expression)}"><button type="button" class="btn-icon-subtle page-manager-remove" aria-label="Xóa locator"><i class="ph-bold ph-trash"></i></button></div>`).join('');
+    <div class="page-manager-row" data-index="${index}"><input class="page-manager-locator-name" placeholder="Tên biến, ví dụ: submitButton" value="${escapeHtml(item.name)}"><input class="page-manager-locator-expression" placeholder="page.getByRole('button', { name: 'Lưu' })" value="${escapeHtml(item.expression)}"><button type="button" class="btn-icon-subtle page-manager-remove" aria-label="Xóa locator"><i class="ph-bold ph-trash"></i></button></div>`).join('');
   if (actionContainer) actionContainer.innerHTML = pageManagerActions.map((item, index) => `
     <div class="page-manager-row page-manager-action-row" data-index="${index}"><input class="page-manager-action-name" placeholder="Tên action, ví dụ: submitForm" value="${escapeHtml(item.name)}"><select class="page-manager-action-locator">${pageManagerLocators.map((locator) => `<option value="${escapeHtml(locator.name)}"${locator.name === item.locatorName ? ' selected' : ''}>${escapeHtml(locator.name || 'Chọn locator')}</option>`).join('')}</select><select class="page-manager-action-operation"><option value="click"${item.operation === 'click' ? ' selected' : ''}>Bấm</option><option value="fill"${item.operation === 'fill' ? ' selected' : ''}>Nhập</option></select><button type="button" class="btn-icon-subtle page-manager-remove" aria-label="Xóa action"><i class="ph-bold ph-trash"></i></button></div>`).join('');
   document.querySelectorAll('.page-manager-remove').forEach((button) => button.addEventListener('click', () => {
@@ -819,9 +831,41 @@ function syncPageManagerState() {
   debounceSavePageDraft();
 }
 
+function initPageManagerCodeEditor() {
+  if (window.pageManagerCodeEditor) return window.pageManagerCodeEditor;
+  const textarea = document.getElementById('page-manager-code-editor');
+  const preview = document.getElementById('page-manager-preview-code') || document.querySelector('#page-manager-preview code');
+  if (!textarea || !preview) return null;
+
+  window.pageManagerCodeEditor = createSharedCodeEditor({
+    textarea,
+    preview,
+    language: 'javascript',
+    badge: document.getElementById('pm-code-status'),
+    revertBtn: document.getElementById('pm-btn-revert-code'),
+    copyBtn: document.getElementById('pm-btn-copy-code'),
+    saveBtn: document.getElementById('pm-btn-save-code'),
+    onSave: async () => {
+      await saveCurrentPageCode();
+    },
+    onInput: (editor) => {
+      currentInspectedCode = editor.getValue();
+    },
+  });
+  return window.pageManagerCodeEditor;
+}
+
 function updatePageManagerPreview() {
-  const preview = $('#page-manager-preview code');
-  if (preview) preview.innerHTML = highlightCode(pageManagerCode());
+  const code = pageManagerCode();
+  initPageManagerCodeEditor();
+  if (window.pageManagerCodeEditor) {
+    window.pageManagerCodeEditor.setValue(code, { markClean: true, readOnly: true });
+  } else {
+    const preview = $('#page-manager-preview code') || $('#page-manager-preview-code');
+    if (preview) preview.innerHTML = highlightCode(code);
+    const editor = $('#page-manager-code-editor');
+    if (editor) editor.value = code;
+  }
   const count = $('#page-manager-count');
   if (count) count.textContent = `${pageManagerLocators.length} locator · ${pageManagerActions.length} action`;
 }
@@ -1023,6 +1067,22 @@ async function clearPageDraft(skipConfirm = false) {
 function renderInspectedLocators(locators = []) {
   const container = $('#pm-inspect-locators-list');
   if (!container) return;
+
+  if (currentInspectedPage?.platform === 'fixture') {
+    container.innerHTML = `
+      <div style="padding: 14px 16px; border-radius: 8px; border: 1px dashed color-mix(in srgb, #8b5cf6 35%, var(--line)); background: color-mix(in srgb, #8b5cf6 6%, var(--surface)); color: var(--text); font-size: 12px; line-height: 1.5;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; color: #8b5cf6; font-weight: 700;">
+          <i class="ph-bold ph-lightning" style="font-size: 15px;"></i>
+          <span>Dependency Injection & Fixture Capabilities</span>
+        </div>
+        <p style="margin: 0; color: var(--muted);">
+          File Fixture đóng vai trò nạp sẵn các Page Objects, quản lý Precondition và khởi tạo Session test. Các locator được đóng gói bên trong từng Page Object riêng biệt.
+        </p>
+      </div>
+    `;
+    return;
+  }
+
   const filterQuery = ($('#pm-quick-search-input')?.value || '').toLowerCase().trim();
 
   const filtered = locators.filter((l) => {
@@ -1086,14 +1146,58 @@ function renderInspectedActions(actions = []) {
   const container = $('#pm-inspect-actions-list');
   if (!container) return;
   const filterQuery = ($('#pm-quick-search-input')?.value || '').toLowerCase().trim();
+  const reservedKeywords = new Set(['for', 'if', 'while', 'catch', 'switch', 'function', 'return', 'try', 'finally', 'constructor']);
 
-  const filtered = actions.filter((a) => {
+  const validActions = (actions || []).filter((a) => {
+    if (!a || !a.name) return false;
+    const name = a.name.trim();
+    if (reservedKeywords.has(name) || name.startsWith('_')) return false;
+    if (name.startsWith('for(') || name.startsWith('for ') || name.startsWith('catch(') || name.startsWith('if(')) return false;
+    return true;
+  });
+
+  const filtered = validActions.filter((a) => {
     if (!filterQuery) return true;
     return (a.signature || a.name || '').toLowerCase().includes(filterQuery);
   });
 
   if (filtered.length === 0) {
-    container.innerHTML = `<p class="empty-resource" style="padding:16px 0; font-size:12px;">${filterQuery ? 'Không tìm thấy action nào khớp từ khóa.' : 'Chưa định nghĩa method hành động riêng.'}</p>`;
+    container.innerHTML = `<p class="empty-resource" style="padding:16px 0; font-size:12px;">${filterQuery ? 'Không tìm thấy mục nào khớp từ khóa.' : 'Chưa định nghĩa method hoặc fixture nào.'}</p>`;
+    return;
+  }
+
+  if (currentInspectedPage?.platform === 'fixture') {
+    container.innerHTML = filtered.map((a) => {
+      const badgeColor = a.badgeColor || '#8b5cf6';
+      const cat = a.category || 'Fixture Injected';
+      return `
+        <div class="pm-action-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <i class="${a.icon || 'ph-bold ph-lightning'}" style="color: ${badgeColor}; font-size: 15px;"></i>
+              <span class="pm-action-sig" style="color: var(--text); font-weight: 700;">${escapeHtml(a.name)}</span>
+            </div>
+            <button type="button" class="btn-secondary-sm pm-btn-copy-fixture" data-name="${escapeHtml(a.name)}" title="Sao chép tên fixture parameter" style="font-size: 11px; padding: 3px 8px;">
+              <i class="ph-bold ph-copy"></i> Copy fixture
+            </button>
+          </div>
+          <div class="pm-action-flags" style="margin-top: 6px;">
+            <span class="pm-flag-pill" style="background: ${badgeColor}18; color: ${badgeColor}; border: 1px solid ${badgeColor}35;">
+              ${escapeHtml(cat)}
+            </span>
+            <span style="font-size: 11px; color: var(--muted); font-family: var(--font-mono);">async ({ ${escapeHtml(a.params.join(', ') || 'page')} }, use)</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    container.querySelectorAll('.pm-btn-copy-fixture').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(btn.dataset.name);
+        notify(`Đã sao chép fixture "${btn.dataset.name}" vào clipboard!`, 'success');
+      });
+    });
     return;
   }
 
@@ -1128,6 +1232,9 @@ async function inspectPage(relativePath, doScroll = false) {
     pageManagerMode = 'inspect';
     $('#pm-btn-inspect-mode')?.classList.add('active');
     $('#pm-btn-create-mode')?.classList.remove('active');
+    $('#pm-subnav-inspect')?.classList.add('active');
+    $('#pm-subnav-edit')?.classList.remove('active');
+    $('#pm-subnav-create')?.classList.remove('active');
     if ($('#page-manager-create-form')) $('#page-manager-create-form').style.display = 'none';
     if ($('#page-manager-inspect-panel')) {
       $('#page-manager-inspect-panel').style.display = 'flex';
@@ -1143,34 +1250,63 @@ async function inspectPage(relativePath, doScroll = false) {
     if ($('#page-manager-select-page')) $('#page-manager-select-page').value = relativePath;
 
     // Cập nhật Left Panel: Thông tin Page (Phần 01)
-    const platformLabel = result.platform === 'mobile-web' ? 'Mobile Web' : (result.platform === 'base' ? 'Trang Cơ Sở' : 'Desktop Web');
+    const isFixture = result.platform === 'fixture';
+    const platformLabel = isFixture ? 'Fixture Nền Tảng' : (result.platform === 'mobile-web' ? 'Mobile Web' : (result.platform === 'base' ? 'Trang Cơ Sở' : 'Desktop Web'));
     if ($('#pm-inspect-title-text')) $('#pm-inspect-title-text').textContent = result.title ? `${result.title} (${result.className})` : result.className;
+    if ($('#pm-input-title')) $('#pm-input-title').textContent = `${result.className}.js`;
     if ($('#pm-inspect-platform')) $('#pm-inspect-platform').textContent = platformLabel;
     if ($('#pm-inspect-file')) $('#pm-inspect-file').textContent = result.relativePath;
-    if ($('#pm-inspect-class')) $('#pm-inspect-class').textContent = `${result.className}${result.baseClass && result.baseClass !== 'None' ? ` extends ${result.baseClass}` : ''}`;
-    if ($('#pm-inspect-desc')) $('#pm-inspect-desc').textContent = result.desc || `Page Object quản lý tương tác trên ${result.className}.`;
-    if ($('#pm-inspect-loc-count')) $('#pm-inspect-loc-count').textContent = (result.locators || []).length;
-    if ($('#pm-locators-badge-count')) $('#pm-locators-badge-count').textContent = (result.locators || []).length;
+    if ($('#pm-inspect-class')) $('#pm-inspect-class').textContent = isFixture ? `${result.className}.extend({ ... })` : `${result.className}${result.baseClass && result.baseClass !== 'None' ? ` extends ${result.baseClass}` : ''}`;
+    if ($('#pm-inspect-desc')) $('#pm-inspect-desc').textContent = result.desc || (isFixture ? 'Fixture quản lý Dependency Injection và vòng đời kiểm thử.' : `Page Object quản lý tương tác trên ${result.className}.`);
+    if ($('#pm-inspect-loc-count')) $('#pm-inspect-loc-count').textContent = isFixture ? '—' : (result.locators || []).length;
+    if ($('#pm-locators-badge-count')) $('#pm-locators-badge-count').textContent = isFixture ? '0' : (result.locators || []).length;
     if ($('#pm-inspect-act-count')) $('#pm-inspect-act-count').textContent = (result.methods || []).length;
     if ($('#pm-actions-badge-count')) $('#pm-actions-badge-count').textContent = (result.methods || []).length;
+    if ($('#pm-inspect-caps-count')) $('#pm-inspect-caps-count').textContent = isFixture ? ((result.capabilities || []).length || (result.methods || []).length) : (result.methods || []).length;
 
-    const pmDelBtn = $('#pm-btn-delete-page');
+    // Cập nhật banner tag & readonly grid (chuẩn BDD Studio)
+    if ($('#pm-inspect-base-tag')) $('#pm-inspect-base-tag').textContent = isFixture ? 'extends test' : `extends ${result.baseClass || 'BasePage'}`;
+    if ($('#pm-grid-platform')) $('#pm-grid-platform').textContent = platformLabel;
+    if ($('#pm-grid-path')) $('#pm-grid-path').textContent = result.relativePath;
+    if ($('#pm-grid-base')) $('#pm-grid-base').textContent = result.baseClass || (isFixture ? 'playwright/test' : 'BasePage');
+    if ($('#pm-grid-ctor')) $('#pm-grid-ctor').textContent = isFixture ? 'test.extend({ ... })' : 'constructor(page)';
+
+    const pmDelBtn = $('#pm-subnav-delete-btn');
     if (pmDelBtn) {
-      const isBase = result.relativePath === 'pages/BasePage.js';
+      const isBase = result.relativePath === 'pages/BasePage.js' || isFixture;
       pmDelBtn.disabled = isBase;
       pmDelBtn.style.opacity = isBase ? '0.35' : '1';
-      pmDelBtn.title = isBase ? 'Không thể xóa BasePage.js (lớp nền tảng dùng chung)' : 'Xóa Page Object này khỏi dự án';
+      pmDelBtn.title = isFixture ? 'Không thể xóa Fixture nền tảng' : (isBase ? 'Không thể xóa BasePage.js (lớp nền tảng dùng chung)' : 'Xóa Page Object này khỏi dự án');
     }
+
+    const quickAddBox = document.querySelector('.pm-inline-add-box');
+    const quickAddBtn = $('#pm-subnav-add-locator-btn');
+    if (quickAddBox) quickAddBox.style.display = isFixture ? 'none' : 'block';
+    if (quickAddBtn) quickAddBtn.style.display = isFixture ? 'none' : 'inline-flex';
+
+    const quickActionBox = $('#pm-inline-add-action-box');
+    const quickActionBtn = $('#pm-subnav-add-action-btn');
+    const headActionBtn = $('#pm-btn-add-action-toggle');
+    if (quickActionBox) quickActionBox.style.display = isFixture ? 'none' : 'block';
+    if (quickActionBtn) quickActionBtn.style.display = isFixture ? 'none' : 'inline-flex';
+    if (headActionBtn) headActionBtn.style.display = isFixture ? 'none' : 'inline-flex';
 
     // Render locators và actions
     renderInspectedLocators(result.locators || []);
     renderInspectedActions(result.methods || []);
+    populateInlineActionLocators(result.locators || []);
 
     // Cập nhật Right Panel: Mã nguồn
     if ($('#pm-code-eyebrow')) $('#pm-code-eyebrow').textContent = 'MÃ NGUỒN HIỆN TẠI';
     if ($('#pm-code-title')) $('#pm-code-title').textContent = `${result.className}.js`;
-    if ($('#page-manager-preview code')) $('#page-manager-preview code').innerHTML = highlightCode(currentInspectedCode);
-    if ($('#page-manager-code-editor')) $('#page-manager-code-editor').value = currentInspectedCode;
+
+    initPageManagerCodeEditor();
+    if (window.pageManagerCodeEditor) {
+      window.pageManagerCodeEditor.setValue(currentInspectedCode, { markClean: true, readOnly: true });
+    } else {
+      if ($('#page-manager-preview code')) $('#page-manager-preview code').innerHTML = highlightCode(currentInspectedCode);
+      if ($('#page-manager-code-editor')) $('#page-manager-code-editor').value = currentInspectedCode;
+    }
 
     const statusPill = $('#pm-code-status');
     if (statusPill) {
@@ -1180,15 +1316,20 @@ async function inspectPage(relativePath, doScroll = false) {
 
     // Reset về chế độ view code (không mở textarea ngay)
     pageDirectEditMode = false;
-    if ($('#pm-code-view-wrap')) $('#pm-code-view-wrap').style.display = 'block';
-    if ($('#pm-code-edit-wrap')) $('#pm-code-edit-wrap').style.display = 'none';
+    const stage = $('#pm-code-stage');
+    if (stage) stage.classList.remove('editing');
+    const editor = $('#page-manager-code-editor');
+    if (editor) editor.setAttribute('readonly', 'true');
     if ($('#pm-btn-save-code')) $('#pm-btn-save-code').style.display = 'none';
+    if ($('#pm-btn-revert-code')) $('#pm-btn-revert-code').style.display = 'none';
     if ($('#pm-edit-btn-text')) $('#pm-edit-btn-text').textContent = 'Chỉnh sửa mã';
     if ($('#pm-code-help-text')) $('#pm-code-help-text').textContent = 'Nhấn "Chỉnh sửa mã" để gõ trực tiếp hoặc Ctrl+S để lưu file. Tự động sao lưu backup (.bak) an toàn.';
 
-    // Đánh dấu card active ở danh sách dưới
+    // Đánh dấu card active ở danh sách dưới (đồng bộ cả is-selected và active)
     document.querySelectorAll('.page-manager-file-card').forEach((card) => {
-      card.classList.toggle('is-selected', card.dataset.path === relativePath);
+      const isThis = card.dataset.path === relativePath;
+      card.classList.toggle('is-selected', isThis);
+      card.classList.toggle('active', isThis);
     });
 
     if (doScroll) {
@@ -1204,18 +1345,33 @@ function switchToCreatePageMode() {
   pageDirectEditMode = false;
   $('#pm-btn-create-mode')?.classList.add('active');
   $('#pm-btn-inspect-mode')?.classList.remove('active');
+  $('#pm-subnav-inspect')?.classList.remove('active');
+  $('#pm-subnav-edit')?.classList.remove('active');
+  $('#pm-subnav-create')?.classList.add('active');
+  if ($('#pm-input-title')) $('#pm-input-title').textContent = 'Tạo Page Object mới';
   if ($('#page-manager-create-form')) $('#page-manager-create-form').style.display = 'block';
   if ($('#page-manager-inspect-panel')) $('#page-manager-inspect-panel').style.display = 'none';
   if ($('#pm-btn-toggle-edit')) $('#pm-btn-toggle-edit').style.display = 'none';
   if ($('#pm-btn-save-code')) $('#pm-btn-save-code').style.display = 'none';
+  if ($('#pm-btn-revert-code')) $('#pm-btn-revert-code').style.display = 'none';
 
   if ($('#pm-code-eyebrow')) $('#pm-code-eyebrow').textContent = 'LIVE PREVIEW';
   if ($('#pm-code-title')) $('#pm-code-title').textContent = 'Mã framework sẽ sinh ra';
-  if ($('#pm-code-view-wrap')) $('#pm-code-view-wrap').style.display = 'block';
-  if ($('#pm-code-edit-wrap')) $('#pm-code-edit-wrap').style.display = 'none';
+  const stage = $('#pm-code-stage');
+  if (stage) stage.classList.remove('editing');
+  const editor = $('#page-manager-code-editor');
+  if (editor) editor.setAttribute('readonly', 'true');
+  const statusPill = $('#pm-code-status');
+  if (statusPill) {
+    statusPill.innerHTML = '<i class="ph-bold ph-eye"></i> Bản xem trước realtime';
+    statusPill.classList.remove('modified');
+  }
   if ($('#pm-code-help-text')) $('#pm-code-help-text').textContent = 'Preview cập nhật theo từng ô nhập. File chỉ được tạo khi bạn bấm nút ở cuối form.';
 
-  document.querySelectorAll('.page-manager-file-card').forEach((card) => card.classList.remove('is-selected'));
+  document.querySelectorAll('.page-manager-file-card').forEach((card) => {
+    card.classList.remove('is-selected');
+    card.classList.remove('active');
+  });
 
   renderPageManagerRows();
   updatePageManagerPreview();
@@ -1227,39 +1383,67 @@ function toggleDirectCodeEdit(forceState) {
   if (pageManagerMode !== 'inspect' || !currentInspectedPage) return;
   pageDirectEditMode = (forceState !== undefined) ? forceState : !pageDirectEditMode;
 
-  const viewWrap = $('#pm-code-view-wrap');
-  const editWrap = $('#pm-code-edit-wrap');
+  const stage = $('#pm-code-stage');
+  const editor = $('#page-manager-code-editor');
+  const preview = $('#page-manager-preview');
   const saveBtn = $('#pm-btn-save-code');
+  const revertBtn = $('#pm-btn-revert-code');
   const editText = $('#pm-edit-btn-text');
   const statusPill = $('#pm-code-status');
 
+  initPageManagerCodeEditor();
+
   if (pageDirectEditMode) {
-    if (viewWrap) viewWrap.style.display = 'none';
-    if (editWrap) editWrap.style.display = 'flex';
+    $('#pm-subnav-inspect')?.classList.remove('active');
+    $('#pm-subnav-edit')?.classList.add('active');
+    $('#pm-subnav-create')?.classList.remove('active');
+
+    if (stage) stage.classList.add('editing');
+    if (editor) {
+      editor.removeAttribute('readonly');
+      if (preview) {
+        editor.scrollTop = preview.scrollTop;
+        editor.scrollLeft = preview.scrollLeft;
+      }
+      editor.focus();
+    }
     if (saveBtn) saveBtn.style.display = 'inline-flex';
+    if (revertBtn) {
+      const isDirty = window.pageManagerCodeEditor ? window.pageManagerCodeEditor.isDirty() : false;
+      revertBtn.style.display = isDirty ? 'inline-flex' : 'none';
+    }
     if (editText) editText.textContent = 'Chế độ xem';
     if (statusPill) {
       statusPill.innerHTML = '<i class="ph-bold ph-pencil"></i> Chế độ chỉnh sửa';
       statusPill.classList.add('modified');
     }
-    $('#page-manager-code-editor')?.focus();
   } else {
-    currentInspectedCode = $('#page-manager-code-editor')?.value || '';
-    if ($('#page-manager-preview code')) $('#page-manager-preview code').innerHTML = highlightCode(currentInspectedCode);
-    if (viewWrap) viewWrap.style.display = 'block';
-    if (editWrap) editWrap.style.display = 'none';
+    $('#pm-subnav-inspect')?.classList.add('active');
+    $('#pm-subnav-edit')?.classList.remove('active');
+    $('#pm-subnav-create')?.classList.remove('active');
+
+    if (stage) stage.classList.remove('editing');
+    if (editor) {
+      editor.setAttribute('readonly', 'true');
+      if (preview) {
+        preview.scrollTop = editor.scrollTop;
+        preview.scrollLeft = editor.scrollLeft;
+      }
+    }
     if (saveBtn) saveBtn.style.display = 'none';
+    if (revertBtn) revertBtn.style.display = 'none';
     if (editText) editText.textContent = 'Chỉnh sửa mã';
     if (statusPill) {
-      statusPill.innerHTML = '<i class="ph-bold ph-check"></i> Đang mở từ disk';
-      statusPill.classList.remove('modified');
+      const isDirty = window.pageManagerCodeEditor ? window.pageManagerCodeEditor.isDirty() : false;
+      statusPill.innerHTML = isDirty ? '<i class="ph-bold ph-pencil-simple"></i> Đã thay đổi (chưa lưu)' : '<i class="ph-bold ph-check"></i> Đang mở từ disk';
+      statusPill.classList.toggle('modified', isDirty);
     }
   }
 }
 
 async function saveCurrentPageCode() {
   if (!currentInspectedPage) return;
-  const newContent = $('#page-manager-code-editor')?.value;
+  const newContent = window.pageManagerCodeEditor ? window.pageManagerCodeEditor.getValue() : $('#page-manager-code-editor')?.value;
   if (!newContent) {
     notify('Nội dung mã nguồn không được để trống.');
     return;
@@ -1278,6 +1462,10 @@ async function saveCurrentPageCode() {
     });
 
     notify(result.message || `Đã lưu file ${currentInspectedPage.className}.js thành công!`, 'success');
+    if (window.pageManagerCodeEditor) {
+      window.pageManagerCodeEditor.markSaved(newContent);
+    }
+    currentInspectedCode = newContent;
     toggleDirectCodeEdit(false);
     await inspectPage(currentInspectedPage.relativePath);
   } catch (error) {
@@ -1288,9 +1476,9 @@ async function saveCurrentPageCode() {
 }
 
 function copyCurrentPageManagerCode() {
-  const code = pageManagerMode === 'inspect'
-    ? ($('#page-manager-code-editor')?.value || currentInspectedCode)
-    : pageManagerCode();
+  const code = window.pageManagerCodeEditor
+    ? window.pageManagerCodeEditor.getValue()
+    : (pageManagerMode === 'inspect' ? ($('#page-manager-code-editor')?.value || currentInspectedCode) : pageManagerCode());
 
   if (!code) {
     notify('Chưa có mã nguồn để sao chép.');
@@ -1306,15 +1494,19 @@ function openAddLocatorToPageModal() {
     notify('Vui lòng chọn một Page Object để thêm locator.');
     return;
   }
-  $('#add-loc-target-page').value = currentInspectedPage.relativePath;
-  $('#add-loc-name').value = '';
-  $('#add-loc-expr').value = '';
-  $('#modal-add-locator-to-page').hidden = false;
-  $('#add-loc-name').focus();
+  const box = document.querySelector('.pm-inline-add-box');
+  const input = $('#pm-inline-loc-name');
+  if (box) {
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    box.classList.add('pm-box-highlight');
+    setTimeout(() => box.classList.remove('pm-box-highlight'), 1500);
+  }
+  if (input) input.focus();
 }
 
 function closeAddLocatorToPageModal() {
-  $('#modal-add-locator-to-page').hidden = true;
+  const modal = $('#modal-add-locator-to-page');
+  if (modal) modal.hidden = true;
 }
 
 async function saveAddLocatorToPage() {
@@ -1333,8 +1525,10 @@ async function saveAddLocatorToPage() {
   }
 
   let cleanExpr = expr.replace(/;$/, '').trim();
-  if (!cleanExpr.startsWith('this.page.') && !cleanExpr.startsWith('page.') && !cleanExpr.startsWith('this.')) {
-    cleanExpr = `this.page.${cleanExpr}`;
+  if (cleanExpr.startsWith('this.page.')) {
+    cleanExpr = cleanExpr.replace(/^this\./, '');
+  } else if (!cleanExpr.startsWith('page.') && !cleanExpr.startsWith('this.')) {
+    cleanExpr = `page.${cleanExpr}`;
   }
 
   try {
@@ -1391,8 +1585,10 @@ async function addInlineLocatorToPage() {
   }
 
   let cleanExpr = expr.replace(/;$/, '').trim();
-  if (!cleanExpr.startsWith('this.page.') && !cleanExpr.startsWith('page.') && !cleanExpr.startsWith('this.')) {
-    cleanExpr = `this.page.${cleanExpr}`;
+  if (cleanExpr.startsWith('this.page.')) {
+    cleanExpr = cleanExpr.replace(/^this\./, '');
+  } else if (!cleanExpr.startsWith('page.') && !cleanExpr.startsWith('this.')) {
+    cleanExpr = `page.${cleanExpr}`;
   }
 
   try {
@@ -1426,6 +1622,116 @@ async function addInlineLocatorToPage() {
   }
 }
 
+function populateInlineActionLocators(locators = []) {
+  const select = $('#pm-inline-act-loc');
+  if (!select) return;
+  if (!locators || locators.length === 0) {
+    select.innerHTML = '<option value="">-- Chọn locator liên kết (chưa có) --</option>';
+    return;
+  }
+  select.innerHTML = '<option value="">-- Chọn locator liên kết --</option>' +
+    locators.map((l) => `<option value="${escapeHtml(l.name)}">this.${escapeHtml(l.name)}</option>`).join('');
+}
+
+function focusAddActionInput() {
+  const box = $('#pm-inline-add-action-box');
+  const input = $('#pm-inline-act-name');
+  if (box) {
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    box.classList.add('pm-box-highlight');
+    setTimeout(() => box.classList.remove('pm-box-highlight'), 1500);
+  }
+  if (input) input.focus();
+}
+
+async function addInlineActionToPage() {
+  if (!currentInspectedPage) {
+    notify('Vui lòng chọn một Page Object để thêm action.');
+    return;
+  }
+  const nameInput = $('#pm-inline-act-name');
+  const locSelect = $('#pm-inline-act-loc');
+  const opSelect = $('#pm-inline-act-op');
+
+  let name = nameInput ? nameInput.value.trim() : '';
+  const locName = locSelect ? locSelect.value.trim() : '';
+  const op = opSelect ? opSelect.value : 'click';
+
+  if (!name) {
+    if (locName) {
+      const cleanLoc = locName.replace(/^this\./, '').replace(/^btn|^button/i, '');
+      const capitalized = cleanLoc.charAt(0).toUpperCase() + cleanLoc.slice(1);
+      if (op === 'click') name = `click${capitalized}`;
+      else if (op === 'fill') name = `input${capitalized}`;
+      else if (op === 'check') name = `check${capitalized}`;
+      else if (op === 'hover') name = `hover${capitalized}`;
+      else if (op === 'assert') name = `expect${capitalized}Visible`;
+    } else {
+      notify('Vui lòng nhập tên hàm action (ví dụ: clickSubmit, inputSearch).');
+      nameInput?.focus();
+      return;
+    }
+  }
+
+  if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(name)) {
+    notify('Tên hàm phải bắt đầu bằng chữ cái và theo chuẩn camelCase.');
+    nameInput?.focus();
+    return;
+  }
+
+  const existingMethods = (currentInspectedPage.methods || []).map((m) => typeof m === 'string' ? m : m.name);
+  if (existingMethods.includes(name)) {
+    notify(`Hàm "${name}" đã tồn tại trong ${currentInspectedPage.className}.js.`);
+    nameInput?.focus();
+    return;
+  }
+
+  let methodBody = '';
+  const targetLoc = locName ? `this.${locName.replace(/^this\./, '')}` : 'this.page';
+  if (op === 'fill') {
+    methodBody = `    await this.clickElement(${targetLoc});\n    await ${targetLoc}.fill(value);`;
+  } else if (op === 'check') {
+    methodBody = `    await ${targetLoc}.check();`;
+  } else if (op === 'hover') {
+    methodBody = `    await ${targetLoc}.hover();`;
+  } else if (op === 'assert') {
+    methodBody = `    await expect(${targetLoc}).toBeVisible();`;
+  } else {
+    methodBody = `    await this.clickElement(${targetLoc});`;
+  }
+
+  const paramStr = op === 'fill' ? 'value' : '';
+  const methodCode = `\n  async ${name}(${paramStr}) {\n${methodBody}\n  }\n`;
+
+  try {
+    const fileRes = await request(`/api/code?path=${encodeURIComponent(currentInspectedPage.relativePath)}`);
+    const originalContent = fileRes.content || '';
+
+    const match = originalContent.match(/(\n\s*\}\s*)(?:\n\s*module\.exports|\s*$)/);
+    if (!match) {
+      notify('Không tìm thấy vị trí thích hợp trong class để chèn action.');
+      return;
+    }
+
+    const insertIdx = match.index;
+    const updatedContent = originalContent.slice(0, insertIdx) + methodCode + originalContent.slice(insertIdx);
+
+    await request('/api/code', {
+      method: 'PUT',
+      body: JSON.stringify({
+        path: currentInspectedPage.relativePath,
+        content: updatedContent,
+      }),
+    });
+
+    notify(`Đã thêm action "${name}()" vào ${currentInspectedPage.className} thành công!`, 'success');
+    if (nameInput) nameInput.value = '';
+    await inspectPage(currentInspectedPage.relativePath);
+  } catch (error) {
+    notify(`Lỗi thêm action: ${error.message}`);
+  }
+}
+
 function renderPageManagerFiles() {
   const container = $('#page-manager-existing-list');
   if (!container) return;
@@ -1450,18 +1756,37 @@ function renderPageManagerFiles() {
 
   container.innerHTML = filtered.map((page) => {
     const isCurrent = currentInspectedPage && currentInspectedPage.relativePath === page.relativePath;
-    const platformLabel = page.platform === 'mobile-web' ? 'Mobile' : (page.platform === 'base' ? 'Base' : 'Desktop');
-    const isBase = page.relativePath === 'pages/BasePage.js';
+    const isFixture = page.platform === 'fixture';
+    const isBase = page.relativePath === 'pages/BasePage.js' || isFixture;
+    const platformLabel = isFixture ? 'Fixture' : (page.platform === 'mobile-web' ? 'Mobile' : (page.platform === 'base' ? 'Base' : 'Desktop'));
+    const platformClass = isFixture ? 'fixture' : (page.platform === 'mobile-web' ? 'mobile' : (page.platform === 'base' ? 'setup' : 'desktop'));
+    const platformIcon = isFixture ? (page.relativePath.includes('mobile') ? 'ph-device-mobile' : 'ph-lightning') : (page.icon || (page.platform === 'mobile-web' ? 'ph-device-mobile' : 'ph-browsers'));
+
     return `
-      <div class="dashboard-list-card page-manager-file-card${isCurrent ? ' is-selected' : ''}" data-path="${escapeHtml(page.relativePath)}">
-        <span class="dashboard-list-card__icon page-manager-file-icon"><i class="ph-bold ${page.icon || 'ph-browsers'}"></i></span>
-        <span class="dashboard-list-card__body">
-          <strong>${escapeHtml(page.className)}.js</strong>
-          <small>${platformLabel} · ${page.locatorCount || 0} locators · ${page.methodCount || 0} actions</small>
-        </span>
-        <div style="display:flex; align-items:center; gap:6px;">
-          ${!isBase ? `<button type="button" class="btn-icon-subtle item-delete-hover-btn pm-page-delete-btn" data-path="${escapeHtml(page.relativePath)}" title="Xóa Page Object" style="padding:2px; font-size:14px;"><i class="ph ph-trash"></i></button>` : ''}
-          <i class="ph-bold ph-arrow-up-right" style="color:var(--muted); font-size:14px;"></i>
+      <div class="dashboard-list-card page-manager-file-card script-card-item ${isCurrent ? 'is-selected active' : ''}" data-path="${escapeHtml(page.relativePath)}">
+        <span class="dashboard-list-card__icon script-card-platform-icon ${platformClass}"><i class="ph-bold ${platformIcon}"></i></span>
+        <div class="dashboard-list-card__body">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+            <div class="script-card-title">${escapeHtml(page.title || page.className)}</div>
+            ${!isBase ? `
+            <button type="button" class="btn-icon-subtle item-delete-hover-btn pm-page-delete-btn" data-path="${escapeHtml(page.relativePath)}" title="Xóa Page Object" style="padding: 2px; font-size: 14px; flex-shrink: 0;">
+              <i class="ph ph-trash"></i>
+            </button>` : ''}
+          </div>
+          <div class="script-card-file">
+            <i class="ph ph-file-js"></i> ${escapeHtml(page.relativePath)}
+          </div>
+          <div class="script-card-pills">
+            <span class="script-card-badge-platform ${platformClass}">
+              <i class="ph ${platformIcon}"></i> ${platformLabel}
+            </span>
+            <span class="script-card-badge-pages">
+              <i class="ph ph-crosshair"></i> ${isFixture ? '—' : `${page.locatorCount || 0} Locators`}
+            </span>
+            <span class="script-card-badge-data" title="${page.methodCount || 0} Actions">
+              <i class="ph ph-lightning"></i> ${page.methodCount || 0} Actions
+            </span>
+          </div>
         </div>
       </div>
     `;
@@ -1479,7 +1804,7 @@ function renderPageManagerFiles() {
       e.stopPropagation();
       const pagePath = btn.dataset.path;
       inspectPage(pagePath, true).then(() => {
-        document.getElementById('pm-btn-delete-page')?.click();
+        handleDeleteCurrentPage();
       });
     });
   });
@@ -1492,6 +1817,7 @@ function populatePageSelectorDropdown() {
   const desktopPages = repoPages.filter((p) => p.platform === 'desktop');
   const mobilePages = repoPages.filter((p) => p.platform === 'mobile-web');
   const basePages = repoPages.filter((p) => p.platform === 'base');
+  const fixturePages = repoPages.filter((p) => p.platform === 'fixture');
 
   let html = '<option value="" disabled>-- Chọn Page Object để xem song song --</option>';
 
@@ -1519,12 +1845,21 @@ function populatePageSelectorDropdown() {
     html += '</optgroup>';
   }
 
+  if (fixturePages.length > 0) {
+    html += '<optgroup label="Fixture Nền Tảng">';
+    fixturePages.forEach((p) => {
+      html += `<option value="${escapeHtml(p.relativePath)}">${escapeHtml(p.className)}.js (${p.methodCount || 0} fixtures)</option>`;
+    });
+    html += '</optgroup>';
+  }
+
   select.innerHTML = html;
 }
 
 async function openPageManager() {
   pageManagerLocators = [];
   pageManagerActions = [];
+  initPageManagerCodeEditor();
   try {
     const result = await request('/api/object-repository/pages');
     repoPages = result.pages || [];
@@ -1655,6 +1990,7 @@ function initObjectRepository() {
   // Mode Switcher
   $('#btn-switch-visual-mode')?.addEventListener('click', () => setCodeViewMode('visual'));
   $('#btn-switch-raw-mode')?.addEventListener('click', () => setCodeViewMode('raw'));
+  $('#btn-return-to-visual')?.addEventListener('click', () => setCodeViewMode('visual'));
 
   // Category Tabs
   document.querySelectorAll('.repo-cat-tab').forEach((tab) => {
@@ -1724,6 +2060,16 @@ function setCodeViewMode(mode) {
   activeCodeMode = mode;
   $('#btn-switch-visual-mode')?.classList.toggle('active', mode === 'visual');
   $('#btn-switch-raw-mode')?.classList.toggle('active', mode === 'raw');
+  $('#btn-switch-visual-mode')?.setAttribute('aria-selected', mode === 'visual' ? 'true' : 'false');
+  $('#btn-switch-raw-mode')?.setAttribute('aria-selected', mode === 'raw' ? 'true' : 'false');
+
+  const headerBadge = $('#code-header-badge');
+  if (headerBadge) {
+    headerBadge.innerHTML = mode === 'visual'
+      ? '<i class="ph-bold ph-tree-structure"></i> Đối tượng &amp; Selector'
+      : '<i class="ph-bold ph-code-block"></i> Trình sửa mã JS';
+  }
+
   $('#code-visual-container').hidden = mode !== 'visual';
   $('#code-raw-container').hidden = mode !== 'raw';
 
@@ -2196,12 +2542,102 @@ function createSharedCodeEditor({
 } = {}) {
   if (!textarea || !preview) return null;
   if (textarea.__sharedEditor) return textarea.__sharedEditor;
+
+  const scrollContainer = preview.tagName === 'CODE'
+    ? (preview.closest('.code-preview') || preview.closest('pre') || preview.parentElement || preview)
+    : preview;
+  const codeElement = preview.tagName === 'CODE'
+    ? preview
+    : (preview.querySelector('code') || preview);
+
+  const stageEl = textarea.closest('.code-editor-stage') || scrollContainer.parentElement || textarea.parentElement;
+
+  let suggestTimer = null;
+  let suggestAbort = null;
+
+  // Create floating suggest indicator if stageEl exists
+  let suggestPill = stageEl ? stageEl.querySelector('.editor-ai-suggest-pill') : null;
+  if (stageEl && !suggestPill && typeof document !== 'undefined' && typeof document.createElement === 'function') {
+    try {
+      suggestPill = document.createElement('div');
+      suggestPill.className = 'editor-ai-suggest-pill';
+      suggestPill.title = 'AI Inline Suggestion (Tab: chèn, Esc: hủy, bấm để bật/tắt)';
+      suggestPill.innerHTML = '<i class="ph-bold ph-sparkle"></i> <span class="suggest-msg"><kbd>Tab</kbd> chèn</span>';
+      stageEl.appendChild(suggestPill);
+      suggestPill.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        editor.toggleSuggest();
+      });
+    } catch {}
+  }
+
   const editor = {
     original: '',
     language,
+    currentSuggestion: '',
+    suggestionPos: -1,
+    suggestEnabled: typeof localStorage !== 'undefined' && localStorage ? (localStorage.getItem('vieclam24h_ai_suggest_enabled') !== 'false') : true,
+    isSuggestLoading: false,
+
+    setSuggestion(text, pos) {
+      this.currentSuggestion = text;
+      this.suggestionPos = pos;
+      this.render();
+      this.updateSuggestUI();
+    },
+
+    clearSuggestion() {
+      if (!this.currentSuggestion && this.suggestionPos === -1 && !this.isSuggestLoading) return;
+      this.currentSuggestion = '';
+      this.suggestionPos = -1;
+      this.render();
+      this.updateSuggestUI();
+    },
+
+    setSuggestLoading(loading) {
+      this.isSuggestLoading = loading;
+      this.updateSuggestUI();
+    },
+
+    toggleSuggest() {
+      this.suggestEnabled = !this.suggestEnabled;
+      if (typeof localStorage !== 'undefined' && localStorage) {
+        localStorage.setItem('vieclam24h_ai_suggest_enabled', String(this.suggestEnabled));
+      }
+      if (!this.suggestEnabled) {
+        this.clearSuggestion();
+      }
+      this.updateSuggestUI();
+      if (typeof notify === 'function') {
+        notify(this.suggestEnabled ? 'Đã bật AI Inline Suggestion.' : 'Đã tắt AI Inline Suggestion.');
+      }
+    },
+
+    updateSuggestUI() {
+      if (!suggestPill) return;
+      if (!this.suggestEnabled) {
+        suggestPill.className = 'editor-ai-suggest-pill is-visible';
+        suggestPill.innerHTML = '<i class="ph-bold ph-sparkle-slash"></i> <span class="suggest-msg">AI: Tắt (bấm để bật)</span>';
+        return;
+      }
+      if (this.isSuggestLoading) {
+        suggestPill.className = 'editor-ai-suggest-pill is-visible is-loading';
+        suggestPill.innerHTML = '<i class="ph-bold ph-circle-notch spinner"></i> <span class="suggest-msg">Đang gợi ý...</span>';
+        return;
+      }
+      if (this.currentSuggestion && this.suggestionPos >= 0) {
+        suggestPill.className = 'editor-ai-suggest-pill is-visible is-active';
+        suggestPill.innerHTML = '<i class="ph-bold ph-sparkle"></i> <span class="suggest-msg"><kbd>Tab</kbd> chèn · <kbd>Esc</kbd> hủy</span>';
+        return;
+      }
+      suggestPill.className = 'editor-ai-suggest-pill';
+    },
+
     setValue(value, options = {}) {
       const markClean = options.markClean !== false;
       const readOnly = options.readOnly;
+      this.clearSuggestion();
       textarea.value = value || '';
       if (markClean) this.original = textarea.value;
       if (typeof readOnly === 'boolean') {
@@ -2210,19 +2646,39 @@ function createSharedCodeEditor({
       }
       this.render();
       this.updateState();
+      textarea.scrollTop = 0;
+      textarea.scrollLeft = 0;
+      scrollContainer.scrollTop = 0;
+      scrollContainer.scrollLeft = 0;
     },
     getValue() { return textarea.value; },
     revert() {
+      this.clearSuggestion();
       this.setValue(this.original, { markClean: true });
       if (typeof notify === 'function') notify('Đã khôi phục về mã nguồn gốc.');
     },
     isDirty() { return textarea.value !== this.original; },
     setReadOnly(readOnly) {
-      if (readOnly) textarea.setAttribute('readonly', 'true');
-      else textarea.removeAttribute('readonly');
+      if (readOnly) {
+        textarea.setAttribute('readonly', 'true');
+        this.clearSuggestion();
+      } else {
+        textarea.removeAttribute('readonly');
+      }
     },
     render() {
-      preview.innerHTML = highlightCode(textarea.value, this.language === 'json') + '\n';
+      const val = textarea.value;
+      if (this.currentSuggestion && this.suggestionPos >= 0 && this.suggestionPos <= val.length) {
+        const prefix = val.slice(0, this.suggestionPos);
+        const suffix = val.slice(this.suggestionPos);
+        const isJson = this.language === 'json';
+        const highlightedPrefix = highlightCode(prefix, isJson);
+        const highlightedSuffix = highlightCode(suffix, isJson);
+        const ghostHtml = `<span class="editor-ghost-text">${escapeHtml(this.currentSuggestion)}</span>`;
+        codeElement.innerHTML = highlightedPrefix + ghostHtml + highlightedSuffix + '\n';
+      } else {
+        codeElement.innerHTML = highlightCode(val, this.language === 'json') + '\n';
+      }
     },
     updateState() {
       const dirty = this.isDirty();
@@ -2236,7 +2692,7 @@ function createSharedCodeEditor({
           badge.classList.remove('modified');
           if (badge.dataset.hideWhenClean === 'true') {
             badge.style.display = 'none';
-          } else if (typeof scriptBuilderMode !== 'undefined' && scriptBuilderMode === 'create') {
+          } else if ((typeof scriptBuilderMode !== 'undefined' && scriptBuilderMode === 'create') || (typeof pageManagerMode !== 'undefined' && pageManagerMode === 'create')) {
             badge.innerHTML = '<i class="ph-bold ph-eye"></i> Bản xem trước realtime';
             badge.style.display = 'inline-flex';
           } else {
@@ -2250,35 +2706,253 @@ function createSharedCodeEditor({
       }
     },
     markSaved(newContent = null) {
+      this.clearSuggestion();
       if (newContent !== null) textarea.value = newContent;
       this.original = textarea.value;
       this.render();
       this.updateState();
     },
   };
+
+  const suggestCache = new Map();
+
+  function getLocalSuggestion(prefix, language) {
+    if (!prefix || language !== 'javascript') return null;
+    const lines = prefix.split('\n');
+    const currentLine = lines[lines.length - 1] || '';
+
+    // 1. Vietnamese/English Playwright BDD Comments
+    if (/^\s*\/\/\s*$/.test(currentLine)) {
+      return 'Given Người dùng mở trang chủ và khởi tạo kịch bản';
+    }
+    if (/^\s*\/\/\s*B(?:ước)?\s*$/i.test(currentLine)) {
+      return 'ước 1: Khởi tạo dữ liệu kiểm thử';
+    }
+    if (/^\s*\/\/\s*k(?:iểm)?\s*t(?:ra)?\s*$/i.test(currentLine)) {
+      return 'tra kết quả thực thi kịch bản thành công';
+    }
+    if (/^\s*\/\/\s*đ(?:ăng)?\s*n(?:hập)?\s*$/i.test(currentLine)) {
+      return 'hập vào hệ thống với tài khoản đã xác thực';
+    }
+
+    // 2. Playwright Step and Block Constructs
+    if (/^\s*test\.describe\($/.test(currentLine)) {
+      return "'Tên tính năng kiểm thử', () => {\n  \n});";
+    }
+    if (/^\s*(?:await\s+)?test\.step\($/.test(currentLine)) {
+      return "'Tên bước kiểm thử', async () => {\n    \n  });";
+    }
+    if (/^\s*(?:await\s+)?expect\($/.test(currentLine)) {
+      return "page).toHaveURL(/vieclam24h/);";
+    }
+
+    // 3. Framework Page Objects & Fixture Actions
+    if (/^\s*await\s+homePage\.$/.test(currentLine)) {
+      return "expectHomepageVisible();";
+    }
+    if (/^\s*await\s+jobApplyNoCVPage\.$/.test(currentLine)) {
+      return "fillMiniProfile(applyData.nocvApply.job1);";
+    }
+    if (/^\s*await\s+jobSearchPage\.$/.test(currentLine)) {
+      return "searchJob('tester');";
+    }
+    if (/^\s*await\s+onboardingPopup\.$/.test(currentLine)) {
+      return "closeBlockingModalIfVisible();";
+    }
+    if (/^\s*await\s+page\.$/.test(currentLine)) {
+      return "goto('/');";
+    }
+
+    return null;
+  }
+
+  function triggerSuggestion() {
+    if (suggestTimer) clearTimeout(suggestTimer);
+    if (suggestAbort) {
+      try { suggestAbort.abort(); } catch {}
+      suggestAbort = null;
+    }
+    if (!editor.suggestEnabled || textarea.readOnly || textarea.selectionStart !== textarea.selectionEnd) {
+      editor.clearSuggestion();
+      return;
+    }
+    const pos = textarea.selectionStart;
+    const val = textarea.value;
+    if (!val || !val.trim() || pos < 2) {
+      editor.clearSuggestion();
+      return;
+    }
+    const prefix = val.slice(0, pos);
+    const suffix = val.slice(pos);
+
+    // Tier 1: Instant Local Syntactic Match (0ms latency)
+    const local = getLocalSuggestion(prefix, editor.language);
+    if (local) {
+      editor.setSuggestion(local, pos);
+      return;
+    }
+
+    // Tier 2: In-Memory LRU Cache (0ms latency)
+    const cacheKey = `${editor.language}:${prefix.slice(-100)}`;
+    if (suggestCache.has(cacheKey)) {
+      const cached = suggestCache.get(cacheKey);
+      if (cached && typeof cached === 'string') {
+        editor.setSuggestion(cached, pos);
+        return;
+      }
+    }
+
+    // Tier 3: Adaptive low-latency debounce (40ms for trigger chars, 120ms for typing)
+    const lastChar = prefix.slice(-1);
+    const isTriggerChar = ['.', '(', '\n', ' '].includes(lastChar);
+    const delay = isTriggerChar ? 40 : 120;
+
+    suggestTimer = setTimeout(async () => {
+      if (textarea.selectionStart !== pos || textarea.value !== val) return;
+      suggestAbort = new AbortController();
+      editor.setSuggestLoading(true);
+      try {
+        let clientConfig = null;
+        try {
+          const rawCfg = localStorage.getItem('vieclam24h_ai_personal_config');
+          if (rawCfg) {
+            const p = JSON.parse(rawCfg);
+            if (p && p.enabled && p.apiKey) clientConfig = p;
+          }
+        } catch {}
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (clientConfig) {
+          try { headers['X-AI-Config'] = btoa(unescape(encodeURIComponent(JSON.stringify(clientConfig)))); } catch {}
+        }
+        const res = await fetch('/api/ai/inline-suggest', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            prefix,
+            suffix,
+            language: editor.language,
+            clientConfig,
+          }),
+          signal: suggestAbort.signal,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.suggestion && textarea.selectionStart === pos && textarea.value === val) {
+          if (suggestCache.size > 100) {
+            const firstKey = suggestCache.keys().next().value;
+            suggestCache.delete(firstKey);
+          }
+          suggestCache.set(cacheKey, data.suggestion);
+          editor.setSuggestion(data.suggestion, pos);
+        }
+      } catch (err) {
+        // Ignored on abort or network error
+      } finally {
+        editor.setSuggestLoading(false);
+      }
+    }, delay);
+  }
+
+  let prevInputPos = textarea.selectionStart;
+  let prevInputVal = textarea.value;
+
   textarea.addEventListener('input', () => {
+    const pos = textarea.selectionStart;
+    const val = textarea.value;
+
+    // Fast Ghost Text Prefix Matching (0ms):
+    // If user is typing forward through the existing ghost suggestion, keep ghost text alive!
+    let matchedGhost = false;
+    if (editor.currentSuggestion && editor.suggestionPos >= 0 && pos === editor.suggestionPos + 1 && val.length === prevInputVal.length + 1) {
+      const typedChar = val[editor.suggestionPos];
+      if (typedChar && editor.currentSuggestion[0] === typedChar) {
+        editor.currentSuggestion = editor.currentSuggestion.slice(1);
+        editor.suggestionPos = pos;
+        matchedGhost = true;
+      }
+    }
+
+    if (!matchedGhost) {
+      editor.clearSuggestion();
+    }
+
+    prevInputPos = pos;
+    prevInputVal = val;
     editor.render();
     editor.updateState();
     onInput?.(editor);
+
+    if (!matchedGhost) {
+      triggerSuggestion();
+    }
   });
-  textarea.addEventListener('scroll', () => {
-    preview.scrollTop = textarea.scrollTop;
-    preview.scrollLeft = textarea.scrollLeft;
-  });
+
+  let isSyncingScroll = false;
+  const syncScrollFromTextarea = () => {
+    if (isSyncingScroll) return;
+    isSyncingScroll = true;
+    scrollContainer.scrollTop = textarea.scrollTop;
+    scrollContainer.scrollLeft = textarea.scrollLeft;
+    requestAnimationFrame(() => { isSyncingScroll = false; });
+  };
+  const syncScrollFromContainer = () => {
+    if (isSyncingScroll) return;
+    isSyncingScroll = true;
+    textarea.scrollTop = scrollContainer.scrollTop;
+    textarea.scrollLeft = scrollContainer.scrollLeft;
+    requestAnimationFrame(() => { isSyncingScroll = false; });
+  };
+
+  textarea.addEventListener('scroll', syncScrollFromTextarea, { passive: true });
+  scrollContainer.addEventListener('scroll', syncScrollFromContainer, { passive: true });
+
   textarea.addEventListener('keydown', (event) => {
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault();
+      editor.clearSuggestion();
       if (saveBtn) saveBtn.click();
       else onSave?.(editor);
       return;
     }
     if (event.key === 'Tab') {
       event.preventDefault();
+      if (editor.currentSuggestion && editor.suggestionPos >= 0) {
+        const pos = textarea.selectionStart;
+        const insertText = editor.currentSuggestion;
+        editor.clearSuggestion();
+        textarea.setRangeText(insertText, pos, pos, 'end');
+        textarea.dispatchEvent(new Event('input'));
+        return;
+      }
       const start = textarea.selectionStart;
       textarea.setRangeText('  ', start, textarea.selectionEnd, 'end');
       textarea.dispatchEvent(new Event('input'));
+      return;
+    }
+    if (event.key === 'Escape') {
+      if (editor.currentSuggestion) {
+        event.preventDefault();
+        editor.clearSuggestion();
+        return;
+      }
     }
   });
+
+  textarea.addEventListener('click', () => {
+    if (editor.currentSuggestion && textarea.selectionStart !== editor.suggestionPos) {
+      editor.clearSuggestion();
+    }
+  });
+
+  textarea.addEventListener('keyup', (event) => {
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+      if (editor.currentSuggestion && textarea.selectionStart !== editor.suggestionPos) {
+        editor.clearSuggestion();
+      }
+    }
+  });
+
   if (copyBtn) {
     copyBtn.addEventListener('click', () => {
       const val = editor.getValue();
@@ -2588,210 +3262,741 @@ function setRunnerMode(mode) {
   }
 }
 
-function createSuiteCardElement(id, suite = {}) {
-  const card = document.createElement('div');
-  card.className = 'suite-card';
-  card.dataset.suiteId = id;
-  
-  const projects = Array.from(new Set(['all', ...(testCatalog.projects || [])]));
-  const projectOptions = projects.map((p) => 
-    `<option value="${escapeHtml(p)}" ${p === (suite.project || 'all') ? 'selected' : ''}>${p === 'all' ? 'Tất cả nhóm test' : escapeHtml(p)}</option>`
-  ).join('');
+/* ==============================================================================
+   TEST SUITES STUDIO - 3-FRAME CONTROLLER
+============================================================================== */
+let currentSelectedSuiteId = null;
+let currentSuiteFilter = 'desktop';
+let currentSuiteSearch = '';
+let suitesCache = {};
+let suitesViewInitialized = false;
 
-  const allSpecs = testCatalog.specs || [];
-  let selectedSpecs = [];
-  if (Array.isArray(suite.specs)) selectedSpecs = suite.specs;
-  else if (typeof suite.spec === 'string' && suite.spec !== 'all') selectedSpecs = [suite.spec];
+function renderSuitesView(suites) {
+  suitesCache = Object.assign({}, suites || {});
 
-  let currentScopeMode = 'all';
-  if (suite.grep && suite.grep.trim().length > 0) {
-    currentScopeMode = 'grep';
-  } else if (selectedSpecs.length > 0) {
-    currentScopeMode = 'custom';
+  // Populate project options in editor
+  const projSelect = $('#suite-field-project');
+  if (projSelect) {
+    const projects = Array.from(new Set(['all', ...(testCatalog?.projects || ['chromium', 'mobile-chrome'])]));
+    projSelect.innerHTML = projects.map((p) =>
+      `<option value="${escapeHtml(p)}">${p === 'all' ? 'Tất cả nhóm browser (all)' : escapeHtml(p)}</option>`
+    ).join('');
   }
 
-  const specCheckboxes = allSpecs.map((s) => {
-    const parts = s.split('/');
-    const fileName = parts.pop();
-    const dirPath = parts.length > 0 ? parts.join('/') + '/' : '';
+  // Update Hero Stats
+  const entries = Object.entries(suitesCache);
+  const total = entries.length;
+  const desktopCount = entries.filter(([_, s]) => {
+    const p = (s.project || '').toLowerCase();
+    const l = (s.label || '').toLowerCase();
+    return p !== 'mobile-chrome' && !l.includes('mobile');
+  }).length;
+  const mobileCount = entries.filter(([_, s]) => {
+    const p = (s.project || '').toLowerCase();
+    const l = (s.label || '').toLowerCase();
+    return p === 'mobile-chrome' || l.includes('mobile');
+  }).length;
+
+  const statTotal = $('#suites-stat-total');
+  const statDesktop = $('#suites-stat-desktop');
+  const statMobile = $('#suites-stat-mobile');
+  const sidebarCount = $('#suites-total-count');
+  const railCount = $('#suites-rail-count');
+
+  if (statTotal) statTotal.textContent = total;
+  if (statDesktop) statDesktop.textContent = desktopCount;
+  if (statMobile) statMobile.textContent = mobileCount;
+  if (sidebarCount) sidebarCount.textContent = total;
+  if (railCount) railCount.textContent = total;
+
+  // Render sidebar items
+  renderSuitesSidebarList();
+
+  // If no suite selected or selected doesn't exist, pick first matching filter
+  const keys = Object.keys(suitesCache);
+  if (!currentSelectedSuiteId || !suitesCache[currentSelectedSuiteId]) {
+    const firstMatching = keys.find((k) => {
+      const suite = suitesCache[k];
+      const p = (suite?.project || '').toLowerCase();
+      const l = (suite?.label || '').toLowerCase();
+      if (currentSuiteFilter === 'desktop') return p !== 'mobile-chrome' && !l.includes('mobile');
+      if (currentSuiteFilter === 'mobile') return p === 'mobile-chrome' || l.includes('mobile');
+      if (currentSuiteFilter === 'tag') return suite?.grep && suite.grep.trim();
+      return true;
+    });
+    currentSelectedSuiteId = firstMatching || (keys.length > 0 ? keys[0] : null);
+  }
+
+  if (currentSelectedSuiteId) {
+    selectSuite(currentSelectedSuiteId);
+  } else {
+    loadSuiteIntoEditor(null, null);
+  }
+}
+
+function renderSuitesSidebarList() {
+  const container = $('#suites-sidebar-list');
+  if (!container) return;
+
+  const entries = Object.entries(suitesCache);
+  if (entries.length === 0) {
+    container.innerHTML = `
+      <div class="suite-empty-state" style="padding: 24px 12px; font-size: 11.5px; border-radius: 8px;">
+        <i class="ph-bold ph-folder-notch-open" style="font-size: 26px; color: var(--muted);"></i>
+        <p style="margin: 6px 0 2px; font-weight: 600;">Chưa có kịch bản nào</p>
+        <small style="color: var(--muted);">Bấm "+ Tạo mới" để thêm suite đầu tiên.</small>
+      </div>
+    `;
+    return;
+  }
+
+  const filtered = entries.filter(([key, suite]) => {
+    if (currentSuiteFilter === 'desktop') {
+      const p = (suite.project || '').toLowerCase();
+      const l = (suite.label || '').toLowerCase();
+      if (p === 'mobile-chrome' || l.includes('mobile')) return false;
+    } else if (currentSuiteFilter === 'mobile') {
+      const p = (suite.project || '').toLowerCase();
+      const l = (suite.label || '').toLowerCase();
+      if (p !== 'mobile-chrome' && !l.includes('mobile')) return false;
+    } else if (currentSuiteFilter === 'tag') {
+      if (!suite.grep || !suite.grep.trim()) return false;
+    }
+
+    if (currentSuiteSearch) {
+      const txt = `${key} ${suite.label || ''} ${suite.project || ''} ${suite.grep || ''}`.toLowerCase();
+      if (!txt.includes(currentSuiteSearch)) return false;
+    }
+
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 20px 12px; text-align: center; color: var(--muted); font-size: 11.5px;">
+        Không tìm thấy kịch bản nào khớp bộ lọc.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = filtered.map(([key, suite]) => {
+    const isActive = key === currentSelectedSuiteId;
+    const project = suite.project || 'all';
+    const isMobile = project === 'mobile-chrome' || (suite.label || '').toLowerCase().includes('mobile');
+    const platformClass = isMobile ? 'mobile' : 'desktop';
+    const projIcon = isMobile ? 'ph-device-mobile' : 'ph-desktop';
+    const tag = suite.grep ? suite.grep.trim() : '';
+
+    let countStr = 'All specs';
+    if (Array.isArray(suite.specs) && suite.specs.length > 0) {
+      countStr = `${suite.specs.length} file`;
+    } else if (typeof suite.spec === 'string' && suite.spec !== 'all') {
+      countStr = '1 file';
+    }
+
     return `
-      <label class="suite-spec-item">
-        <input type="checkbox" class="suite-spec-cb" value="${escapeHtml(s)}" ${selectedSpecs.includes(s) ? 'checked' : ''}>
-        <span class="suite-spec-name"><span style="color: var(--muted); font-size: 11px;">${escapeHtml(dirPath)}</span><strong>${escapeHtml(fileName)}</strong></span>
-      </label>
+      <div class="dashboard-list-card suite-nav-item script-card-item ${isActive ? 'is-selected active' : ''}" data-suite-id="${escapeHtml(key)}">
+        <span class="dashboard-list-card__icon script-card-platform-icon ${platformClass}"><i class="ph-bold ${projIcon}"></i></span>
+        <div class="dashboard-list-card__body">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+            <div class="script-card-title">${escapeHtml(suite.label || key)}</div>
+            <button type="button" class="btn-icon-subtle item-delete-hover-btn suite-item-delete-btn" data-suite-id="${escapeHtml(key)}" title="Xóa Test Suite này" style="padding: 2px; font-size: 14px; flex-shrink: 0;">
+              <i class="ph ph-trash"></i>
+            </button>
+          </div>
+          <div class="script-card-file">
+            <i class="ph ph-file-code"></i> ${escapeHtml(key)}
+          </div>
+          <div class="script-card-pills">
+            <span class="script-card-badge-platform ${platformClass}">
+              <i class="ph ${projIcon}"></i> ${escapeHtml(project)}
+            </span>
+            <span class="script-card-badge-pages">
+              <i class="ph ph-cpu"></i> ${suite.workers || 2} Luồng
+            </span>
+            ${tag ? `
+            <span class="script-card-badge-data" title="${escapeHtml(tag)}">
+              <i class="ph ph-tag"></i> ${escapeHtml(tag)}
+            </span>` : `
+            <span class="script-card-badge-data">
+              <i class="ph ph-stack"></i> ${countStr}
+            </span>`}
+          </div>
+        </div>
+      </div>
     `;
   }).join('');
 
+  container.querySelectorAll('.suite-nav-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.suite-item-delete-btn')) return;
+      const suiteId = item.dataset.suiteId;
+      if (suiteId && suiteId !== currentSelectedSuiteId) {
+        selectSuite(suiteId);
+      }
+    });
+  });
+
+  container.querySelectorAll('.suite-item-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const suiteId = btn.dataset.suiteId;
+      if (suiteId && suitesCache[suiteId]) {
+        selectSuite(suiteId);
+        deleteCurrentSuite();
+      }
+    });
+  });
+}
+
+function selectSuite(id) {
+  if (!suitesCache[id]) return;
+  currentSelectedSuiteId = id;
+
+  document.querySelectorAll('#suites-sidebar-list .suite-nav-item').forEach((item) => {
+    const isThis = item.dataset.suiteId === id;
+    item.classList.toggle('active', isThis);
+    item.classList.toggle('is-selected', isThis);
+  });
+
+  loadSuiteIntoEditor(id, suitesCache[id]);
+  updateSuitePreview(id, suitesCache[id]);
+}
+
+function loadSuiteIntoEditor(id, suite) {
+  const emptyBox = $('#suite-middle-empty');
+  const formInner = $('#suite-editor-form');
+
+  if (!suite) {
+    if (emptyBox) emptyBox.style.display = 'flex';
+    if (formInner) formInner.style.display = 'none';
+    const title = $('#suite-active-title');
+    if (title) title.textContent = 'Chưa chọn kịch bản';
+    return;
+  }
+
+  if (emptyBox) emptyBox.style.display = 'none';
+  if (formInner) formInner.style.display = 'flex';
+
+  const title = $('#suite-active-title');
+  if (title) title.textContent = suite.label || id;
+
+  const labelInput = $('#suite-field-label');
+  if (labelInput) labelInput.value = suite.label || '';
+
+  const keyInput = $('#suite-field-key');
+  if (keyInput) keyInput.value = id;
+
+  const projSelect = $('#suite-field-project');
+  if (projSelect) projSelect.value = suite.project || 'all';
+
+  const workersInput = $('#suite-field-workers');
+  if (workersInput) workersInput.value = suite.workers || 2;
+
+  // Viewport preset
   const vpPreset = suite.viewport?.preset || 'default';
   const vpWidth = suite.viewport?.width || 1920;
   const vpHeight = suite.viewport?.height || 1080;
 
-  card.innerHTML = `
-    <div class="suite-card-head">
-      <span class="suite-card-badge"><i class="ph-bold ph-package"></i> <span class="suite-card-title">${escapeHtml(suite.label || 'Kịch bản mới')}</span></span>
-      <button type="button" class="suite-card-delete btn-delete-suite"><i class="ph-bold ph-trash"></i> Xóa</button>
-    </div>
-    <div class="suite-card-fields">
-      <label class="wide">Tên kịch bản<small>Tên gợi nhớ hiển thị trên dashboard (ví dụ: Smoke Tests, Admin Flows).</small>
-        <input type="text" data-field="label" value="${escapeHtml(suite.label || '')}" placeholder="Ví dụ: Smoke Tests" required>
-      </label>
-      <label>Nhóm browser / Project<small>Browser áp dụng cho kịch bản.</small>
-        <select data-field="project">${projectOptions}</select>
-      </label>
-      <label>Số luồng chạy (Workers)<small>Số browser chạy song song (1 - 8).</small>
-        <input type="number" data-field="workers" min="1" max="8" value="${suite.workers || 2}">
-      </label>
-      <label class="wide">Kích thước màn hình (Viewport)<small>Độ phân giải browser chạy kịch bản này.</small>
-        <select data-field="viewport-preset">
-          <option value="default" ${vpPreset === 'default' ? 'selected' : ''}>🖥️ Mặc định theo hệ thống</option>
-          <option value="1920x1080" ${vpPreset === '1920x1080' ? 'selected' : ''}>🖥️ Desktop Full HD (1920 x 1080)</option>
-          <option value="1366x768" ${vpPreset === '1366x768' ? 'selected' : ''}>💻 Desktop Laptop (1366 x 768)</option>
-          <option value="2560x1440" ${vpPreset === '2560x1440' ? 'selected' : ''}>🖥️ Desktop 2K (2560 x 1440)</option>
-          <option value="390x844" ${vpPreset === '390x844' ? 'selected' : ''}>📱 Mobile iPhone (390 x 844)</option>
-          <option value="360x800" ${vpPreset === '360x800' ? 'selected' : ''}>📱 Mobile Android (360 x 800)</option>
-          <option value="custom" ${vpPreset === 'custom' ? 'selected' : ''}>⚙️ Tự nhập kích thước (Custom)</option>
-        </select>
-      </label>
-      <div class="suite-custom-vp-box wide" ${vpPreset === 'custom' ? '' : 'style="display:none;"'}>
-        <label>Chiều rộng (px)<input type="number" data-field="viewport-width" value="${vpWidth}" min="320" max="7680"></label>
-        <label>Chiều cao (px)<input type="number" data-field="viewport-height" value="${vpHeight}" min="320" max="4320"></label>
-      </div>
-      
-      <!-- SCOPE SELECTION SECTION (Sleek Segmented Control) -->
-      <div class="suite-scope-section wide">
-        <label class="suite-section-label">Phạm vi bài test (Test Scope)
-          <small>Chọn 1 trong 3 cách thức chỉ định bài test cho kịch bản này.</small>
-        </label>
-        <div class="suite-scope-modes">
-          <label class="scope-mode-option ${currentScopeMode === 'all' ? 'active' : ''}">
-            <input type="radio" name="scope-mode-${id}" value="all" ${currentScopeMode === 'all' ? 'checked' : ''}>
-            <i class="ph-bold ph-globe"></i>
-            <span>Toàn bộ dự án</span>
-          </label>
-          <label class="scope-mode-option ${currentScopeMode === 'grep' ? 'active' : ''}">
-            <input type="radio" name="scope-mode-${id}" value="grep" ${currentScopeMode === 'grep' ? 'checked' : ''}>
-            <i class="ph-bold ph-tag"></i>
-            <span>Lọc theo Tag</span>
-          </label>
-          <label class="scope-mode-option ${currentScopeMode === 'custom' ? 'active' : ''}">
-            <input type="radio" name="scope-mode-${id}" value="custom" ${currentScopeMode === 'custom' ? 'checked' : ''}>
-            <i class="ph-bold ph-files"></i>
-            <span>Chọn từng File</span>
-          </label>
-        </div>
+  const vpPresetSelect = $('#suite-field-viewport-preset');
+  if (vpPresetSelect) vpPresetSelect.value = vpPreset;
 
-        <!-- GREP BOX (Shown only when scope === 'grep') -->
-        <div class="suite-scope-grep-box" ${currentScopeMode === 'grep' ? '' : 'style="display:none;"'}>
-          <label>Nhập Tag hoặc Từ khóa cần lọc<small>Playwright sẽ tự động quét toàn bộ dự án để tìm các test case có tag này (ví dụ: <code>@smoke</code>, <code>@CompanySite</code>).</small>
-            <input type="text" data-field="grep" value="${escapeHtml(suite.grep || '')}" placeholder="Ví dụ: @smoke hoặc @regression">
-          </label>
-        </div>
+  const vpWidthInput = $('#suite-field-vp-width');
+  if (vpWidthInput) vpWidthInput.value = vpWidth;
 
-        <!-- FILES CHECKLIST (Shown only when scope === 'custom') -->
-        <div class="suite-scope-files-box" ${currentScopeMode === 'custom' ? '' : 'style="display:none;"'}>
-          <div class="suite-specs-actions">
-            <span class="suite-selected-count">Đã chọn: ${selectedSpecs.length} file</span>
-            <div class="suite-specs-actions-btns">
-              <button type="button" class="btn-specs-action btn-select-all-specs">Chọn tất cả</button>
-              <button type="button" class="btn-specs-action btn-deselect-all-specs">Bỏ chọn</button>
-            </div>
-          </div>
-          <div class="suite-specs-checklist">
-            ${specCheckboxes || '<p style="color:var(--muted); font-size:11px; padding:4px;">Chưa có file spec nào.</p>'}
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+  const vpHeightInput = $('#suite-field-vp-height');
+  if (vpHeightInput) vpHeightInput.value = vpHeight;
 
-  const labelInput = card.querySelector('[data-field="label"]');
-  const titleSpan = card.querySelector('.suite-card-title');
-  labelInput.addEventListener('input', () => {
-    titleSpan.textContent = labelInput.value.trim() || 'Kịch bản mới';
+  const customVpBox = $('#suite-custom-vp-box');
+  if (customVpBox) {
+    customVpBox.style.display = vpPreset === 'custom' ? 'grid' : 'none';
+  }
+
+  // Scope mode
+  let selectedSpecs = [];
+  if (Array.isArray(suite.specs)) selectedSpecs = suite.specs;
+  else if (typeof suite.spec === 'string' && suite.spec !== 'all') selectedSpecs = [suite.spec];
+
+  let scopeMode = 'all';
+  if (suite.grep && suite.grep.trim().length > 0) {
+    scopeMode = 'grep';
+  } else if (selectedSpecs.length > 0) {
+    scopeMode = 'custom';
+  }
+
+  const radio = document.querySelector(`input[name="suite-scope-mode"][value="${scopeMode}"]`);
+  if (radio) radio.checked = true;
+
+  document.querySelectorAll('.scope-mode-option').forEach((opt) => {
+    opt.classList.toggle('active', opt.querySelector('input')?.value === scopeMode);
   });
 
-  const vpSelect = card.querySelector('[data-field="viewport-preset"]');
-  const vpCustomBox = card.querySelector('.suite-custom-vp-box');
-  vpSelect.addEventListener('change', () => {
-    vpCustomBox.style.display = vpSelect.value === 'custom' ? 'grid' : 'none';
-  });
+  const grepBox = $('#suite-grep-box');
+  const filesBox = $('#suite-files-box');
+  if (grepBox) grepBox.style.display = scopeMode === 'grep' ? 'block' : 'none';
+  if (filesBox) filesBox.style.display = scopeMode === 'custom' ? 'flex' : 'none';
 
-  const grepBox = card.querySelector('.suite-scope-grep-box');
-  const filesBox = card.querySelector('.suite-scope-files-box');
-  const countSpan = card.querySelector('.suite-selected-count');
+  const grepInput = $('#suite-field-grep');
+  if (grepInput) grepInput.value = suite.grep || '';
+
+  // Render spec checklist
+  const allSpecs = testCatalog?.specs || [];
+  const checklistContainer = $('#suite-specs-checklist-container');
+  if (checklistContainer) {
+    if (allSpecs.length === 0) {
+      checklistContainer.innerHTML = '<p style="color:var(--muted); font-size:11px; padding:4px;">Chưa có file spec nào trong framework.</p>';
+    } else {
+      checklistContainer.innerHTML = allSpecs.map((s) => {
+        const parts = s.split('/');
+        const fileName = parts.pop();
+        const dirPath = parts.length > 0 ? parts.join('/') + '/' : '';
+        const isChecked = selectedSpecs.includes(s);
+        return `
+          <label class="suite-card-fields suite-spec-item" style="display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:5px; cursor:pointer;">
+            <input type="checkbox" class="suite-spec-cb" value="${escapeHtml(s)}" ${isChecked ? 'checked' : ''}>
+            <span class="suite-spec-name" style="font-size:11.5px; font-family:var(--font-mono);"><span style="color:var(--muted);">${escapeHtml(dirPath)}</span><strong>${escapeHtml(fileName)}</strong></span>
+          </label>
+        `;
+      }).join('');
+
+      checklistContainer.querySelectorAll('.suite-spec-cb').forEach((cb) => {
+        cb.addEventListener('change', () => {
+          syncCurrentSuiteFromInputs();
+        });
+      });
+    }
+  }
+
+  const countLabel = $('#suite-specs-count-label');
+  if (countLabel) {
+    countLabel.textContent = `Đã chọn: ${selectedSpecs.length} file`;
+  }
+
+  // Cập nhật Suite Overview Banner & Stats Card (Đồng bộ chuẩn BDD Studio)
+  const projectLabel = suite.project === 'mobile-chrome' ? 'Mobile Web' : (suite.project === 'all' ? 'Tất cả Project' : 'Desktop Web');
+  if ($('#suite-banner-project')) $('#suite-banner-project').textContent = projectLabel;
+  if ($('#suite-banner-key')) $('#suite-banner-key').textContent = id;
+  if ($('#suite-banner-title')) $('#suite-banner-title').textContent = suite.label || id;
   
-  const updateCount = () => {
-    const checked = card.querySelectorAll('.suite-spec-cb:checked').length;
-    if (countSpan) countSpan.textContent = `Đã chọn: ${checked} file`;
+  let scopeText = 'Toàn bộ dự án';
+  if (suite.grep && suite.grep.trim()) scopeText = `Lọc Tag: ${suite.grep.trim()}`;
+  else if (Array.isArray(suite.specs) && suite.specs.length > 0) scopeText = `Chỉ định ${suite.specs.length} files`;
+  else if (typeof suite.spec === 'string' && suite.spec !== 'all') scopeText = `File: ${suite.spec}`;
+  if ($('#suite-banner-scope')) $('#suite-banner-scope').innerHTML = `<i class="ph ph-sliders"></i> Phạm vi: ${escapeHtml(scopeText)}`;
+
+  const tagContainer = $('#suite-banner-tags');
+  if (tagContainer) {
+    if (suite.grep && suite.grep.trim()) {
+      tagContainer.innerHTML = `<span class="script-tag-chip">${escapeHtml(suite.grep.trim())}</span>`;
+    } else {
+      tagContainer.innerHTML = `<span class="script-tag-chip" style="opacity:0.6;">Không có tag</span>`;
+    }
+  }
+
+  if ($('#suite-stat-workers')) $('#suite-stat-workers').textContent = suite.workers || 2;
+  const vpText = vpPreset === 'custom'
+    ? `${vpWidth}x${vpHeight}`
+    : (vpPreset !== 'default' ? vpPreset : '1920x1080');
+  if ($('#suite-stat-viewport')) $('#suite-stat-viewport').textContent = vpText;
+
+  let initialSpecCount = 0;
+  if (Array.isArray(suite.specs)) initialSpecCount = suite.specs.length;
+  else if (typeof suite.spec === 'string' && suite.spec !== 'all') initialSpecCount = 1;
+  else initialSpecCount = allSpecs.length;
+  if ($('#suite-stat-specs')) $('#suite-stat-specs').textContent = initialSpecCount;
+
+  $('#suites-subnav-inspect')?.classList.add('active');
+  $('#suites-subnav-create')?.classList.remove('active');
+}
+
+function updateSuitePreview(id, suite) {
+  if (!suite) return;
+
+  const project = suite.project || 'all';
+  const isMobile = project === 'mobile-chrome' || (suite.label || '').toLowerCase().includes('mobile');
+  const workers = suite.workers || 2;
+  const vpPreset = suite.viewport?.preset || 'default';
+  const grep = suite.grep ? suite.grep.trim() : '';
+
+  // Update Preview Card
+  const prevProj = $('#suite-prev-project');
+  if (prevProj) prevProj.innerHTML = `<i class="ph-bold ${isMobile ? 'ph-device-mobile' : 'ph-desktop'}"></i> ${escapeHtml(project)}`;
+
+  const prevWorkers = $('#suite-prev-workers');
+  if (prevWorkers) prevWorkers.innerHTML = `<i class="ph-bold ph-cpu"></i> ${workers} workers`;
+
+  const prevViewport = $('#suite-prev-viewport');
+  if (prevViewport) prevViewport.innerHTML = `<i class="ph-bold ph-monitor"></i> ${vpPreset === 'default' ? 'Mặc định' : vpPreset}`;
+
+  let scopeText = 'Toàn bộ dự án';
+  if (grep) scopeText = `Lọc tag: ${grep}`;
+  else if (Array.isArray(suite.specs) && suite.specs.length > 0) scopeText = `Tùy chọn ${suite.specs.length} files`;
+  else if (typeof suite.spec === 'string' && suite.spec !== 'all') scopeText = `File: ${suite.spec}`;
+
+  const prevScope = $('#suite-prev-scope');
+  if (prevScope) prevScope.innerHTML = `<i class="ph-bold ph-tag"></i> ${escapeHtml(scopeText)}`;
+
+  // Đồng bộ banner Section 01
+  const projectLabel = project === 'mobile-chrome' ? 'Mobile Web' : (project === 'all' ? 'Tất cả Project' : 'Desktop Web');
+  if ($('#suite-banner-project')) $('#suite-banner-project').textContent = projectLabel;
+  if ($('#suite-banner-key')) $('#suite-banner-key').textContent = id;
+  if ($('#suite-banner-title')) $('#suite-banner-title').textContent = suite.label || id;
+  if ($('#suite-banner-scope')) $('#suite-banner-scope').innerHTML = `<i class="ph ph-sliders"></i> Phạm vi: ${escapeHtml(scopeText)}`;
+  const tagContainer = $('#suite-banner-tags');
+  if (tagContainer) {
+    if (grep) {
+      tagContainer.innerHTML = `<span class="script-tag-chip">${escapeHtml(grep)}</span>`;
+    } else {
+      tagContainer.innerHTML = `<span class="script-tag-chip" style="opacity:0.6;">Không có tag</span>`;
+    }
+  }
+  if ($('#suite-stat-workers')) $('#suite-stat-workers').textContent = workers;
+  const vpCustomText = vpPreset === 'custom'
+    ? `${suite.viewport?.width || 1920}x${suite.viewport?.height || 1080}`
+    : (vpPreset !== 'default' ? vpPreset : '1920x1080');
+  if ($('#suite-stat-viewport')) $('#suite-stat-viewport').textContent = vpCustomText;
+
+  // Determine matching spec files
+  const allSpecs = testCatalog?.specs || [];
+  let matchingSpecs = [];
+
+  const scopeRadio = document.querySelector('input[name="suite-scope-mode"]:checked');
+  const scopeMode = scopeRadio ? scopeRadio.value : (grep ? 'grep' : (Array.isArray(suite.specs) && suite.specs.length > 0 ? 'custom' : 'all'));
+
+  if (scopeMode === 'custom') {
+    const checked = Array.from(document.querySelectorAll('#suite-specs-checklist-container .suite-spec-cb:checked')).map((cb) => cb.value);
+    matchingSpecs = checked.length > 0 ? checked : (Array.isArray(suite.specs) ? suite.specs : []);
+  } else if (scopeMode === 'grep' && grep) {
+    matchingSpecs = allSpecs;
+  } else {
+    matchingSpecs = allSpecs;
+  }
+
+  if (project === 'mobile-chrome') {
+    matchingSpecs = matchingSpecs.filter((s) => s.includes('mobile'));
+  } else if (project === 'chromium') {
+    matchingSpecs = matchingSpecs.filter((s) => !s.includes('mobile'));
+  }
+
+  const execCount = $('#suite-exec-count');
+  if (execCount) execCount.textContent = `${matchingSpecs.length} file`;
+  if ($('#suite-stat-specs')) $('#suite-stat-specs').textContent = matchingSpecs.length;
+
+
+  const execList = $('#suite-exec-files-list');
+  if (execList) {
+    if (matchingSpecs.length === 0) {
+      execList.innerHTML = '<div style="color:var(--muted); font-size:11px; padding:6px;">Không có file nào khớp với cấu hình.</div>';
+    } else {
+      execList.innerHTML = matchingSpecs.map((s) => `
+        <div class="suite-exec-file-item">
+          <i class="ph-bold ph-file-js" style="color:var(--accent);"></i>
+          <span>${escapeHtml(s)}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  // CLI Command string
+  const cliParts = ['npx playwright test'];
+  if (scopeMode === 'custom' && matchingSpecs.length > 0) {
+    cliParts.push(matchingSpecs.join(' '));
+  }
+  if (project !== 'all') {
+    cliParts.push(`--project=${project}`);
+  }
+  if (grep) {
+    cliParts.push(`--grep="${grep}"`);
+  }
+  if (workers) {
+    cliParts.push(`--workers=${workers}`);
+  }
+
+  const cliBox = $('#suite-cli-command');
+  if (cliBox) {
+    cliBox.textContent = cliParts.join(' ');
+  }
+}
+
+function syncCurrentSuiteFromInputs() {
+  if (!currentSelectedSuiteId || !suitesCache[currentSelectedSuiteId]) return;
+
+  const label = $('#suite-field-label')?.value.trim() || 'Kịch bản mới';
+  const newKey = $('#suite-field-key')?.value.trim() || currentSelectedSuiteId;
+  const project = $('#suite-field-project')?.value || 'all';
+  const workers = parseInt($('#suite-field-workers')?.value, 10) || 2;
+  const vpPreset = $('#suite-field-viewport-preset')?.value || 'default';
+  const vpWidth = parseInt($('#suite-field-vp-width')?.value, 10) || 1920;
+  const vpHeight = parseInt($('#suite-field-vp-height')?.value, 10) || 1080;
+
+  const scopeRadio = document.querySelector('input[name="suite-scope-mode"]:checked');
+  const scopeMode = scopeRadio ? scopeRadio.value : 'all';
+
+  let grep = '';
+  let specs = 'all';
+  let spec = 'all';
+
+  if (scopeMode === 'grep') {
+    grep = $('#suite-field-grep')?.value.trim() || '';
+  } else if (scopeMode === 'custom') {
+    const checked = Array.from(document.querySelectorAll('#suite-specs-checklist-container .suite-spec-cb:checked')).map((cb) => cb.value);
+    if (checked.length > 0) {
+      specs = checked;
+      spec = checked.length === 1 ? checked[0] : 'custom';
+    }
+    const countLabel = $('#suite-specs-count-label');
+    if (countLabel) countLabel.textContent = `Đã chọn: ${checked.length} file`;
+  }
+
+  const updatedSuite = {
+    label,
+    project,
+    workers,
+    viewport: { preset: vpPreset, width: vpWidth, height: vpHeight },
+    spec,
+    specs,
+    grep
   };
 
-  card.querySelectorAll(`input[name="scope-mode-${id}"]`).forEach((radio) => {
-    radio.addEventListener('change', () => {
-      card.querySelectorAll('.scope-mode-option').forEach((opt) => {
-        opt.classList.toggle('active', opt.querySelector('input') === radio);
-      });
-      if (grepBox) grepBox.style.display = radio.value === 'grep' ? 'block' : 'none';
-      if (filesBox) filesBox.style.display = radio.value === 'custom' ? 'flex' : 'none';
-      updateCount();
+  if (newKey !== currentSelectedSuiteId) {
+    delete suitesCache[currentSelectedSuiteId];
+    currentSelectedSuiteId = newKey;
+  }
+  suitesCache[currentSelectedSuiteId] = updatedSuite;
+
+  const title = $('#suite-active-title');
+  if (title) title.textContent = label;
+
+  renderSuitesSidebarList();
+  updateSuitePreview(currentSelectedSuiteId, updatedSuite);
+
+  if (!window.dashboardSuites) window.dashboardSuites = {};
+  window.dashboardSuites[currentSelectedSuiteId] = updatedSuite;
+  renderRunnerSuiteOptions(window.dashboardSuites, currentSelectedSuiteId);
+}
+
+function createNewSuite() {
+  const newId = `suite-${Date.now().toString(36)}`;
+  const newSuite = {
+    label: 'Kịch bản mới',
+    project: 'chromium',
+    workers: 2,
+    viewport: { preset: '1920x1080', width: 1920, height: 1080 },
+    spec: 'all',
+    specs: 'all',
+    grep: ''
+  };
+
+  suitesCache[newId] = newSuite;
+  currentSelectedSuiteId = newId;
+
+  $('#suites-subnav-inspect')?.classList.remove('active');
+  $('#suites-subnav-create')?.classList.add('active');
+
+  renderSuitesView(suitesCache);
+
+  setTimeout(() => {
+    const lbl = $('#suite-field-label');
+    if (lbl) {
+      lbl.focus();
+      lbl.select();
+    }
+  }, 60);
+
+  notify('Đã tạo kịch bản Test Suite mới.');
+}
+
+function duplicateCurrentSuite() {
+  if (!currentSelectedSuiteId || !suitesCache[currentSelectedSuiteId]) return;
+  const orig = suitesCache[currentSelectedSuiteId];
+  const newId = `suite-${Date.now().toString(36)}`;
+  const cloned = JSON.parse(JSON.stringify(orig));
+  cloned.label = `${orig.label || 'Kịch bản'} (Bản sao)`;
+
+  suitesCache[newId] = cloned;
+  currentSelectedSuiteId = newId;
+
+  renderSuitesView(suitesCache);
+  notify(`Đã nhân bản kịch bản thành "${cloned.label}".`);
+}
+
+function deleteCurrentSuite() {
+  if (!currentSelectedSuiteId || !suitesCache[currentSelectedSuiteId]) return;
+  const label = suitesCache[currentSelectedSuiteId].label || currentSelectedSuiteId;
+  delete suitesCache[currentSelectedSuiteId];
+
+  const remainingKeys = Object.keys(suitesCache);
+  currentSelectedSuiteId = remainingKeys.length > 0 ? remainingKeys[0] : null;
+
+  renderSuitesView(suitesCache);
+  notify(`Đã xóa kịch bản "${label}".`);
+}
+
+function runCurrentSuiteNow() {
+  if (!currentSelectedSuiteId || !suitesCache[currentSelectedSuiteId]) return;
+  syncCurrentSuiteFromInputs();
+
+  const suite = suitesCache[currentSelectedSuiteId];
+  const runnerSelect = $('#runner-suite-select');
+  if (runnerSelect) {
+    runnerSelect.value = currentSelectedSuiteId;
+    updateSuiteSummaryBox(currentSelectedSuiteId);
+  }
+  setRunnerMode('suite');
+  document.querySelector('.view-tab[data-view="runner-view"]')?.click();
+  notify(`Đã nạp kịch bản "${suite.label || currentSelectedSuiteId}" vào Chạy test.`);
+}
+
+function initSuitesView() {
+  if (suitesViewInitialized) return;
+  suitesViewInitialized = true;
+
+  // Subnav Navigation Tabs
+  $('#suites-subnav-inspect')?.addEventListener('click', () => {
+    $('#suites-subnav-inspect')?.classList.add('active');
+    $('#suites-subnav-create')?.classList.remove('active');
+    if (currentSelectedSuiteId && suitesCache[currentSelectedSuiteId]) {
+      loadSuiteIntoEditor(currentSelectedSuiteId, suitesCache[currentSelectedSuiteId]);
+    }
+  });
+
+  $('#suites-subnav-create')?.addEventListener('click', () => {
+    createNewSuite();
+  });
+
+  // Subnav Quick Action Buttons
+  $('#suites-subnav-delete-btn')?.addEventListener('click', deleteCurrentSuite);
+  $('#suites-subnav-sync-btn')?.addEventListener('click', () => {
+    document.getElementById('sync-git-button')?.click();
+  });
+  $('#suites-subnav-run-btn')?.addEventListener('click', runCurrentSuiteNow);
+
+  // Refresh button
+  $('#suites-refresh-btn')?.addEventListener('click', async () => {
+    await fetchSuites();
+    notify('Đã làm mới danh sách Test Suites.');
+  });
+
+  $('#btn-collapse-suites-sidebar')?.addEventListener('click', () => {
+    $('#suites-workspace')?.classList.add('sidebar-collapsed');
+  });
+
+  $('#btn-expand-suites-sidebar')?.addEventListener('click', () => {
+    $('#suites-workspace')?.classList.remove('sidebar-collapsed');
+  });
+
+  $('#btn-toggle-suites-sidebar-head')?.addEventListener('click', () => {
+    $('#suites-workspace')?.classList.toggle('sidebar-collapsed');
+  });
+
+  $('#suites-search-input')?.addEventListener('input', (e) => {
+    currentSuiteSearch = e.target.value.toLowerCase().trim();
+    renderSuitesSidebarList();
+  });
+
+  document.querySelectorAll('.suite-filter-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.suite-filter-pill').forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentSuiteFilter = pill.dataset.filter || 'all';
+      renderSuitesSidebarList();
     });
   });
 
-  card.querySelectorAll('.suite-spec-cb').forEach((cb) => {
-    cb.addEventListener('change', updateCount);
+  $('#add-suite-button')?.addEventListener('click', createNewSuite);
+  $('#suite-btn-duplicate')?.addEventListener('click', duplicateCurrentSuite);
+  $('#suite-btn-delete')?.addEventListener('click', deleteCurrentSuite);
+  $('#suite-run-now-btn')?.addEventListener('click', runCurrentSuiteNow);
+
+  $('#suite-btn-copy-cli')?.addEventListener('click', () => {
+    const cmd = $('#suite-cli-command')?.textContent || '';
+    if (cmd) {
+      navigator.clipboard?.writeText(cmd);
+      notify('Đã sao chép lệnh terminal Playwright CLI!');
+    }
   });
 
-  card.querySelector('.btn-select-all-specs')?.addEventListener('click', () => {
-    card.querySelectorAll('.suite-spec-cb').forEach((cb) => { cb.checked = true; });
-    updateCount();
+
+  const syncFields = [
+    '#suite-field-label',
+    '#suite-field-key',
+    '#suite-field-project',
+    '#suite-field-workers',
+    '#suite-field-viewport-preset',
+    '#suite-field-vp-width',
+    '#suite-field-vp-height',
+    '#suite-field-grep'
+  ];
+
+  syncFields.forEach((sel) => {
+    $(sel)?.addEventListener('input', syncCurrentSuiteFromInputs);
+    $(sel)?.addEventListener('change', syncCurrentSuiteFromInputs);
   });
 
-  card.querySelector('.btn-deselect-all-specs')?.addEventListener('click', () => {
-    card.querySelectorAll('.suite-spec-cb').forEach((cb) => { cb.checked = false; });
-    updateCount();
+  $('#suite-field-viewport-preset')?.addEventListener('change', (e) => {
+    const customBox = $('#suite-custom-vp-box');
+    if (customBox) {
+      customBox.style.display = e.target.value === 'custom' ? 'grid' : 'none';
+    }
+    syncCurrentSuiteFromInputs();
   });
 
-  card.querySelector('.btn-delete-suite').addEventListener('click', () => {
-    card.remove();
-    checkEmptySuitesState();
+  document.querySelectorAll('input[name="suite-scope-mode"]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.scope-mode-option').forEach((opt) => {
+        opt.classList.toggle('active', opt.querySelector('input') === radio);
+      });
+      const grepBox = $('#suite-grep-box');
+      const filesBox = $('#suite-files-box');
+      if (grepBox) grepBox.style.display = radio.value === 'grep' ? 'block' : 'none';
+      if (filesBox) filesBox.style.display = radio.value === 'custom' ? 'flex' : 'none';
+      syncCurrentSuiteFromInputs();
+    });
   });
 
-  return card;
-}
+  document.querySelectorAll('#suite-tag-suggestions .btn-tag-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const grepInput = $('#suite-field-grep');
+      if (grepInput) {
+        const tag = chip.dataset.tag || chip.textContent.trim();
+        const currentVal = grepInput.value.trim();
+        if (!currentVal) {
+          grepInput.value = tag;
+        } else if (!currentVal.includes(tag)) {
+          grepInput.value = `${currentVal} ${tag}`;
+        }
+        grepInput.dispatchEvent(new Event('input'));
+      }
+    });
+  });
 
-function checkEmptySuitesState() {
-  const container = $('#suites-settings-list');
-  if (!container) return;
-  if (container.querySelectorAll('.suite-card').length === 0) {
-    container.innerHTML = `
-      <div class="suite-empty-state">
-        <i class="ph-bold ph-folder-notch-open" style="font-size: 24px; color: var(--muted);"></i>
-        <p>Chưa có kịch bản test nào được thiết lập.</p>
-        <small>Bấm "Thêm kịch bản mới" phía trên để tạo kịch bản đầu tiên.</small>
-      </div>
-    `;
-  } else {
-    const emptyState = container.querySelector('.suite-empty-state');
-    if (emptyState) emptyState.remove();
-  }
-}
+  $('#btn-suite-select-all')?.addEventListener('click', () => {
+    document.querySelectorAll('#suite-specs-checklist-container .suite-spec-cb').forEach((cb) => {
+      cb.checked = true;
+    });
+    syncCurrentSuiteFromInputs();
+  });
 
-function renderSuiteSettingsCards(suites) {
-  const container = $('#suites-settings-list');
-  if (!container) return;
-  container.innerHTML = '';
-  const entries = Object.entries(suites || {});
-  if (entries.length === 0) {
-    checkEmptySuitesState();
-    return;
-  }
-  entries.forEach(([id, suite]) => {
-    container.appendChild(createSuiteCardElement(id, suite));
+  $('#btn-suite-deselect-all')?.addEventListener('click', () => {
+    document.querySelectorAll('#suite-specs-checklist-container .suite-spec-cb').forEach((cb) => {
+      cb.checked = false;
+    });
+    syncCurrentSuiteFromInputs();
+  });
+
+  $('#suite-specs-search-input')?.addEventListener('input', (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    document.querySelectorAll('#suite-specs-checklist-container .suite-spec-item').forEach((item) => {
+      const text = item.textContent.toLowerCase();
+      item.style.display = (!query || text.includes(query)) ? 'flex' : 'none';
+    });
   });
 }
 
 function renderSettings(settings) {
   settingsCache = settings;
-  renderSuiteSettingsCards(settings.suites || {});
+  renderSuitesView(settings.suites || {});
   const environmentEntries = Object.entries(settings.environments || {});
   $('#environment-settings').innerHTML = environmentEntries.map(([key, env]) => `
     <div class="environment-row" data-env="${escapeHtml(key)}">
@@ -2939,41 +4144,10 @@ function updateBrandingPreview() {
 }
 
 function collectSettingsPayload() {
-  const suites = {};
-  document.querySelectorAll('#suites-settings-list .suite-card').forEach((card, index) => {
-    const label = card.querySelector('[data-field="label"]')?.value.trim() || `Suite ${index + 1}`;
-    const scopeRadio = card.querySelector(`input[name^="scope-mode-"]:checked`);
-    const scopeMode = scopeRadio ? scopeRadio.value : 'all';
-    let grep = '';
-    let specs = 'all';
-    let spec = 'all';
-
-    if (scopeMode === 'grep') {
-      grep = card.querySelector('[data-field="grep"]')?.value.trim() || '';
-    } else if (scopeMode === 'custom') {
-      const checkedBoxes = Array.from(card.querySelectorAll('.suite-spec-cb:checked')).map((cb) => cb.value);
-      if (checkedBoxes.length > 0) {
-        specs = checkedBoxes;
-        spec = checkedBoxes.length === 1 ? checkedBoxes[0] : 'custom';
-      }
-    }
-
-    const vpPreset = card.querySelector('[data-field="viewport-preset"]')?.value || 'default';
-    let vpWidth = readNumber(card.querySelector('[data-field="viewport-width"]')?.value, 1920);
-    let vpHeight = readNumber(card.querySelector('[data-field="viewport-height"]')?.value, 1080);
-    if (vpPreset === '1920x1080') { vpWidth = 1920; vpHeight = 1080; }
-    else if (vpPreset === '1366x768') { vpWidth = 1366; vpHeight = 768; }
-    else if (vpPreset === '2560x1440') { vpWidth = 2560; vpHeight = 1440; }
-    else if (vpPreset === '390x844') { vpWidth = 390; vpHeight = 844; }
-    else if (vpPreset === '360x800') { vpWidth = 360; vpHeight = 800; }
-    const viewport = { preset: vpPreset, width: vpWidth, height: vpHeight };
-
-    let key = card.dataset.suiteId;
-    if (!key || key.startsWith('suite-')) {
-      key = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `suite-${index + 1}`;
-    }
-    suites[key] = { label, project, viewport, spec, specs, grep, workers };
-  });
+  if (typeof syncCurrentSuiteFromInputs === 'function' && currentSelectedSuiteId) {
+    syncCurrentSuiteFromInputs();
+  }
+  const suites = Object.assign({}, suitesCache || settingsCache?.suites || {});
 
   const environments = {};
   document.querySelectorAll('.environment-row').forEach((row) => {
@@ -3077,6 +4251,7 @@ async function openSettings() {
     ]);
     renderSettings(settings);
     if (botData?.config) renderBotSettings(botData.config, botData.currentGitBranch);
+    if (typeof loadAiSettings === 'function') loadAiSettings().catch(() => null);
   } catch (error) { notify(error.message); }
 }
 
@@ -3220,24 +4395,6 @@ $('#runner-suite-select')?.addEventListener('change', (e) => {
   updateSuiteSummaryBox(e.target.value);
 });
 
-$('#add-suite-button')?.addEventListener('click', () => {
-  const container = $('#suites-settings-list');
-  if (!container) return;
-  const emptyState = container.querySelector('.suite-empty-state');
-  if (emptyState) emptyState.remove();
-  const newId = `suite-${Date.now().toString(36)}`;
-  const newCard = createSuiteCardElement(newId, {
-    label: '',
-    project: 'all',
-    spec: 'all',
-    grep: '',
-    workers: 2,
-  });
-  container.appendChild(newCard);
-  const labelInput = newCard.querySelector('[data-field="label"]');
-  labelInput.focus();
-});
-
 document.querySelectorAll('.settings-subtab').forEach((tab) => {
   tab.addEventListener('click', () => {
     const target = tab.dataset.subtab;
@@ -3247,6 +4404,7 @@ document.querySelectorAll('.settings-subtab').forEach((tab) => {
     const documentsPanel = document.querySelector('.settings-documents');
     const brandingPanel = document.querySelector('.settings-branding');
     const discordPanel = document.querySelector('.settings-discord');
+    const aiPanel = document.querySelector('.settings-ai');
     const runtimePanel = document.querySelector('.settings-runtime');
     const envPanel = document.querySelector('.settings-environments');
     const apiPanel = document.querySelector('.settings-api');
@@ -3261,6 +4419,12 @@ document.querySelectorAll('.settings-subtab').forEach((tab) => {
     }
     if (brandingPanel) brandingPanel.hidden = target !== 'branding';
     if (discordPanel) discordPanel.hidden = target !== 'discord';
+    if (aiPanel) {
+      aiPanel.hidden = target !== 'ai';
+      if (target === 'ai') {
+        initAiSettings();
+      }
+    }
     
     const isGeneral = target === 'general';
     if (runtimePanel) runtimePanel.hidden = !isGeneral;
@@ -3269,6 +4433,329 @@ document.querySelectorAll('.settings-subtab').forEach((tab) => {
     if (artifactsPanel) artifactsPanel.hidden = !isGeneral;
   });
 });
+
+const AI_PRESETS = {
+  gemini: {
+    name: 'Google Gemini',
+    baseURL: 'https://generativelanguage.googleapis.com/v1beta/models',
+    models: ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+    defaultModel: 'gemini-2.5-flash',
+    keyPlaceholder: 'AIzaSy...',
+    keyDesc: 'Lấy API Key tại Google AI Studio (miễn phí, tốc độ cao)',
+  },
+  openai: {
+    name: 'OpenAI',
+    baseURL: 'https://api.openai.com/v1',
+    models: ['gpt-4o-mini', 'gpt-4o', 'o3-mini', 'gpt-3.5-turbo'],
+    defaultModel: 'gpt-4o-mini',
+    keyPlaceholder: 'sk-proj-... hoặc sk-...',
+    keyDesc: 'Lấy API Key tại OpenAI Platform',
+  },
+  deepseek: {
+    name: 'DeepSeek',
+    baseURL: 'https://api.deepseek.com/v1',
+    models: ['deepseek-chat', 'deepseek-coder'],
+    defaultModel: 'deepseek-chat',
+    keyPlaceholder: 'sk-...',
+    keyDesc: 'Lấy API Key tại DeepSeek Platform (rẻ, thông minh)',
+  },
+  claude: {
+    name: 'Anthropic Claude',
+    baseURL: 'https://api.anthropic.com/v1',
+    models: ['claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022'],
+    defaultModel: 'claude-3-5-sonnet-20241022',
+    keyPlaceholder: 'sk-ant-...',
+    keyDesc: 'Lấy API Key tại Anthropic Console',
+  },
+  custom: {
+    name: 'Tùy chỉnh (OpenAI-Compatible)',
+    baseURL: 'http://localhost:11434/v1',
+    models: ['qwen2.5-coder:7b', 'llama3.1:8b', 'mistral-nemo'],
+    defaultModel: 'qwen2.5-coder:7b',
+    keyPlaceholder: 'Bearer Token hoặc để trống nếu local',
+    keyDesc: 'Dùng cho Ollama (11434/v1), vLLM, OpenRouter hoặc AI proxy nội bộ',
+  },
+};
+
+let aiSettingsInitialized = false;
+
+function initAiSettings() {
+  if (aiSettingsInitialized) {
+    loadAiSettings();
+    return;
+  }
+  aiSettingsInitialized = true;
+
+  const providerSelect = $('#settings-ai-provider');
+  const baseUrlInput = $('#settings-ai-base-url');
+  const modelPresetSelect = $('#settings-ai-model-preset');
+  const customModelInput = $('#settings-ai-custom-model');
+  const apiKeyInput = $('#settings-ai-api-key');
+  const toggleEyeBtn = $('#toggle-ai-key-vis');
+  const pasteKeyBtn = $('#paste-ai-key');
+  const testBtn = $('#test-ai-button');
+  const saveBtn = $('#save-ai-button');
+  const alertBox = $('#settings-ai-status-alert');
+  const alertTitle = $('#settings-ai-alert-title');
+  const alertMsg = $('#settings-ai-alert-msg');
+  const alertClose = $('#settings-ai-alert-close');
+  const scopeClient = $('#settings-ai-scope-client');
+
+  function updateModelPresets(provider, selectedModel) {
+    const preset = AI_PRESETS[provider] || AI_PRESETS.custom;
+    if (!modelPresetSelect) return;
+    modelPresetSelect.innerHTML = '';
+    preset.models.forEach((m) => {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m + (m === preset.defaultModel ? ' (Mặc định)' : '');
+      modelPresetSelect.appendChild(opt);
+    });
+    const optCustom = document.createElement('option');
+    optCustom.value = 'custom';
+    optCustom.textContent = 'Tùy chỉnh khác...';
+    modelPresetSelect.appendChild(optCustom);
+
+    if (selectedModel && preset.models.includes(selectedModel)) {
+      modelPresetSelect.value = selectedModel;
+      if (customModelInput) customModelInput.value = selectedModel;
+    } else if (selectedModel) {
+      modelPresetSelect.value = 'custom';
+      if (customModelInput) customModelInput.value = selectedModel;
+    } else {
+      modelPresetSelect.value = preset.defaultModel;
+      if (customModelInput) customModelInput.value = preset.defaultModel;
+    }
+  }
+
+  providerSelect?.addEventListener('change', () => {
+    const p = providerSelect.value;
+    const preset = AI_PRESETS[p] || AI_PRESETS.custom;
+    if (baseUrlInput) {
+      baseUrlInput.placeholder = preset.baseURL;
+      if (p !== 'custom') {
+        baseUrlInput.value = '';
+      } else {
+        baseUrlInput.value = preset.baseURL;
+      }
+    }
+    if (apiKeyInput) apiKeyInput.placeholder = preset.keyPlaceholder;
+    const desc = $('#settings-ai-key-desc');
+    if (desc) desc.textContent = preset.keyDesc;
+    updateModelPresets(p, null);
+  });
+
+  modelPresetSelect?.addEventListener('change', () => {
+    if (modelPresetSelect.value !== 'custom') {
+      if (customModelInput) customModelInput.value = modelPresetSelect.value;
+    } else {
+      if (customModelInput) customModelInput.focus();
+    }
+  });
+
+  toggleEyeBtn?.addEventListener('click', () => {
+    if (!apiKeyInput) return;
+    const isPass = apiKeyInput.type === 'password';
+    apiKeyInput.type = isPass ? 'text' : 'password';
+    toggleEyeBtn.innerHTML = isPass ? '<i class="ph ph-eye-slash"></i>' : '<i class="ph ph-eye"></i>';
+  });
+
+  pasteKeyBtn?.addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && apiKeyInput) {
+        apiKeyInput.value = text.trim();
+        notify('Đã dán API Key từ Clipboard!');
+      }
+    } catch {
+      notify('Không thể đọc Clipboard. Hãy dán bằng tay (Ctrl+V).');
+    }
+  });
+
+  alertClose?.addEventListener('click', () => {
+    if (alertBox) alertBox.hidden = true;
+  });
+
+  function showAlert(success, title, msg) {
+    if (!alertBox) return;
+    alertBox.hidden = false;
+    alertBox.className = `settings-card settings-card-wide settings-ai-alert ${success ? 'settings-ai-alert--success' : 'settings-ai-alert--error'}`;
+    const icon = alertBox.querySelector('.settings-ai-alert-icon');
+    if (icon) icon.className = success ? 'ph-fill ph-check-circle settings-ai-alert-icon' : 'ph-fill ph-warning-circle settings-ai-alert-icon';
+    if (alertTitle) alertTitle.textContent = title;
+    if (alertMsg) alertMsg.textContent = msg;
+  }
+
+  testBtn?.addEventListener('click', async () => {
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Đang kiểm tra...';
+    try {
+      const payload = {
+        provider: providerSelect?.value || 'gemini',
+        apiKey: apiKeyInput?.value.trim() || '',
+        baseURL: baseUrlInput?.value.trim() || '',
+        model: customModelInput?.value.trim() || modelPresetSelect?.value || '',
+      };
+      const res = await request('/api/ai/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      showAlert(true, 'Kết nối thành công!', `${res.message} (Model: ${res.model}, Thời gian phản hồi: ${res.latencyMs}ms)`);
+    } catch (err) {
+      showAlert(false, 'Kết nối thất bại', err.message || 'Không thể kết nối đến nhà cung cấp AI này.');
+    } finally {
+      testBtn.disabled = false;
+      testBtn.innerHTML = '<i class="ph-bold ph-plugs"></i> Kiểm tra kết nối';
+    }
+  });
+
+  saveBtn?.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Đang lưu...';
+    try {
+      const isClientScope = scopeClient?.checked;
+      const provider = providerSelect?.value || 'gemini';
+      const apiKey = apiKeyInput?.value.trim() || '';
+      const baseURL = baseUrlInput?.value.trim() || '';
+      const model = customModelInput?.value.trim() || modelPresetSelect?.value || '';
+
+      if (isClientScope) {
+        if (!apiKey) throw new Error('Vui lòng nhập API Key cho cấu hình cá nhân.');
+        const personalConfig = {
+          enabled: true,
+          provider,
+          apiKey,
+          baseURL,
+          model,
+        };
+        localStorage.setItem('vieclam24h_ai_personal_config', JSON.stringify(personalConfig));
+        showAlert(true, 'Đã lưu cấu hình cá nhân', 'Cấu hình AI đã được lưu trên trình duyệt này! Tab AI Agent sẽ ưu tiên dùng key và model này.');
+        notify('Đã lưu cấu hình AI cá nhân vào LocalStorage!');
+      } else {
+        localStorage.removeItem('vieclam24h_ai_personal_config');
+        const res = await request('/api/ai/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider, apiKey, baseURL, model }),
+        });
+        showAlert(true, 'Đã lưu cấu hình máy chủ (.env)', res.message || 'Cấu hình AI đã được cập nhật vào file .env thành công.');
+        notify(res.message || 'Đã lưu cấu hình AI vào file .env!');
+      }
+      await loadAiSettings();
+      const refreshBtn = document.getElementById('agent-refresh');
+      if (refreshBtn) refreshBtn.click();
+    } catch (err) {
+      showAlert(false, 'Lỗi lưu cấu hình', err.message);
+      notify(err.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="ph-fill ph-floppy-disk"></i> Lưu cấu hình AI';
+    }
+  });
+
+  loadAiSettings();
+}
+
+async function loadAiSettings() {
+  const providerSelect = $('#settings-ai-provider');
+  const baseUrlInput = $('#settings-ai-base-url');
+  const modelPresetSelect = $('#settings-ai-model-preset');
+  const customModelInput = $('#settings-ai-custom-model');
+  const apiKeyInput = $('#settings-ai-api-key');
+  const keyBadge = $('#settings-ai-key-badge');
+  const scopeServer = $('#settings-ai-scope-server');
+  const scopeClient = $('#settings-ai-scope-client');
+
+  let personal = null;
+  try {
+    const raw = typeof localStorage !== 'undefined' && localStorage ? localStorage.getItem('vieclam24h_ai_personal_config') : null;
+    if (raw) personal = JSON.parse(raw);
+  } catch {}
+
+  const serverConfig = await request('/api/ai/config').catch(() => ({ provider: 'gemini', model: 'gemini-2.5-flash', hasKey: false }));
+
+  if (personal && personal.enabled && personal.apiKey) {
+    if (scopeClient) scopeClient.checked = true;
+    if (providerSelect) providerSelect.value = personal.provider || 'gemini';
+    if (baseUrlInput) baseUrlInput.value = personal.baseURL || '';
+    if (apiKeyInput) apiKeyInput.value = personal.apiKey;
+    if (keyBadge) {
+      keyBadge.className = 'settings-badge-status settings-badge-status--client';
+      keyBadge.innerHTML = `<i class="ph-fill ph-check-circle"></i> Đang dùng Key cá nhân (${personal.apiKey.slice(0, 4)}...${personal.apiKey.slice(-4)})`;
+    }
+    const preset = AI_PRESETS[personal.provider || 'gemini'] || AI_PRESETS.custom;
+    if (baseUrlInput) baseUrlInput.placeholder = preset.baseURL;
+    const desc = $('#settings-ai-key-desc');
+    if (desc) desc.textContent = preset.keyDesc;
+    if (providerSelect) {
+      const p = personal.provider || 'gemini';
+      const m = personal.model || preset.defaultModel;
+      const modelPreset = AI_PRESETS[p] || AI_PRESETS.custom;
+      if (modelPresetSelect) {
+        modelPresetSelect.innerHTML = '';
+        modelPreset.models.forEach((item) => {
+          const opt = document.createElement('option');
+          opt.value = item;
+          opt.textContent = item + (item === modelPreset.defaultModel ? ' (Mặc định)' : '');
+          modelPresetSelect.appendChild(opt);
+        });
+        const optCustom = document.createElement('option');
+        optCustom.value = 'custom';
+        optCustom.textContent = 'Tùy chỉnh khác...';
+        modelPresetSelect.appendChild(optCustom);
+        if (modelPreset.models.includes(m)) {
+          modelPresetSelect.value = m;
+        } else {
+          modelPresetSelect.value = 'custom';
+        }
+      }
+      if (customModelInput) customModelInput.value = m;
+    }
+  } else {
+    if (scopeServer) scopeServer.checked = true;
+    if (providerSelect) providerSelect.value = serverConfig.provider || 'gemini';
+    if (baseUrlInput) {
+      const isCustomUrl = serverConfig.provider === 'custom' || (serverConfig.baseURL && (serverConfig.baseURL.includes('googleapis') || serverConfig.baseURL.includes('gemini')));
+      baseUrlInput.value = isCustomUrl ? (serverConfig.baseURL || '') : '';
+    }
+    if (apiKeyInput) apiKeyInput.value = '';
+    if (keyBadge) {
+      if (serverConfig.hasKey) {
+        keyBadge.className = 'settings-badge-status settings-badge-status--server';
+        keyBadge.innerHTML = `<i class="ph-fill ph-shield-check"></i> Đã lưu key trong .env (${serverConfig.maskedKey || 'bảo mật'})`;
+      } else {
+        keyBadge.className = 'settings-badge-status settings-badge-status--empty';
+        keyBadge.innerHTML = `<i class="ph-fill ph-x-circle"></i> Chưa cấu hình API Key`;
+      }
+    }
+    const p = serverConfig.provider || 'gemini';
+    const preset = AI_PRESETS[p] || AI_PRESETS.custom;
+    if (baseUrlInput) baseUrlInput.placeholder = preset.baseURL;
+    const desc = $('#settings-ai-key-desc');
+    if (desc) desc.textContent = preset.keyDesc;
+    const m = serverConfig.model || preset.defaultModel;
+    if (modelPresetSelect) {
+      modelPresetSelect.innerHTML = '';
+      preset.models.forEach((item) => {
+        const opt = document.createElement('option');
+        opt.value = item;
+        opt.textContent = item + (item === preset.defaultModel ? ' (Mặc định)' : '');
+        modelPresetSelect.appendChild(opt);
+      });
+      const optCustom = document.createElement('option');
+      optCustom.value = 'custom';
+      optCustom.textContent = 'Tùy chỉnh khác...';
+      modelPresetSelect.appendChild(optCustom);
+      if (preset.models.includes(m)) {
+        modelPresetSelect.value = m;
+      } else {
+        modelPresetSelect.value = 'custom';
+      }
+    }
+    if (customModelInput) customModelInput.value = m;
+  }
+}
 
 let settingsDocumentsCatalog = [];
 let currentSettingsDocument = null;
@@ -3632,13 +5119,52 @@ $('#stop-button').addEventListener('click', async () => {
   try { await request('/api/stop', { method: 'POST' }); } catch (error) { notify(error.message); }
 });
 $('#clear-button').addEventListener('click', () => { consoleOutput.textContent = ''; });
+const toolsDropdown = $('#nav-tools-dropdown');
+const toolsBtn = $('#nav-tools-btn');
+const toolsLabel = $('#nav-tools-label');
+const toolShortLabels = {
+  'suites-view': 'Test Suites',
+  'recorder-view': 'Ghi kịch bản',
+  'data-view': 'Dữ liệu test',
+  'compare-view': 'So sánh ảnh',
+};
+
+toolsBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  toolsDropdown?.classList.toggle('open');
+  toolsBtn.setAttribute('aria-expanded', String(toolsDropdown?.classList.contains('open')));
+});
+
+document.addEventListener('click', (e) => {
+  if (toolsDropdown && !toolsDropdown.contains(e.target)) {
+    toolsDropdown.classList.remove('open');
+    toolsBtn?.setAttribute('aria-expanded', 'false');
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && toolsDropdown?.classList.contains('open')) {
+    toolsDropdown.classList.remove('open');
+    toolsBtn?.setAttribute('aria-expanded', 'false');
+    toolsBtn?.focus();
+  }
+});
+
 document.querySelectorAll('.view-tab').forEach((button) => button.addEventListener('click', async () => {
   document.querySelectorAll('.view-tab').forEach((tab) => { tab.classList.toggle('active', tab === button); tab.setAttribute('aria-selected', String(tab === button)); });
+  const isDropdownTool = button.classList.contains('nav-dropdown-item');
+  if (toolsBtn) {
+    toolsBtn.classList.toggle('active', isDropdownTool);
+    if (toolsLabel) toolsLabel.textContent = isDropdownTool ? (toolShortLabels[button.dataset.view] || 'Tiện ích') : 'Tiện ích';
+  }
+  if (toolsDropdown) {
+    toolsDropdown.classList.remove('open');
+    toolsBtn?.setAttribute('aria-expanded', 'false');
+  }
   document.querySelectorAll('.dashboard-view').forEach((view) => { const active = view.id === button.dataset.view; view.hidden = !active; view.classList.toggle('active', active); });
   if (button.dataset.view === 'resources-view') await openExplorer();
   if (button.dataset.view === 'page-manager-view') await openPageManager();
-  if (button.dataset.view === 'code-view') await openCodeWorkspace();
   if (button.dataset.view === 'settings-view') await openSettings();
+  if (button.dataset.view === 'suites-view') await openSuitesManager();
   if (button.dataset.view === 'recorder-view') await openRecorderStudio();
   if (button.dataset.view === 'data-view') await openDataManager();
   if (button.dataset.view === 'builder-view') await initVisualBuilder();
@@ -3661,27 +5187,29 @@ $('#cancel-edit-button').addEventListener('click', () => loadResource(currentRes
 $('#delete-button').addEventListener('click', deleteCurrentArtifact);
 $('#previous-evidence').addEventListener('click', () => navigateEvidence(-1));
 $('#next-evidence').addEventListener('click', () => navigateEvidence(1));
-$('#code-search').addEventListener('input', renderCodeTree);
+$('#code-search')?.addEventListener('input', renderCodeTree);
 document.querySelectorAll('.code-root-filter').forEach((button) => button.addEventListener('click', () => {
   activeCodeRoot = button.dataset.root;
   document.querySelectorAll('.code-root-filter').forEach((filter) => filter.classList.toggle('active', filter === button));
   renderCodeTree();
 }));
-$('#code-editor').addEventListener('input', () => {
+$('#code-editor')?.addEventListener('input', () => {
   const changed = $('#code-editor').value !== originalCodeContent;
   $('#code-preview code').innerHTML = highlightCode($('#code-editor').value, getCodeLanguage(currentCodeFile)) + '\n';
-  $('#code-save-button').disabled = !changed;
-  $('#code-cancel-button').hidden = !changed;
-  $('#code-status-text').textContent = changed ? 'Đã chỉnh sửa' : 'Sẵn sàng';
+  if ($('#code-save-button')) $('#code-save-button').disabled = !changed;
+  if ($('#code-cancel-button')) $('#code-cancel-button').hidden = !changed;
+  if ($('#code-status-text')) $('#code-status-text').textContent = changed ? 'Đã chỉnh sửa' : 'Sẵn sàng';
 });
-$('#code-editor').addEventListener('scroll', () => {
-  $('#code-preview').scrollTop = $('#code-editor').scrollTop;
-  $('#code-preview').scrollLeft = $('#code-editor').scrollLeft;
+$('#code-editor')?.addEventListener('scroll', () => {
+  if ($('#code-preview')) {
+    $('#code-preview').scrollTop = $('#code-editor').scrollTop;
+    $('#code-preview').scrollLeft = $('#code-editor').scrollLeft;
+  }
 });
-$('#code-edit-button').addEventListener('click', enterCodeEditMode);
-$('#code-format-button').addEventListener('click', formatCurrentCodeEditor);
-$('#code-cancel-button').addEventListener('click', leaveCodeEditMode);
-$('#code-save-button').addEventListener('click', saveCodeFile);
+$('#code-edit-button')?.addEventListener('click', enterCodeEditMode);
+$('#code-format-button')?.addEventListener('click', formatCurrentCodeEditor);
+$('#code-cancel-button')?.addEventListener('click', leaveCodeEditMode);
+$('#code-save-button')?.addEventListener('click', saveCodeFile);
 $('#page-manager-add-locator')?.addEventListener('click', () => { pageManagerLocators.push({ name: '', expression: '' }); renderPageManagerRows(); updatePageManagerPreview(); debounceSavePageDraft(); });
 $('#page-manager-add-action')?.addEventListener('click', () => { pageManagerActions.push({ name: '', locatorName: pageManagerLocators[0]?.name || '', operation: 'click' }); renderPageManagerRows(); updatePageManagerPreview(); debounceSavePageDraft(); });
 $('#page-manager-create')?.addEventListener('click', createPageFromManager);
@@ -3692,7 +5220,25 @@ $('#page-manager-refresh')?.addEventListener('click', openPageManager);
 ['#page-manager-platform', '#page-manager-title', '#page-manager-class', '#page-manager-description'].forEach((selector) => $(selector)?.addEventListener('input', () => { updatePageManagerPreview(); debounceSavePageDraft(); }));
 $('#page-manager-platform')?.addEventListener('change', () => { updatePageManagerPreview(); debounceSavePageDraft(); });
 
-// Event listeners mới cho Page Manager Side-by-Side
+// Event listeners mới cho Page Manager Side-by-Side & Subnav chuẩn BDD
+$('#pm-subnav-inspect')?.addEventListener('click', () => {
+  if (currentInspectedPage) {
+    inspectPage(currentInspectedPage.relativePath);
+  } else if (repoPages.length > 0) {
+    inspectPage(repoPages[0].relativePath);
+  }
+});
+$('#pm-subnav-edit')?.addEventListener('click', () => toggleDirectCodeEdit(true));
+$('#pm-subnav-create')?.addEventListener('click', switchToCreatePageMode);
+$('#pm-subnav-delete-btn')?.addEventListener('click', handleDeleteCurrentPage);
+$('#pm-subnav-add-locator-btn')?.addEventListener('click', openAddLocatorToPageModal);
+$('#pm-inspect-edit-btn')?.addEventListener('click', () => toggleDirectCodeEdit(true));
+$('#pm-subnav-save-btn')?.addEventListener('click', saveCurrentPageCode);
+$('#pm-refresh-btn')?.addEventListener('click', async () => {
+  await openPageManager();
+  notify('Đã làm mới danh sách Page Objects.');
+});
+
 $('#pm-btn-inspect-mode')?.addEventListener('click', () => {
   if (currentInspectedPage) {
     inspectPage(currentInspectedPage.relativePath);
@@ -3712,19 +5258,12 @@ $('#pm-quick-search-input')?.addEventListener('input', () => {
 });
 $('#pm-btn-toggle-edit')?.addEventListener('click', () => toggleDirectCodeEdit());
 $('#pm-btn-save-code')?.addEventListener('click', saveCurrentPageCode);
-$('#pm-btn-copy-code')?.addEventListener('click', copyCurrentPageManagerCode);
-$('#page-manager-code-editor')?.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault();
-    saveCurrentPageCode();
-  } else if (e.key === 'Tab') {
-    e.preventDefault();
-    const start = e.target.selectionStart;
-    const end = e.target.selectionEnd;
-    e.target.value = e.target.value.substring(0, start) + '  ' + e.target.value.substring(end);
-    e.target.selectionStart = e.target.selectionEnd = start + 2;
+$('#pm-btn-revert-code')?.addEventListener('click', () => {
+  if (window.pageManagerCodeEditor) {
+    window.pageManagerCodeEditor.revert();
   }
 });
+$('#pm-btn-copy-code')?.addEventListener('click', copyCurrentPageManagerCode);
 
 $('#pm-btn-add-quick-locator')?.addEventListener('click', openAddLocatorToPageModal);
 $('#btn-close-add-locator-modal')?.addEventListener('click', closeAddLocatorToPageModal);
@@ -3740,6 +5279,45 @@ $('#pm-btn-inline-add-loc')?.addEventListener('click', addInlineLocatorToPage);
       addInlineLocatorToPage();
     }
   });
+});
+
+// Quick Add Action Form & Buttons
+$('#pm-subnav-add-action-btn')?.addEventListener('click', focusAddActionInput);
+$('#pm-btn-add-action-toggle')?.addEventListener('click', focusAddActionInput);
+$('#pm-btn-inline-add-act')?.addEventListener('click', addInlineActionToPage);
+$('#pm-inline-act-name')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addInlineActionToPage();
+  }
+});
+$('#pm-inline-act-loc')?.addEventListener('change', (e) => {
+  const nameInput = $('#pm-inline-act-name');
+  const locVal = e.target.value;
+  const op = $('#pm-inline-act-op')?.value || 'click';
+  if (nameInput && !nameInput.value && locVal) {
+    const cleanLoc = locVal.replace(/^this\./, '').replace(/^btn|^button/i, '');
+    const capitalized = cleanLoc.charAt(0).toUpperCase() + cleanLoc.slice(1);
+    if (op === 'click') nameInput.value = `click${capitalized}`;
+    else if (op === 'fill') nameInput.value = `input${capitalized}`;
+    else if (op === 'check') nameInput.value = `check${capitalized}`;
+    else if (op === 'hover') nameInput.value = `hover${capitalized}`;
+    else if (op === 'assert') nameInput.value = `expect${capitalized}Visible`;
+  }
+});
+$('#pm-inline-act-op')?.addEventListener('change', () => {
+  const locVal = $('#pm-inline-act-loc')?.value;
+  const nameInput = $('#pm-inline-act-name');
+  const op = $('#pm-inline-act-op')?.value || 'click';
+  if (nameInput && locVal && (!nameInput.value || /^(click|input|check|hover|expect)/.test(nameInput.value))) {
+    const cleanLoc = locVal.replace(/^this\./, '').replace(/^btn|^button/i, '');
+    const capitalized = cleanLoc.charAt(0).toUpperCase() + cleanLoc.slice(1);
+    if (op === 'click') nameInput.value = `click${capitalized}`;
+    else if (op === 'fill') nameInput.value = `input${capitalized}`;
+    else if (op === 'check') nameInput.value = `check${capitalized}`;
+    else if (op === 'hover') nameInput.value = `hover${capitalized}`;
+    else if (op === 'assert') nameInput.value = `expect${capitalized}Visible`;
+  }
 });
 
 $('#pm-filter-input')?.addEventListener('input', renderPageManagerFiles);
@@ -5405,7 +6983,7 @@ function populateBuilderSpecOptions() {
 
 let projectScripts = [];
 let currentSelectedScript = null;
-let scriptPlatformFilter = 'all';
+let scriptPlatformFilter = 'desktop';
 let scriptSearchQuery = '';
 
 async function loadProjectScripts() {
@@ -5422,8 +7000,6 @@ async function loadProjectScripts() {
     if (statDeskEl) statDeskEl.textContent = projectScripts.filter((s) => s.platform === 'desktop').length;
     const statMobEl = document.getElementById('stat-scripts-mobile');
     if (statMobEl) statMobEl.textContent = projectScripts.filter((s) => s.platform === 'mobile-web').length;
-    const sidebarCountEl = document.getElementById('stat-scripts-sidebar-count');
-    if (sidebarCountEl) sidebarCountEl.textContent = projectScripts.length;
     renderScriptSidebarList();
     if (projectScripts.length > 0) {
       if (!currentSelectedScript) {
@@ -5447,27 +7023,12 @@ function renderScriptSidebarList() {
   const countAll = projectScripts.length;
   const countDesktop = projectScripts.filter((s) => s.platform === 'desktop').length;
   const countMobile = projectScripts.filter((s) => s.platform === 'mobile-web').length;
-
-  const cAll = document.getElementById('count-filter-all');
-  const cDesk = document.getElementById('count-filter-desktop');
-  const cMob = document.getElementById('count-filter-mobile');
-  if (cAll) cAll.textContent = countAll;
-  if (cDesk) cDesk.textContent = countDesktop;
-  if (cMob) cMob.textContent = countMobile;
-
-  const sCount = document.getElementById('stat-scripts-sidebar-count');
-  if (sCount) sCount.textContent = countAll;
-  const sDesk = document.getElementById('stat-scripts-desktop');
-  if (sDesk) sDesk.textContent = countDesktop;
-  const sMob = document.getElementById('stat-scripts-mobile');
-  if (sMob) sMob.textContent = countMobile;
-
-  const scriptRailBadge = document.getElementById('script-rail-count');
-  if (scriptRailBadge) scriptRailBadge.textContent = countAll;
+  const countApi = projectScripts.filter((s) => s.platform === 'api').length;
+  const countSetup = projectScripts.filter((s) => s.platform === 'setup').length;
 
   const q = scriptSearchQuery.trim().toLowerCase();
   const filtered = projectScripts.filter((s) => {
-    if (scriptPlatformFilter !== 'all' && s.platform !== scriptPlatformFilter) return false;
+    if (scriptPlatformFilter && scriptPlatformFilter !== 'all' && s.platform !== scriptPlatformFilter) return false;
     if (!q) return true;
     return (
       (s.scenarioName && s.scenarioName.toLowerCase().includes(q)) ||
@@ -5478,6 +7039,16 @@ function renderScriptSidebarList() {
     );
   });
 
+  const sCount = document.getElementById('stat-scripts-sidebar-count');
+  if (sCount) sCount.textContent = filtered.length;
+
+  const scriptRailBadge = document.getElementById('script-rail-count');
+  if (scriptRailBadge) scriptRailBadge.textContent = filtered.length;
+
+  if (filtered.length > 0 && (!currentSelectedScript || !filtered.some((s) => s.id === currentSelectedScript.id))) {
+    selectProjectScript(filtered[0], false);
+  }
+
   if (filtered.length === 0) {
     listEl.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--muted); font-size: 12.5px;">Không tìm thấy kịch bản phù hợp.</div>';
     return;
@@ -5487,11 +7058,31 @@ function renderScriptSidebarList() {
     .map((s) => {
       const isActive = currentSelectedScript && currentSelectedScript.id === s.id;
       const isMobile = s.platform === 'mobile-web';
+      const isApi = s.platform === 'api';
+      const isSetup = s.platform === 'setup';
       const rawTags = s.tags ? s.tags.match(/@[\w-]+/g) || [] : [];
       const pagesCount = s.pageCount || (s.pages ? s.pages.length : 0);
+
+      let platformClass = 'desktop';
+      let platformIcon = 'ph-desktop';
+      let platformLabel = 'Desktop';
+      if (isMobile) {
+        platformClass = 'mobile';
+        platformIcon = 'ph-device-mobile';
+        platformLabel = 'Mobile';
+      } else if (isApi) {
+        platformClass = 'api';
+        platformIcon = 'ph-plugs';
+        platformLabel = 'API';
+      } else if (isSetup) {
+        platformClass = 'setup';
+        platformIcon = 'ph-gear';
+        platformLabel = 'Setup';
+      }
+
       return `
       <div class="dashboard-list-card script-card-item ${isActive ? 'is-selected active' : ''}" data-id="${escapeHtml(s.id)}">
-        <span class="dashboard-list-card__icon script-card-platform-icon ${isMobile ? 'mobile' : 'desktop'}"><i class="ph-bold ${isMobile ? 'ph-device-mobile' : 'ph-desktop'}"></i></span>
+        <span class="dashboard-list-card__icon script-card-platform-icon ${platformClass}"><i class="ph-bold ${platformIcon}"></i></span>
         <div class="dashboard-list-card__body">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
             <div class="script-card-title">${escapeHtml(s.scenarioName || s.featureName || s.fileName)}</div>
@@ -5503,8 +7094,8 @@ function renderScriptSidebarList() {
             <i class="ph ph-file-js"></i> ${escapeHtml(s.fileName)}
           </div>
           <div class="script-card-pills">
-            <span class="script-card-badge-platform ${isMobile ? 'mobile' : 'desktop'}">
-              <i class="${isMobile ? 'ph ph-device-mobile' : 'ph ph-desktop'}"></i> ${isMobile ? 'Mobile' : 'Desktop'}
+            <span class="script-card-badge-platform ${platformClass}">
+              <i class="ph ${platformIcon}"></i> ${platformLabel}
             </span>
             <span class="script-card-badge-pages">
               <i class="ph ph-stack"></i> ${pagesCount} Pages
@@ -5694,6 +7285,93 @@ function selectProjectScript(script, doScroll = false) {
     }
   }
 
+  // KHỐI FIXTURE: Fixture Nền Tảng (baseTest hoặc mobileWebTest)
+  const isMobileScript = script.platform === 'mobile-web' || (script.relativePath && script.relativePath.includes('mobile-web'));
+  const fixturePath = isMobileScript ? 'core/fixtures/mobileWebTest.js' : 'core/fixtures/baseTest.js';
+  const fixtureName = isMobileScript ? 'mobileWebTest.js' : 'baseTest.js';
+  const fixtureScopeText = isMobileScript ? 'Mobile Web Scope' : 'Desktop Web Scope';
+
+  const fixtureNameEl = document.getElementById('pillar-fixture-name');
+  if (fixtureNameEl) fixtureNameEl.textContent = fixturePath;
+
+  const fixtureScopeEl = document.getElementById('pillar-fixture-scope');
+  if (fixtureScopeEl) {
+    fixtureScopeEl.textContent = fixtureScopeText;
+    if (isMobileScript) {
+      fixtureScopeEl.style.background = 'rgba(14, 165, 233, 0.12)';
+      fixtureScopeEl.style.color = '#0284c7';
+      fixtureScopeEl.style.borderColor = 'rgba(14, 165, 233, 0.25)';
+    } else {
+      fixtureScopeEl.style.background = 'rgba(168, 85, 247, 0.12)';
+      fixtureScopeEl.style.color = '#9333ea';
+      fixtureScopeEl.style.borderColor = 'rgba(168, 85, 247, 0.25)';
+    }
+  }
+
+  const btnViewFixtureCode = document.getElementById('btn-view-fixture-code');
+  if (btnViewFixtureCode) {
+    btnViewFixtureCode.onclick = () => openPageCodeModal(fixturePath, fixtureName);
+  }
+
+  const renderFixtureCaps = (methods = []) => {
+    const fixtureCapsWrap = document.getElementById('pillar-fixture-caps');
+    if (!fixtureCapsWrap) return;
+
+    if (methods.length > 0) {
+      const groups = {};
+      methods.forEach((m) => {
+        const cat = m.category || 'Tiện ích Fixture';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(m);
+      });
+
+      fixtureCapsWrap.innerHTML = Object.entries(groups)
+        .map(([category, items]) => {
+          let pillCls = 'pom';
+          if (category.includes('Xác thực') || category.includes('auth')) pillCls = 'auth';
+          else if (category.includes('Factory')) pillCls = 'factory';
+
+          return `
+            <div class="fixture-cap-group">
+              <span class="fixture-cap-group-title">
+                <i class="ph-bold ${category.includes('Xác thực') ? 'ph-user-check' : category.includes('Factory') ? 'ph-tabs' : 'ph-browsers'}"></i>
+                ${escapeHtml(category)} (${items.length})
+              </span>
+              <div class="fixture-cap-pills">
+                ${items
+                  .map(
+                    (it) => `
+                  <span class="fixture-cap-pill ${pillCls}" title="${escapeHtml(it.description || it.name)}">
+                    <code>${escapeHtml(it.name)}</code>
+                  </span>`
+                  )
+                  .join('')}
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    } else {
+      fixtureCapsWrap.innerHTML = `
+        <div style="font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px;">
+          <i class="ph ph-info"></i>
+          <span>Fixture mở rộng Playwright Test với các capabilities tự động inject (Page Objects, Preconditions & Factory).</span>
+        </div>
+      `;
+    }
+  };
+
+  const fixtureObj = (repoPages || []).find((p) => p.relativePath === fixturePath);
+  if (fixtureObj && fixtureObj.methods && fixtureObj.methods.length > 0) {
+    renderFixtureCaps(fixtureObj.methods);
+  } else {
+    request(`/api/object-repository/page?file=${encodeURIComponent(fixturePath)}`)
+      .then((data) => {
+        if (data && data.methods) renderFixtureCaps(data.methods);
+      })
+      .catch(() => renderFixtureCaps([]));
+  }
+
   // KHỐI 2: Page Objects
   const pagesCount = document.getElementById('pillar-pages-count');
   const pages = script.pages || [];
@@ -5816,38 +7494,80 @@ window.openPageCodeModal = async function (pagePath, pageName) {
   const titleEl = document.getElementById('modal-page-title');
   const pathEl = document.getElementById('modal-page-path');
   const editor = document.getElementById('modal-page-editor');
+  const previewPre = document.getElementById('modal-page-preview');
   const preview = document.getElementById('modal-page-code');
   const dirtyBadge = document.getElementById('modal-page-dirty-badge');
   const saveBtn = document.getElementById('modal-page-save-btn');
 
   currentModalPagePath = pagePath;
-  if (titleEl) titleEl.innerHTML = `<i class="ph-bold ph-browsers" style="color: #10b981;"></i> Page Object: ${escapeHtml(pageName)}`;
+  const isFixture = pagePath.startsWith('core/fixtures/');
+  if (titleEl) {
+    if (isFixture) {
+      titleEl.innerHTML = `<i class="ph-bold ph-lightning" style="color: #a855f7;"></i> Fixture Nền Tảng: ${escapeHtml(pageName)}`;
+    } else {
+      titleEl.innerHTML = `<i class="ph-bold ph-browsers" style="color: #10b981;"></i> Page Object: ${escapeHtml(pageName)}`;
+    }
+  }
   if (pathEl) pathEl.textContent = pagePath;
-  if (editor) editor.value = 'Đang tải mã nguồn...';
-  if (preview) preview.innerHTML = '<span style="color: var(--muted);">Đang tải mã nguồn...</span>';
   if (dirtyBadge) dirtyBadge.style.display = 'none';
+  const eyebrowEl = document.getElementById('modal-page-eyebrow');
+  if (eyebrowEl) eyebrowEl.textContent = isFixture ? 'Mã nguồn Fixture Nền Tảng' : 'Mã nguồn Page Object Class';
+
+  // Ensure scroll listener is bound directly on modal elements as failsafe
+  if (editor && previewPre && !editor.__modalScrollBound) {
+    editor.__modalScrollBound = true;
+    let syncing = false;
+    editor.addEventListener('scroll', () => {
+      if (syncing) return;
+      syncing = true;
+      previewPre.scrollTop = editor.scrollTop;
+      previewPre.scrollLeft = editor.scrollLeft;
+      requestAnimationFrame(() => { syncing = false; });
+    }, { passive: true });
+    previewPre.addEventListener('scroll', () => {
+      if (syncing) return;
+      syncing = true;
+      editor.scrollTop = previewPre.scrollTop;
+      editor.scrollLeft = previewPre.scrollLeft;
+      requestAnimationFrame(() => { syncing = false; });
+    }, { passive: true });
+  }
+
+  if (window.pageCodeEditor) {
+    window.pageCodeEditor.setValue('Đang tải mã nguồn...', { markClean: true });
+  } else {
+    if (editor) editor.value = 'Đang tải mã nguồn...';
+    if (preview) preview.innerHTML = '<span style="color: var(--muted);">Đang tải mã nguồn...</span>';
+    if (previewPre) { previewPre.scrollTop = 0; previewPre.scrollLeft = 0; }
+  }
 
   modal.showModal();
 
   try {
     const res = await request(`/api/builder/page-content?file=${encodeURIComponent(pagePath)}`);
     currentModalPageOriginalContent = res.content || '';
-    if (editor) {
-      editor.value = currentModalPageOriginalContent;
-      editor.scrollTop = 0;
-      editor.scrollLeft = 0;
-    }
-    if (preview) {
-      preview.innerHTML = highlightCode(currentModalPageOriginalContent, false);
-      preview.scrollTop = 0;
-      preview.scrollLeft = 0;
+    if (window.pageCodeEditor) {
+      window.pageCodeEditor.setValue(currentModalPageOriginalContent, { markClean: true });
+    } else {
+      if (editor) {
+        editor.value = currentModalPageOriginalContent;
+        editor.scrollTop = 0;
+        editor.scrollLeft = 0;
+      }
+      if (preview) {
+        preview.innerHTML = highlightCode(currentModalPageOriginalContent, false) + '\n';
+      }
+      if (previewPre) {
+        previewPre.scrollTop = 0;
+        previewPre.scrollLeft = 0;
+      }
     }
 
     const copyBtn = document.getElementById('modal-page-copy-btn');
     if (copyBtn) {
       copyBtn.onclick = () => {
         navigator.clipboard.writeText(editor ? editor.value : currentModalPageOriginalContent);
-        notify('Đã sao chép mã nguồn Page Object!');
+        notify(isFixture ? 'Đã sao chép mã nguồn Fixture!' : 'Đã sao chép mã nguồn Page Object!');
       };
     }
 
@@ -5868,10 +7588,13 @@ window.openPageCodeModal = async function (pagePath, pageName) {
             }),
           });
           currentModalPageOriginalContent = newContent;
+          if (window.pageCodeEditor) {
+            window.pageCodeEditor.markSaved(newContent);
+          }
           if (dirtyBadge) dirtyBadge.style.display = 'none';
-          notify(`✅ Đã lưu file Page Object ${escapeHtml(pageName)} thành công!`);
+          notify(`✅ Đã lưu file ${isFixture ? 'Fixture' : 'Page Object'} ${escapeHtml(pageName)} thành công!`);
         } catch (saveErr) {
-          notify(`❌ Lỗi khi lưu Page Object: ${saveErr.message}`);
+          notify(`❌ Lỗi khi lưu ${isFixture ? 'Fixture' : 'Page Object'}: ${saveErr.message}`);
         } finally {
           saveBtn.disabled = false;
           saveBtn.innerHTML = originalText;
@@ -7126,6 +8849,16 @@ function navigateToCreatePageObjectFromWizard() {
   }, 120);
 }
 
+function navigateToCreateTestDataFromWizard() {
+  saveWizardDraft();
+  showToast('Đã lưu bản nháp kịch bản BDD. Đang chuyển sang tab Dữ liệu test...', 'success');
+
+  const dataTab = document.querySelector('.view-tab[data-view="data-view"]');
+  if (dataTab) {
+    dataTab.click();
+  }
+}
+
 function updateWizardStep(step) {
   wizardCurrentStep = Math.max(1, Math.min(6, step));
   if (!isResettingWizard) {
@@ -7244,10 +8977,47 @@ function renderWizardPomList() {
     return;
   }
 
+  const searchInput = document.getElementById('wizard-pom-search');
+  const countBadge = document.getElementById('wizard-pom-count');
+  const btnSelectAll = document.getElementById('btn-pom-select-all');
+  const btnDeselectAll = document.getElementById('btn-pom-deselect-all');
+
+  // Bind controls once
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => renderWizardPomList());
+  }
+  if (btnSelectAll && !btnSelectAll.dataset.bound) {
+    btnSelectAll.dataset.bound = 'true';
+    btnSelectAll.addEventListener('click', () => {
+      const currentPages = getWizardCompatiblePages();
+      currentPages.forEach((p) => wizardSelectedPoms.add(p.relativePath));
+      renderWizardPomList();
+      updateCreateScriptPreview();
+    });
+  }
+  if (btnDeselectAll && !btnDeselectAll.dataset.bound) {
+    btnDeselectAll.dataset.bound = 'true';
+    btnDeselectAll.addEventListener('click', () => {
+      wizardSelectedPoms.clear();
+      renderWizardPomList();
+      updateCreateScriptPreview();
+    });
+  }
+
   const platform = document.getElementById('create-script-platform')?.value || 'desktop';
   const platformLabel = platform === 'mobile-web' ? 'Mobile Web' : 'Desktop Web';
   const compatiblePages = getWizardCompatiblePages();
   wizardSelectedPoms = new Set(Array.from(wizardSelectedPoms).filter((relativePath) => compatiblePages.some((page) => page.relativePath === relativePath)));
+
+  if (countBadge) {
+    countBadge.textContent = wizardSelectedPoms.size;
+  }
+  const totalBadge = document.getElementById('wizard-pom-total');
+  if (totalBadge) {
+    totalBadge.textContent = compatiblePages.length;
+  }
+
   if (!compatiblePages.length) {
     const hasPlatformPages = repoPages.some((page) => page.platform === platform);
     container.innerHTML = `
@@ -7261,16 +9031,51 @@ function renderWizardPomList() {
     renderWizardPrimaryPageOptions();
     return;
   }
+
   renderWizardPrimaryPageOptions();
-  container.innerHTML = compatiblePages.map((page) => {
+
+  const searchQuery = (searchInput?.value || '').trim().toLowerCase();
+  const filteredPages = searchQuery
+    ? compatiblePages.filter((p) => {
+        const title = (p.title || '').toLowerCase();
+        const className = (p.className || '').toLowerCase();
+        const path = (p.relativePath || '').toLowerCase();
+        return title.includes(searchQuery) || className.includes(searchQuery) || path.includes(searchQuery);
+      })
+    : compatiblePages;
+
+  if (filteredPages.length === 0) {
+    container.innerHTML = `
+      <div class="dependency-empty-state" style="grid-column: 1 / -1; padding: 24px 16px;">
+        <i class="ph-bold ph-magnifying-glass" style="font-size: 22px; color: var(--muted);"></i>
+        <strong>Không tìm thấy Page Object phù hợp</strong>
+        <span style="font-size: 12px; color: var(--muted);">Không có màn hình nào khớp với từ khóa "<em>${escapeHtml(searchQuery)}</em>"</span>
+        <button type="button" class="btn-secondary-sm" id="btn-clear-pom-search" style="margin-top: 6px; font-size: 11.5px; padding: 4px 10px;">
+          <i class="ph-bold ph-x"></i> Xóa bộ lọc
+        </button>
+      </div>`;
+    container.querySelector('#btn-clear-pom-search')?.addEventListener('click', () => {
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.focus();
+      }
+      renderWizardPomList();
+    });
+    return;
+  }
+
+  container.innerHTML = filteredPages.map((page) => {
     const isChecked = wizardSelectedPoms.has(page.relativePath);
+    const title = page.title || page.className;
+    const path = page.relativePath || `${page.className}.js`;
     return `
       <div class="dependency-card-item ${isChecked ? 'selected' : ''}" data-path="${escapeHtml(page.relativePath)}">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" class="wizard-pom-checkbox" value="${escapeHtml(page.relativePath)}" ${isChecked ? 'checked' : ''} style="cursor: pointer;" />
-          <div>
-            <strong style="font-size: 12px; display: block;">${escapeHtml(page.title || page.className)}</strong>
-            <span style="font-size: 11px; font-family: var(--font-mono); color: var(--muted);">${escapeHtml(page.relativePath || `${page.className}.js`)}</span>
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+          <input type="checkbox" class="wizard-pom-checkbox" value="${escapeHtml(page.relativePath)}" ${isChecked ? 'checked' : ''} />
+          <i class="ph-bold ph-browsers dependency-card-icon"></i>
+          <div style="min-width: 0; flex: 1;">
+            <strong class="dependency-card-title" title="${escapeHtml(title)}">${escapeHtml(title)}</strong>
+            <span class="dependency-card-path" title="${escapeHtml(path)}">${escapeHtml(path)}</span>
           </div>
         </div>
         <span class="dependency-badge-ready"><i class="ph-bold ph-check"></i> Sẵn có</span>
@@ -7297,6 +9102,7 @@ function renderWizardPomList() {
         wizardSelectedPoms.delete(p);
         card.classList.remove('selected');
       }
+      if (countBadge) countBadge.textContent = wizardSelectedPoms.size;
       updateCreateScriptPreview();
     });
   });
@@ -7705,11 +9511,9 @@ async function switchToCreateScriptMode() {
       navigateToCreatePageObjectFromWizard();
     });
 
-    // Drawer Test Data
-    const dataDrawer = document.getElementById('wizard-drawer-data');
+    // Tạo Test Data: Lưu nháp và chuyển sang tab Dữ liệu test
     document.getElementById('btn-wizard-open-create-data')?.addEventListener('click', () => {
-      dataDrawer?.classList.add('open');
-      document.getElementById('drawer-data-filename')?.focus();
+      navigateToCreateTestDataFromWizard();
     });
     document.getElementById('btn-close-drawer-data')?.addEventListener('click', () => dataDrawer?.classList.remove('open'));
     document.getElementById('btn-cancel-drawer-data')?.addEventListener('click', () => dataDrawer?.classList.remove('open'));
@@ -7911,12 +9715,12 @@ function initVisualBuilderControls() {
     });
   });
 
-  // Filter buttons (All, Desktop, Mobile)
+  // Filter buttons (Desktop, Mobile, API, Setup)
   document.querySelectorAll('.script-filter-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.script-filter-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      scriptPlatformFilter = btn.dataset.platform || 'all';
+      scriptPlatformFilter = btn.dataset.platform || 'desktop';
       renderScriptSidebarList();
     });
   });
@@ -8159,7 +9963,7 @@ function initVisualBuilderControls() {
     badge: document.getElementById('modal-page-dirty-badge'),
     saveBtn: document.getElementById('modal-page-save-btn'),
     onSave: async (editor) => {
-      const modalPath = document.getElementById('modal-page-path-display')?.textContent;
+      const modalPath = document.getElementById('modal-page-path')?.textContent || currentModalPagePath;
       if (!modalPath) return;
       try {
         await request('/api/code', {
@@ -8679,7 +10483,7 @@ function renderPresetLibrary() {
         <span style="font-size: 13px;">${escapeHtml(act.name)}</span>
         <div style="display: flex; gap: 6px; align-items: center;">
           <span class="step-type-badge badge-${act.stepType.toLowerCase()}">${act.stepType}</span>
-          <button type="button" class="btn-quick-step btn-quick-${act.stepType.toLowerCase()}" onclick="window.addBuilderStepFromAction('${act.id}')" title="Thêm hành động này vào kịch bản">+ Thêm</button>
+          <button type="button" class="btn-quick-step btn-quick-${act.stepType.toLowerCase()}" onclick="window.addBuilderStepFromAction('${act.id}')" title="Thêm hành động này vào kịch bản">Thêm</button>
         </div>
       </div>
       <p style="color: var(--muted); font-size: 12px; margin: 0; line-height: 1.4;">${escapeHtml(act.desc || '')}</p>
@@ -9056,13 +10860,17 @@ document.getElementById('data-delete-file-btn')?.addEventListener('click', () =>
 });
 
 // 3. Xóa Page Object
-document.getElementById('pm-btn-delete-page')?.addEventListener('click', () => {
+function handleDeleteCurrentPage() {
   if (!currentInspectedPage) {
     notify('Vui lòng chọn một Page Object để xóa.');
     return;
   }
   if (currentInspectedPage.relativePath === 'pages/BasePage.js') {
     notify('⚠️ Không thể xóa BasePage.js vì đây là lớp nền tảng dùng chung của toàn bộ framework.');
+    return;
+  }
+  if (currentInspectedPage.platform === 'fixture') {
+    notify('⚠️ Không thể xóa Fixture nền tảng.');
     return;
   }
 
@@ -9084,7 +10892,8 @@ document.getElementById('pm-btn-delete-page')?.addEventListener('click', () => {
       await openPageManager();
     },
   });
-});
+}
+document.getElementById('pm-btn-delete-page')?.addEventListener('click', handleDeleteCurrentPage);
 
 // URL query parameter tab router (?tab=settings&subtab=documents)
 try {
@@ -9093,14 +10902,18 @@ try {
   const subtabParam = urlParams.get('subtab');
   if (tabParam) {
     const tabMap = {
+      'ai': 'agent-view',
+      'agent': 'agent-view',
       'runner': 'runner-view',
       'recorder': 'recorder-view',
       'data': 'data-view',
       'bdd': 'builder-view',
       'reports': 'resources-view',
       'resources': 'resources-view',
+      'suites': 'suites-view',
       'pages': 'page-manager-view',
-      'code': 'code-view',
+      'code': 'page-manager-view',
+      'framework': 'page-manager-view',
       'compare': 'compare-view',
       'settings': 'settings-view',
       'config': 'settings-view',
@@ -9113,6 +10926,14 @@ try {
         setTimeout(() => {
           const subtabBtn = document.querySelector(`.settings-subtab[data-subtab="${subtabParam}"]`);
           if (subtabBtn) subtabBtn.click();
+          const docParam = urlParams.get('doc');
+          if (docParam && subtabParam === 'documents') {
+            setTimeout(async () => {
+              if (typeof loadSettingsDocument === 'function') {
+                await loadSettingsDocument(docParam);
+              }
+            }, 200);
+          }
         }, 150);
       }
     }
@@ -9120,4 +10941,122 @@ try {
 } catch (e) {
   // Ignored
 }
+
+async function openSetupGuide() {
+  const settingsTab = document.querySelector('.view-tab[data-view="settings-view"]');
+  if (settingsTab) settingsTab.click();
+  setTimeout(() => {
+    const docSubtab = document.querySelector('.settings-subtab[data-subtab="documents"]');
+    if (docSubtab) docSubtab.click();
+    setTimeout(async () => {
+      if (typeof loadSettingsDocument === 'function') {
+        await loadSettingsDocument('docs/SETUP_GUIDE.md');
+      }
+    }, 200);
+  }, 150);
+}
+
+$('#setup-guide-btn')?.addEventListener('click', openSetupGuide);
+$('#agent-guide-btn')?.addEventListener('click', openSetupGuide);
+
+async function updateGlobalHeaderTokenQuota() {
+  try {
+    let clientConfig = null;
+    try {
+      const rawCfg = localStorage.getItem('vieclam24h_ai_personal_config');
+      if (rawCfg) {
+        const p = JSON.parse(rawCfg);
+        if (p && p.enabled && p.apiKey) clientConfig = p;
+      }
+    } catch {}
+    const headers = { 'Content-Type': 'application/json' };
+    if (clientConfig) {
+      headers['X-AI-Config'] = btoa(unescape(encodeURIComponent(JSON.stringify(clientConfig))));
+    }
+    const res = await fetch('/api/agent/status', { headers });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.tokenQuota) {
+      const percent = data.tokenQuota.remainingPercent ?? 100;
+      const pillPercent = document.getElementById('agent-quota-pill-percent');
+      if (pillPercent) pillPercent.textContent = `${percent}%`;
+      const pill = document.getElementById('agent-quota-pill');
+      if (pill) {
+        pill.classList.toggle('is-healthy', percent >= 50);
+        pill.classList.toggle('is-warning', percent >= 20 && percent < 50);
+        pill.classList.toggle('is-danger', percent < 20);
+        pill.title = `Hạn mức Token: ${percent}% còn lại (${data.tokenQuota.modelName || 'AI'}) - Bấm để mở tab AI Agent`;
+      }
+    }
+  } catch (_) {}
+}
+
+document.getElementById('agent-quota-pill')?.addEventListener('click', () => {
+  document.getElementById('agent-tab')?.click();
+});
+
+updateGlobalHeaderTokenQuota();
+window.addEventListener('focus', updateGlobalHeaderTokenQuota);
+
+/* ==============================================================================
+   SUITES VIEW CONTROLLER (TIỆN ÍCH > KỊCH BẢN TEST SUITE)
+============================================================================== */
+async function openSuitesManager() {
+  initSuitesView();
+  if (!settingsCache) {
+    try {
+      const settings = await request('/api/settings');
+      renderSettings(settings);
+    } catch (err) {
+      console.error('Lỗi tải suites settings:', err);
+    }
+  } else {
+    renderSuitesView(settingsCache.suites || {});
+  }
+}
+
+document.getElementById('suites-save-btn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('suites-save-btn');
+  if (btn) btn.disabled = true;
+  try {
+    await saveSettings();
+    notify('Đã lưu toàn bộ cấu hình Test Suites thành công!');
+  } catch (err) {
+    notify(`Lỗi lưu Test Suites: ${err.message}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
+document.getElementById('suites-sync-git-btn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('suites-sync-git-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ph ph-spinner-gap"></i> Đang đồng bộ...';
+  }
+  try {
+    const result = await request('/api/git/sync', { method: 'POST' });
+    notify(result.message || 'Đã đồng bộ hóa Test Suites lên GitHub thành công!');
+  } catch (err) {
+    notify(`Lỗi đồng bộ Git: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ph-bold ph-cloud-arrow-up"></i> Đồng bộ lên GitHub';
+    }
+  }
+});
+
+document.getElementById('runner-goto-suites-btn')?.addEventListener('click', () => {
+  document.querySelector('.nav-dropdown-item[data-view="suites-view"]')?.click();
+});
+
+document.getElementById('settings-suites-shortcut')?.addEventListener('click', () => {
+  document.querySelector('.nav-dropdown-item[data-view="suites-view"]')?.click();
+});
+
+initSuitesView();
+
+
+
 

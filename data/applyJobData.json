@@ -41,7 +41,7 @@
       "birthYear": "2008",
       "education": "Chưa tốt nghiệp THPT",
       "gender": "Nam",
-      "uploadFile": "pexels-eberhardgross-640781.jpg"
+      "uploadFile": "data/pexels-eberhardgross-640781.jpg"
     },
     "guestJob": {
       "fullName": "Hà Đinh test",
@@ -65,7 +65,7 @@
       "birthYear": "2007",
       "education": "Chưa tốt nghiệp THPT",
       "gender": "Nữ",
-      "uploadFile": "pexels-eberhardgross-640781.jpg"
+      "uploadFile": "data/pexels-eberhardgross-640781.jpg"
     }
   },
   "cvPath": "data/TemplateCV.pdf"

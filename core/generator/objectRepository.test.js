@@ -35,9 +35,9 @@ test('inferHumanDescription extracts meaningful text or clean name', () => {
   assert.match(desc2, /Full Name/i);
 });
 
-test('scanAllPageObjects scans 17 Page Objects with locators and actions', () => {
+test('scanAllPageObjects scans 17 Page Objects and 2 Fixtures', () => {
   const pages = scanAllPageObjects(process.cwd());
-  assert.equal(pages.length, 17);
+  assert.equal(pages.length, 19);
 
   const home = pages.find((p) => p.className === 'HomePage');
   assert.ok(home);
@@ -56,6 +56,16 @@ test('scanAllPageObjects scans 17 Page Objects with locators and actions', () =>
   const mobileUserProfile = pages.find((p) => p.className === 'MobileUserProfilePage');
   assert.ok(mobileUserProfile);
   assert.equal(mobileUserProfile.platform, 'mobile-web');
+
+  const baseTestFixture = pages.find((p) => p.className === 'baseTest');
+  assert.ok(baseTestFixture);
+  assert.equal(baseTestFixture.platform, 'fixture');
+  assert.ok(baseTestFixture.methodCount >= 10);
+
+  const mobileTestFixture = pages.find((p) => p.className === 'mobileWebTest');
+  assert.ok(mobileTestFixture);
+  assert.equal(mobileTestFixture.platform, 'fixture');
+  assert.ok(mobileTestFixture.methodCount >= 10);
 });
 
 test('getCoreCapabilities returns 5 core pillars with tags and status', () => {

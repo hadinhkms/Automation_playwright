@@ -13,8 +13,11 @@ Framework kiểm thử tự động cho hệ thống Việc Làm 24h, xây dựn
 
 ```bash
 npm install
-npx playwright install chromium
+npx playwright install chromium webkit
+cp .env.example .env
 ```
+
+> 📘 **Tài liệu hướng dẫn chi tiết**: Xem toàn bộ hướng dẫn cài đặt và thiết lập từng bước từ con số 0 tại [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md).
 
 Môi trường mặc định là `qc`. Các giá trị hỗ trợ hiện tại: `qc`, `stg`, `prod`.
 
@@ -142,6 +145,13 @@ Dashboard là ứng dụng web điều khiển kiểm thử tự động trực 
   * **Branding & Theme**: Tùy chỉnh màu chủ đạo (Vieclam24h tím/xanh hoặc mã màu tùy chọn), màu nền, logo, tiêu đề và kích thước chữ.
   * **Runtime & Môi trường**: Cấu hình URL môi trường (`qc`, `stg`, `prod`), số worker, timeout, retry, kích thước viewport.
   * **Discord Notification & QA Bot**: Nhập Discord Webhook URL để nhận thông báo tự động ngay khi test kết thúc (xem hướng dẫn chi tiết tại `docs/DISCORD_BOT_SETUP_GUIDE.md`).
+  * **Cấu hình AI Cá nhân**: Thiết lập API key cá nhân (Gemini / OpenAI / DeepSeek) lưu an toàn trên trình duyệt (`localStorage`) mà không cần sửa file `.env`.
+* 🤖 **AI Agent Tự hành (Agent Tab)**:
+  * Trợ lý AI chuyên biệt cho Playwright & POM: Tự đọc spec, phân tích lỗi, gợi ý sửa locator và cập nhật mã nguồn tự động.
+  * Theo dõi hạn mức **% Token Quota** thời gian thực ngay trên Header với cảnh báo màu và đếm ngược chu kỳ hồi phục.
+* ⚡ **AI Inline Code Suggestion (Editor)**:
+  * Gợi ý mã nguồn Playwright theo thời gian thực kiểu GitHub Copilot ngay trong trình soạn thảo code BDD Studio và Quản lý Page.
+  * Phím tắt: <kbd>Tab</kbd> để chấp nhận chèn code (Ghost Text), <kbd>Esc</kbd> để hủy, hiểu ngữ cảnh comment (`//`) để tự động sinh code xuống dòng.
 
 ---
 

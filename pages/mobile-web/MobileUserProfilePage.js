@@ -122,6 +122,142 @@ class MobileUserProfilePage extends UserProfilePage {
     ]);
     await fileChooser.setFiles(filePath);
   }
+  /**
+   * Bật tính năng cho phép tìm kiếm hồ sơ CV trên Mobile Web:
+   * Nếu đang ở trang cài đặt tiêu chí và switch ẩn (sidebar desktop ẩn), thử mở qua popup trạng thái tìm việc
+   * hoặc điều hướng về trang Hồ sơ của tôi nơi switch luôn hiển thị trực quan.
+   */
+  async enableCVSearch() {
+    let cvSearchSwitch = this.page
+      .locator('[data-test-id="user-profile__enable-search"] [data-test-id="common__switch"]:visible, [data-test-id="common__switch"]:visible')
+      .first();
+
+    const isVisible = await cvSearchSwitch.isVisible().catch(() => false);
+    if (!isVisible) {
+      const statusBtn = this.page.locator('div:has-text("Trạng thái tìm việc"):visible, span:has-text("Trạng thái tìm việc"):visible').first();
+      if (await statusBtn.isVisible().catch(() => false)) {
+        await this.clickElement(statusBtn);
+        await this.page.waitForTimeout(1000);
+        cvSearchSwitch = this.page.locator('[data-test-id="common__switch"]:visible, input[type="checkbox"]:visible, [role="switch"]:visible').first();
+        if (await cvSearchSwitch.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await this.clickElement(cvSearchSwitch);
+          return;
+        }
+      }
+
+      // Điều hướng về Hồ sơ của tôi nơi có switch Cho phép Nhà tuyển dụng tìm bạn
+      await this.navigateToMyProfile();
+      cvSearchSwitch = this.page
+        .locator('[data-test-id="user-profile__enable-search"] [data-test-id="common__switch"]:visible, [data-test-id="common__switch"]:visible')
+        .first();
+    }
+
+    await this.clickElement(cvSearchSwitch);
+  }
+
+  isWizardOpen() {
+    return this.page.getByText('Thiết lập tìm kiếm hồ sơ')
+      .or(this.page.getByRole('button', { name: /Bước tiếp theo/i }))
+      .or(this.page.getByRole('button', { name: /Cho phép tìm kiếm/i }))
+      .or(this.page.locator('[data-test-id="user-profile__enable-search-info"]'))
+      .or(this.page.locator('[data-test-id="user-profile__enable-search-cv"]'));
+  }
+
+  /**
+   * Bỏ qua bước Tiếp tục xác minh nếu modal Thiết lập tìm kiếm hồ sơ đã mở
+   */
+  async clickContinueButton() {
+    const isWizard = await this.isWizardOpen().first().isVisible().catch(() => false);
+    if (isWizard) {
+      return;
+    }
+
+    const btnContinue = this.page.getByRole('button', { name: /Tiếp tục/i }).first();
+    if (await btnContinue.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await this.clickElement(btnContinue);
+    }
+  }
+
+  /**
+   * Bỏ qua nhập mã xác minh nếu modal Thiết lập tìm kiếm hồ sơ đã mở
+   */
+  async fillVerificationCode(code) {
+    const isWizard = await this.isWizardOpen().first().isVisible().catch(() => false);
+    if (isWizard) {
+      return;
+    }
+
+    await super.fillVerificationCode(code);
+  }
+
+  /**
+   * Tải lên CV trong modal kích hoạt tìm kiếm trên Mobile Web:
+   * Chọn đúng input file trong box [data-test-id="user-profile__upload-cv"] của modal,
+   * sau đó chuyển sang Bước 2 (Kiểm tra và bổ sung thông tin)
+   */
+  async uploadCV(filePath) {
+    const fileInput = this.page.locator(
+      '[data-test-id="user-profile__upload-cv"] ~ input[type="file"], [data-test-id="user-profile__upload-cv"] + input[type="file"], [data-test-id="user-profile__upload-cv"] input[type="file"]'
+    ).first();
+
+    if ((await fileInput.count().catch(() => 0)) > 0) {
+      await fileInput.setInputFiles(filePath);
+    } else {
+      const uploadButton = this.page.locator('[data-test-id="user-profile__upload-cv"] [data-test-id="common__button"], button:has-text("Tải lên CV có sẵn")').first();
+      await uploadButton.click({ force: true });
+    }
+
+    await this.waitForGlobalLoadingHidden(20000);
+    await this.page.waitForTimeout(2000);
+
+    // Nếu xuất hiện popup trích xuất thông tin CV ("Thêm vào Hồ sơ của tôi"), click xác nhận
+    const btnAddToProfile = this.page.getByRole('button', { name: /Thêm vào Hồ sơ của tôi/i })
+      .or(this.page.locator('button:has-text("Thêm vào Hồ sơ của tôi")'))
+      .first();
+    if (await btnAddToProfile.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await this.clickElement(btnAddToProfile);
+      await btnAddToProfile.waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
+      await this.waitForGlobalLoadingHidden(20000);
+      await this.page.waitForTimeout(1000);
+    }
+
+    // Chuyển sang Bước 2 nếu hiển thị nút Bước tiếp theo
+    const btnNextStep = this.page.getByRole('button', { name: /Bước tiếp theo/i })
+      .or(this.page.locator('button:has-text("Bước tiếp theo")'))
+      .first();
+    if (await btnNextStep.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await this.clickElement(btnNextStep);
+      await this.waitForGlobalLoadingHidden(15000);
+      await this.page.waitForTimeout(500);
+    }
+  }
+
+  /**
+   * Click nút Cho phép tìm kiếm hoàn tất thiết lập
+   */
+  async clickAllowSearch() {
+    const btnAddToProfile = this.page.getByRole('button', { name: /Thêm vào Hồ sơ của tôi/i })
+      .or(this.page.locator('button:has-text("Thêm vào Hồ sơ của tôi")'))
+      .first();
+    if (await btnAddToProfile.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.clickElement(btnAddToProfile);
+      await btnAddToProfile.waitFor({ state: 'hidden', timeout: 30000 }).catch(() => {});
+      await this.waitForGlobalLoadingHidden(15000);
+    }
+
+    const btnNextStep = this.page.getByRole('button', { name: /Bước tiếp theo/i })
+      .or(this.page.locator('button:has-text("Bước tiếp theo")'))
+      .first();
+    if (await btnNextStep.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.clickElement(btnNextStep);
+      await this.waitForGlobalLoadingHidden(15000);
+    }
+
+    const btnAllowSearch = this.page.getByRole('button', { name: /Cho phép tìm kiếm/i })
+      .or(this.page.locator('button:has-text("Cho phép tìm kiếm")'))
+      .first();
+    await this.clickElement(btnAllowSearch);
+  }
 }
 
 module.exports = { MobileUserProfilePage };

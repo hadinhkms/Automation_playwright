@@ -28,7 +28,6 @@ test.describe('Mobile Feature: Đăng ký tài khoản người tìm việc bằ
     });
 
     await test.step('When Tôi bấm vào nút "Đăng ký/Đăng nhập" trên Header mobile', async () => {
-      await loginPopup.capture('before_mobile_click_login_header');
       await loginPopup.clickLoginHeader();
       await loginPopup.waitForModalVisible();
       await loginPopup.capture('after_mobile_login_modal_opened');
@@ -43,7 +42,6 @@ test.describe('Mobile Feature: Đăng ký tài khoản người tìm việc bằ
     });
 
     await test.step('And Tôi nhập email mới chưa tồn tại và bấm Tiếp tục', async () => {
-      await loginPopup.capture('before_mobile_fill_email');
       await loginPopup.fillEmail(randomEmail);
       await loginPopup.capture('after_mobile_fill_email');
       await loginPopup.clickContinue();

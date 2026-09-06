@@ -1,0 +1,10 @@
+const fs = require('fs');
+const file = 'evidence/mobile_html_dumps/Ki_m_tra_lu_ng_Onboarding_c_a_ng__i_d_ng_mobile______ng_nh_p_attempt0_on_failure_2026-09-05T04-43-03-045Z.html';
+const html = fs.readFileSync(file, 'utf8');
+const idx = html.indexOf('data-test-id="select__modal-menu__container"');
+const closingTag = '</body>';
+const endIdx = html.indexOf(closingTag, idx);
+console.log('Length to end:', endIdx - idx);
+const fullContainer = html.substring(idx, endIdx);
+console.log('Last 2000 chars of container:');
+console.log(fullContainer.substring(fullContainer.length - 2000));

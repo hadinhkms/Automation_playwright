@@ -4,6 +4,14 @@ const usersData = require('../../../data/users.json');
 const { generateRandomVNPhone } = require('../../../core/utils/commonUtils');
 
 test.describe('Mobile Feature: Guest ứng tuyển việc không cần CV bằng OTP trên Mobile Web @applyjob @mobile @e2e', () => {
+  let newJobPage;
+
+  test.afterEach(async () => {
+    if (newJobPage && !newJobPage.isClosed()) {
+      await newJobPage.close().catch(() => {});
+    }
+  });
+
   test('Guest mobile đăng nhập bằng OTP khi ứng tuyển việc không cần CV thành công', async ({
     onboardingPopup,
     homePage,
@@ -45,12 +53,12 @@ test.describe('Mobile Feature: Guest ứng tuyển việc không cần CV bằng
 
     await test.step('When Người dùng mobile mở chi tiết một việc không cần CV', async () => {
       await homePage.clickNoCVJobLink();
-      await jobSearchPage.firstJobLink.waitFor({ state: 'visible', timeout: 15000 });
+      await jobSearchPage.expectJobsVisible();
       await jobSearchPage.capture('mobile_nocv_jobs_list_visible', true);
 
-      const jobPage = await jobSearchPage.clickFirstJob();
-      jobApplyNoCVPage = createJobApplyNoCVPage(jobPage);
-      popupConsent = createPopupConsent(jobPage);
+      newJobPage = await jobSearchPage.clickFirstJob();
+      jobApplyNoCVPage = createJobApplyNoCVPage(newJobPage);
+      popupConsent = createPopupConsent(newJobPage);
       await jobApplyNoCVPage.capture('mobile_guest_job_detail_opened', true);
       await jobApplyNoCVPage.startGuestApplyNoCV();
       await jobApplyNoCVPage.capture('guest_mobile_nocv_form_opened');
