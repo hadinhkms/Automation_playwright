@@ -1,14 +1,17 @@
 @echo off
-title Stop Automation Dashboard
-echo ==============================================
-echo    Dang dung Automation Dashboard...
-echo ==============================================
+title Stop QA Studio
+echo ========================================================
+echo    Dang dung QA Automation Studio...
+echo ========================================================
 echo.
 
-:: Dung server qua stop-server.js
-node dashboard/stop-server.js
+if exist "dashboard\stop-server.js" (
+    node dashboard\stop-server.js
+) else if exist "node_modules\@hadinhkms\qa-automation-engine\dashboard\stop-server.js" (
+    node node_modules\@hadinhkms\qa-automation-engine\dashboard\stop-server.js
+)
 
 echo.
-echo Hoan tat! Tien trinh Dashboard cua thu muc nay da duoc dung.
+echo [OK] Da dung tien trinh Dashboard thanh cong!
 timeout /t 2 > nul
 exit /b 0
