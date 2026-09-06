@@ -2692,7 +2692,7 @@ function createSharedCodeEditor({
           badge.classList.remove('modified');
           if (badge.dataset.hideWhenClean === 'true') {
             badge.style.display = 'none';
-          } else if ((typeof scriptBuilderMode !== 'undefined' && scriptBuilderMode === 'create') || (typeof pageManagerMode !== 'undefined' && pageManagerMode === 'create')) {
+          } else if ((typeof scriptBuilderMode !== 'undefined' && scriptBuilderMode === 'create') || (typeof pageManagerMode !== 'undefined' && pageManagerMode === 'create') || (typeof dataSubnavMode !== 'undefined' && dataSubnavMode === 'create')) {
             badge.innerHTML = '<i class="ph-bold ph-eye"></i> Bản xem trước realtime';
             badge.style.display = 'inline-flex';
           } else {
@@ -3269,10 +3269,57 @@ let currentSelectedSuiteId = null;
 let currentSuiteFilter = 'desktop';
 let currentSuiteSearch = '';
 let suitesCache = {};
+let savedSuitesCache = {};
 let suitesViewInitialized = false;
+
+function isCurrentSuiteDirty() {
+  if (!currentSelectedSuiteId || !suitesCache[currentSelectedSuiteId]) return false;
+  const saved = savedSuitesCache[currentSelectedSuiteId];
+  if (!saved) return true;
+  const current = suitesCache[currentSelectedSuiteId];
+
+  const norm = (s) => ({
+    label: (s.label || '').trim(),
+    project: (s.project || 'all').trim(),
+    workers: parseInt(s.workers, 10) || 2,
+    viewport: {
+      preset: s.viewport?.preset || 'default',
+      width: parseInt(s.viewport?.width, 10) || 1920,
+      height: parseInt(s.viewport?.height, 10) || 1080
+    },
+    spec: typeof s.spec === 'string' ? s.spec : 'all',
+    specs: Array.isArray(s.specs) ? [...s.specs].sort() : (s.specs === 'all' ? 'all' : []),
+    grep: (s.grep || '').trim()
+  });
+
+  return JSON.stringify(norm(current)) !== JSON.stringify(norm(saved));
+}
+
+function updateSuiteRunButtonState() {
+  const isDirty = isCurrentSuiteDirty();
+  const runBtn = $('#suites-subnav-run-btn');
+  const badge = $('#suite-dirty-badge');
+
+  if (badge) {
+    badge.style.display = isDirty ? 'inline-flex' : 'none';
+  }
+
+  if (runBtn) {
+    if (isDirty) {
+      runBtn.classList.add('is-dirty-locked');
+      runBtn.setAttribute('title', 'Kịch bản có thay đổi chưa lưu. Vui lòng bấm "Lưu thay đổi" trước khi chạy.');
+    } else {
+      runBtn.classList.remove('is-dirty-locked');
+      runBtn.setAttribute('title', 'Chạy ngay kịch bản Test Suite này');
+    }
+  }
+}
 
 function renderSuitesView(suites) {
   suitesCache = Object.assign({}, suites || {});
+  if (Object.keys(savedSuitesCache).length === 0 || !suitesViewInitialized) {
+    savedSuitesCache = JSON.parse(JSON.stringify(suitesCache));
+  }
 
   // Populate project options in editor
   const projSelect = $('#suite-field-project');
@@ -3332,6 +3379,7 @@ function renderSuitesView(suites) {
   } else {
     loadSuiteIntoEditor(null, null);
   }
+  updateSuiteRunButtonState();
 }
 
 function renderSuitesSidebarList() {
@@ -3462,6 +3510,7 @@ function selectSuite(id) {
 
   loadSuiteIntoEditor(id, suitesCache[id]);
   updateSuitePreview(id, suitesCache[id]);
+  updateSuiteRunButtonState();
 }
 
 function loadSuiteIntoEditor(id, suite) {
@@ -3608,6 +3657,7 @@ function loadSuiteIntoEditor(id, suite) {
 
   $('#suites-subnav-inspect')?.classList.add('active');
   $('#suites-subnav-create')?.classList.remove('active');
+  updateSuiteRunButtonState();
 }
 
 function updateSuitePreview(id, suite) {
@@ -3774,6 +3824,7 @@ function syncCurrentSuiteFromInputs() {
   if (!window.dashboardSuites) window.dashboardSuites = {};
   window.dashboardSuites[currentSelectedSuiteId] = updatedSuite;
   renderRunnerSuiteOptions(window.dashboardSuites, currentSelectedSuiteId);
+  updateSuiteRunButtonState();
 }
 
 function createNewSuite() {
@@ -3837,6 +3888,19 @@ function runCurrentSuiteNow() {
   if (!currentSelectedSuiteId || !suitesCache[currentSelectedSuiteId]) return;
   syncCurrentSuiteFromInputs();
 
+  if (isCurrentSuiteDirty()) {
+    notify('Kịch bản Test Suite đang có thay đổi chưa lưu. Vui lòng bấm "Lưu thay đổi" trước khi chạy.', 'warning');
+    const saveBtn = $('#suites-save-btn');
+    if (saveBtn) {
+      saveBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      saveBtn.classList.remove('btn-highlight-pulse');
+      void saveBtn.offsetWidth; // trigger reflow
+      saveBtn.classList.add('btn-highlight-pulse');
+      setTimeout(() => saveBtn.classList.remove('btn-highlight-pulse'), 2000);
+    }
+    return;
+  }
+
   const suite = suitesCache[currentSelectedSuiteId];
   const runnerSelect = $('#runner-suite-select');
   if (runnerSelect) {
@@ -3874,8 +3938,13 @@ function initSuitesView() {
 
   // Refresh button
   $('#suites-refresh-btn')?.addEventListener('click', async () => {
-    await fetchSuites();
-    notify('Đã làm mới danh sách Test Suites.');
+    try {
+      const settings = await request('/api/settings');
+      renderSettings(settings);
+      notify('Đã làm mới danh sách Test Suites.');
+    } catch (err) {
+      notify(`Lỗi làm mới Test Suites: ${err.message}`);
+    }
   });
 
   $('#btn-collapse-suites-sidebar')?.addEventListener('click', () => {
@@ -3907,7 +3976,25 @@ function initSuitesView() {
   $('#add-suite-button')?.addEventListener('click', createNewSuite);
   $('#suite-btn-duplicate')?.addEventListener('click', duplicateCurrentSuite);
   $('#suite-btn-delete')?.addEventListener('click', deleteCurrentSuite);
-  $('#suite-run-now-btn')?.addEventListener('click', runCurrentSuiteNow);
+
+  $('#suites-save-btn')?.addEventListener('click', async () => {
+    const btn = $('#suites-save-btn');
+    if (btn) btn.disabled = true;
+    try {
+      await saveSettings();
+      updateSuiteRunButtonState();
+      notify('Đã lưu toàn bộ cấu hình Test Suites thành công!');
+    } catch (err) {
+      notify(`Lỗi lưu Test Suites: ${err.message}`);
+    } finally {
+      if (btn) btn.disabled = false;
+      updateSuiteRunButtonState();
+    }
+  });
+
+  $('#suites-sync-git-btn')?.addEventListener('click', () => {
+    document.getElementById('sync-git-button')?.click();
+  });
 
   $('#suite-btn-copy-cli')?.addEventListener('click', () => {
     const cmd = $('#suite-cli-command')?.textContent || '';
@@ -3996,6 +4083,7 @@ function initSuitesView() {
 
 function renderSettings(settings) {
   settingsCache = settings;
+  savedSuitesCache = JSON.parse(JSON.stringify(settings.suites || {}));
   renderSuitesView(settings.suites || {});
   const environmentEntries = Object.entries(settings.environments || {});
   $('#environment-settings').innerHTML = environmentEntries.map(([key, env]) => `
@@ -4283,6 +4371,8 @@ async function saveSettings() {
     ]);
 
     renderSettings(result.settings);
+    savedSuitesCache = JSON.parse(JSON.stringify(result.settings?.suites || suitesCache));
+    updateSuiteRunButtonState();
     if (result.settings.branding) applyAppConfig(result.settings.branding);
     notify(`${result.message} Backup: ${result.backup}`);
     const config = await request('/api/config');
@@ -5417,11 +5507,55 @@ function initSidebarCollapse() {
     }
   } catch (_) {}
 
-  // 3. Phím tắt Ctrl + B / Cmd + B để bật tắt sidebar
+  // 3. Test Data Studio Sidebar
+  const dataWorkspace = document.getElementById('data-workspace-panel');
+  const btnCollapseData = document.getElementById('btn-collapse-data-sidebar');
+  const btnExpandData = document.getElementById('btn-expand-data-sidebar');
+  const railData = document.getElementById('data-sidebar-collapsed-strip');
+  const btnToggleDataHead = document.getElementById('btn-toggle-data-sidebar-head');
+
+  function setDataSidebarCollapsed(collapsed) {
+    if (!dataWorkspace) return;
+    dataWorkspace.classList.toggle('sidebar-collapsed', collapsed);
+    if (btnToggleDataHead) {
+      btnToggleDataHead.classList.toggle('btn-sidebar-toggle-active', collapsed);
+      btnToggleDataHead.title = collapsed ? 'Mở rộng danh sách dữ liệu' : 'Thu gọn danh sách dữ liệu';
+    }
+    try { localStorage.setItem('testdata_sidebar_collapsed', collapsed ? '1' : '0'); } catch (_) {}
+  }
+
+  btnCollapseData?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setDataSidebarCollapsed(true);
+    notify('📐 Đã thu gọn danh sách dữ liệu. Bấm vào thanh bên hoặc nút trên thanh công cụ để mở lại.');
+  });
+
+  btnExpandData?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setDataSidebarCollapsed(false);
+  });
+
+  railData?.addEventListener('click', () => {
+    setDataSidebarCollapsed(false);
+  });
+
+  btnToggleDataHead?.addEventListener('click', () => {
+    const isCollapsed = dataWorkspace?.classList.contains('sidebar-collapsed');
+    setDataSidebarCollapsed(!isCollapsed);
+  });
+
+  try {
+    if (localStorage.getItem('testdata_sidebar_collapsed') === '1') {
+      setDataSidebarCollapsed(true);
+    }
+  } catch (_) {}
+
+  // 4. Phím tắt Ctrl + B / Cmd + B để bật tắt sidebar
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
-      const activeBuilder = document.getElementById('builder-view')?.classList.contains('active');
-      const activePm = document.getElementById('page-manager-view')?.classList.contains('active');
+      const activeBuilder = document.getElementById('builder-view')?.classList.contains('active') || !document.getElementById('builder-view')?.hidden;
+      const activePm = document.getElementById('page-manager-view')?.classList.contains('active') || !document.getElementById('page-manager-view')?.hidden;
+      const activeData = document.getElementById('data-view')?.classList.contains('active') || !document.getElementById('data-view')?.hidden;
       if (activeBuilder) {
         e.preventDefault();
         const isCollapsed = scriptWorkspace?.classList.contains('sidebar-collapsed');
@@ -5430,6 +5564,10 @@ function initSidebarCollapse() {
         e.preventDefault();
         const isCollapsed = pmWorkspace?.classList.contains('sidebar-collapsed');
         setPmSidebarCollapsed(!isCollapsed);
+      } else if (activeData) {
+        e.preventDefault();
+        const isCollapsed = dataWorkspace?.classList.contains('sidebar-collapsed');
+        setDataSidebarCollapsed(!isCollapsed);
       }
     }
   });
@@ -6070,15 +6208,11 @@ async function triggerRecorderAutoEvidenceCapture() {
     return;
   }
 
-  const autoBtns = [
-    document.getElementById('draft-auto-capture-btn'),
-    document.getElementById('rec-step3-auto-capture-btn'),
-  ].filter(Boolean);
-
-  autoBtns.forEach((btn) => {
-    btn.disabled = true;
-    btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang phân tích...';
-  });
+  const autoBtn = document.getElementById('draft-auto-capture-btn');
+  if (autoBtn) {
+    autoBtn.disabled = true;
+    autoBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Đang phân tích...';
+  }
 
   try {
     const res = await request('/api/builder/auto-capture', {
@@ -6105,15 +6239,14 @@ async function triggerRecorderAutoEvidenceCapture() {
   } catch (err) {
     notify(`❌ Lỗi chèn evidence: ${err.message}`);
   } finally {
-    autoBtns.forEach((btn) => {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ph-bold ph-camera"></i> Tự động chèn Evidence';
-    });
+    if (autoBtn) {
+      autoBtn.disabled = false;
+      autoBtn.innerHTML = '<i class="ph-bold ph-camera"></i> Tự động chèn Evidence';
+    }
   }
 }
 
 document.getElementById('draft-auto-capture-btn')?.addEventListener('click', triggerRecorderAutoEvidenceCapture);
-document.getElementById('rec-step3-auto-capture-btn')?.addEventListener('click', triggerRecorderAutoEvidenceCapture);
 
 
 document.querySelectorAll('.code-draft-tab').forEach((tab) => {
@@ -6221,19 +6354,178 @@ initPlanThreeControls();
 
 let currentDataFile = null;
 let currentDataset = null;
-let dataViewMode = 'table';
+let originalDatasetRaw = '';
+let isDataDirty = false;
+let dataSearchQuery = '';
+let dataTypeFilter = 'all';
+let dataDirectEditMode = false;
+let dataSubnavMode = 'inspect'; // 'inspect' | 'raw' | 'create'
 let datasetsCache = [];
 let lastFocusedDataInput = null;
 let isDataStudioInitialized = false;
 let dataRawEditorController = null;
+
+function setDataDirty(dirty) {
+  isDataDirty = dirty;
+  if (dataSubnavMode === 'create') return;
+  const badgeMiddle = document.getElementById('data-status-badge');
+  const badgeCode = document.getElementById('data-code-status-badge');
+  const revertBtnMiddle = document.getElementById('data-revert-btn');
+  const revertBtnCode = document.getElementById('data-code-revert-btn');
+  const saveBtnSubnav = document.getElementById('data-save-btn');
+  const saveBtnMiddle = document.getElementById('data-middle-save-btn');
+  const saveBtnCode = document.getElementById('data-code-save-btn');
+
+  const dirtyHtml = '<i class="ph-bold ph-pencil-simple" style="color:#f59e0b;"></i> Đã chỉnh sửa (chưa lưu)';
+  const cleanHtml = '<i class="ph-bold ph-check" style="color:#10b981;"></i> Đang mở từ disk';
+
+  if (badgeMiddle) {
+    badgeMiddle.innerHTML = dirty ? dirtyHtml : cleanHtml;
+    badgeMiddle.classList.toggle('modified', dirty);
+  }
+  if (badgeCode) {
+    badgeCode.innerHTML = dirty ? dirtyHtml : cleanHtml;
+    badgeCode.classList.toggle('modified', dirty);
+  }
+  if (revertBtnMiddle) revertBtnMiddle.disabled = !dirty;
+  if (revertBtnCode) revertBtnCode.disabled = !dirty;
+
+  [saveBtnSubnav, saveBtnMiddle, saveBtnCode].forEach((btn) => {
+    if (btn) btn.classList.toggle('is-dirty', dirty);
+  });
+}
 
 async function openDataManager() {
   initDataStudioControls();
   await loadDataFilesList();
   if (datasetsCache.length > 0) {
     const fileToSelect = currentDataFile || datasetsCache[0].fileName;
-    await selectDataset(fileToSelect);
+    await selectDataset(fileToSelect, true);
   }
+}
+
+function renderDataFilesList() {
+  const container = document.getElementById('data-files-list');
+  if (!container) return;
+
+  const fileDescriptions = {
+    'users.json': 'Tài khoản đăng nhập',
+    'applyJobData.json': 'Dữ liệu nộp đơn & ứng tuyển',
+    'userProfileData.json': 'Hồ sơ người tìm việc',
+    'onboardingData.json': 'Thiết lập ban đầu Onboarding',
+    'aiProfileData.json': 'Gợi ý hồ sơ AI'
+  };
+
+  const q = dataSearchQuery.trim().toLowerCase();
+  const filtered = datasetsCache.filter((ds) => {
+    if (dataTypeFilter === 'array' && !ds.isArray) return false;
+    if (dataTypeFilter === 'object' && ds.isArray) return false;
+    if (dataTypeFilter === 'auth') {
+      const isAuth = ds.fileName.toLowerCase().includes('user') ||
+                     ds.fileName.toLowerCase().includes('auth') ||
+                     ds.fileName.toLowerCase().includes('profile');
+      if (!isAuth) return false;
+    }
+    if (!q) return true;
+    const desc = (fileDescriptions[ds.fileName] || '').toLowerCase();
+    return ds.fileName.toLowerCase().includes(q) || desc.includes(q);
+  });
+
+  const sCount = document.getElementById('stat-data-sidebar-count');
+  if (sCount) sCount.textContent = filtered.length;
+  const railBadge = document.getElementById('data-rail-count');
+  if (railBadge) railBadge.textContent = filtered.length;
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--muted); font-size: 12.5px;">Không tìm thấy tệp dữ liệu phù hợp.</div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map((ds) => {
+    const isActive = dataSubnavMode !== 'create' && currentDataFile === ds.fileName;
+    const desc = fileDescriptions[ds.fileName] || (ds.isArray ? 'Danh sách dữ liệu' : 'Cấu trúc biểu mẫu');
+    const isAuth = ds.fileName.toLowerCase().includes('user') || ds.fileName.toLowerCase().includes('profile');
+    
+    let iconClass = 'desktop';
+    let iconName = 'ph-rows';
+    if (!ds.isArray) {
+      iconClass = 'api';
+      iconName = 'ph-tree-structure';
+    }
+    if (isAuth) {
+      iconClass = 'setup';
+      iconName = 'ph-user-circle';
+    }
+
+    const linkedCount = (projectScripts || []).filter((s) => {
+      return s.primaryDataFile === ds.fileName || (s.specCode && s.specCode.includes(ds.fileName));
+    }).length;
+
+    return `
+    <div class="dashboard-list-card script-card-item data-file-card-item ${isActive ? 'is-selected active' : ''}" data-file="${escapeHtml(ds.fileName)}">
+      <span class="dashboard-list-card__icon script-card-platform-icon ${iconClass}">
+        <i class="ph-bold ${iconName}"></i>
+      </span>
+      <div class="dashboard-list-card__body">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
+          <div class="script-card-title">${escapeHtml(ds.fileName)}</div>
+          <button type="button" class="btn-icon-subtle item-delete-hover-btn data-file-delete-btn" data-file="${escapeHtml(ds.fileName)}" title="Xóa tệp dữ liệu này" style="padding: 2px; font-size: 14px; flex-shrink: 0;">
+            <i class="ph ph-trash"></i>
+          </button>
+        </div>
+        <div class="script-card-file" style="color: var(--muted); font-size: 11.5px; margin-top: 2px;">
+          ${escapeHtml(desc)}
+        </div>
+        <div class="script-card-pills" style="margin-top: 6px; display: flex; flex-wrap: gap; gap: 4px;">
+          <span class="script-card-badge-platform ${iconClass}">
+            <i class="ph ${iconName}"></i> ${ds.isArray ? 'Danh sách' : 'Biểu mẫu'}
+          </span>
+          <span class="script-card-badge-pages">
+            <i class="ph ph-stack"></i> ${ds.recordCount} ${ds.isArray ? 'dòng' : 'mục'}
+          </span>
+          <span class="script-card-badge-data">
+            ${(ds.size / 1024).toFixed(1)} KB
+          </span>
+          ${linkedCount > 0 ? `
+          <span class="script-card-badge-platform" style="background: rgba(14, 165, 233, 0.12); color: #0284c7; border: 1px solid rgba(14, 165, 233, 0.25);">
+            <i class="ph ph-tree-structure"></i> ${linkedCount} kịch bản
+          </span>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.data-file-card-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.data-file-delete-btn')) return;
+      const file = item.dataset.file;
+      if (file) {
+        if (dataSubnavMode === 'create') {
+          const nameInput = document.getElementById('create-dataset-filename');
+          const hasDraft = nameInput?.value.trim();
+          if (hasDraft) {
+            const ok = confirm('⚠️ Bạn đang ở chế độ tạo tệp mới. Chuyển sang xem tệp này sẽ hủy bản nháp hiện tại. Bạn có muốn tiếp tục?');
+            if (!ok) return;
+          }
+          switchToDataInspectMode();
+        }
+        if (file !== currentDataFile) {
+          selectDataset(file);
+        }
+      }
+    });
+  });
+
+  container.querySelectorAll('.data-file-delete-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const file = btn.dataset.file;
+      if (file) {
+        currentDataFile = file;
+        document.getElementById('data-delete-file-btn')?.click();
+      }
+    });
+  });
 }
 
 async function loadDataFilesList() {
@@ -6243,19 +6535,96 @@ async function loadDataFilesList() {
     const res = await request('/api/data/datasets');
     datasetsCache = res.datasets || [];
 
-    // Cap nhat stats
     const statFiles = document.getElementById('stat-data-files');
     const statRecords = document.getElementById('stat-data-records');
+    const statTotalSize = document.getElementById('stat-data-total-size');
     if (statFiles) statFiles.textContent = datasetsCache.length;
     if (statRecords) {
       const totalRecs = datasetsCache.reduce((acc, d) => acc + (d.recordCount || 0), 0);
       statRecords.textContent = totalRecs;
     }
-
-    if (datasetsCache.length === 0) {
-      container.innerHTML = '<small class="data-empty-hint" style="padding:16px;color:var(--muted);display:block;text-align:center;">Chưa có tệp dữ liệu nào trong data/</small>';
-      return;
+    if (statTotalSize) {
+      const totalBytes = datasetsCache.reduce((acc, d) => acc + (d.size || 0), 0);
+      statTotalSize.textContent = `${(totalBytes / 1024).toFixed(1)} KB`;
     }
+
+    renderDataFilesList();
+  } catch (err) {
+    notify('Lỗi tải danh sách dữ liệu: ' + err.message);
+  }
+}
+
+async function renderLinkedBddScripts(fileName) {
+  const container = document.getElementById('data-linked-scripts-container');
+  const countBadge = document.getElementById('data-linked-scripts-count');
+  const statBadge = document.getElementById('data-stat-linked-badge');
+  if (!container) return;
+
+  if (!projectScripts || projectScripts.length === 0) {
+    try {
+      const res = await request('/api/builder/scripts');
+      if (res && Array.isArray(res.scripts)) {
+        projectScripts = res.scripts;
+      }
+    } catch (_) {}
+  }
+
+  const linked = (projectScripts || []).filter((s) => {
+    return s.primaryDataFile === fileName ||
+      (Array.isArray(s.dataFiles) && s.dataFiles.some((df) => (typeof df === 'string' ? df : (df?.name || df?.fileName || '')) === fileName)) ||
+      (s.specCode && s.specCode.includes(fileName));
+  });
+
+  if (countBadge) countBadge.textContent = `${linked.length} kịch bản`;
+  if (statBadge) statBadge.textContent = linked.length;
+
+  if (linked.length === 0) {
+    container.innerHTML = `
+      <div style="color: var(--muted); font-size: 12.5px; padding: 4px; display: flex; align-items: center; gap: 6px;">
+        <i class="ph ph-info"></i> Chưa có kịch bản BDD nào liên kết trực tiếp với tệp này. File spec có thể nạp qua <code>require('../../../data/${escapeHtml(fileName)}')</code>.
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = linked.map((s) => `
+    <button type="button" class="data-linked-script-chip" data-script-id="${escapeHtml(s.id)}" title="Bấm để mở kịch bản '${escapeHtml(s.scenarioName || s.fileName)}' trong BDD Studio">
+      <i class="ph-bold ph-tree-structure" style="color: var(--accent);"></i>
+      <span>${escapeHtml(s.scenarioName || s.fileName)}</span>
+      <small style="color: var(--muted); font-size: 11px;">(${escapeHtml(s.fileName)})</small>
+    </button>
+  `).join('');
+
+  container.querySelectorAll('.data-linked-script-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const sId = chip.dataset.scriptId;
+      const s = projectScripts.find((p) => p.id === sId);
+      if (s) {
+        document.querySelector('.view-tab[data-view="builder-view"]')?.click();
+        selectProjectScript(s, true);
+        notify(`🚀 Đã chuyển sang kịch bản: ${s.scenarioName || s.fileName}`);
+      }
+    });
+  });
+}
+
+async function selectDataset(fileName, force = false) {
+  if (isDataDirty && !force) {
+    const confirmSwitch = confirm('⚠️ Bạn có thay đổi chưa lưu trong tệp hiện tại. Tiếp tục chuyển tệp sẽ mất các thay đổi chưa lưu. Bạn có chắc chắn muốn chuyển?');
+    if (!confirmSwitch) return;
+  }
+
+  currentDataFile = fileName;
+  document.querySelectorAll('.data-file-card-item').forEach((item) => {
+    const isThis = item.dataset.file === fileName;
+    item.classList.toggle('active', isThis);
+    item.classList.toggle('is-selected', isThis);
+  });
+
+  try {
+    const res = await request(`/api/data/dataset?file=${encodeURIComponent(fileName)}`);
+    currentDataset = res.data;
+    originalDatasetRaw = JSON.stringify(res.data, null, 2);
+    setDataDirty(false);
 
     const fileDescriptions = {
       'users.json': 'Tài khoản đăng nhập',
@@ -6265,71 +6634,49 @@ async function loadDataFilesList() {
       'aiProfileData.json': 'Gợi ý hồ sơ AI'
     };
 
-    container.innerHTML = datasetsCache.map((ds) => {
-      const desc = fileDescriptions[ds.fileName] || (ds.isArray ? 'Danh sách dữ liệu' : 'Cấu trúc biểu mẫu');
-      return `
-      <button type="button" class="data-file-item ${currentDataFile === ds.fileName ? 'active' : ''}" data-file="${ds.fileName}">
-        <div class="data-file-info">
-          <i class="ph-bold ph-file-text"></i>
-          <div class="data-file-text">
-            <strong class="data-file-name">${escapeHtml(ds.fileName)}</strong>
-            <span class="data-file-desc">${desc}</span>
-            <span class="data-file-meta">${ds.recordCount} ${ds.isArray ? 'dòng dữ liệu' : 'mục'} • ${(ds.size / 1024).toFixed(1)} KB</span>
-          </div>
-        </div>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span class="data-file-badge">Biểu mẫu</span>
-          <span class="btn-icon-subtle item-delete-hover-btn data-file-delete-btn" data-file="${escapeHtml(ds.fileName)}" title="Xóa tệp dữ liệu" style="padding:2px; font-size:14px;">
-            <i class="ph ph-trash"></i>
-          </span>
-        </div>
-      </button>`;
-    }).join('');
+    const desc = fileDescriptions[res.fileName] || (res.isArray ? 'Danh sách dữ liệu' : 'Cấu trúc biểu mẫu');
 
-    container.querySelectorAll('.data-file-item').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        if (e.target.closest('.data-file-delete-btn')) return;
-        selectDataset(btn.dataset.file);
-      });
-    });
+    // Cập nhật banner thông số
+    const nameEl = document.getElementById('data-current-filename');
+    const bannerDesc = document.getElementById('data-banner-desc');
+    const bannerFile = document.getElementById('data-banner-file');
+    const bannerPath = document.getElementById('data-banner-path');
+    const bannerType = document.getElementById('data-banner-type');
+    const statRecs = document.getElementById('data-stat-records-badge');
+    const statSize = document.getElementById('data-stat-size-badge');
+    const fieldsCount = document.getElementById('data-fields-count');
+    const codeTitle = document.getElementById('data-code-title');
 
-    container.querySelectorAll('.data-file-delete-btn').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const fileName = btn.dataset.file;
-        selectDataset(fileName).then(() => {
-          document.getElementById('data-delete-file-btn')?.click();
-        });
-      });
-    });
-  } catch (err) {
-    notify('Lỗi tải danh sách dữ liệu: ' + err.message);
-  }
-}
+    if (nameEl) nameEl.textContent = res.fileName;
+    if (bannerDesc) bannerDesc.textContent = desc;
+    if (bannerFile) bannerFile.textContent = res.relativePath || `data/${res.fileName}`;
+    if (bannerPath) bannerPath.innerHTML = `<i class="ph ph-folder"></i> Đường dẫn: <code>${escapeHtml(res.relativePath || `data/${res.fileName}`)}</code>`;
+    if (bannerType) bannerType.textContent = res.isArray ? 'Danh sách (Array)' : 'Biểu mẫu (Object)';
+    
+    const countStr = `${res.isArray ? res.data.length : Object.keys(res.data).length} ${res.isArray ? 'dòng' : 'mục'}`;
+    if (statRecs) statRecs.textContent = countStr;
+    if (statSize) statSize.textContent = `${((res.size || JSON.stringify(res.data).length) / 1024).toFixed(1)} KB`;
+    if (fieldsCount) fieldsCount.textContent = countStr;
+    if (codeTitle) codeTitle.textContent = res.fileName;
 
-async function selectDataset(fileName) {
-  currentDataFile = fileName;
-  document.querySelectorAll('.data-file-item').forEach((item) => {
-    item.classList.toggle('active', item.dataset.file === fileName);
-  });
+    // Reset chế độ edit code về preview an toàn
+    dataDirectEditMode = false;
+    const stage = document.getElementById('data-code-stage');
+    const editorEl = document.getElementById('data-raw-editor');
+    const saveBtn = document.getElementById('data-code-save-btn');
+    const editBtnText = document.getElementById('data-edit-btn-text');
+    if (stage) stage.classList.remove('editing');
+    if (editorEl) editorEl.setAttribute('readonly', 'true');
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (editBtnText) editBtnText.textContent = 'Chỉnh sửa';
 
-  try {
-    const res = await request(`/api/data/dataset?file=${encodeURIComponent(fileName)}`);
-    currentDataset = res.data;
+    renderGroupedFormView();
 
-    // Giữ nguyên chế độ Mã JSON nếu đang mở, ngược lại mặc định luôn là Biểu mẫu
-    if (dataViewMode !== 'raw') {
-      dataViewMode = 'form';
+    if (dataRawEditorController) {
+      dataRawEditorController.setValue(originalDatasetRaw, true);
     }
 
-    const nameEl = document.getElementById('data-current-filename');
-    const metaEl = document.getElementById('data-current-meta');
-    if (nameEl) nameEl.textContent = res.fileName;
-    if (metaEl) metaEl.textContent = `${res.isArray ? res.data.length + ' bản ghi (dòng dữ liệu)' : Object.keys(res.data).length + ' nhóm thông tin'} • ${res.relativePath}`;
-
-    if (dataRawEditorController) dataRawEditorController.setValue(JSON.stringify(res.data, null, 2));
-
-    renderDataView();
+    await renderLinkedBddScripts(res.fileName);
   } catch (err) {
     notify('Lỗi đọc tệp dữ liệu: ' + err.message);
   }
@@ -6563,6 +6910,7 @@ function renderGroupedFormView() {
         }
         target[lastKey] = valToSet;
         dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2), false);
+        setDataDirty(true);
       };
       input.addEventListener('input', updateHandler);
       if (input.tagName === 'SELECT') input.addEventListener('change', updateHandler);
@@ -6685,8 +7033,8 @@ function renderGroupedFormView() {
       }
 
       target[lastKey] = valToSet;
-
       dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2), false);
+      setDataDirty(true);
     };
 
     input.addEventListener('input', updateHandler);
@@ -6700,94 +7048,775 @@ window.cloneDataRow = function(idx) {
   if (!Array.isArray(currentDataset)) return;
   const clone = JSON.parse(JSON.stringify(currentDataset[idx]));
   currentDataset.splice(idx + 1, 0, clone);
-  renderTableGrid();
+  renderGroupedFormView();
   dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2), false);
+  setDataDirty(true);
   notify('Đã nhân bản dòng ' + (idx + 1));
 };
 
 window.removeDataRow = function(idx) {
   if (!Array.isArray(currentDataset)) return;
   currentDataset.splice(idx, 1);
-  renderTableGrid();
+  renderGroupedFormView();
   dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2), false);
+  setDataDirty(true);
   notify('Đã xóa dòng ' + (idx + 1));
 };
+
+const DATA_ARCHETYPE_TEMPLATES = {
+  users: {
+    id: 'users',
+    title: 'Tài khoản & Xác thực (Auth)',
+    badge: 'Mảng (Array)',
+    icon: 'ph-user-circle',
+    desc: 'Mảng tài khoản test với phone, email, mật khẩu, OTP, họ tên kèm biến ngẫu nhiên Faker.',
+    defaultFileName: 'authUsers.json',
+    defaultData: [
+      {
+        fullName: "{{random_name}}",
+        phone: "{{random_phone}}",
+        email: "{{random_email}}",
+        password: "Test@1234",
+        otp: "1111",
+        role: "candidate",
+        status: "active"
+      }
+    ]
+  },
+  search: {
+    id: 'search',
+    title: 'Tìm kiếm & Bộ lọc (Search)',
+    badge: 'Đối tượng (Object)',
+    icon: 'ph-magnifying-glass',
+    desc: 'Các tham số lọc tìm việc: từ khóa, tỉnh thành, ngành nghề, mức lương, kinh nghiệm làm việc.',
+    defaultFileName: 'jobSearchCriteria.json',
+    defaultData: {
+      keyword: "Chuyên viên Kiểm thử Tự động Playwright",
+      location: "Hà Nội",
+      industry: "Công nghệ thông tin",
+      salaryMin: "15000000",
+      salaryMax: "30000000",
+      experience: "2-3 năm",
+      jobType: "Toàn thời gian"
+    }
+  },
+  profile: {
+    id: 'profile',
+    title: 'Hồ sơ & Form cá nhân (Profile)',
+    badge: 'Phân cấp (Nested)',
+    icon: 'ph-identification-card',
+    desc: 'Cấu trúc biểu mẫu hồ sơ: thông tin chung, học vấn, kinh nghiệm, kỹ năng, mục tiêu nghề nghiệp.',
+    defaultFileName: 'candidateProfileData.json',
+    defaultData: {
+      personalInfo: {
+        fullName: "{{random_name}}",
+        dob: "1995-08-15",
+        gender: "Nam",
+        address: "Cầu Giấy, Hà Nội",
+        phone: "{{random_phone}}",
+        email: "{{random_email}}"
+      },
+      careerGoal: "Trở thành Senior QA Automation Lead",
+      skills: ["Playwright", "JavaScript", "BDD Cucumber", "CI/CD GitHub Actions"],
+      expectedSalary: "25000000"
+    }
+  },
+  apply: {
+    id: 'apply',
+    title: 'Ứng tuyển việc làm (Job Apply)',
+    badge: 'Quy trình (Flow)',
+    icon: 'ph-paper-plane-tilt',
+    desc: 'Dữ liệu nộp hồ sơ nhanh không CV, ứng tuyển bằng CV đính kèm, bulk apply nhiều tin tuyển dụng.',
+    defaultFileName: 'jobApplyData.json',
+    defaultData: {
+      noCVApply: {
+        job1: {
+          name: "{{random_name}}",
+          phone: "{{random_phone}}",
+          email: "{{random_email}}",
+          note: "Ứng tuyển vị trí QA Engineer"
+        }
+      },
+      cvPath: "data/TemplateCV.pdf",
+      bulkApplyCount: 3
+    }
+  },
+  table: {
+    id: 'table',
+    title: 'Bảng tham số nhiều dòng (Table)',
+    badge: 'Data-driven (Array)',
+    icon: 'ph-table',
+    desc: 'Mảng các test cases với input và expected result để chạy lặp kiểm thử giá trị biên & validation.',
+    defaultFileName: 'loginValidationCases.json',
+    defaultData: [
+      { testCase: "TC01_Valid_Phone", phone: "0987654321", otp: "1111", expectedResult: "success" },
+      { testCase: "TC02_Invalid_Phone", phone: "012345", otp: "1111", expectedResult: "error_phone_format" },
+      { testCase: "TC03_Wrong_OTP", phone: "0987654321", otp: "9999", expectedResult: "error_invalid_otp" }
+    ]
+  },
+  blank: {
+    id: 'blank',
+    title: 'Dữ liệu tùy chỉnh rỗng (Blank)',
+    badge: 'Tùy chỉnh (Custom)',
+    icon: 'ph-file-code',
+    desc: 'Bắt đầu từ đối tượng {} hoặc mảng [] trống để bạn tự do viết cấu trúc dữ liệu theo ý muốn.',
+    defaultFileName: 'customData.json',
+    defaultData: {
+      title: "Bộ dữ liệu tùy chỉnh",
+      createdAt: "{{date}}",
+      items: []
+    }
+  }
+};
+
+let currentCreateTemplate = 'users';
+let currentCreateDraftData = null;
+
+function switchToDataInspectMode() {
+  dataSubnavMode = 'inspect';
+  document.getElementById('data-tab-inspect')?.classList.add('active');
+  document.getElementById('data-tab-create')?.classList.remove('active');
+  document.getElementById('btn-tab-data-inspect')?.classList.add('active');
+  document.getElementById('btn-tab-data-create')?.classList.remove('active');
+
+  // Hiện lại cụm nút hành động cho file đang xem
+  const subnavActions = document.getElementById('data-subnav-actions');
+  if (subnavActions) subnavActions.style.display = 'flex';
+
+  const headInspect = document.getElementById('data-inspect-head');
+  const headCreate = document.getElementById('data-create-head');
+  if (headInspect) headInspect.style.display = 'flex';
+  if (headCreate) headCreate.style.display = 'none';
+
+  const viewInspect = document.getElementById('data-inspect-scroll-content');
+  const viewCreate = document.getElementById('data-create-scroll-content');
+  if (viewInspect) viewInspect.style.display = 'block';
+  if (viewCreate) viewCreate.style.display = 'none';
+
+  // Khôi phục lại trạng thái card file đang chọn trong Sidebar Cột 1
+  document.querySelectorAll('.data-file-card-item').forEach((card) => {
+    const isThis = card.dataset.file === currentDataFile;
+    card.classList.toggle('active', isThis);
+    card.classList.toggle('is-selected', isThis);
+  });
+
+  const eyebrow = document.getElementById('data-code-eyebrow');
+  if (eyebrow) eyebrow.textContent = 'MÃ NGUỒN DỮ LIỆU (.json)';
+
+  // Phục hồi tiêu đề & trạng thái Code Panel cho file hiện tại
+  const title = document.getElementById('data-code-title');
+  if (title) title.textContent = currentDataFile || 'dataset.json';
+  setDataDirty(isDataDirty);
+  if (dataRawEditorController && originalDatasetRaw) {
+    dataRawEditorController.setValue(originalDatasetRaw, { markClean: !isDataDirty });
+  }
+}
+
+function switchToDataCreateMode(presetTemplate = 'users') {
+  if (isDataDirty) {
+    const ok = confirm('⚠️ Bạn có thay đổi chưa lưu trong tệp hiện tại. Chuyển sang tạo tệp mới sẽ bỏ qua các thay đổi chưa lưu. Bạn có muốn tiếp tục?');
+    if (!ok) return;
+  }
+
+  dataSubnavMode = 'create';
+  document.getElementById('data-tab-inspect')?.classList.remove('active');
+  document.getElementById('data-tab-create')?.classList.add('active');
+  document.getElementById('btn-tab-data-inspect')?.classList.remove('active');
+  document.getElementById('btn-tab-data-create')?.classList.add('active');
+
+  // Ẩn cụm nút thao tác file cũ trên subnav để loại bỏ nhầm lẫn
+  const subnavActions = document.getElementById('data-subnav-actions');
+  if (subnavActions) subnavActions.style.display = 'none';
+
+  // Bỏ chọn toàn bộ card danh sách file bên Sidebar Cột 1
+  document.querySelectorAll('.data-file-card-item').forEach((card) => {
+    card.classList.remove('active');
+    card.classList.remove('is-selected');
+  });
+
+  const headInspect = document.getElementById('data-inspect-head');
+  const headCreate = document.getElementById('data-create-head');
+  if (headInspect) headInspect.style.display = 'none';
+  if (headCreate) headCreate.style.display = 'flex';
+
+  const viewInspect = document.getElementById('data-inspect-scroll-content');
+  const viewCreate = document.getElementById('data-create-scroll-content');
+  if (viewInspect) viewInspect.style.display = 'none';
+  if (viewCreate) viewCreate.style.display = 'block';
+
+  const scrollWrap = document.getElementById('data-middle-scroll');
+  if (scrollWrap) scrollWrap.scrollTop = 0;
+
+  // Khởi tạo bản nháp với mẫu template
+  currentCreateTemplate = presetTemplate;
+  const tmpl = DATA_ARCHETYPE_TEMPLATES[presetTemplate] || DATA_ARCHETYPE_TEMPLATES.users;
+  currentCreateDraftData = JSON.parse(JSON.stringify(tmpl.defaultData));
+
+  // Tên file và mô tả: Để trống với placeholder trực quan thay vì tự ý autofill
+  const filenameInput = document.getElementById('create-dataset-filename');
+  if (filenameInput) {
+    filenameInput.value = '';
+    filenameInput.placeholder = `vd: ${tmpl.defaultFileName} (hoặc chọn gợi ý bên dưới)`;
+  }
+
+  const descInput = document.getElementById('create-dataset-desc');
+  if (descInput) {
+    descInput.value = '';
+    descInput.placeholder = `Mục đích: ${tmpl.desc}`;
+  }
+
+  renderCreateTemplateCards();
+  renderCreateFields();
+  populateCreateLinkedScriptSelect();
+  updateCreateLivePreview();
+}
+
+function renderCreateTemplateCards() {
+  const container = document.getElementById('data-template-cards-grid');
+  if (!container) return;
+
+  container.innerHTML = Object.values(DATA_ARCHETYPE_TEMPLATES).map((tmpl) => {
+    const isActive = tmpl.id === currentCreateTemplate;
+    return `
+      <div class="data-template-card ${isActive ? 'active' : ''}" data-template-id="${tmpl.id}">
+        <div class="data-template-card-head">
+          <span class="data-template-card-icon"><i class="ph-bold ${tmpl.icon}"></i></span>
+          <span class="data-template-card-badge">${escapeHtml(tmpl.badge)}</span>
+        </div>
+        <h4 class="data-template-card-title">${escapeHtml(tmpl.title)}</h4>
+        <p class="data-template-card-desc">${escapeHtml(tmpl.desc)}</p>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.data-template-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const tid = card.dataset.templateId;
+      if (!tid || !DATA_ARCHETYPE_TEMPLATES[tid]) return;
+      currentCreateTemplate = tid;
+      const tmpl = DATA_ARCHETYPE_TEMPLATES[tid];
+      currentCreateDraftData = JSON.parse(JSON.stringify(tmpl.defaultData));
+
+      const filenameInput = document.getElementById('create-dataset-filename');
+      if (filenameInput) {
+        // Nếu ô tên đang trống hoặc đang chứa tên mặc định của 1 template thì cập nhật tên mẫu này
+        const isDefaultName = !filenameInput.value.trim() || Object.values(DATA_ARCHETYPE_TEMPLATES).some((t) => t.defaultFileName === filenameInput.value.trim());
+        if (isDefaultName) {
+          filenameInput.value = tmpl.defaultFileName;
+        }
+      }
+
+      const descInput = document.getElementById('create-dataset-desc');
+      if (descInput) {
+        const isDefaultDesc = !descInput.value.trim() || Object.values(DATA_ARCHETYPE_TEMPLATES).some((t) => t.desc === descInput.value.trim());
+        if (isDefaultDesc) {
+          descInput.value = tmpl.desc;
+        }
+      }
+
+      container.querySelectorAll('.data-template-card').forEach((c) => c.classList.remove('active'));
+      card.classList.add('active');
+
+      renderCreateFields();
+      updateCreateLivePreview();
+    });
+  });
+}
+
+function renderCreateFields() {
+  const container = document.getElementById('data-create-fields-container');
+  const headTitle = document.getElementById('data-create-fields-head-title');
+  const addRowBtn = document.getElementById('btn-add-create-row');
+  if (!container) return;
+
+  if (Array.isArray(currentCreateDraftData)) {
+    if (headTitle) headTitle.textContent = `Dữ liệu dạng mảng (${currentCreateDraftData.length} bản ghi / dòng)`;
+    if (addRowBtn) addRowBtn.style.display = 'inline-flex';
+
+    container.innerHTML = currentCreateDraftData.map((row, rIdx) => {
+      const keys = typeof row === 'object' && row !== null ? Object.keys(row) : [];
+      return `
+        <div class="data-accordion-card" style="margin-bottom: 8px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface);">
+          <div class="data-card-header" style="padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; background: var(--surface-2);">
+            <strong style="font-size: 12px; color: var(--text);">Dòng #${rIdx + 1} (${keys.length} trường)</strong>
+            ${currentCreateDraftData.length > 1 ? `
+              <button type="button" class="btn-icon-subtle" onclick="window.removeCreateDraftRow(${rIdx})" title="Xóa dòng này" style="color: var(--danger); padding: 2px;">
+                <i class="ph ph-trash"></i>
+              </button>` : ''}
+          </div>
+          <div style="padding: 10px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px;">
+            ${keys.map((k) => `
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 11px; font-weight: 700; color: var(--muted); font-family: var(--font-mono);">${escapeHtml(k)}</label>
+                <input type="text" class="text-input create-field-input" data-row="${rIdx}" data-key="${escapeHtml(k)}" value="${escapeHtml(String(row[k] ?? ''))}" style="font-size: 12px; padding: 6px 8px;" />
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else if (typeof currentCreateDraftData === 'object' && currentCreateDraftData !== null) {
+    const keys = Object.keys(currentCreateDraftData);
+    if (headTitle) headTitle.textContent = `Dữ liệu dạng đối tượng (${keys.length} trường cấp 1)`;
+    if (addRowBtn) addRowBtn.style.display = 'none';
+
+    container.innerHTML = keys.map((k) => {
+      const val = currentCreateDraftData[k];
+      const isObj = typeof val === 'object' && val !== null;
+      const displayVal = isObj ? JSON.stringify(val) : String(val ?? '');
+      return `
+        <div class="data-create-field-row">
+          <input type="text" class="text-input data-create-field-key create-key-input" data-orig-key="${escapeHtml(k)}" value="${escapeHtml(k)}" />
+          <input type="text" class="text-input data-create-field-val create-val-input" data-key="${escapeHtml(k)}" value="${escapeHtml(displayVal)}" ${isObj ? 'title="Dữ liệu JSON lồng nhau"' : ''} />
+          <button type="button" class="btn-icon-subtle" onclick="window.removeCreateDraftKey('${escapeHtml(k)}')" title="Xóa trường này" style="color: var(--danger); padding: 4px;">
+            <i class="ph ph-trash"></i>
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Gắn sự kiện sửa trường
+  container.querySelectorAll('.create-field-input').forEach((inp) => {
+    inp.addEventListener('focus', () => { lastFocusedDataInput = inp; });
+    inp.addEventListener('input', () => {
+      const r = parseInt(inp.dataset.row, 10);
+      const k = inp.dataset.key;
+      if (Array.isArray(currentCreateDraftData) && currentCreateDraftData[r]) {
+        currentCreateDraftData[r][k] = inp.value;
+        updateCreateLivePreview();
+      }
+    });
+  });
+
+  container.querySelectorAll('.create-val-input').forEach((inp) => {
+    inp.addEventListener('focus', () => { lastFocusedDataInput = inp; });
+    inp.addEventListener('input', () => {
+      const k = inp.dataset.key;
+      if (typeof currentCreateDraftData === 'object' && currentCreateDraftData !== null) {
+        try {
+          if (inp.value.startsWith('{') || inp.value.startsWith('[')) {
+            currentCreateDraftData[k] = JSON.parse(inp.value);
+          } else {
+            currentCreateDraftData[k] = inp.value;
+          }
+        } catch (_) {
+          currentCreateDraftData[k] = inp.value;
+        }
+        updateCreateLivePreview();
+      }
+    });
+  });
+
+  container.querySelectorAll('.create-key-input').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const origK = inp.dataset.origKey;
+      const newK = inp.value.trim();
+      if (newK && newK !== origK && typeof currentCreateDraftData === 'object') {
+        const val = currentCreateDraftData[origK];
+        delete currentCreateDraftData[origK];
+        currentCreateDraftData[newK] = val;
+        renderCreateFields();
+        updateCreateLivePreview();
+      }
+    });
+  });
+}
+
+window.removeCreateDraftRow = function(rIdx) {
+  if (Array.isArray(currentCreateDraftData) && currentCreateDraftData.length > 1) {
+    currentCreateDraftData.splice(rIdx, 1);
+    renderCreateFields();
+    updateCreateLivePreview();
+  }
+};
+
+window.removeCreateDraftKey = function(k) {
+  if (typeof currentCreateDraftData === 'object' && currentCreateDraftData !== null) {
+    delete currentCreateDraftData[k];
+    renderCreateFields();
+    updateCreateLivePreview();
+  }
+};
+
+function updateCreateLivePreview() {
+  if (dataSubnavMode !== 'create') return;
+  const fileNameInput = document.getElementById('create-dataset-filename');
+  const userTyped = fileNameInput?.value.trim();
+  let rawName = userTyped || '';
+  if (rawName && !rawName.endsWith('.json')) rawName += '.json';
+
+  const codeEyebrow = document.getElementById('data-code-eyebrow');
+  if (codeEyebrow) codeEyebrow.textContent = 'LIVE PREVIEW (.json)';
+
+  const codeTitle = document.getElementById('data-code-title');
+  if (codeTitle) {
+    if (rawName) {
+      codeTitle.textContent = `Tạo mới: ${rawName} (Xem trước)`;
+    } else {
+      codeTitle.textContent = 'Bản xem trước tệp mới';
+    }
+  }
+
+  const statusBadge = document.getElementById('data-code-status-badge');
+  if (statusBadge) {
+    statusBadge.innerHTML = '<i class="ph-bold ph-eye"></i> Bản xem trước realtime';
+    statusBadge.classList.remove('modified');
+    statusBadge.style.display = 'inline-flex';
+  }
+
+  const jsonStr = JSON.stringify(currentCreateDraftData || {}, null, 2);
+  if (dataRawEditorController) {
+    dataRawEditorController.setValue(jsonStr, { markClean: true });
+  }
+
+  const snippetBox = document.getElementById('create-dataset-snippet-box');
+  const snippetCode = document.getElementById('create-dataset-snippet-code');
+  if (snippetCode) {
+    snippetCode.textContent = `const testData = require('../../../data/${rawName || 'dataset.json'}');`;
+  }
+  const selectScript = document.getElementById('create-dataset-linked-script-select');
+  if (snippetBox && selectScript) {
+    snippetBox.style.display = selectScript.value ? 'block' : 'none';
+  }
+}
+
+function populateCreateLinkedScriptSelect() {
+  const select = document.getElementById('create-dataset-linked-script-select');
+  if (!select) return;
+  const currentVal = select.value;
+  select.innerHTML = '<option value="">-- Không liên kết ngay (Có thể import thủ công sau) --</option>' +
+    (projectScripts || []).map((s) => `
+      <option value="${escapeHtml(s.id)}" ${s.id === currentVal ? 'selected' : ''}>
+        ${escapeHtml(s.scenarioName || s.fileName)} (${escapeHtml(s.fileName)})
+      </option>
+    `).join('');
+}
+
+async function submitCreateDataset() {
+  const nameInput = document.getElementById('create-dataset-filename');
+  let fileName = nameInput?.value.trim();
+  if (!fileName) {
+    notify('⚠️ Vui lòng nhập tên tệp dữ liệu.');
+    nameInput?.focus();
+    return;
+  }
+  if (!fileName.endsWith('.json')) fileName += '.json';
+
+  let payloadContent = currentCreateDraftData;
+  const rawVal = document.getElementById('data-raw-editor')?.value;
+  if (rawVal) {
+    try {
+      payloadContent = JSON.parse(rawVal);
+    } catch (_) {}
+  }
+
+  try {
+    const res = await request('/api/data/create-dataset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName,
+        templateType: currentCreateTemplate,
+        content: payloadContent,
+      }),
+    });
+
+    notify(`🎉 ${res.message || 'Đã tạo tệp dữ liệu ' + fileName} thành công!`);
+
+    const selectScript = document.getElementById('create-dataset-linked-script-select');
+    if (selectScript && selectScript.value) {
+      notify(`💡 Kịch bản BDD có thể nạp tệp qua: require('../../../data/${fileName}')`);
+    }
+
+    await loadDataFilesList();
+    await selectDataset(res.fileName || fileName, true);
+    switchToDataInspectMode();
+  } catch (err) {
+    notify('❌ Không thể tạo tệp dữ liệu: ' + err.message);
+  }
+}
+
+async function saveCurrentDataset() {
+  if (dataSubnavMode === 'create') {
+    return submitCreateDataset();
+  }
+  if (!currentDataFile) {
+    notify('Vui lòng chọn một tệp dữ liệu trước.');
+    return;
+  }
+  try {
+    let payloadData = currentDataset;
+    const rawVal = document.getElementById('data-raw-editor')?.value;
+    if (dataDirectEditMode && rawVal) {
+      try {
+        payloadData = JSON.parse(rawVal);
+        currentDataset = payloadData;
+      } catch (parseErr) {
+        notify('⚠️ Mã JSON không hợp lệ: ' + parseErr.message);
+        return;
+      }
+    }
+    await request('/api/data/dataset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: currentDataFile, data: payloadData }),
+    });
+    originalDatasetRaw = JSON.stringify(currentDataset, null, 2);
+    dataRawEditorController?.setValue(originalDatasetRaw, true);
+    setDataDirty(false);
+    notify(`✅ Đã lưu dữ liệu vào ${currentDataFile} (có tạo backup an toàn)!`);
+    await loadDataFilesList();
+  } catch (err) {
+    notify('Không thể lưu dữ liệu: ' + err.message);
+  }
+}
+
+function revertCurrentDataset() {
+  if (dataSubnavMode === 'create') {
+    return switchToDataCreateMode(currentCreateTemplate);
+  }
+  if (!originalDatasetRaw) return;
+  try {
+    currentDataset = JSON.parse(originalDatasetRaw);
+    dataRawEditorController?.setValue(originalDatasetRaw, true);
+    renderGroupedFormView();
+    setDataDirty(false);
+    notify('↩️ Đã hoàn tác thay đổi về bản gốc từ disk.');
+  } catch (e) {
+    notify('Lỗi hoàn tác: ' + e.message);
+  }
+}
+
+function formatCurrentDatasetJson() {
+  const rawEditorEl = document.getElementById('data-raw-editor');
+  if (!rawEditorEl) return;
+  try {
+    const parsed = JSON.parse(rawEditorEl.value);
+    const formatted = JSON.stringify(parsed, null, 2);
+    dataRawEditorController?.setValue(formatted, false);
+    if (dataSubnavMode === 'create') {
+      currentCreateDraftData = parsed;
+      renderCreateFields();
+    } else {
+      currentDataset = parsed;
+      setDataDirty(true);
+    }
+    notify('✨ Đã format làm đẹp mã JSON.');
+  } catch (err) {
+    notify('⚠️ Không thể format: Mã JSON có lỗi cú pháp - ' + err.message);
+  }
+}
 
 function initDataStudioControls() {
   if (isDataStudioInitialized) return;
   isDataStudioInitialized = true;
 
-  const toggleForm = document.getElementById('data-toggle-form');
-  const toggleRaw = document.getElementById('data-toggle-raw');
-  const saveBtn = document.getElementById('data-save-btn');
-  const refreshBtn = document.getElementById('data-refresh-btn');
-  const exportCsvBtn = document.getElementById('data-export-csv-btn');
-  const importCsvBtn = document.getElementById('data-import-csv-btn');
-  const csvInput = document.getElementById('data-csv-file-input');
+  // 1. Tìm kiếm và Filter Pills
+  const searchInput = document.getElementById('data-search-input');
+  searchInput?.addEventListener('input', (e) => {
+    dataSearchQuery = e.target.value;
+    renderDataFilesList();
+  });
+
+  document.querySelectorAll('#data-filter-pills .data-filter-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#data-filter-pills .data-filter-btn').forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      dataTypeFilter = btn.dataset.type || 'all';
+      renderDataFilesList();
+    });
+  });
+
+  // 2. Subnav Mode Buttons (Chi tiết, Tạo mới)
+  document.getElementById('data-tab-inspect')?.addEventListener('click', switchToDataInspectMode);
+  document.getElementById('btn-tab-data-inspect')?.addEventListener('click', switchToDataInspectMode);
+
+  document.getElementById('data-tab-create')?.addEventListener('click', () => switchToDataCreateMode());
+  document.getElementById('btn-tab-data-create')?.addEventListener('click', () => switchToDataCreateMode());
+  document.getElementById('data-new-file-btn')?.addEventListener('click', () => switchToDataCreateMode());
+
+  // Head toggle button for create mode
+  document.getElementById('btn-toggle-data-sidebar-head-create')?.addEventListener('click', () => {
+    document.getElementById('btn-toggle-data-sidebar-head')?.click();
+  });
+
+  // Creator Actions
+  document.getElementById('btn-submit-create-dataset')?.addEventListener('click', submitCreateDataset);
+  document.getElementById('btn-submit-create-dataset-bottom')?.addEventListener('click', submitCreateDataset);
+
+  document.getElementById('btn-reset-create-dataset')?.addEventListener('click', () => switchToDataCreateMode(currentCreateTemplate));
+  document.getElementById('btn-reset-create-dataset-bottom')?.addEventListener('click', () => switchToDataCreateMode(currentCreateTemplate));
+
+  document.getElementById('btn-cancel-create-dataset')?.addEventListener('click', switchToDataInspectMode);
+  document.getElementById('btn-cancel-create-dataset-bottom')?.addEventListener('click', switchToDataInspectMode);
+
+  // Quick name suggestions
+  document.querySelectorAll('.data-quick-name-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const name = chip.dataset.name;
+      const inp = document.getElementById('create-dataset-filename');
+      if (inp && name) {
+        inp.value = name;
+        updateCreateLivePreview();
+      }
+    });
+  });
+
+  document.getElementById('create-dataset-filename')?.addEventListener('input', updateCreateLivePreview);
+
+  // Add field in Creator
+  document.getElementById('btn-add-create-field')?.addEventListener('click', () => {
+    if (Array.isArray(currentCreateDraftData)) {
+      const firstRow = currentCreateDraftData[0];
+      if (firstRow && typeof firstRow === 'object') {
+        const key = prompt('Nhập tên trường mới:');
+        if (key && key.trim()) {
+          currentCreateDraftData.forEach((row) => { row[key.trim()] = ''; });
+          renderCreateFields();
+          updateCreateLivePreview();
+        }
+      }
+    } else if (typeof currentCreateDraftData === 'object' && currentCreateDraftData !== null) {
+      const key = prompt('Nhập tên thuộc tính mới:');
+      if (key && key.trim()) {
+        currentCreateDraftData[key.trim()] = '';
+        renderCreateFields();
+        updateCreateLivePreview();
+      }
+    }
+  });
+
+  // Add row in Creator
+  document.getElementById('btn-add-create-row')?.addEventListener('click', () => {
+    if (Array.isArray(currentCreateDraftData)) {
+      const templateRow = currentCreateDraftData[0] ? JSON.parse(JSON.stringify(currentCreateDraftData[0])) : {};
+      Object.keys(templateRow).forEach((k) => { templateRow[k] = ''; });
+      currentCreateDraftData.push(templateRow);
+      renderCreateFields();
+      updateCreateLivePreview();
+    }
+  });
+
+  // Creator Faker Chips
+  document.querySelectorAll('.data-create-faker-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const text = chip.dataset.faker;
+      if (lastFocusedDataInput) {
+        lastFocusedDataInput.value += text;
+        lastFocusedDataInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      navigator.clipboard.writeText(text);
+      notify('Đã chèn và sao chép: ' + text);
+    });
+  });
+
+  // Creator linked script select
+  document.getElementById('create-dataset-linked-script-select')?.addEventListener('change', updateCreateLivePreview);
+  document.getElementById('btn-copy-create-snippet')?.addEventListener('click', () => {
+    const codeEl = document.getElementById('create-dataset-snippet-code');
+    if (codeEl) {
+      navigator.clipboard.writeText(codeEl.textContent);
+      notify('📋 Đã sao chép đoạn mã import dữ liệu!');
+    }
+  });
+
+  // 3. Save buttons (Subnav, Middle Panel Head, Code Panel)
+  document.getElementById('data-save-btn')?.addEventListener('click', saveCurrentDataset);
+  document.getElementById('data-middle-save-btn')?.addEventListener('click', saveCurrentDataset);
+  document.getElementById('data-code-save-btn')?.addEventListener('click', saveCurrentDataset);
+
+  // 4. Revert buttons
+  document.getElementById('data-revert-btn')?.addEventListener('click', revertCurrentDataset);
+  document.getElementById('data-code-revert-btn')?.addEventListener('click', revertCurrentDataset);
+
+  // 5. Format JSON button
+  document.getElementById('data-format-json-btn')?.addEventListener('click', formatCurrentDatasetJson);
+
+  // 6. Copy JSON buttons
+  const copyHandler = async () => {
+    const val = dataRawEditorController?.getValue() || JSON.stringify(currentDataset, null, 2);
+    await navigator.clipboard.writeText(val);
+    notify('📋 Đã sao chép mã JSON vào clipboard!');
+  };
+  document.getElementById('data-copy-json-btn')?.addEventListener('click', copyHandler);
+  document.getElementById('data-code-copy-btn')?.addEventListener('click', copyHandler);
+
+  // 7. Toggle Edit Button on Code Panel
+  document.getElementById('data-btn-toggle-edit')?.addEventListener('click', () => {
+    dataDirectEditMode = !dataDirectEditMode;
+    const stage = document.getElementById('data-code-stage');
+    const editor = document.getElementById('data-raw-editor');
+    const saveBtn = document.getElementById('data-code-save-btn');
+    const editBtnText = document.getElementById('data-edit-btn-text');
+    const statusPill = document.getElementById('data-code-status-badge');
+
+    if (dataDirectEditMode) {
+      if (stage) stage.classList.add('editing');
+      if (editor) {
+        editor.removeAttribute('readonly');
+        editor.focus();
+      }
+      if (saveBtn) saveBtn.style.display = 'inline-flex';
+      if (editBtnText) editBtnText.textContent = 'Xem mã';
+      if (statusPill) {
+        statusPill.innerHTML = '<i class="ph-bold ph-pencil-simple"></i> Đang chỉnh sửa';
+        statusPill.classList.add('modified');
+      }
+    } else {
+      if (stage) stage.classList.remove('editing');
+      if (editor) editor.setAttribute('readonly', 'true');
+      if (saveBtn) saveBtn.style.display = 'none';
+      if (editBtnText) editBtnText.textContent = 'Chỉnh sửa';
+      setDataDirty(isDataDirty);
+    }
+  });
+
+  // 8. Shared Code Editor for JSON
   const rawEditorEl = document.getElementById('data-raw-editor');
   const rawPreviewEl = document.getElementById('data-raw-preview');
   const rawEditor = createSharedCodeEditor({
     textarea: rawEditorEl,
     preview: rawPreviewEl,
     language: 'json',
+    badge: document.getElementById('data-code-status-badge'),
+    revertBtn: document.getElementById('data-code-revert-btn'),
+    copyBtn: document.getElementById('data-code-copy-btn'),
+    saveBtn: document.getElementById('data-code-save-btn'),
     onInput: () => {
-      try { currentDataset = JSON.parse(rawEditorEl.value); } catch (_) {}
-      document.getElementById('data-revert-btn').disabled = !rawEditor.isDirty();
+      setDataDirty(true);
+      try {
+        currentDataset = JSON.parse(rawEditorEl.value);
+        renderGroupedFormView();
+      } catch (_) {}
+    },
+    onSave: async () => {
+      await saveCurrentDataset();
     },
   });
   dataRawEditorController = rawEditor;
 
-  toggleForm?.addEventListener('click', () => {
-    dataViewMode = 'form';
-    renderDataView();
-  });
-  toggleRaw?.addEventListener('click', () => {
-    dataViewMode = 'raw';
-    if (dataRawEditorController && currentDataset) {
-      dataRawEditorController.setValue(JSON.stringify(currentDataset, null, 2));
-    }
-    renderDataView();
-  });
-
-  document.getElementById('data-copy-json-btn')?.addEventListener('click', async () => {
-    await navigator.clipboard.writeText(rawEditor?.getValue() || JSON.stringify(currentDataset, null, 2));
-    notify('Đã sao chép JSON.');
-  });
-  document.getElementById('data-revert-btn')?.addEventListener('click', () => {
-    rawEditor?.revert();
-    try { currentDataset = JSON.parse(rawEditor.getValue()); } catch (_) {}
-    document.getElementById('data-revert-btn').disabled = true;
-  });
-
-  saveBtn?.addEventListener('click', async () => {
-    if (!currentDataFile) return;
-    try {
-      let payloadData = currentDataset;
-      if (dataViewMode === 'raw') {
-        const rawVal = document.getElementById('data-raw-editor').value;
-        payloadData = JSON.parse(rawVal);
-        currentDataset = payloadData;
+  // 9. Global Ctrl+S in Data Studio
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      const dataView = document.getElementById('data-view');
+      const isDataActive = dataView && (!dataView.hidden || dataView.classList.contains('active'));
+      if (isDataActive) {
+        e.preventDefault();
+        saveCurrentDataset();
       }
-      await request('/api/data/dataset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: currentDataFile, data: payloadData }),
-      });
-      dataRawEditorController?.setValue(JSON.stringify(currentDataset, null, 2));
-      notify('Đã lưu dữ liệu vào ' + currentDataFile + ' (có tạo backup an toàn)');
-      await loadDataFilesList();
-    } catch (err) {
-      notify('Không thể lưu dữ liệu: ' + err.message);
     }
   });
 
-  refreshBtn?.addEventListener('click', async () => {
+  // 10. Refresh button
+  document.getElementById('data-refresh-btn')?.addEventListener('click', async () => {
     await loadDataFilesList();
-    if (currentDataFile) await selectDataset(currentDataFile);
+    if (currentDataFile) await selectDataset(currentDataFile, true);
     notify('Đã làm mới dữ liệu.');
   });
 
-  exportCsvBtn?.addEventListener('click', () => {
+  // 11. Export CSV
+  document.getElementById('data-export-csv-btn')?.addEventListener('click', () => {
     if (!currentDataFile) return notify('Vui lòng chọn tệp dữ liệu trước.');
     const link = document.createElement('a');
     link.href = `/api/data/export-csv?file=${encodeURIComponent(currentDataFile)}`;
@@ -6797,7 +7826,9 @@ function initDataStudioControls() {
     link.remove();
   });
 
-  importCsvBtn?.addEventListener('click', () => {
+  // 12. Import CSV
+  const csvInput = document.getElementById('data-csv-file-input');
+  document.getElementById('data-import-csv-btn')?.addEventListener('click', () => {
     if (!currentDataFile) return notify('Vui lòng chọn tệp dữ liệu trước.');
     csvInput?.click();
   });
@@ -6815,7 +7846,7 @@ function initDataStudioControls() {
       });
       notify(`Đã nhập ${result.importedRows} dòng và tạo backup an toàn.`);
       await loadDataFilesList();
-      await selectDataset(currentDataFile);
+      await selectDataset(currentDataFile, true);
     } catch (error) {
       notify('Không thể nhập CSV: ' + error.message);
     } finally {
@@ -6823,34 +7854,7 @@ function initDataStudioControls() {
     }
   });
 
-  document.getElementById('data-new-file-btn')?.addEventListener('click', () => {
-    document.getElementById('modal-new-dataset')?.showModal();
-  });
-
-  document.getElementById('confirm-create-dataset-btn')?.addEventListener('click', async () => {
-    const nameInput = document.getElementById('new-dataset-name');
-    const templateSelect = document.getElementById('new-dataset-template');
-    const fileName = nameInput?.value.trim();
-    if (!fileName) {
-      notify('Vui lòng nhập tên tệp dữ liệu.');
-      return;
-    }
-    try {
-      const res = await request('/api/data/create-dataset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName, templateType: templateSelect?.value || 'array' }),
-      });
-      notify(res.message);
-      document.getElementById('modal-new-dataset')?.close();
-      nameInput.value = '';
-      await loadDataFilesList();
-      await selectDataset(res.fileName || fileName);
-    } catch (err) {
-      notify('Không thể tạo tệp: ' + err.message);
-    }
-  });
-
+  // 14. Dynamic preview & tags
   document.getElementById('data-quick-preview-btn')?.addEventListener('click', async () => {
     const modal = document.getElementById('modal-dynamic-preview');
     const listEl = document.getElementById('dynamic-preview-list');
@@ -6886,60 +7890,13 @@ function initDataStudioControls() {
       const text = tag.dataset.tag;
       if (lastFocusedDataInput) {
         lastFocusedDataInput.value += text;
-        const r = parseInt(lastFocusedDataInput.dataset.row, 10);
-        const c = lastFocusedDataInput.dataset.col;
-        if (currentDataset && currentDataset[r]) {
-          currentDataset[r][c] = lastFocusedDataInput.value;
-        }
+        lastFocusedDataInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
       navigator.clipboard.writeText(text);
       notify('Đã chèn và sao chép: ' + text);
     });
   });
 
-  const addAssertBtn = document.getElementById('rec-add-assertion-btn');
-  const modalAssert = document.getElementById('modal-add-assertion');
-  const confirmAssertBtn = document.getElementById('confirm-add-assertion-btn');
-
-  if (addAssertBtn && modalAssert) {
-    addAssertBtn.addEventListener('click', () => {
-      modalAssert.showModal();
-    });
-  }
-
-  if (confirmAssertBtn && modalAssert) {
-    confirmAssertBtn.addEventListener('click', () => {
-      const aType = document.getElementById('assertion-type-select')?.value || 'toBeVisible';
-      const target = (document.getElementById('assertion-locator-input')?.value || '').trim();
-      const expected = (document.getElementById('assertion-value-input')?.value || '').trim();
-
-      if (!target && aType !== 'toHaveURL') {
-        notify('Vui lòng nhập selector / locator cần kiểm tra.');
-        return;
-      }
-
-      let locatorStr = target.startsWith('page.') ? target : target.startsWith('getBy') ? `page.${target}` : `page.locator('${target}')`;
-      let line = '';
-      if (aType === 'toBeVisible' || aType === 'toBeHidden') {
-        line = `  await expect(${locatorStr}).${aType}();`;
-      } else if (aType === 'toHaveURL') {
-        line = `  await expect(page).toHaveURL(/${expected}/);`;
-      } else {
-        line = `  await expect(${locatorStr}).${aType}('${expected}');`;
-      }
-
-      if (recorderState.rawScript) {
-        recorderState.rawScript = recorderState.rawScript.trimEnd() + '\n' + line + '\n';
-        const parsed = parsePlaywrightScript(recorderState.rawScript);
-        recorderState.parsedActions = parsed.actions;
-        recorderState.detectedUrl = parsed.detectedUrl || recorderState.detectedUrl;
-        renderStep2CodeView(recorderState.rawScript);
-      }
-
-      modalAssert.close();
-      notify('Đã thêm điểm kiểm tra vào kịch bản.');
-    });
-  }
 }
 
 /* ==========================================================================
@@ -11160,38 +12117,6 @@ async function openSuitesManager() {
     renderSuitesView(settingsCache.suites || {});
   }
 }
-
-document.getElementById('suites-save-btn')?.addEventListener('click', async () => {
-  const btn = document.getElementById('suites-save-btn');
-  if (btn) btn.disabled = true;
-  try {
-    await saveSettings();
-    notify('Đã lưu toàn bộ cấu hình Test Suites thành công!');
-  } catch (err) {
-    notify(`Lỗi lưu Test Suites: ${err.message}`);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-});
-
-document.getElementById('suites-sync-git-btn')?.addEventListener('click', async () => {
-  const btn = document.getElementById('suites-sync-git-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.innerHTML = '<i class="ph ph-spinner-gap"></i> Đang đồng bộ...';
-  }
-  try {
-    const result = await request('/api/git/sync', { method: 'POST' });
-    notify(result.message || 'Đã đồng bộ hóa Test Suites lên GitHub thành công!');
-  } catch (err) {
-    notify(`Lỗi đồng bộ Git: ${err.message}`);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ph-bold ph-cloud-arrow-up"></i> Đồng bộ lên GitHub';
-    }
-  }
-});
 
 document.getElementById('runner-goto-suites-btn')?.addEventListener('click', () => {
   document.querySelector('.nav-dropdown-item[data-view="suites-view"]')?.click();

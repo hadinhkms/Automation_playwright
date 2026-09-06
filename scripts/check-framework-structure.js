@@ -28,12 +28,17 @@ function reportMatches(file, content, pattern, message) {
   }
 }
 
-const files = sourceDirs.flatMap(walk).filter((file) => file.endsWith('.js'));
-const specFiles = files.filter((file) => file.startsWith(`tests${path.sep}e2e${path.sep}`));
+const targetArgs = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
+const files = targetArgs.length > 0
+  ? targetArgs.map((f) => path.normalize(f.replace(/^[/\\]+/, ''))).filter((file) => file.endsWith('.js') && fs.existsSync(path.join(root, file)))
+  : sourceDirs.flatMap(walk).filter((file) => file.endsWith('.js'));
+const specFiles = files.filter((file) => file.startsWith(`tests${path.sep}e2e${path.sep}`) || file.endsWith('.spec.js'));
 const pageFiles = files.filter((file) => file.startsWith(`pages${path.sep}`));
 
-if (specFiles.length === 0) issues.push('tests/e2e: no .spec.js files found');
-if (pageFiles.length === 0) issues.push('pages: no Page Object files found');
+if (targetArgs.length === 0) {
+  if (specFiles.length === 0) issues.push('tests/e2e: no .spec.js files found');
+  if (pageFiles.length === 0) issues.push('pages: no Page Object files found');
+}
 
 for (const file of files) {
   const content = fs.readFileSync(path.join(root, file), 'utf8');

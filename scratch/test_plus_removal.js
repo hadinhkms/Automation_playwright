@@ -60,18 +60,12 @@ const path = require('path');
     console.log('[PASS] pm-btn-create-mode is clean:', textPmCreate);
   }
 
-  // 4. Check Recorder Add Assertion button
+  // 4. Check Recorder view navigation
   await page.click('#nav-tools-btn');
   await page.waitForTimeout(200);
   await page.click('.nav-dropdown-item[data-view="recorder-view"]');
-  await page.waitForSelector('#rec-add-assertion-btn', { timeout: 5000 });
-  const textRecAssertion = await page.$eval('#rec-add-assertion-btn', el => el.textContent.trim());
-  console.log('[CHECK 5] rec-add-assertion-btn text:', JSON.stringify(textRecAssertion));
-  if (textRecAssertion.includes('+')) {
-    console.error('[FAIL] rec-add-assertion-btn still has +');
-  } else {
-    console.log('[PASS] rec-add-assertion-btn is clean:', textRecAssertion);
-  }
+  await page.waitForSelector('#rec-clear-all-btn', { timeout: 5000 });
+  console.log('[CHECK 5] recorder-view loaded cleanly without rec-add-assertion-btn');
 
   // 5. Check Wizard Step 3 button
   await page.click('.view-tab[data-view="builder-view"]');

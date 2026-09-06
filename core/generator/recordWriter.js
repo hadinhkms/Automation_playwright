@@ -63,20 +63,27 @@ function saveDraftFiles({
   fs.mkdirSync(path.dirname(specAbsPath), { recursive: true });
   fs.writeFileSync(specAbsPath, specFile.content, 'utf8');
 
-  // 5. Framework Guard: Tự động chạy npm run check:framework
+  // 5. Framework Guard: Tự động chạy check:framework cho các file vừa tạo
   let frameworkCheck = { passed: true, output: '' };
   if (typeof execSyncFn === 'function') {
     try {
-      const checkOutput = execSyncFn('node scripts/check-framework-structure.js', {
+      const pomRel = path.relative(ROOT, pomAbsPath).replace(/\\/g, '/');
+      const specRel = path.relative(ROOT, specAbsPath).replace(/\\/g, '/');
+      const checkOutput = execSyncFn(`node scripts/check-framework-structure.js "${pomRel}" "${specRel}"`, {
         cwd: ROOT,
         stdio: 'pipe',
         timeout: 10000,
       }).toString();
       frameworkCheck = { passed: true, output: checkOutput.trim() };
     } catch (checkErr) {
+      const combinedOutput = [
+        checkErr.stdout ? checkErr.stdout.toString() : '',
+        checkErr.stderr ? checkErr.stderr.toString() : '',
+      ].filter(Boolean).join('\n').trim();
+
       frameworkCheck = {
         passed: false,
-        output: checkErr.stdout ? checkErr.stdout.toString() : checkErr.message,
+        output: combinedOutput || checkErr.message,
       };
     }
   }

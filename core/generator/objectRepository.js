@@ -36,7 +36,7 @@ function getReadiness({ relativePath, className, baseClass, content }) {
   }
   const exportReady = new RegExp(`module\\.exports\\s*=\\s*\\{[^}]*\\b${className}\\b`).test(content);
   const importReady = /require\(['"][^'"]+['"]\)/.test(content) || baseClass === 'BasePage';
-  const platformReady = relativePath === 'pages/BasePage.js' || PAGE_ROOTS.slice(1).some((root) => relativePath.startsWith(root));
+  const platformReady = relativePath.startsWith('pages/') || relativePath.startsWith('core/fixtures/');
   const checks = { syntax, export: exportReady, import: importReady, platform: platformReady };
   const passed = Object.values(checks).every(Boolean);
   return { status: passed ? 'ready' : 'blocked', ready: passed, checks, reason: passed ? null : Object.entries(checks).filter(([, value]) => !value).map(([key]) => key).join(', ') };

@@ -1399,8 +1399,9 @@ const server = http.createServer(async (request, response) => {
       const fileName = `rec_${Date.now()}.js`;
       const outputPath = path.join(RECORDINGS_DIR, fileName);
 
+      const playwrightCli = require.resolve('@playwright/test/cli');
       const args = [
-        'playwright',
+        playwrightCli,
         'codegen',
         targetUrl,
         '--target=playwright-test',
@@ -1422,11 +1423,12 @@ const server = http.createServer(async (request, response) => {
         args.push(`--test-id-attribute=${testIdAttribute}`);
       }
 
-      const child = spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', args, {
+      const child = spawn(process.execPath, args, {
         cwd: ROOT,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env },
-        shell: true,
+        shell: false,
+        windowsHide: false,
       });
 
       activeRecorder = {

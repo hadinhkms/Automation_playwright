@@ -1,3 +1,7 @@
+Before making any UI/UX, frontend, backend or process changes in this repository, read and strictly follow:
+1. Canonical Software Delivery Process & Quality Standard: .master_process/SOFTWARE_DELIVERY_PROCESS_MASTER.md
+2. Master Prompts: .master_process/prompts/
+
 ﻿Always read and strictly follow `ai/shared/AI_PROMPTS.md` when writing or modifying Playwright test scripts.
 Before writing or modifying Playwright tests, read `ai/shared/TEST_AUTOMATION_LESSONS.md` for confirmed automation issues and preventive patterns.
 

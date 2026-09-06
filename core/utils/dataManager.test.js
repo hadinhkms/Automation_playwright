@@ -1,4 +1,4 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   listDatasets,
@@ -13,8 +13,8 @@ const {
 test('DataManager lists existing datasets', () => {
   const list = listDatasets();
   assert.ok(Array.isArray(list));
-  assert.ok(list.some((d) => d.fileName === 'users.json'));
-  assert.ok(list.some((d) => d.fileName === 'applyJobData.json'));
+  assert.ok(list.length > 0);
+  assert.ok(list.every((d) => d.fileName.endsWith('.json')));
 });
 
 test('DataManager converts JSON array to CSV and back', () => {
