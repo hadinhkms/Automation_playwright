@@ -8726,6 +8726,7 @@ function resetWizardToDefaults(skipConfirm = false) {
   wizardSelectedPoms = new Set(['pages/desktop/HomePage.js']);
   wizardSelectedDataset = '';
   wizardBddSteps = [];
+  clearAllWizardErrors();
 
   // 2. Reset Step 1 form fields
   const defaults = {
@@ -8992,6 +8993,9 @@ function renderWizardPomList() {
     btnSelectAll.addEventListener('click', () => {
       const currentPages = getWizardCompatiblePages();
       currentPages.forEach((p) => wizardSelectedPoms.add(p.relativePath));
+      document.getElementById('wizard-pom-box')?.classList.remove('wizard-field-error');
+      const pomErr = document.getElementById('wizard-pom-error');
+      if (pomErr) pomErr.style.display = 'none';
       renderWizardPomList();
       updateCreateScriptPreview();
     });
@@ -9098,6 +9102,9 @@ function renderWizardPomList() {
       if (cb.checked) {
         wizardSelectedPoms.add(p);
         card.classList.add('selected');
+        document.getElementById('wizard-pom-box')?.classList.remove('wizard-field-error');
+        const pomErr = document.getElementById('wizard-pom-error');
+        if (pomErr) pomErr.style.display = 'none';
       } else {
         wizardSelectedPoms.delete(p);
         card.classList.remove('selected');
@@ -9196,34 +9203,149 @@ function renderWizardBddSteps() {
   });
 }
 
-function validateWizardStep(step) {
+function clearAllWizardErrors() {
+  document.getElementById('create-script-title')?.classList.remove('wizard-field-error');
+  const titleErr = document.getElementById('create-script-title-error');
+  if (titleErr) titleErr.style.display = 'none';
+
+  document.getElementById('wizard-pom-box')?.classList.remove('wizard-field-error');
+  const pomErr = document.getElementById('wizard-pom-error');
+  if (pomErr) pomErr.style.display = 'none';
+
+  document.getElementById('wizard-precondition-desc')?.classList.remove('wizard-field-error');
+  const precondErr = document.getElementById('wizard-precond-error');
+  if (precondErr) precondErr.style.display = 'none';
+
+  const stepsErr = document.getElementById('wizard-steps-error');
+  if (stepsErr) stepsErr.style.display = 'none';
+}
+
+function validateWizardStep(step, showFeedback = true) {
   if (step === 1) {
     const titleInput = document.getElementById('create-script-title');
-    if (!titleInput?.value.trim()) {
-      titleInput?.setCustomValidity('Vui lòng nhập tên kịch bản.');
-      titleInput?.reportValidity();
-      titleInput?.focus();
+    const val = (titleInput?.value || '').trim();
+    if (!val) {
+      if (showFeedback) {
+        titleInput?.classList.add('wizard-field-error');
+        const errEl = document.getElementById('create-script-title-error');
+        if (errEl) errEl.style.display = 'flex';
+        titleInput?.focus();
+        notify('Bước 1: Vui lòng nhập Tên kịch bản (Scenario Name) trước khi chuyển bước.', 'error');
+      }
       return false;
     }
-    titleInput.setCustomValidity('');
+    titleInput?.classList.remove('wizard-field-error');
+    const errEl = document.getElementById('create-script-title-error');
+    if (errEl) errEl.style.display = 'none';
+    return true;
   }
 
-  if (step === 2 && wizardSelectedPoms.size === 0) {
-    notify('Vui lòng chọn ít nhất một Page Object trước khi tiếp tục.');
-    document.getElementById('wizard-pom-list')?.scrollIntoView({ block: 'nearest' });
-    return false;
+  if (step === 2) {
+    if (!wizardSelectedPoms || wizardSelectedPoms.size === 0) {
+      if (showFeedback) {
+        const pomBox = document.getElementById('wizard-pom-box');
+        pomBox?.classList.add('wizard-field-error');
+        const errEl = document.getElementById('wizard-pom-error');
+        if (errEl) errEl.style.display = 'flex';
+        notify('Bước 2: Vui lòng chọn ít nhất một Page Object cần dùng cho kịch bản.', 'error');
+        document.getElementById('wizard-pom-list')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+      return false;
+    }
+    const pomBox = document.getElementById('wizard-pom-box');
+    pomBox?.classList.remove('wizard-field-error');
+    const errEl = document.getElementById('wizard-pom-error');
+    if (errEl) errEl.style.display = 'none';
+    return true;
+  }
+
+  if (step === 3) {
+    return true;
+  }
+
+  if (step === 4) {
+    const precondInput = document.getElementById('wizard-precondition-desc');
+    const val = (precondInput?.value || '').trim();
+    if (!val) {
+      if (showFeedback) {
+        precondInput?.classList.add('wizard-field-error');
+        const errEl = document.getElementById('wizard-precond-error');
+        if (errEl) errEl.style.display = 'flex';
+        precondInput?.focus();
+        notify('Bước 4: Vui lòng nhập mô tả tiền điều kiện cho kịch bản.', 'error');
+      }
+      return false;
+    }
+    precondInput?.classList.remove('wizard-field-error');
+    const errEl = document.getElementById('wizard-precond-error');
+    if (errEl) errEl.style.display = 'none';
+    return true;
   }
 
   if (step === 5) {
-    const missingAction = wizardBddSteps.findIndex((item) => !item.actionId);
-    if (missingAction !== -1) {
-      notify(`Bước BDD số ${missingAction + 1} chưa có hành động runtime. Vui lòng chọn hành động.`);
-      renderWizardBddSteps();
+    const errEl = document.getElementById('wizard-steps-error');
+    if (!wizardBddSteps || wizardBddSteps.length === 0) {
+      if (showFeedback) {
+        if (errEl) {
+          errEl.innerHTML = '<i class="ph-bold ph-warning-circle"></i> Kịch bản cần ít nhất một bước BDD kiểm thử (When / Then / And).';
+          errEl.style.display = 'flex';
+        }
+        notify('Bước 5: Kịch bản cần ít nhất một bước BDD kiểm thử (When/Then/And).', 'error');
+      }
       return false;
     }
+    const emptyStepIdx = wizardBddSteps.findIndex((item) => !item.text || !item.text.trim());
+    if (emptyStepIdx !== -1) {
+      if (showFeedback) {
+        if (errEl) {
+          errEl.innerHTML = `<i class="ph-bold ph-warning-circle"></i> Bước BDD số ${emptyStepIdx + 1} chưa có nội dung mô tả.`;
+          errEl.style.display = 'flex';
+        }
+        notify(`Bước 5: Bước BDD số ${emptyStepIdx + 1} chưa có nội dung mô tả.`, 'error');
+      }
+      return false;
+    }
+    const missingAction = wizardBddSteps.findIndex((item) => !item.actionId);
+    if (missingAction !== -1) {
+      if (showFeedback) {
+        if (errEl) {
+          errEl.innerHTML = `<i class="ph-bold ph-warning-circle"></i> Bước BDD số ${missingAction + 1} chưa có hành động runtime. Vui lòng chọn hành động.`;
+          errEl.style.display = 'flex';
+        }
+        notify(`Bước 5: Bước BDD số ${missingAction + 1} chưa có hành động runtime. Vui lòng chọn hành động.`, 'error');
+        renderWizardBddSteps();
+      }
+      return false;
+    }
+    if (errEl) errEl.style.display = 'none';
+    return true;
   }
 
   return true;
+}
+
+function goToWizardStep(targetStep) {
+  targetStep = Math.max(1, Math.min(6, targetStep));
+  if (targetStep === wizardCurrentStep) return;
+
+  // Cho phép quay lại các bước trước tự do
+  if (targetStep < wizardCurrentStep) {
+    updateWizardStep(targetStep);
+    return;
+  }
+
+  // Chuyển sang bước sau: Kiểm tra tuần tự từng bước từ bước 1 đến targetStep - 1
+  for (let s = 1; s < targetStep; s++) {
+    if (!validateWizardStep(s, true)) {
+      if (wizardCurrentStep !== s) {
+        updateWizardStep(s);
+        validateWizardStep(s, true);
+      }
+      return;
+    }
+  }
+
+  updateWizardStep(targetStep);
 }
 
 async function loadWizardDatasets() {
@@ -9247,6 +9369,14 @@ async function loadWizardDatasets() {
 }
 
 async function submitCreateScriptFromWizard() {
+  // Validate toàn bộ các bước từ 1 đến 5 trước khi lưu
+  for (let s = 1; s <= 5; s++) {
+    if (!validateWizardStep(s, true)) {
+      goToWizardStep(s);
+      return;
+    }
+  }
+
   const platform = document.getElementById('create-script-platform')?.value || 'desktop';
   const scenarioName = document.getElementById('create-script-title')?.value.trim();
   const featureName = document.getElementById('create-script-feature')?.value.trim();
@@ -9254,13 +9384,6 @@ async function submitCreateScriptFromWizard() {
   if (!fileName.endsWith('.spec.js')) fileName += '.spec.js';
   const tags = document.getElementById('create-script-tags')?.value.trim();
   const primaryPage = document.getElementById('create-script-primary-page')?.value;
-
-  if (!scenarioName) {
-    updateWizardStep(1);
-    document.getElementById('create-script-title')?.focus();
-    notify('⚠️ Vui lòng nhập Tên kịch bản (Scenario Name)');
-    return;
-  }
 
   const nextBtn = document.getElementById('btn-wizard-next');
   if (nextBtn) {
@@ -9472,36 +9595,59 @@ async function switchToCreateScriptMode() {
 
     // Stepper Tabs Navigation
     for (let i = 1; i <= 6; i++) {
-      document.getElementById(`wizard-tab-${i}`)?.addEventListener('click', () => updateWizardStep(i));
+      document.getElementById(`wizard-tab-${i}`)?.addEventListener('click', () => goToWizardStep(i));
     }
 
     // Prev / Next Navigation
     document.getElementById('btn-wizard-prev')?.addEventListener('click', () => {
-      if (wizardCurrentStep > 1) updateWizardStep(wizardCurrentStep - 1);
+      if (wizardCurrentStep > 1) goToWizardStep(wizardCurrentStep - 1);
     });
 
     document.getElementById('btn-wizard-next')?.addEventListener('click', () => {
       if (wizardCurrentStep < 6) {
-        if (validateWizardStep(wizardCurrentStep)) updateWizardStep(wizardCurrentStep + 1);
+        goToWizardStep(wizardCurrentStep + 1);
       } else {
         submitCreateScriptFromWizard();
       }
     });
-    document.getElementById('create-script-title')?.addEventListener('input', (event) => event.target.setCustomValidity(''));
+
+    // Realtime validation clearing
+    document.getElementById('create-script-title')?.addEventListener('input', (event) => {
+      event.target.setCustomValidity('');
+      if (event.target.value.trim()) {
+        event.target.classList.remove('wizard-field-error');
+        const errEl = document.getElementById('create-script-title-error');
+        if (errEl) errEl.style.display = 'none';
+      }
+    });
+
+    document.getElementById('wizard-precondition-desc')?.addEventListener('input', (event) => {
+      if (event.target.value.trim()) {
+        event.target.classList.remove('wizard-field-error');
+        const errEl = document.getElementById('wizard-precond-error');
+        if (errEl) errEl.style.display = 'none';
+      }
+    });
 
     // Quick Add Steps in Step 5
     document.getElementById('btn-wizard-add-when')?.addEventListener('click', () => {
       wizardBddSteps.push({ id: `ws_${Date.now()}`, type: 'When', text: 'Người dùng thực hiện hành động kiểm thử mới', actionId: '' });
+      const errEl = document.getElementById('wizard-steps-error');
+      if (errEl) errEl.style.display = 'none';
       renderWizardBddSteps();
       updateCreateScriptPreview();
     });
     document.getElementById('btn-wizard-add-and')?.addEventListener('click', () => {
       wizardBddSteps.push({ id: `ws_${Date.now()}`, type: 'And', text: 'Người dùng tiếp tục thao tác tiếp theo', actionId: '' });
+      const errEl = document.getElementById('wizard-steps-error');
+      if (errEl) errEl.style.display = 'none';
       renderWizardBddSteps();
       updateCreateScriptPreview();
     });
     document.getElementById('btn-wizard-add-then')?.addEventListener('click', () => {
       wizardBddSteps.push({ id: `ws_${Date.now()}`, type: 'Then', text: 'Hệ thống hiển thị kết quả mong đợi', actionId: '' });
+      const errEl = document.getElementById('wizard-steps-error');
+      if (errEl) errEl.style.display = 'none';
       renderWizardBddSteps();
       updateCreateScriptPreview();
     });

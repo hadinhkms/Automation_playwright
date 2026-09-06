@@ -57,11 +57,35 @@
     prompt.readOnly = Boolean(activeId) || working;
     history.disabled = Boolean(activeId) || working;
   }
+  function getUnsavedCodeReason() {
+    if ([...document.querySelectorAll('textarea')].some(input => !input.readOnly && input.__sharedEditor?.isDirty())) {
+      const pmDirty = window.pageManagerCodeEditor?.isDirty?.();
+      if (pmDirty) return 'Mã nguồn tại "Quản lý Page Object" đang có thay đổi chưa lưu. Hãy bấm "Lưu thay đổi" (Ctrl+S) hoặc F5 trước khi giao việc cho Agent.';
+      return 'Có mã nguồn đang được chỉnh sửa chưa lưu. Hãy bấm "Lưu thay đổi" (Ctrl+S) hoặc F5 trước khi giao việc cho Agent.';
+    }
+    if (typeof currentCodeFile !== 'undefined' && currentCodeFile && byId('code-editor')?.value !== originalCodeContent) {
+      return `Tệp "${currentCodeFile}" tại Kịch bản BDD chưa được lưu. Hãy bấm "Lưu" (Ctrl+S) hoặc F5 trước khi giao việc cho Agent.`;
+    }
+    if (typeof pageDirectEditMode !== 'undefined' && pageDirectEditMode) {
+      const pmEditor = window.pageManagerCodeEditor;
+      const isDirty = pmEditor ? pmEditor.isDirty() : false;
+      const val = document.getElementById('page-manager-code-editor')?.value;
+      if (isDirty || (typeof currentInspectedCode !== 'undefined' && val && val !== currentInspectedCode)) {
+        return 'Mã nguồn tại "Quản lý Page Object" đang chỉnh sửa chưa lưu. Hãy bấm "Lưu thay đổi" (Ctrl+S) hoặc F5 trước khi giao việc cho Agent.';
+      }
+      if (typeof toggleDirectCodeEdit === 'function') {
+        toggleDirectCodeEdit(false);
+      } else {
+        pageDirectEditMode = false;
+      }
+    }
+    if (byId('resource-editor') && !byId('resource-editor').hidden) {
+      return 'Trình sửa tài nguyên (Resource Editor) đang mở. Hãy lưu hoặc đóng lại trước khi giao việc cho Agent.';
+    }
+    return null;
+  }
   function hasUnsavedCode() {
-    if ([...document.querySelectorAll('textarea')].some(input => !input.readOnly && input.__sharedEditor?.isDirty())) return true;
-    if (typeof currentCodeFile !== 'undefined' && currentCodeFile && byId('code-editor')?.value !== originalCodeContent) return true;
-    if (typeof pageDirectEditMode !== 'undefined' && pageDirectEditMode) return true;
-    return Boolean(byId('resource-editor') && !byId('resource-editor').hidden);
+    return Boolean(getUnsavedCodeReason());
   }
   async function loadHistory() {
     const data = await api('/api/agent/sessions');
@@ -125,6 +149,10 @@
     const sessionTokens = session?.tokenUsage?.totalTokens ?? quota?.sessionTokens?.totalTokens ?? 0;
     const sessionEl = byId('agent-quota-session-tokens');
     if (sessionEl) sessionEl.textContent = formatTokens(sessionTokens);
+
+    const allTimeTokens = quota?.totalAllTimeTokens || 0;
+    const allTimeEl = byId('agent-quota-alltime-tokens');
+    if (allTimeEl) allTimeEl.textContent = formatTokens(allTimeTokens);
 
     const summaryTokens = byId('agent-summary-tokens');
     if (summaryTokens) {
@@ -241,7 +269,8 @@
     if (working || activeId || refreshPending || !available) return;
     if (!prompt.value.trim()) { feedback('Hãy nhập yêu cầu cho Agent.'); prompt.focus(); return; }
     if (prompt.value.length > prompt.maxLength) { feedback(`Yêu cầu tối đa ${prompt.maxLength} ký tự.`); prompt.focus(); return; }
-    if (hasUnsavedCode()) { feedback('Hãy lưu hoặc đóng phần chỉnh sửa mã nguồn đang mở trước khi giao việc cho Agent.'); return; }
+    const unsavedReason = getUnsavedCodeReason();
+    if (unsavedReason) { feedback(unsavedReason); return; }
     working = true; controls(); feedback();
     try {
       const { session } = await api('/api/agent/sessions', { prompt: prompt.value, model: model.value });

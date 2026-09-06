@@ -120,6 +120,7 @@
               <div class="agent-quota-stats">
                 <span id="agent-quota-counts"><i class="ph-bold ph-chart-pie-slice"></i> Đã dùng: <strong id="agent-quota-used">0</strong> / <span id="agent-quota-limit">1.000.000</span> TPM</span>
                 <span id="agent-quota-session-info"><i class="ph-bold ph-cpu"></i> Phiên này: <strong id="agent-quota-session-tokens">0</strong> tokens</span>
+                <span id="agent-quota-alltime-info"><i class="ph-bold ph-database"></i> Tổng tích lũy: <strong id="agent-quota-alltime-tokens">0</strong> tokens</span>
               </div>
             </div>
             <label for="agent-prompt">Bạn muốn hoàn thành việc gì?</label>
@@ -1681,6 +1682,7 @@
                     <label style="font-size: 12px; font-weight: 700; color: var(--text); display: block; margin-bottom: 6px;">Tên kịch bản (Scenario Name): <span style="color: #ef4444;">*</span></label>
                     <input type="text" id="create-script-title" required placeholder="Ví dụ: Người dùng hoàn thành tạo profile và ứng tuyển không cần CV" style="width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13px;" />
                     <small style="color: var(--muted); font-size: 11px; margin-top: 4px; display: block;">Mô tả hành vi nghiệp vụ người dùng thực hiện.</small>
+                    <div id="create-script-title-error" class="wizard-error-text" style="display: none;"><i class="ph-bold ph-warning-circle"></i> Vui lòng nhập tên kịch bản (Scenario Name).</div>
                   </div>
                   <div>
                     <label style="font-size: 12px; font-weight: 700; color: var(--text); display: block; margin-bottom: 6px;">Tính năng (Feature Name):</label>
@@ -1713,7 +1715,7 @@
                 <p style="font-size: 12px; color: var(--muted); margin: 0 0 12px;">
                   Kịch bản của bạn cần tương tác với những màn hình nào? Hãy chọn các Page Object sẵn có hoặc tạo mới nếu chưa tồn tại.
                 </p>
-                <div class="dependency-box">
+                <div class="dependency-box" id="wizard-pom-box">
                   <div class="dependency-box-header">
                     <div class="dependency-search-wrap">
                       <i class="ph-bold ph-magnifying-glass"></i>
@@ -1730,6 +1732,7 @@
                     <div class="data-loading-spinner"><i class="ph ph-spinner ph-spin"></i> Đang tải danh sách Page Objects...</div>
                   </div>
                 </div>
+                <div id="wizard-pom-error" class="wizard-error-text" style="display: none; margin-top: 6px;"><i class="ph-bold ph-warning-circle"></i> Vui lòng chọn ít nhất một Page Object cần dùng cho kịch bản.</div>
                 <div class="dependency-primary-box">
                   <div class="dependency-primary-header">
                     <div class="dependency-primary-title">
@@ -1801,6 +1804,7 @@
                   <div>
                     <label style="font-size: 12px; font-weight: 700; color: var(--text); display: block; margin-bottom: 6px;">Mô tả tiền điều kiện (Hiển thị Header Report):</label>
                     <input type="text" id="wizard-precondition-desc" value="Đã đăng nhập tài khoản ứng viên hợp lệ (authSetup)" style="width: 100%; padding: 9px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-size: 13px;" />
+                    <div id="wizard-precond-error" class="wizard-error-text" style="display: none; margin-top: 4px;"><i class="ph-bold ph-warning-circle"></i> Vui lòng nhập mô tả tiền điều kiện.</div>
                   </div>
                   <div style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;">
                     <span style="font-size: 11.5px; font-weight: 700; color: var(--text);">Các thao tác tự động trong bước Given:</span>
@@ -1836,6 +1840,7 @@
                 <div id="wizard-bdd-steps-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; padding-right: 4px;">
                   <!-- Dynamically populated via JS -->
                 </div>
+                <div id="wizard-steps-error" class="wizard-error-text" style="display: none; margin-top: 6px;"><i class="ph-bold ph-warning-circle"></i> Kịch bản cần ít nhất một bước BDD và tất cả các bước phải chọn hành động runtime.</div>
               </div>
 
               <!-- BƯỚC 6: REVIEW & LƯU TRỮ -->

@@ -9175,6 +9175,78 @@ button.data-file-item.active,
   text-transform: uppercase;
 }
 
+/* Shared Readonly Form Grid & Fields (Page Manager & BDD Script Studio) */
+.script-readonly-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px 0;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.script-readonly-form-grid.script-readonly-form-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.script-readonly-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 4px 6px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  transition: background 0.15s ease;
+}
+
+.script-readonly-field:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.script-readonly-field span {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  line-height: 1.2;
+  user-select: none;
+}
+
+.script-readonly-field strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  font-family: var(--font-mono, monospace);
+}
+
+.script-readonly-field #pm-grid-platform,
+.script-readonly-field #inspect-platform-value {
+  font-family: var(--font-sans, inherit);
+  color: var(--accent);
+}
+
+@media (max-width: 1440px) {
+  .script-readonly-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .script-readonly-form-grid,
+  .script-readonly-form-grid.script-readonly-form-grid--three {
+    grid-template-columns: 1fr;
+  }
+}
+
 .script-subpart-box {
   background: color-mix(in srgb, var(--accent) 4%, var(--surface-2));
   border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
@@ -9308,14 +9380,20 @@ button.data-file-item.active,
 .script-search-box i {
   position: absolute;
   left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 15px;
   color: var(--muted);
   pointer-events: none;
+  z-index: 2;
 }
 
-.script-search-box input {
+.script-search-box input,
+.script-search-box input:not([type="checkbox"]):not([type="radio"]):not([type="color"]) {
   width: 100%;
-  padding: 7px 12px 7px 30px;
+  min-height: 34px !important;
+  height: 34px;
+  padding: 6px 12px 6px 36px !important;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -9323,9 +9401,11 @@ button.data-file-item.active,
   color: var(--text);
   outline: none;
   transition: all 0.18s ease;
+  box-sizing: border-box;
 }
 
-.script-search-box input:focus {
+.script-search-box input:focus,
+.script-search-box input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):focus {
   background: var(--surface);
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
@@ -11629,26 +11709,76 @@ button.data-file-item.active,
 .pm-search-wrap i {
   position: absolute;
   left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   color: var(--muted);
   font-size: 14px;
   pointer-events: none;
+  z-index: 2;
 }
 
-.pm-search-wrap input {
-  padding: 7px 12px 7px 30px;
+.pm-search-wrap input,
+.pm-search-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="color"]) {
+  min-height: 32px !important;
+  height: 32px;
+  padding: 0 12px 0 34px !important;
   border-radius: 8px;
   border: 1px solid var(--line);
   background: var(--input);
   color: var(--text);
-  font-size: 12.5px;
-  width: 180px;
+  font-size: 12px;
+  width: 190px;
   outline: none;
-  transition: width 0.2s ease;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
 }
 
-.pm-search-wrap input:focus {
-  width: 240px;
+.pm-search-wrap input:focus,
+.pm-search-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):focus {
+  width: 230px;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.dependency-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 320px;
+}
+
+.dependency-search-wrap i {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.dependency-search-wrap input,
+.dependency-search-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="color"]) {
+  width: 100%;
+  min-height: 34px !important;
+  height: 34px;
+  padding: 6px 10px 6px 34px !important;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--input);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.dependency-search-wrap input:focus,
+.dependency-search-wrap input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .pm-tool-btn {
@@ -13318,6 +13448,38 @@ button.data-file-item.active,
 
 .wizard-step-panel.active {
   display: flex;
+}
+
+/* Wizard Validation Error Styles */
+.wizard-field-error,
+input.wizard-field-error,
+select.wizard-field-error,
+.dependency-box.wizard-field-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22) !important;
+  animation: wizardFieldShake 0.3s ease;
+}
+
+@keyframes wizardFieldShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.wizard-error-text {
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1.35;
+}
+
+.wizard-step-tab.locked {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .wizard-footer-nav {

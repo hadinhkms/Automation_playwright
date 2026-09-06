@@ -187,13 +187,20 @@ function createAgentService({ root, fetchImpl = fetch, env = process.env } = {})
       totalTokens: session.tokenUsage.totalTokens || 0,
     } : { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
 
+    let totalAllTimeTokens = 0;
+    for (const s of sessions.values()) {
+      totalAllTimeTokens += (s.tokenUsage?.totalTokens || 0);
+    }
+
     return {
       remainingPercent,
       usedTokens,
       limitTokens,
       remainingTokens,
       sessionTokens,
+      totalAllTimeTokens,
       rpmLimit: quotaSpec.rpm,
+      rpmUsed: rollingEntries.length,
       rpmRemaining: Math.max(0, quotaSpec.rpm - rollingEntries.length),
       modelName: config?.model || '',
       providerName: config?.provider || 'gemini',
@@ -234,14 +241,34 @@ function createAgentService({ root, fetchImpl = fetch, env = process.env } = {})
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       const response = await fetchImpl(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents, tools: toolDefinitions(), toolConfig: { functionCallingConfig: { mode: 'AUTO' } } }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': key,
+        },
+        body: JSON.stringify({
+          contents,
+          tools: toolDefinitions(),
+          toolConfig: { functionCallingConfig: { mode: 'AUTO' } },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ],
+        }),
       });
       const data = await response.json();
       if (response.ok) return data;
 
       const isRateLimit = response.status === 429 || data.error?.code === 429 || data.error?.status === 'RESOURCE_EXHAUSTED' || /quota exceeded/i.test(data.error?.message || '');
-      lastError = fail(data.error?.message || 'Gemini API trả về lỗi.', isRateLimit ? 503 : 500);
+      const rawMsg = data.error?.message || 'Gemini API trả về lỗi.';
+      let userFriendlyMsg = rawMsg;
+      if (isRateLimit) {
+        const match = rawMsg.match(/retry in\s+([0-9.]+)\s*s/i);
+        const retrySec = match ? Math.ceil(parseFloat(match[1])) : 60;
+        userFriendlyMsg = `Đã chạm giới hạn tốc độ Gemini Free Tier (15-20 lượt/phút - quota exceeded). Vui lòng thử lại sau ${retrySec}s, hoặc chạy trực tiếp kịch bản từ tab "Bộ test" / Terminal mà không cần dùng AI. Chi tiết: ${rawMsg}`;
+      }
+      lastError = fail(userFriendlyMsg, isRateLimit ? 503 : 500);
 
       if (isRateLimit && attempt < maxRetries) {
         const match = (data.error?.message || '').match(/retry in\s+([0-9.]+)\s*s/i);
@@ -325,7 +352,8 @@ function createAgentService({ root, fetchImpl = fetch, env = process.env } = {})
     const contents = [{ role: 'user', parts: [{ text: ['Bạn là coding agent của Automation Dashboard. Trả lời bằng tiếng Việt.', 'Được phép đọc/sửa/chạy kiểm thử trong workspace bằng tools. Không đọc secret, không commit/push/install.', 'Hoàn thành yêu cầu, kiểm tra kết quả và báo cáo file/lệnh đã thay đổi.', `Yêu cầu người dùng: ${session.prompt}`].join('\n\n') }] }];
     for (let turn = 0; turn < MAX_TURNS; turn += 1) {
       if (turn > 0 && !isTestEnv) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Giữ nhịp tối thiểu giữa các tool turns để không bị vượt quá 15 RPM của Gemini Free Tier
+        await new Promise(resolve => setTimeout(resolve, 2500));
       }
       const data = await geminiCall(contents, config, session);
       if (data.usageMetadata) {
