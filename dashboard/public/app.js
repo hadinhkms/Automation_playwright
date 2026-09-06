@@ -12122,10 +12122,6 @@ document.getElementById('runner-goto-suites-btn')?.addEventListener('click', () 
   document.querySelector('.nav-dropdown-item[data-view="suites-view"]')?.click();
 });
 
-document.getElementById('settings-suites-shortcut')?.addEventListener('click', () => {
-  document.querySelector('.nav-dropdown-item[data-view="suites-view"]')?.click();
-});
-
 initSuitesView();
 
 /* ==============================================================================
