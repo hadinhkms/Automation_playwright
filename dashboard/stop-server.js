@@ -1,7 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.resolve(__dirname, '..');
+let detectedRoot = process.env.QA_PROJECT_ROOT ? path.resolve(process.env.QA_PROJECT_ROOT) : process.cwd();
+if (path.basename(detectedRoot) === 'dashboard' && fs.existsSync(path.join(detectedRoot, 'server.js'))) {
+  detectedRoot = path.resolve(detectedRoot, '..');
+}
+const ROOT = detectedRoot;
 const STATE_PATH = path.join(ROOT, '.dashboard-server.json');
 const DEFAULT_PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
 

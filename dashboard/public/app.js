@@ -12128,6 +12128,144 @@ document.getElementById('settings-suites-shortcut')?.addEventListener('click', (
 
 initSuitesView();
 
+/* ==============================================================================
+   SYSTEM UPDATER CONTROLLER
+============================================================================== */
+let systemUpdateInfo = null;
 
+async function checkSystemUpdate(showModalOnComplete = false) {
+  const btn = document.getElementById('system-update-btn');
+  const dot = document.getElementById('topbar-update-dot');
+  const versionLabel = document.getElementById('topbar-version-label');
+  const modal = document.getElementById('modal-system-update');
 
+  const curVerEl = document.getElementById('update-current-version-text');
+  const latestVerEl = document.getElementById('update-latest-version-text');
+  const statusBanner = document.getElementById('update-status-banner');
+  const statusMsg = document.getElementById('update-status-message');
+  const statusIcon = document.getElementById('update-status-icon');
+  const changelogContainer = document.getElementById('update-changelog-container');
+  const changelogText = document.getElementById('update-changelog-text');
+  const applyBtn = document.getElementById('btn-apply-update');
+  const recheckBtn = document.getElementById('btn-recheck-update');
 
+  if (recheckBtn) recheckBtn.disabled = true;
+
+  try {
+    const res = await request('/api/system/check-update');
+    systemUpdateInfo = res;
+
+    if (versionLabel && res.currentVersion) {
+      versionLabel.textContent = `v${res.currentVersion}`;
+    }
+    if (curVerEl) curVerEl.textContent = `v${res.currentVersion || '1.0.0'}`;
+    if (latestVerEl) latestVerEl.textContent = `v${res.latestVersion || res.currentVersion || '1.0.0'}`;
+
+    if (res.hasUpdate) {
+      if (dot) dot.style.display = 'block';
+      if (btn) {
+        btn.classList.add('has-update');
+        btn.setAttribute('data-tooltip', `Có bản cập nhật mới: v${res.latestVersion}`);
+      }
+      if (statusBanner) {
+        statusBanner.style.background = 'rgba(34, 197, 94, 0.12)';
+        statusBanner.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+        statusBanner.style.color = '#15803d';
+      }
+      if (statusIcon) statusIcon.className = 'ph-bold ph-sparkle';
+      if (statusMsg) statusMsg.textContent = `Đã có bản cập nhật mới v${res.latestVersion}! Bạn có thể tải và cập nhật ngay.`;
+
+      if (changelogContainer) changelogContainer.style.display = 'block';
+      if (changelogText) changelogText.textContent = res.releaseNotes || 'Bản phát hành bao gồm các tính năng mới và cải tiến hiệu năng.';
+      if (applyBtn) applyBtn.disabled = false;
+    } else if (res.isOffline) {
+      if (dot) dot.style.display = 'none';
+      if (statusBanner) {
+        statusBanner.style.background = 'rgba(234, 179, 8, 0.12)';
+        statusBanner.style.borderColor = 'rgba(234, 179, 8, 0.3)';
+        statusBanner.style.color = '#a16207';
+      }
+      if (statusIcon) statusIcon.className = 'ph-bold ph-cloud-slash';
+      if (statusMsg) statusMsg.textContent = res.message || 'Không có kết nối Internet. Đang sử dụng phiên bản cục bộ.';
+      if (changelogContainer) changelogContainer.style.display = 'none';
+      if (applyBtn) applyBtn.disabled = true;
+    } else {
+      if (dot) dot.style.display = 'none';
+      if (statusBanner) {
+        statusBanner.style.background = 'rgba(10, 101, 204, 0.08)';
+        statusBanner.style.borderColor = 'rgba(10, 101, 204, 0.2)';
+        statusBanner.style.color = 'var(--primary)';
+      }
+      if (statusIcon) statusIcon.className = 'ph-bold ph-check-circle';
+      if (statusMsg) statusMsg.textContent = 'Hệ thống đang ở phiên bản mới nhất. Không có bản cập nhật nào.';
+      if (changelogContainer) changelogContainer.style.display = 'none';
+      if (applyBtn) applyBtn.disabled = true;
+    }
+  } catch (err) {
+    if (statusMsg) statusMsg.textContent = 'Lỗi khi kiểm tra phiên bản: ' + err.message;
+  } finally {
+    if (recheckBtn) recheckBtn.disabled = false;
+  }
+
+  if (showModalOnComplete && modal && typeof modal.showModal === 'function') {
+    modal.showModal();
+  }
+}
+
+async function applySystemUpdate() {
+  const applyBtn = document.getElementById('btn-apply-update');
+  const terminal = document.getElementById('update-log-terminal');
+  const statusMsg = document.getElementById('update-status-message');
+  const statusIcon = document.getElementById('update-status-icon');
+
+  if (applyBtn) applyBtn.disabled = true;
+  if (terminal) {
+    terminal.style.display = 'block';
+    terminal.textContent = 'Đang tiến hành cập nhật hệ thống...\nVui lòng chờ...';
+  }
+  if (statusMsg) statusMsg.textContent = 'Đang tải và cập nhật phiên bản mới...';
+  if (statusIcon) statusIcon.className = 'ph-bold ph-spinner animate-spin';
+
+  try {
+    const res = await request('/api/system/apply-update', { method: 'POST' });
+    if (terminal && Array.isArray(res.logs)) {
+      terminal.textContent = res.logs.join('\n');
+    }
+    if (res.ok) {
+      if (statusMsg) statusMsg.textContent = res.message || 'Cập nhật hoàn tất!';
+      if (statusIcon) statusIcon.className = 'ph-bold ph-check-circle';
+      showToast('Cập nhật hoàn tất! Vui lòng khởi động lại Dashboard.', 'success');
+    } else {
+      if (statusMsg) statusMsg.textContent = 'Cập nhật thất bại: ' + (res.message || 'Lỗi không xác định');
+      if (statusIcon) statusIcon.className = 'ph-bold ph-warning-circle';
+      showToast('Cập nhật thất bại: ' + res.message, 'error');
+    }
+  } catch (err) {
+    if (terminal) terminal.textContent += '\nLỗi: ' + err.message;
+    if (statusMsg) statusMsg.textContent = 'Lỗi: ' + err.message;
+    showToast('Lỗi khi thực hiện cập nhật: ' + err.message, 'error');
+  } finally {
+    if (applyBtn) applyBtn.disabled = false;
+  }
+}
+
+document.getElementById('system-update-btn')?.addEventListener('click', () => {
+  const modal = document.getElementById('modal-system-update');
+  if (modal && typeof modal.showModal === 'function') {
+    modal.showModal();
+    checkSystemUpdate(false);
+  }
+});
+
+document.getElementById('btn-recheck-update')?.addEventListener('click', () => {
+  checkSystemUpdate(false);
+});
+
+document.getElementById('btn-apply-update')?.addEventListener('click', () => {
+  applySystemUpdate();
+});
+
+// Tự động kiểm tra phiên bản ngầm khi tải trang sau 2 giây
+setTimeout(() => {
+  checkSystemUpdate(false);
+}, 2000);

@@ -8,6 +8,15 @@ class BasePage {
   constructor(page, featureName) {
     this.page = page;
     this.actions = new UiActions(page);
+    this.accountMenuButton = page.getByRole('button', { name: /avt_invalid|tài khoản/i })
+      .or(page.getByAltText('avt_invalid'))
+      .or(page.locator('figure img[alt="avt_invalid"]'))
+      .first();
+    this.appliedJobsButton = page.getByRole('button', { name: /Việc làm đã ứng tuyển/i })
+      .or(page.getByRole('link', { name: /Việc làm đã ứng tuyển/i }))
+      .or(page.getByText('Việc làm đã ứng tuyển'))
+      .first();
+    this.appliedJobsList = page.locator('[data-test-id="applied-job__list-jobs"]');
     const resolvedFeatureName = featureName || this.constructor.name.toLowerCase();
     this.screenshotHelper = new ScreenshotHelper(page, resolvedFeatureName);
   }
@@ -495,6 +504,4 @@ class BasePage {
   }
 }
 
-BasePage.BasePage = BasePage;
-module.exports = BasePage;
-
+module.exports = { BasePage };

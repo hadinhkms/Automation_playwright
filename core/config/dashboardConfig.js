@@ -7,18 +7,18 @@ const DEFAULT_CONFIG = Object.freeze({
   environments: {
     qc: {
       label: 'QC',
-      baseURL: 'https://seeker.vl24hv2.qc.sieuviet-team.com',
-      apiBaseURL: 'https://api.vl24hv2.qc.sieuviet-team.com',
+      baseURL: 'https://example.com',
+      apiBaseURL: 'https://httpbin.org',
     },
     stg: {
       label: 'Staging',
-      baseURL: 'https://seeker.vl24hv2.staging.sieuviet-team.com',
-      apiBaseURL: 'https://api.vl24hv2.staging.sieuviet-team.com',
+      baseURL: 'https://staging.example.com',
+      apiBaseURL: 'https://httpbin.org',
     },
     prod: {
       label: 'Production',
-      baseURL: 'https://vieclam24h.vn',
-      apiBaseURL: 'https://api.vl24hv2.staging.sieuviet-team.com',
+      baseURL: 'https://example.com',
+      apiBaseURL: 'https://httpbin.org',
     },
   },
   runtime: {
@@ -37,8 +37,8 @@ const DEFAULT_CONFIG = Object.freeze({
     debugOptionalPopups: false,
   },
   api: {
-    registrationBearerToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjaGFubmVsX2NvZGUiOiJ2bDI0aCIsInVzZXIiOm51bGx9.b_GBXepcnCjRzAc9I5OdamF0Mx2K1rEg9sZVYpNx_rU',
-    branch: 'vl24h.north',
+    registrationBearerToken: '',
+    branch: 'main',
     lang: 'vi',
     registerRetries: 2,
     registerTimeout: 30000,
@@ -52,10 +52,10 @@ const DEFAULT_CONFIG = Object.freeze({
     autoCleanupReports: false,
   },
   branding: {
-    projectName: "Vieclam24h Automation",
-    projectSubtitle: "Siêu Việt Group • Playwright",
-    pageTitle: "Vieclam24h Automation Dashboard",
-    logoUrl: "https://vieclam24h.vn/img/mobile-entrypoint/logo-mobile-32x3.png",
+    projectName: "QA Automation Studio",
+    projectSubtitle: "Playwright Automation Platform",
+    pageTitle: "QA Automation Dashboard",
+    logoUrl: "",
     primaryColor: "#0A65CC",
     backgroundColor: "",
     fontSize: "14px"
@@ -68,7 +68,7 @@ const DEFAULT_CONFIG = Object.freeze({
       spec: "all",
       specs: "all",
       grep: "@smoke",
-      workers: 4
+      workers: 2
     }
   },
   discord: {
@@ -87,9 +87,27 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
+function getResolvedConfigPath() {
+  const projectRoot = process.env.QA_PROJECT_ROOT || process.cwd();
+  const projectConfigPath = path.join(projectRoot, 'qa-engine.config.json');
+  if (fs.existsSync(projectConfigPath)) {
+    return projectConfigPath;
+  }
+  const projectDashboardConfig = path.join(projectRoot, 'dashboardConfig.json');
+  if (fs.existsSync(projectDashboardConfig)) {
+    return projectDashboardConfig;
+  }
+  return CONFIG_PATH;
+}
+
 function readRawConfig() {
-  if (!fs.existsSync(CONFIG_PATH)) return {};
-  return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  const cfgPath = getResolvedConfigPath();
+  if (!fs.existsSync(cfgPath)) return {};
+  try {
+    return JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+  } catch (_) {
+    return {};
+  }
 }
 
 function asString(value, fallback = '') {
@@ -290,7 +308,8 @@ function getDashboardConfig() {
 function saveDashboardConfig(nextConfig) {
   const current = getDashboardConfig();
   const normalized = normalizeDashboardConfig(nextConfig, current);
-  fs.writeFileSync(CONFIG_PATH, `${JSON.stringify(normalized, null, 2)}\n`, 'utf8');
+  const cfgPath = getResolvedConfigPath();
+  fs.writeFileSync(cfgPath, `${JSON.stringify(normalized, null, 2)}\n`, 'utf8');
   return normalized;
 }
 
@@ -309,6 +328,7 @@ function publicDashboardConfig(config = getDashboardConfig()) {
 
 module.exports = {
   CONFIG_PATH,
+  getResolvedConfigPath,
   DEFAULT_CONFIG,
   TRACE_OPTIONS,
   SCREENSHOT_OPTIONS,

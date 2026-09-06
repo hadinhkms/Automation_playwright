@@ -1,8 +1,18 @@
 {
-  "name": "automation-project",
+  "name": "@hadinhkms/qa-automation-engine",
   "version": "1.0.0",
-  "description": "Playwright Automation Testing Project",
+  "description": "Playwright Automation Studio Core Engine & Dashboard",
   "main": "index.js",
+  "bin": {
+    "qa-dashboard": "./bin/qa-dashboard.js"
+  },
+  "files": [
+    "bin",
+    "core",
+    "dashboard",
+    "pages/BasePage.js",
+    "index.js"
+  ],
   "scripts": {
     "test": "playwright test",
     "test:e2e": "playwright test --project=\"Desktop Smoke Tests\" --project=\"Desktop Regression Tests\" --project=\"Mobile Chrome Smoke Tests\" --project=\"Mobile Chrome Regression Tests\" --project=\"Mobile Safari Smoke Tests\" --project=\"Mobile Safari Regression Tests\"",

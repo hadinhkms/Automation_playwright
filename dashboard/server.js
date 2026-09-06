@@ -10,7 +10,12 @@ const {
   saveDashboardConfig,
 } = require('../core/config/dashboardConfig');
 
-const ROOT = path.resolve(__dirname, '..');
+const ENGINE_DIR = path.resolve(__dirname, '..');
+let detectedRoot = process.env.QA_PROJECT_ROOT ? path.resolve(process.env.QA_PROJECT_ROOT) : process.cwd();
+if (path.basename(detectedRoot) === 'dashboard' && fs.existsSync(path.join(detectedRoot, 'server.js'))) {
+  detectedRoot = path.resolve(detectedRoot, '..');
+}
+const ROOT = detectedRoot;
 require('dotenv').config({ path: path.join(ROOT, '.env') });
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const REPORT_DIR = path.join(ROOT, 'playwright-report');
@@ -23,6 +28,8 @@ const VIDEO_OPTIONS = ['off', 'on', 'retain-on-failure', 'on-first-retry'];
 
 const DISCORD_BOT_DIR = path.resolve(ROOT, '../discord-qa-bot');
 const DISCORD_BOT_ENV_PATH = path.join(DISCORD_BOT_DIR, '.env');
+
+const { checkForUpdates, applyUpdate, getCurrentVersion } = require('../core/system/updater');
 
 const { parsePlaywrightScript, scanPages } = require('../core/generator/recordParser');
 const { transformToPomAndSpec } = require('../core/generator/recordTransformer');
@@ -88,7 +95,7 @@ const AGENT_SAFE_POST_ROUTES = new Set([
   '/api/stop', '/api/shutdown', '/api/recorder/stop', '/api/recorder/scan-pages',
   '/api/recorder/convert', '/api/recorder/generate-draft', '/api/ai/generate-state',
   '/api/ai/config', '/api/ai/test-connection', '/api/ai/inline-suggest',
-  '/api/diagnostics/analyze', '/api/builder/compile',
+  '/api/diagnostics/analyze', '/api/builder/compile', '/api/system/apply-update',
 ]);
 
 function ensureRecordingsDir() {
@@ -136,7 +143,7 @@ function writeEnvFile(filePath, envObj) {
 }
 const CODE_ROOTS = ['tests', 'pages', 'core'];
 const PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
-const APP_NAME = process.env.DASHBOARD_APP_NAME || 'vieclam24h';
+const APP_NAME = process.env.DASHBOARD_APP_NAME || 'qa-automation-dashboard';
 const CANONICAL_DOCUMENTS = [
   'ai/shared/AI_PROMPTS.md',
   'ai/shared/TEST_AUTOMATION_LESSONS.md',
@@ -988,6 +995,32 @@ const server = http.createServer(async (request, response) => {
       workspaceRoot: ROOT,
       port: PORT,
     });
+  }
+  if (request.method === 'GET' && url.pathname === '/api/system/version') {
+    return sendJson(response, 200, {
+      appName: APP_NAME,
+      version: getCurrentVersion(),
+      workspaceRoot: ROOT,
+      engineDir: ENGINE_DIR,
+      port: PORT,
+      isEngineStandalone: ROOT === ENGINE_DIR,
+    });
+  }
+  if (request.method === 'GET' && url.pathname === '/api/system/check-update') {
+    try {
+      const updateResult = await checkForUpdates();
+      return sendJson(response, 200, updateResult);
+    } catch (error) {
+      return sendJson(response, 500, { ok: false, error: error.message });
+    }
+  }
+  if (request.method === 'POST' && url.pathname === '/api/system/apply-update') {
+    try {
+      const result = applyUpdate();
+      return sendJson(response, result.ok ? 200 : 400, result);
+    } catch (error) {
+      return sendJson(response, 500, { ok: false, error: error.message });
+    }
   }
   if (request.method === 'GET' && url.pathname === '/api/settings') {
     return sendJson(response, 200, publicDashboardConfig());
