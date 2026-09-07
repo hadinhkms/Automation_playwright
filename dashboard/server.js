@@ -1288,13 +1288,12 @@ const server = http.createServer(async (request, response) => {
   }
   if (request.method === 'POST' && url.pathname === '/api/git/sync') {
     try {
-      const currentBranch = execSync('git branch --show-current', { cwd: ROOT, stdio: 'pipe', windowsHide: true }).toString().trim() || 'main';
-      execSync('git add .', { cwd: ROOT, stdio: 'pipe', windowsHide: true });
-      try { execSync('git commit -m "chore(dashboard): sync test suites and configs"', { cwd: ROOT, stdio: 'pipe', windowsHide: true }); } catch (_) {}
-      const pushLog = execSync(`git push origin ${currentBranch}`, { cwd: ROOT, stdio: 'pipe', windowsHide: true }).toString();
-      return sendJson(response, 200, { success: true, currentBranch, message: `Đã đồng bộ hóa lên nhánh "${currentBranch}" thành công!`, output: pushLog.trim() || 'Everything up-to-date' });
+      const body = await parseBody(request).catch(() => ({}));
+      const result = gitSyncService.syncSuitesAndConfigs(body);
+      const statusCode = result.success ? 200 : (result.qualityGateFailed ? 400 : 500);
+      return sendJson(response, statusCode, result);
     } catch (error) {
-      return sendJson(response, 500, { error: `Không thể đồng bộ lên GitHub: ${error.message}` });
+      return sendJson(response, 500, { ok: false, success: false, error: `Không thể đồng bộ lên GitHub: ${error.message}` });
     }
   }
   if (request.method === 'PUT' && url.pathname === '/api/settings') {

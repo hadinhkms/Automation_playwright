@@ -36,24 +36,24 @@ const PERMITTED_EXACT_FILES = [
 
 // Danh mục các thư mục và tệp tin BỊ CHẶN TUYỆT ĐỐI (Blacklist / Sensitive / Artifacts)
 const BLOCKED_PATTERNS = [
-  /^\.env(\..+)?$/i,
-  /^credentials(\..+)?$/i,
-  /^secrets(\..+)?$/i,
-  /^playwright-report\//i,
-  /^test-results\//i,
-  /^evidence\//i,
-  /^\.dashboard-drafts\//i,
-  /^\.dashboard-backups\//i,
-  /^node_modules\//i,
-  /^tmp\//i,
-  /^\.tmp\//i,
-  /^scratch\//i,
-  /^\.ai\/learning\/scratch\//i,
-  /^ai\/personal\//i,
+  /(^|\/)\.env(\..+)?$/i,
+  /(^|\/)credentials(\..+)?$/i,
+  /(^|\/)secrets(\..+)?$/i,
+  /(^|\/)playwright-report\//i,
+  /(^|\/)test-results\//i,
+  /(^|\/)evidence\//i,
+  /(^|\/)\.dashboard-drafts\//i,
+  /(^|\/)\.dashboard-backups\//i,
+  /(^|\/)node_modules\//i,
+  /(^|\/)tmp\//i,
+  /(^|\/)\.tmp\//i,
+  /(^|\/)scratch\//i,
+  /(^|\/)\.ai\/learning\/scratch\//i,
+  /(^|\/)ai\/personal\//i,
   /\.log$/i,
   /Thumbs\.db$/i,
   /\.DS_Store$/i,
-  /^\.master_process/i,
+  /(^|\/)\.master_process/i,
 ];
 
 // Danh mục các nhánh chính được bảo vệ (Cấm push trực tiếp, bắt buộc qua PR)
@@ -667,6 +667,96 @@ function checkoutBranch(branchName, createNew = false) {
   return { ok: true, currentBranch: cleanName, message: `Đã chuyển sang nhánh ${cleanName}` };
 }
 
+/**
+ * Đồng bộ hóa an toàn Test Suites và Cấu hình lên Git
+ * Dành cho endpoint /api/git/sync trên Dashboard, tuân thủ nghiêm ngặt Asset Shield.
+ */
+function syncSuitesAndConfigs(options = {}) {
+  const status = getGitStatus();
+  if (!status.ok) {
+    return { ok: false, success: false, error: status.message || 'Không thể lấy trạng thái Git.' };
+  }
+
+  const currentBranch = status.currentBranch || 'main';
+  const permitted = status.permittedFiles || [];
+
+  // 1. Nếu có tệp hợp lệ bị thay đổi, thực hiện kiểm tra và commit
+  if (permitted.length > 0) {
+    // Quality Gate: Kiểm tra quy chuẩn framework
+    if (!options.skipQualityCheck) {
+      const qg = runFrameworkQualityGate();
+      if (!qg.passed) {
+        return {
+          ok: false,
+          success: false,
+          qualityGateFailed: true,
+          error: `Framework Quality Gate không đạt chuẩn: ${(qg.issues || []).join('; ')}`,
+        };
+      }
+    }
+
+    // Stage CHỈ các tệp hợp lệ (Asset Shield: tuyệt đối không dùng git add .)
+    for (const f of permitted) {
+      const addRes = runGit(`git add -- "${f.path}"`);
+      if (!addRes.ok) {
+        return { ok: false, success: false, error: `Lỗi khi đưa tệp ${f.path} vào staging: ${addRes.error}` };
+      }
+    }
+
+    // Commit an toàn
+    const msg = (options.message || 'chore(dashboard): sync test suites and configs').replace(/"/g, '\\"');
+    const commitRes = runGit(`git commit -m "${msg}"`);
+    if (!commitRes.ok && !commitRes.output.includes('nothing to commit') && !commitRes.error.includes('nothing to commit')) {
+      return { ok: false, success: false, error: `Lỗi khi commit: ${commitRes.error || commitRes.output}` };
+    }
+  }
+
+  // 2. Kiểm tra lại trạng thái sau khi commit (hoặc trước đó đã có commits ahead)
+  const updatedStatus = getGitStatus();
+  if (!updatedStatus.ahead || updatedStatus.ahead === 0) {
+    return {
+      ok: true,
+      success: true,
+      currentBranch,
+      message: `Test Suites và mã nguồn đã ở trạng thái mới nhất trên nhánh "${currentBranch}" (không có thay đổi mới cần đẩy).`,
+      output: 'Everything up-to-date',
+    };
+  }
+
+  // Chế độ Dry Run phục vụ kiểm thử an toàn
+  if (options.dryRun) {
+    const dryRunRes = runGit(`git push --dry-run origin ${currentBranch}`);
+    return {
+      ok: dryRunRes.ok,
+      success: dryRunRes.ok,
+      currentBranch,
+      dryRun: true,
+      message: dryRunRes.ok
+        ? `[Dry Run] Sẵn sàng đẩy lên nhánh "${currentBranch}".`
+        : `[Dry Run] Lỗi đẩy lên remote: ${dryRunRes.error || dryRunRes.output}`,
+      output: dryRunRes.output,
+    };
+  }
+
+  // 3. Đẩy lên remote an toàn
+  const pushRes = runGit(`git push origin ${currentBranch}`);
+  if (!pushRes.ok) {
+    return {
+      ok: false,
+      success: false,
+      error: `Không thể đẩy lên GitHub (nhánh ${currentBranch}): ${pushRes.error || pushRes.output}`,
+    };
+  }
+
+  return {
+    ok: true,
+    success: true,
+    currentBranch,
+    message: `Đã đồng bộ hóa an toàn Test Suites lên nhánh "${currentBranch}" thành công!`,
+    output: pushRes.output || 'Push completed successfully',
+  };
+}
+
 module.exports = {
   ROOT,
   PERMITTED_PREFIXES,
@@ -680,6 +770,8 @@ module.exports = {
   runFrameworkQualityGate,
   pullCode,
   commitAndPush,
+  syncSuitesAndConfigs,
   listBranches,
   checkoutBranch,
 };
+
