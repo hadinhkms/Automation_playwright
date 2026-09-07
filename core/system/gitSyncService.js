@@ -690,6 +690,17 @@ function syncSuitesAndConfigs(options = {}) {
 
   // 1. Nếu có tệp hợp lệ bị thay đổi, thực hiện kiểm tra và commit
   if (permitted.length > 0) {
+    if (options.dryRun) {
+      return {
+        ok: true,
+        success: true,
+        currentBranch,
+        dryRun: true,
+        message: `[Dry Run] Phát hiện ${permitted.length} tệp tin sẵn sàng đồng bộ lên "${currentBranch}".`,
+        files: permitted.map((f) => f.path),
+      };
+    }
+
     // Quality Gate: Kiểm tra quy chuẩn framework
     if (!options.skipQualityCheck) {
       const qg = runFrameworkQualityGate();
