@@ -54,12 +54,12 @@ The Dashboard currently uses vanilla HTML, CSS, and JavaScript. Do not migrate i
 
 Preserve existing API routes, persistence rules, DOM behavior, and business behavior outside the requested scope.
 
-## Shared UI system
+## Shared UI system (Frontend Architecture & Standards)
 
 Use the current Run Test header (`.hero`) as the visual baseline for page background, spacing, eyebrow, title, subtitle, statistic cards, and responsive behavior.
 
-Page Manager, BDD Studio, and equivalent dashboard views must consume shared primitives for:
-
+### 1. Primitives and Design Tokens
+Page Manager, BDD Studio, Test Suites, and equivalent dashboard views must consume shared primitives for:
 - Page container and maximum width.
 - Horizontal and vertical page padding.
 - Header structure and spacing.
@@ -70,17 +70,30 @@ Page Manager, BDD Studio, and equivalent dashboard views must consume shared pri
 - Responsive breakpoints and stacking.
 
 Maintain one canonical set of CSS custom properties for these values. Feature selectors may consume the tokens but must not redefine a competing page, header, panel, workspace, or breakpoint system.
+Suggested semantic primitives include `.app-page`, `.app-page__header`, `.app-page__stats`, `.app-workspace`, `.app-panel`, `.app-panel__header`, and `.app-panel__body`.
 
-Suggested semantic primitives include `.app-page`, `.app-page__header`, `.app-page__stats`, `.app-workspace`, `.app-panel`, `.app-panel__header`, and `.app-panel__body`. Names may differ if the resulting system remains clear and centralized.
+### 2. Canonical 3-Frame Layout
+Top-level studio workspaces (Page Manager, BDD Studio, Test Suites) must strictly follow the canonical 3-frame layout:
+- **Khung 1 (Cột 1, 290px):** Danh sách thực thể (search, filter pills, counters, collapsible rail strip).
+- **Khung 2 (Cột 2, minmax(360px, 1fr)):** Thiết lập chi tiết & form inputs / inspector.
+- **Khung 3 (Cột 3, minmax(380px, 1fr)):** Tổng quan thực thi, live code/spec preview, CLI commands, và primary run/save actions.
+Never introduce 2-column card layouts or unstructured panels for primary dashboard studios; always consume `.suites-workspace` or equivalent 3-column grid tokens with collapsible sidebars.
 
-Remove or consolidate obsolete rules after migration. Do not append a final override layer while contradictory legacy rules remain active.
+### 3. Modal Dialog Standards
+- Constrain modal width exclusively on the outer dialog `.app-modal` (e.g. `max-width: 480px; width: 92vw;`).
+- Inner container `.app-modal-box` must always enforce `width: 100%; max-width: 100%; box-sizing: border-box;`.
+- Wrap all dialog body content in `.app-modal-body` (standardized `padding: 22px`). Never use inline horizontal padding overrides or conflicting nested `max-width`.
+- Accessible focus: Apply `:focus:not(:focus-visible) { outline: none; }` and clean accent `:focus-visible` outline.
+
+### 4. Visual States and Action Feedback
+- Always provide clear, distinct styling for: `loading` (spinner/skeleton), `empty` (contextual message with actionable button and platform compatibility awareness), `error`, `dirty` (unsaved indicators), and `active` states.
+- Ensure primary action buttons have high-contrast active styling and clearly dimmed/disabled styling when prerequisite fields are incomplete.
 
 ## Shared source-code editor
 
 All editable source-code surfaces must use one reusable vanilla-JavaScript component or controller and one shared CSS implementation. Do not maintain separate edit/view logic for Page Manager, BDD scripts, Page Object modals, JSON data, framework files, or resources.
 
 The shared editor must provide, where applicable:
-
 - Prism syntax highlighting.
 - Editing directly over the highlighted code surface rather than switching to a visually unrelated raw textarea.
 - Matched font metrics, padding, line height, tab size, and white-space behavior between the textarea overlay and preview.
@@ -93,7 +106,6 @@ The shared editor must provide, where applicable:
 - Accessible labels, keyboard focus, and no duplicated listeners after repeated mounting or modal opening.
 
 Use one file-language registry:
-
 - `.js` and `.spec.js` -> `javascript`
 - `.json` -> `json`
 - `.html` -> `markup`
@@ -101,29 +113,44 @@ Use one file-language registry:
 - `.md` -> `markdown`
 - Unknown extensions -> `plaintext`
 
-Language badges and Prism grammar selection must use this registry rather than hard-coded feature-specific checks.
+Language badges and Prism grammar selection must use this registry rather than hard-coded feature-specific checks. Ordinary textareas remain valid for descriptions and business inputs.
 
-Ordinary textareas remain valid for descriptions and business inputs. The shared editor requirement applies to source code and structured code data.
+## Backend and server architecture standards (Backend Architecture & Isolation)
 
-## Page Manager requirements
+### 1. Draft Storage Isolation
+- Uncompleted drafts (test scripts, Page Objects) must be stored in a dedicated isolated directory (`.dashboard-drafts/` with `scripts/` and `pages/` subdirectories) ignored by git.
+- **Never write uncompleted drafts directly into framework scan paths (`tests/`, `pages/`)**: Incomplete syntax or missing locators in scan paths break `npx playwright test` and `npm run check:framework`.
+- Only promote drafts to canonical directories upon explicit, validated user creation, and automatically delete the corresponding draft upon success.
 
-Page Manager must use the same shared header anatomy as Run Test. Its three-column workspace must share gap, height, panel, sidebar, collapsed-rail, and responsive foundations with BDD Studio.
+### 2. Dual-Scope Multi-User AI Settings
+- Always implement a dual-scope configuration model:
+  - **Server scope (`.env`):** Default fallback for solo developers running locally.
+  - **Client scope (`localStorage`):** Transmitted via secure headers (`X-AI-Config`) and request payloads (`clientConfig`) for shared team servers.
+- This guarantees individual browser sessions execute with their own provider/key/model without colliding or overwriting other teammates' active settings.
 
-Preserve existing behavior, including selection, search, filters, sidebar collapse, locator/action inspection, Page Object creation, adding locators/actions, refresh, copy, edit, save, revert, keyboard shortcuts, and backend backup behavior.
+### 3. Fail-Fast Subprocess and Model Schema Validation
+- When executing local AI models or CLI processes, parse the initial stderr/stdout events immediately.
+- Detect schema mismatches (e.g. OpenAI vs Ollama model response shapes) or startup failures immediately, terminate the subprocess cleanly, and return an actionable error rather than hanging the client session. Enforce explicit startup timeouts.
 
-## Agent learning protocol
+## Agent learning protocol & token economy
 
 Treat `ai/dashboard/AI_LESSONS.md` as durable project memory. At the end of a dashboard task, decide whether the work revealed a genuinely new, confirmed lesson.
 
+### 1. Strict Entry Format
 Add or update a lesson only when all of these are known:
+- Date
+- Area
+- Symptom
+- Root cause
+- Correct pattern
+- Preventive rule
+- Regression check
+- Related files
 
-- Reproducible symptom.
-- Root cause.
-- Correct implementation pattern.
-- Preventive rule.
-- Observable regression check.
-
-Consolidate duplicate lessons. Never record speculation, secrets, user data, or conversation history.
+### 2. Token Economy & Deduplication Policy
+- **Consolidate repeating issues:** Never create duplicate or incremental entries for the same underlying defect; enrich the existing lesson instead.
+- **Zero fluff:** Never record speculation, personal data, credentials, chat transcripts, or conversational context.
+- **Pruning obsolete lessons:** When a framework, library, or feature is permanently deprecated or removed from the repository, prune its specific lesson to keep `AI_LESSONS.md` compact (< 20KB / < 4000 tokens), preserving maximum context window for coding without token bloat.
 
 ## Implementation workflow
 
