@@ -7,23 +7,23 @@ if (path.basename(detectedRoot) === 'dashboard' && fs.existsSync(path.join(detec
 }
 const ROOT = detectedRoot;
 const STATE_PATH = path.join(ROOT, '.dashboard-server.json');
-const DEFAULT_PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
+let resolveConfiguredPort;
+try {
+  ({ resolveConfiguredPort } = require('../core/config/dashboardConfig'));
+} catch (_) {
+  resolveConfiguredPort = () => 4180;
+}
 
 function readPort() {
-  if (process.env.DASHBOARD_PORT) {
-    return DEFAULT_PORT;
-  }
-
   try {
     const state = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
-    if (state.workspaceRoot === ROOT && Number.isInteger(state.port)) {
+    if ((state.workspaceRoot === ROOT || !state.workspaceRoot) && Number.isInteger(state.port)) {
       return state.port;
     }
-  } catch {
-    return DEFAULT_PORT;
-  }
+  } catch {}
 
-  return DEFAULT_PORT;
+  const configured = resolveConfiguredPort(ROOT);
+  return typeof configured === 'number' ? configured : 4180;
 }
 
 async function stop() {
@@ -41,9 +41,9 @@ async function stop() {
       fs.rmSync(STATE_PATH, { force: true });
     }
 
-    console.log(`Đã tắt Việc Làm 24h dashboard tại ${url}`);
+    console.log(`Đã tắt QA Automation Studio dashboard tại ${url}`);
   } catch {
-    console.log(`Không có Việc Làm 24h dashboard đang chạy tại ${url}`);
+    console.log(`Không có QA Automation Studio dashboard đang chạy tại ${url}`);
   }
 }
 

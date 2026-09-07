@@ -22,13 +22,23 @@ if exist "dashboard\start-server.js" (
     start /b npx qa-dashboard
 )
 
-:: 3. Doc port thuc te tu .dashboard-server.json
+:: 3. Doc port thuc te tu .dashboard-server.json hoac .env hoac mac dinh 4180
+set PORT=
 if exist ".dashboard-server.json" (
     for /f "tokens=2 delims=:, " %%a in ('findstr "port" .dashboard-server.json') do (
         set PORT=%%a
     )
 )
-if not defined PORT set PORT=4174
+if not defined PORT (
+    if exist ".env" (
+        for /f "tokens=2 delims==" %%a in ('findstr "DASHBOARD_PORT" .env') do (
+            set PORT=%%a
+        )
+    )
+)
+if not defined PORT set PORT=4180
+if /i "%PORT%"=="random" set PORT=4180
+if /i "%PORT%"=="auto" set PORT=4180
 
 :: 4. Tu dong mo trinh duyet
 echo.

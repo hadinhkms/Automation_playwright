@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
 const { spawn } = require('child_process');
 
 let detectedRoot = process.env.QA_PROJECT_ROOT ? path.resolve(process.env.QA_PROJECT_ROOT) : process.cwd();
@@ -7,10 +8,36 @@ if (path.basename(detectedRoot) === 'dashboard' && fs.existsSync(path.join(detec
   detectedRoot = path.resolve(detectedRoot, '..');
 }
 const ROOT = detectedRoot;
-const APP_NAME = process.env.DASHBOARD_APP_NAME || 'qa-automation-dashboard';
+
+let resolveConfiguredPort;
+try {
+  ({ resolveConfiguredPort } = require('../core/config/dashboardConfig'));
+} catch (_) {
+  resolveConfiguredPort = () => 4180;
+}
+
+const APP_NAME = process.env.DASHBOARD_APP_NAME || 'qa-automation-engine';
 const STATE_PATH = path.join(ROOT, '.dashboard-server.json');
-const DEFAULT_PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
 const MAX_PORT_ATTEMPTS = 20;
+
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const tester = net.createServer()
+      .once('error', () => resolve(false))
+      .once('listening', () => {
+        tester.once('close', () => resolve(true)).close();
+      });
+    try {
+      tester.listen(port, '127.0.0.1');
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+function getRandomPort(min = 4200, max = 4999) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
 function dashboardUrl(port) {
   return `http://127.0.0.1:${port}`;
@@ -52,14 +79,43 @@ async function stopRunningDashboard(port) {
 }
 
 function writeState(port) {
-  fs.writeFileSync(STATE_PATH, JSON.stringify({ port, updatedAt: new Date().toISOString() }, null, 2));
+  fs.writeFileSync(STATE_PATH, JSON.stringify({ appName: APP_NAME, workspaceRoot: ROOT, port, updatedAt: new Date().toISOString() }, null, 2));
 }
 
-async function findAvailablePort() {
+async function findAvailablePort(targetPort) {
+  // 1. Kiem tra xem dashboard cua chinh project nay co dang chay khong
+  try {
+    if (fs.existsSync(STATE_PATH)) {
+      const state = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
+      if (state.port && (state.workspaceRoot === ROOT || !state.workspaceRoot)) {
+        const running = await isRunning(state.port);
+        if (running) {
+          const health = await getHealth(state.port);
+          if (health?.appName === APP_NAME && health?.workspaceRoot === ROOT) {
+            return { port: state.port, status: 'same-dashboard' };
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 2. Che do Random port
+  if (targetPort === 'random' || targetPort === 0) {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const candidate = getRandomPort(4200, 4999);
+      if ((await isPortAvailable(candidate)) && !(await isRunning(candidate))) {
+        return { port: candidate, status: 'free' };
+      }
+    }
+    return { port: 4180, status: 'free' };
+  }
+
+  // 3. Che do Static hoac Auto port
+  const basePort = typeof targetPort === 'number' ? targetPort : 4180;
   for (let offset = 0; offset < MAX_PORT_ATTEMPTS; offset += 1) {
-    const port = DEFAULT_PORT + offset;
+    const port = basePort + offset;
     const running = await isRunning(port);
-    if (!running) {
+    if (!running && (await isPortAvailable(port))) {
       return { port, status: 'free' };
     }
 
@@ -73,10 +129,11 @@ async function findAvailablePort() {
 }
 
 async function start() {
-  const selected = await findAvailablePort();
+  const configuredPort = resolveConfiguredPort(ROOT);
+  const selected = await findAvailablePort(configuredPort);
   if (!selected) {
     process.exitCode = 1;
-    console.error(`Không tìm thấy port trống nào từ ${DEFAULT_PORT} đến ${DEFAULT_PORT + MAX_PORT_ATTEMPTS - 1}.`);
+    console.error('Không tìm thấy port trống nào để khởi động dashboard.');
     return;
   }
 
@@ -85,11 +142,11 @@ async function start() {
   if (selected.status === 'same-dashboard') {
     if (await hasCurrentSettingsApi(selected.port)) {
       writeState(selected.port);
-      console.log(`Việc Làm 24h dashboard đã chạy tại ${url}`);
+      console.log(`QA Automation Studio dashboard đã chạy tại ${url}`);
       return;
     }
 
-    console.log(`Việc Làm 24h dashboard tại ${url} đang chạy phiên bản cũ, đang khởi động lại...`);
+    console.log(`QA Automation Studio dashboard tại ${url} đang chạy phiên bản cũ, đang khởi động lại...`);
     await stopRunningDashboard(selected.port);
   }
 
@@ -110,7 +167,7 @@ async function start() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     if (await isRunning(selected.port)) {
       writeState(selected.port);
-      console.log(`Việc Làm 24h dashboard đang chạy ngầm tại ${url}`);
+      console.log(`QA Automation Studio dashboard đang chạy ngầm tại ${url}`);
       console.log('Tắt bằng: npm run dashboard:stop');
       return;
     }

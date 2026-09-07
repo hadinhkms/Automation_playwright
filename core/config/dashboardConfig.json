@@ -49,12 +49,15 @@
     "autoCleanupEvidence": false,
     "autoCleanupReports": false
   },
+  "server": {
+    "port": 4180
+  },
   "branding": {
     "projectName": "QA Automation Studio",
     "projectSubtitle": "Playwright Automation Framework",
     "pageTitle": "QA Automation Dashboard",
     "logoUrl": "",
-    "primaryColor": "#451DA0",
+    "primaryColor": "#0A65CC",
     "backgroundColor": "",
     "fontSize": "14px"
   },

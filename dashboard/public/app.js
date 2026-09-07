@@ -18,16 +18,28 @@ function applyFontScale(root, fontSize) {
 }
 
 function applyLogoElement(element, logoUrl) {
-  if (!element || !logoUrl) return;
+  if (!element) return;
+  if (!logoUrl) {
+    element.classList.remove('has-logo');
+    element.style.backgroundImage = '';
+    element.style.background = '';
+    element.style.boxShadow = '';
+    element.style.border = '';
+    return;
+  }
   if (element.tagName === 'IMG') {
     element.src = logoUrl;
     return;
   }
+  element.classList.add('has-logo');
   element.innerHTML = '';
+  element.style.background = 'transparent';
   element.style.backgroundImage = `url("${String(logoUrl).replace(/"/g, '\\"')}")`;
   element.style.backgroundSize = 'contain';
   element.style.backgroundPosition = 'center';
   element.style.backgroundRepeat = 'no-repeat';
+  element.style.boxShadow = 'none';
+  element.style.border = 'none';
 }
 
 function applyAppConfig(config) {
@@ -41,7 +53,19 @@ function applyAppConfig(config) {
   const brandSubtitle = document.getElementById('brand-subtitle');
   if (brandSubtitle && config.projectSubtitle) brandSubtitle.innerText = config.projectSubtitle;
   
-  applyLogoElement(document.getElementById('brand-logo'), config.logoUrl);
+  const brandLogo = document.getElementById('brand-logo');
+  if (brandLogo) {
+    if (config.logoUrl) {
+      applyLogoElement(brandLogo, config.logoUrl);
+    } else {
+      brandLogo.classList.remove('has-logo');
+      brandLogo.style.backgroundImage = '';
+      brandLogo.style.background = '';
+      brandLogo.style.boxShadow = '';
+      brandLogo.style.border = '';
+      brandLogo.textContent = 'QA';
+    }
+  }
   
   const favicon = document.getElementById('favicon');
   if (favicon && config.logoUrl) favicon.href = config.logoUrl;

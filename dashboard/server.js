@@ -6,6 +6,7 @@ const { spawn } = require('child_process');
 const {
   CONFIG_PATH,
   getDashboardConfig,
+  resolveConfiguredPort,
   publicDashboardConfig,
   saveDashboardConfig,
 } = require('../core/config/dashboardConfig');
@@ -143,8 +144,13 @@ function writeEnvFile(filePath, envObj) {
   fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
 }
 const CODE_ROOTS = ['tests', 'pages', 'core'];
-const PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
-const APP_NAME = process.env.DASHBOARD_APP_NAME || 'qa-automation-dashboard';
+function getRandomPort(min = 4200, max = 4999) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+const CONFIGURED_PORT = resolveConfiguredPort(ROOT);
+const IS_RANDOM_PORT = CONFIGURED_PORT === 'random' || CONFIGURED_PORT === 0;
+const PORT = IS_RANDOM_PORT ? getRandomPort() : CONFIGURED_PORT;
+const APP_NAME = process.env.DASHBOARD_APP_NAME || 'qa-automation-engine';
 const PUBLIC_DOCUMENTS = [
   'docs/SETUP_GUIDE.md',
   'docs/DISCORD_BOT_SETUP_GUIDE.md',
@@ -2411,7 +2417,7 @@ test.describe('Feature: ${featureName} ${tags}', () => {
   sendJson(response, 404, { error: 'Endpoint không tồn tại.' });
 });
 
-let currentPort = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
+let currentPort = PORT;
 const maxPortAttempts = 20;
 let portAttempts = 0;
 const STATE_PATH = path.join(ROOT, '.dashboard-server.json');
@@ -2436,8 +2442,9 @@ server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
     if (portAttempts < maxPortAttempts) {
       portAttempts += 1;
-      currentPort += 1;
-      console.log(`Port ${currentPort - 1} đang bận, tự động thử port tiếp theo: ${currentPort}...`);
+      const prevPort = currentPort;
+      currentPort = IS_RANDOM_PORT ? getRandomPort() : (currentPort + 1);
+      console.log(`Port ${prevPort} đang bận, tự động thử port tiếp theo: ${currentPort}...`);
       tryListen(currentPort);
       return;
     }

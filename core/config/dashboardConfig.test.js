@@ -78,4 +78,20 @@ test('normalizeDashboardConfig strips legacy project-specific keys', () => {
   assert.equal(result.environments.qc.baseURL, 'https://qc.example.com');
 });
 
+test('normalizePort handles static port, random, auto, and fallbacks', () => {
+  const { normalizePort, getProjectHashPort } = require('./dashboardConfig');
+  assert.equal(normalizePort(4180), 4180);
+  assert.equal(normalizePort('4185'), 4185);
+  assert.equal(normalizePort('random'), 'random');
+  assert.equal(normalizePort(0), 'random');
+  assert.equal(normalizePort('0'), 'random');
+  assert.equal(normalizePort('auto'), 'auto');
+  assert.equal(normalizePort('invalid', 4180), 4180);
+  assert.equal(normalizePort(999999, 4180), 4180);
+
+  const hashPort = getProjectHashPort('d:\\_Automation-Project');
+  assert.equal(typeof hashPort, 'number');
+  assert.ok(hashPort >= 4180 && hashPort <= 4280);
+});
+
 

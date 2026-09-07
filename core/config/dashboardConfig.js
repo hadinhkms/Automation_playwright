@@ -51,6 +51,9 @@ const DEFAULT_CONFIG = Object.freeze({
     autoCleanupEvidence: false,
     autoCleanupReports: false,
   },
+  server: {
+    port: 4180,
+  },
   branding: {
     projectName: "QA Automation Studio",
     projectSubtitle: "Playwright Automation Platform",
@@ -298,7 +301,65 @@ function normalizeDashboardConfig(input = {}, existingConfig = DEFAULT_CONFIG) {
     }
   }
 
-  return { environments, runtime, api, artifacts, branding, suites, discord };
+  const serverInput = source.server && typeof source.server === 'object' ? source.server : {};
+  const serverFallback = existing.server || DEFAULT_CONFIG.server || { port: 4180 };
+  const server = {
+    port: normalizePort(serverInput.port, serverFallback.port),
+  };
+
+  return { environments, runtime, server, api, artifacts, branding, suites, discord };
+}
+
+function normalizePort(value, fallback = 4180) {
+  if (value === 'random' || value === 0 || value === '0') return 'random';
+  if (value === 'auto') return 'auto';
+  const number = Number.parseInt(value, 10);
+  if (Number.isInteger(number) && number >= 1024 && number <= 65535) return number;
+  return fallback;
+}
+
+function getProjectHashPort(projectPath) {
+  const root = projectPath || process.env.QA_PROJECT_ROOT || process.cwd();
+  const name = path.basename(root).toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < name.length; i += 1) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash |= 0;
+  }
+  const offset = (Math.abs(hash) % 50) * 2;
+  return 4180 + offset;
+}
+
+function resolveConfiguredPort(projectRoot) {
+  const root = projectRoot || process.env.QA_PROJECT_ROOT || process.cwd();
+  if (process.env.DASHBOARD_PORT) {
+    const raw = String(process.env.DASHBOARD_PORT).trim().toLowerCase();
+    if (raw === 'random' || raw === '0') return 'random';
+    if (raw === 'auto') return getProjectHashPort(root);
+    const p = Number.parseInt(raw, 10);
+    if (Number.isInteger(p) && p >= 1024 && p <= 65535) return p;
+  }
+  try {
+    const envPath = path.join(root, '.env');
+    if (fs.existsSync(envPath)) {
+      const match = fs.readFileSync(envPath, 'utf8').match(/^DASHBOARD_PORT\s*=\s*(.+)$/m);
+      if (match) {
+        const raw = match[1].trim().toLowerCase();
+        if (raw === 'random' || raw === '0') return 'random';
+        if (raw === 'auto') return getProjectHashPort(root);
+        const p = Number.parseInt(raw, 10);
+        if (Number.isInteger(p) && p >= 1024 && p <= 65535) return p;
+      }
+    }
+  } catch (_) {}
+  try {
+    const cfg = getDashboardConfig();
+    const portVal = cfg?.server?.port;
+    if (portVal === 'random' || portVal === 0 || portVal === '0') return 'random';
+    if (portVal === 'auto') return getProjectHashPort(root);
+    if (Number.isInteger(portVal) && portVal >= 1024 && portVal <= 65535) return portVal;
+  } catch (_) {}
+  return 4180;
 }
 
 function getDashboardConfig() {
@@ -335,6 +396,9 @@ module.exports = {
   VIDEO_OPTIONS,
   getDashboardConfig,
   normalizeDashboardConfig,
+  normalizePort,
+  getProjectHashPort,
+  resolveConfiguredPort,
   publicDashboardConfig,
   saveDashboardConfig,
 };
