@@ -62,6 +62,13 @@ const PAGE_METADATA = {
     platform: 'desktop',
     category: 'Trang chính',
   },
+  'mobile/SampleMobilePage.js': {
+    title: 'Trang Mẫu Mobile Web (SampleMobilePage)',
+    desc: 'Trang mẫu demo cách xây dựng Page Object cho thiết bị di động kế thừa BasePage.',
+    icon: 'ph-device-mobile',
+    platform: 'mobile-web',
+    category: 'Mobile Web',
+  },
   'core/fixtures/baseTest.js': {
     title: 'Fixture Nền Tảng Desktop (baseTest)',
     desc: 'Fixture gốc cho Desktop: Quản lý Precondition, Injected Page Objects và Worker Sessions.',

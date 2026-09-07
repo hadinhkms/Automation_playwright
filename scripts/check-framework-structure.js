@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.cwd();
-const sourceDirs = ['tests/e2e', 'pages', 'core/utils', 'core/fixtures'];
+const sourceDirs = ['tests/e2e', 'tests/api', 'pages', 'core/utils', 'core/fixtures'];
 const issues = [];
 
 function walk(relativeDir) {
@@ -32,7 +32,7 @@ const targetArgs = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
 const files = targetArgs.length > 0
   ? targetArgs.map((f) => path.normalize(f.replace(/^[/\\]+/, ''))).filter((file) => file.endsWith('.js') && fs.existsSync(path.join(root, file)))
   : sourceDirs.flatMap(walk).filter((file) => file.endsWith('.js'));
-const specFiles = files.filter((file) => file.startsWith(`tests${path.sep}e2e${path.sep}`) || file.endsWith('.spec.js'));
+const specFiles = files.filter((file) => file.startsWith(`tests${path.sep}`) && file.endsWith('.spec.js'));
 const pageFiles = files.filter((file) => file.startsWith(`pages${path.sep}`));
 
 if (targetArgs.length === 0) {

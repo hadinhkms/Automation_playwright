@@ -203,8 +203,16 @@ function getGitStatus() {
   if (statusRes.ok && statusRes.output) {
     const lines = statusRes.output.split(/\r?\n/).filter(Boolean);
     for (const line of lines) {
-      const statusCode = line.substring(0, 2).trim();
-      let rawPath = line.substring(3).trim();
+      const match = line.match(/^([ MADRCU?!]{1,2})\s+(.*)$/);
+      let statusCode = '';
+      let rawPath = '';
+      if (match) {
+        statusCode = match[1].trim();
+        rawPath = match[2].trim();
+      } else {
+        statusCode = line.substring(0, 2).trim();
+        rawPath = line.substring(3).trim();
+      }
       // Handle rename "old -> new"
       if (rawPath.includes(' -> ')) {
         rawPath = rawPath.split(' -> ')[1].trim();
@@ -718,6 +726,7 @@ function syncSuitesAndConfigs(options = {}) {
       ok: true,
       success: true,
       currentBranch,
+      dryRun: !!options.dryRun,
       message: `Test Suites và mã nguồn đã ở trạng thái mới nhất trên nhánh "${currentBranch}" (không có thay đổi mới cần đẩy).`,
       output: 'Everything up-to-date',
     };
