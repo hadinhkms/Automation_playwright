@@ -21,4 +21,5 @@ class SamplePage extends BasePage {
   }
 }
 
+SamplePage.SamplePage = SamplePage;
 module.exports = SamplePage;

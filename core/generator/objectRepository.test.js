@@ -37,12 +37,12 @@ test('inferHumanDescription extracts meaningful text or clean name', () => {
 
 test('scanAllPageObjects scans Page Objects and Fixtures', () => {
   const pages = scanAllPageObjects(process.cwd());
-  assert.ok(pages.length >= 15);
+  assert.ok(pages.length >= 4);
 
-  const home = pages.find((p) => p.className === 'HomePage' || p.className === 'AdminCompaniesPage');
-  assert.ok(home);
-  assert.ok(home.locatorCount >= 5);
-  assert.ok(home.methodCount >= 5);
+  const sample = pages.find((p) => p.className === 'SamplePage');
+  assert.ok(sample);
+  assert.ok(sample.locatorCount >= 2);
+  assert.ok(sample.methodCount >= 1);
 
   const baseTestFixture = pages.find((p) => p.className === 'baseTest');
   assert.ok(baseTestFixture);

@@ -22,7 +22,7 @@
   function getClientAiConfig() {
     try {
       if (typeof localStorage === 'undefined' || !localStorage) return null;
-      const raw = localStorage.getItem('vieclam24h_ai_personal_config');
+      const raw = localStorage.getItem('qa_studio_ai_personal_config');
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       if (parsed && parsed.enabled && parsed.apiKey) return parsed;

@@ -1,4 +1,4 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parsePlaywrightScript } = require('./recordParser');
 const { transformToPomAndSpec } = require('./recordTransformer');
@@ -6,7 +6,7 @@ const { transformToPomAndSpec } = require('./recordTransformer');
 test('recordParser parses actions and assertions', () => {
   const sampleScript = `
     test('User login flow', async ({ page }) => {
-      await page.goto('https://vieclam24h.vn/login');
+      await page.goto('https://example.com/login');
       await page.getByPlaceholder('Nhập số điện thoại').fill('0987654321');
       await page.getByRole('button', { name: 'Tiếp tục' }).click();
       await expect(page.getByText('Nhập mã OTP')).toBeVisible();
@@ -15,7 +15,7 @@ test('recordParser parses actions and assertions', () => {
 
   const parsed = parsePlaywrightScript(sampleScript);
   assert.equal(parsed.scenarioName, 'User login flow');
-  assert.equal(parsed.detectedUrl, 'https://vieclam24h.vn/login');
+  assert.equal(parsed.detectedUrl, 'https://example.com/login');
   assert.equal(parsed.actions.length, 4);
   assert.equal(parsed.actions[0].type, 'goto');
   assert.equal(parsed.actions[1].type, 'fill');
@@ -26,7 +26,7 @@ test('recordParser parses actions and assertions', () => {
 
 test('recordTransformer generates POM and Spec with assertions', () => {
   const actions = [
-    { type: 'goto', url: 'https://vieclam24h.vn/login' },
+    { type: 'goto', url: 'https://example.com/login' },
     { type: 'fill', locator: 'page.getByPlaceholder("Phone")', locatorVar: 'phoneInput', value: '0987654321' },
     { type: 'click', locator: 'page.getByRole("button", { name: "Submit" })', locatorVar: 'submitBtn' },
     { type: 'assertion', locatorVar: 'otpText', assertionType: 'toBeVisible' },

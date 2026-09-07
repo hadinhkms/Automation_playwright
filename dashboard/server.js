@@ -1447,7 +1447,7 @@ const server = http.createServer(async (request, response) => {
       const body = await parseBody(request);
       const activeConfig = getDashboardConfig();
       const defaultEnvKey = activeConfig.runtime?.defaultEnvironment || 'qc';
-      const fallbackUrl = activeConfig.environments?.[defaultEnvKey]?.baseURL || 'https://seeker.vl24hv2.qc.sieuviet-team.com';
+      const fallbackUrl = activeConfig.environments?.[defaultEnvKey]?.baseURL || 'https://example.com';
       const targetUrl = (body.url || '').trim() || fallbackUrl;
       const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
       const device = (body.device || '').trim();

@@ -684,7 +684,7 @@
               </div>
               <div class="recorder-form-body">
                 <label>URL khởi đầu
-                  <input id="rec-url" type="url" placeholder="https://seeker.vl24hv2.qc.sieuviet-team.com" value="https://seeker.vl24hv2.qc.sieuviet-team.com">
+                  <input id="rec-url" type="url" placeholder="https://example.com" value="https://example.com">
                 </label>
                 <div class="inline-fields" style="grid-template-columns: 1fr 1fr;">
                   <label>Phân hệ
@@ -2984,8 +2984,8 @@
                   <div class="color-presets-wrap">
                     <span class="color-presets-label">Gợi ý màu chủ đạo:</span>
                     <div class="color-swatches">
-                      <button class="color-swatch-btn active" type="button" data-color="#0A65CC" title="Vieclam24h Blue" style="--swatch-color: #0A65CC;"></button>
-                      <button class="color-swatch-btn" type="button" data-color="#451DA0" title="Siêu Việt Purple" style="--swatch-color: #451DA0;"></button>
+                      <button class="color-swatch-btn active" type="button" data-color="#0A65CC" title="Classic Blue" style="--swatch-color: #0A65CC;"></button>
+                      <button class="color-swatch-btn" type="button" data-color="#451DA0" title="Royal Purple" style="--swatch-color: #451DA0;"></button>
                       <button class="color-swatch-btn" type="button" data-color="#2563EB" title="Electric Blue" style="--swatch-color: #2563EB;"></button>
                       <button class="color-swatch-btn" type="button" data-color="#059669" title="Emerald QA" style="--swatch-color: #059669;"></button>
                       <button class="color-swatch-btn" type="button" data-color="#EA580C" title="Sunset Orange" style="--swatch-color: #EA580C;"></button>
@@ -3177,22 +3177,22 @@
               <div class="settings-card discord-cheatsheet-card">
                 <div class="settings-card-title"><i class="ph ph-terminal-window"></i><span>Cú pháp điều khiển Bot trên Discord</span></div>
                 <div class="discord-cheatsheet-body">
-                  <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">Khi tag <code>@Vieclam24h QA Bot</code> trong kênh chat Discord, bạn có thể kích hoạt các kịch bản test sau:</p>
+                  <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">Khi tag <code>@QA Studio Bot</code> trong kênh chat Discord, bạn có thể kích hoạt các kịch bản test sau:</p>
                   <div class="discord-cmd-table">
                     <div class="discord-cmd-row">
-                      <code class="discord-cmd">@Vieclam24h QA Bot run &lt;suite&gt; &lt;dev|qc|prod&gt;</code>
-                      <span class="discord-cmd-desc">Chạy Test Suite (Ví dụ: <code>@Vieclam24h QA Bot run smoke dev</code>)</span>
+                      <code class="discord-cmd">@QA Studio Bot run &lt;suite&gt; &lt;dev|qc|prod&gt;</code>
+                      <span class="discord-cmd-desc">Chạy Test Suite (Ví dụ: <code>@QA Studio Bot run smoke dev</code>)</span>
                     </div>
                     <div class="discord-cmd-row">
-                      <code class="discord-cmd">@Vieclam24h QA Bot run file &lt;đường_dẫn_file&gt; &lt;env&gt;</code>
-                      <span class="discord-cmd-desc">Chạy 1 file test cụ thể (Ví dụ: <code>@Vieclam24h QA Bot run file tests/e2e/desktop/login.spec.js dev</code>)</span>
+                      <code class="discord-cmd">@QA Studio Bot run file &lt;đường_dẫn_file&gt; &lt;env&gt;</code>
+                      <span class="discord-cmd-desc">Chạy 1 file test cụ thể (Ví dụ: <code>@QA Studio Bot run file tests/e2e/desktop/sample_demo.spec.js dev</code>)</span>
                     </div>
                     <div class="discord-cmd-row">
-                      <code class="discord-cmd">@Vieclam24h QA Bot run check dev</code>
+                      <code class="discord-cmd">@QA Studio Bot run check dev</code>
                       <span class="discord-cmd-desc">Kiểm tra tính toàn vẹn của framework (Lint & Config verification)</span>
                     </div>
                     <div class="discord-cmd-row">
-                      <code class="discord-cmd">@Vieclam24h QA Bot help</code>
+                      <code class="discord-cmd">@QA Studio Bot help</code>
                       <span class="discord-cmd-desc">Xem danh sách toàn bộ các Test Suites đang có sẵn</span>
                     </div>
                   </div>
@@ -3266,7 +3266,7 @@
                           <div>
                             <strong>Tạo hồ sơ Bot mới:</strong>
                             <p>Mở Discord Developer Portal -> Bấm nút màu tím <b>"New Application"</b>.</p>
-                            <p>Ở ô <b>NAME</b>, gõ: <code>Vieclam24h QA Bot</code> -> Tích ô đồng ý -> Bấm <b>Create</b>.</p>
+                            <p>Ở ô <b>NAME</b>, gõ: <code>QA Studio Bot</code> -> Tích ô đồng ý -> Bấm <b>Create</b>.</p>
                           </div>
                         </div>
                         <div class="instruction-item">
@@ -3298,7 +3298,7 @@
                               <li><i class="ph-bold ph-check-circle"></i> <b>Embed Links</b></li>
                             </ul>
                             <p>Bấm <b>Copy URL</b> ở đáy trang -> Mở tab trình duyệt mới -> Mời bot vào server.</p>
-                            <div class="guide-dest-hint success">✅ Thấy <code>Vieclam24h QA Bot</code> trong danh sách server là thành công!</div>
+                            <div class="guide-dest-hint success">✅ Thấy <code>QA Studio Bot</code> trong danh sách server là thành công!</div>
                           </div>
                         </div>
                       </div>
@@ -3451,7 +3451,7 @@
                             <strong>Bật Bot chạy ngầm:</strong>
                             <p>Mở Terminal/PowerShell và chạy lệnh:</p>
                             <pre class="guide-terminal-code"><code>cd D:\_Automation-Project\discord-qa-bot && node bot.js</code></pre>
-                            <div class="guide-dest-hint success">✅ Khi hiện <code>Ready: Vieclam24h QA Bot</code> là bot đã thức dậy!</div>
+                            <div class="guide-dest-hint success">✅ Khi hiện <code>Ready: QA Studio Bot</code> là bot đã thức dậy!</div>
                           </div>
                         </div>
                         <div class="instruction-item">
@@ -3460,12 +3460,13 @@
                             <strong>Thử ra lệnh trên Discord:</strong>
                             <p>Gõ vào kênh chat Discord:</p>
                             <div class="guide-cmd-preview">
-                              <code>@Vieclam24h QA Bot run smoke dev</code>
+                              <code>@QA Studio Bot run smoke dev</code>
                             </div>
                             <p style="margin-top:6px; color:var(--text);">🎉 Bot sẽ lập tức kích hoạt test trên GitHub và tự động trả kết quả báo cáo về kênh chat!</p>
                           </div>
                         </div>
                       </div>
+
                       <div class="guide-pane-footer">
                         <button type="button" class="btn-guide-prev" data-prev-step="4">
                           <i class="ph-bold ph-arrow-left"></i> Bước trước

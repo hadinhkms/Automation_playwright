@@ -4,7 +4,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const fileName = `rec_test_${Date.now()}.js`;
 const outputPath = path.join(ROOT, '.tmp', 'recordings', fileName);
-const targetUrl = 'https://seeker.vl24hv2.qc.sieuviet-team.com';
+const targetUrl = 'https://example.com';
 
 const args = [
   'playwright',

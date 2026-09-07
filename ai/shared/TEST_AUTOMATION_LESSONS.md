@@ -23,7 +23,7 @@ Only record a lesson after the issue is reproducible and its root cause is known
 - Area: Precondition & Page Object Locators (`HomePage.js`)
 - Symptom: Test fails in `Given Tiền điều kiện` with `TimeoutError: locator.waitFor: Timeout 20000ms exceeded. waiting for locator('a[href="/"] svg').first() to be visible`.
 - Root cause:
-  1. The target web application updated its header brand logo to render as `<img>` (`link "Vieclam24h logo" > img`) instead of inline `<svg>`, causing a selector targeting strictly `svg` to time out.
+  1. The target web application updated its header brand logo to render as `<img>` (`link "Brand logo" > img`) instead of inline `<svg>`, causing a selector targeting strictly `svg` to time out.
   2. Immediately following authentication, the Onboarding modal overlay appears on the screen and intercepts visibility/pointer events for underlying homepage elements.
 - Correct pattern:
   1. Define logo with a resilient union selector in `HomePage.js`: `this.logo = page.locator('a[href="/"] img, a[href="/"] svg').first();`.

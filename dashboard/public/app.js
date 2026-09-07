@@ -946,7 +946,7 @@ function updatePageManagerPreview() {
 }
 
 // --- Page Manager Draft Management (.dashboard-drafts/pages/) ---
-const PAGE_MANAGER_DRAFT_KEY = 'vieclam24h_page_manager_draft';
+const PAGE_MANAGER_DRAFT_KEY = 'qa_studio_page_manager_draft';
 let activePageDraftId = null;
 let pageDraftDebounceTimer = null;
 
@@ -2652,7 +2652,7 @@ function createSharedCodeEditor({
     language,
     currentSuggestion: '',
     suggestionPos: -1,
-    suggestEnabled: typeof localStorage !== 'undefined' && localStorage ? (localStorage.getItem('vieclam24h_ai_suggest_enabled') !== 'false') : true,
+    suggestEnabled: typeof localStorage !== 'undefined' && localStorage ? (localStorage.getItem('qa_studio_ai_suggest_enabled') !== 'false') : true,
     isSuggestLoading: false,
 
     setSuggestion(text, pos) {
@@ -2678,7 +2678,7 @@ function createSharedCodeEditor({
     toggleSuggest() {
       this.suggestEnabled = !this.suggestEnabled;
       if (typeof localStorage !== 'undefined' && localStorage) {
-        localStorage.setItem('vieclam24h_ai_suggest_enabled', String(this.suggestEnabled));
+        localStorage.setItem('qa_studio_ai_suggest_enabled', String(this.suggestEnabled));
       }
       if (!this.suggestEnabled) {
         this.clearSuggestion();
@@ -2889,7 +2889,7 @@ function createSharedCodeEditor({
       try {
         let clientConfig = null;
         try {
-          const rawCfg = localStorage.getItem('vieclam24h_ai_personal_config');
+          const rawCfg = localStorage.getItem('qa_studio_ai_personal_config');
           if (rawCfg) {
             const p = JSON.parse(rawCfg);
             if (p && p.enabled && p.apiKey) clientConfig = p;
@@ -4794,11 +4794,11 @@ function initAiSettings() {
           baseURL,
           model,
         };
-        localStorage.setItem('vieclam24h_ai_personal_config', JSON.stringify(personalConfig));
+        localStorage.setItem('qa_studio_ai_personal_config', JSON.stringify(personalConfig));
         showAlert(true, 'Đã lưu cấu hình cá nhân', 'Cấu hình AI đã được lưu trên trình duyệt này! Tab AI Agent sẽ ưu tiên dùng key và model này.');
         notify('Đã lưu cấu hình AI cá nhân vào LocalStorage!');
       } else {
-        localStorage.removeItem('vieclam24h_ai_personal_config');
+        localStorage.removeItem('qa_studio_ai_personal_config');
         const res = await request('/api/ai/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4834,7 +4834,7 @@ async function loadAiSettings() {
 
   let personal = null;
   try {
-    const raw = typeof localStorage !== 'undefined' && localStorage ? localStorage.getItem('vieclam24h_ai_personal_config') : null;
+    const raw = typeof localStorage !== 'undefined' && localStorage ? localStorage.getItem('qa_studio_ai_personal_config') : null;
     if (raw) personal = JSON.parse(raw);
   } catch {}
 
@@ -6668,7 +6668,7 @@ $('#rec-copy-raw-btn')?.addEventListener('click', () => {
 
 $('#rec-start-btn')?.addEventListener('click', async () => {
   const currentEnvKey = $('#filter-env')?.value || settingsCache?.runtime?.defaultEnvironment || 'qc';
-  const defaultUrl = settingsCache?.environments?.[currentEnvKey]?.baseURL || 'https://seeker.vl24hv2.qc.sieuviet-team.com';
+  const defaultUrl = settingsCache?.environments?.[currentEnvKey]?.baseURL || 'https://example.com';
   const url = $('#rec-url')?.value.trim() || defaultUrl;
   const platform = $('#rec-platform')?.value || 'desktop';
   const device = platform === 'mobile-web' ? $('#rec-device')?.value : '';
@@ -10086,7 +10086,7 @@ function buildWizardState(options = {}) {
   };
 }
 
-const BDD_WIZARD_DRAFT_KEY = 'vieclam24h_bdd_wizard_draft';
+const BDD_WIZARD_DRAFT_KEY = 'qa_studio_bdd_wizard_draft';
 let activeScriptDraftId = 'draft_script_active';
 
 function updateScriptDraftStatusBadge(statusText, state = 'saved') {
@@ -12733,7 +12733,7 @@ async function updateGlobalHeaderTokenQuota() {
   try {
     let clientConfig = null;
     try {
-      const rawCfg = localStorage.getItem('vieclam24h_ai_personal_config');
+      const rawCfg = localStorage.getItem('qa_studio_ai_personal_config');
       if (rawCfg) {
         const p = JSON.parse(rawCfg);
         if (p && p.enabled && p.apiKey) clientConfig = p;
