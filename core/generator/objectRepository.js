@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const PAGE_ROOTS = ['pages/', 'pages/desktop/', 'pages/mobile-web/', 'core/fixtures/'];
+const PAGE_ROOTS = ['pages/', 'pages/desktop/', 'pages/mobile/', 'pages/mobile-web/', 'core/fixtures/'];
 const LOCATOR_EXPRESSION = /^(?:this\.)?page\.(?:locator|getByRole|getByLabel|getByPlaceholder|getByTestId|getByText|getByAltText|getByTitle)\s*\(/;
 
 function normalizePagePath(relativePath) {

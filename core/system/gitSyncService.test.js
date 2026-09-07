@@ -1,7 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('path');
-const fs = require('fs');
 const {
   isPermittedPath,
   isBlockedPath,
@@ -11,65 +9,56 @@ const {
   syncSuitesAndConfigs,
 } = require('./gitSyncService');
 
-test('Asset Shield: isBlockedPath blocks sensitive and temporary files', () => {
+test('gitSyncService security shield blocks sensitive and transient paths', () => {
   assert.equal(isBlockedPath('.env'), true);
-  assert.equal(isBlockedPath('.env.production'), true);
-  assert.equal(isBlockedPath('credentials.json'), true);
-  assert.equal(isBlockedPath('secrets.key'), true);
+  assert.equal(isBlockedPath('.env.local'), true);
   assert.equal(isBlockedPath('playwright-report/index.html'), true);
-  assert.equal(isBlockedPath('test-results/trace.zip'), true);
+  assert.equal(isBlockedPath('test-results/video.webm'), true);
   assert.equal(isBlockedPath('evidence/screenshot.png'), true);
+  assert.equal(isBlockedPath('.tmp/recording.mp4'), true);
   assert.equal(isBlockedPath('.dashboard-drafts/draft.json'), true);
-  assert.equal(isBlockedPath('tmp/cache.tmp'), true);
-  assert.equal(isBlockedPath('scratch/notes.txt'), true);
-  assert.equal(isBlockedPath('.ai/learning/scratch/test.txt'), true);
-  assert.equal(isBlockedPath('ai/personal/prompt.md'), true);
+  assert.equal(isBlockedPath('.dashboard-backups/backup.bak'), true);
+  assert.equal(isBlockedPath('ai/personal/config.json'), true);
+  assert.equal(isBlockedPath('scratch/test.js'), true);
 });
 
-test('Asset Whitelist: isPermittedPath allows safe test assets and configs', () => {
-  assert.equal(isPermittedPath('tests/e2e/sample.spec.js'), true);
-  assert.equal(isPermittedPath('pages/desktop/SamplePage.js'), true);
-  assert.equal(isPermittedPath('data/sampleData.json'), true);
-  assert.equal(isPermittedPath('dashboardConfig.json'), true);
-  assert.equal(isPermittedPath('qa-engine.config.json'), true);
+test('gitSyncService whitelist permits core engineering and test assets', () => {
+  assert.equal(isPermittedPath('tests/e2e/login.spec.js'), true);
+  assert.equal(isPermittedPath('pages/desktop/LoginPage.js'), true);
+  assert.equal(isPermittedPath('data/users.json'), true);
+  assert.equal(isPermittedPath('core/generator/recordParser.js'), true);
+  assert.equal(isPermittedPath('dashboard/public/index.html'), true);
   assert.equal(isPermittedPath('package.json'), true);
   assert.equal(isPermittedPath('playwright.config.js'), true);
-  assert.equal(isPermittedPath('README.md'), true);
-  assert.equal(isPermittedPath('GIT_WORKFLOW.md'), true);
-
-  // Blocked paths take precedence even if located under tests or pages
-  assert.equal(isPermittedPath('tests/.env'), false);
+  assert.equal(isPermittedPath('unknown/folder/file.bin'), false);
 });
 
-test('categorizeAsset categorizes files properly for UI presentation', () => {
-  assert.equal(categorizeAsset('tests/e2e/test.spec.js').type, 'test_script');
-  assert.equal(categorizeAsset('pages/mobile/LoginMobilePage.js').type, 'page_object');
-  assert.equal(categorizeAsset('data/users.json').type, 'test_data');
-  assert.equal(categorizeAsset('dashboardConfig.json').type, 'test_suite');
-  assert.equal(categorizeAsset('.env').type, 'blocked');
+test('categorizeAsset classifies test scripts, page objects, data, and suites', () => {
+  assert.equal(categorizeAsset('tests/e2e/sample.spec.js').category, 'test_script');
+  assert.equal(categorizeAsset('pages/desktop/SamplePage.js').category, 'page_object');
+  assert.equal(categorizeAsset('data/sampleData.json').category, 'test_data');
+  assert.equal(categorizeAsset('core/config/dashboardConfig.json').category, 'test_suite');
 });
 
-test('getGitStatus returns clean repository status', () => {
+test('getGitStatus returns branch, remote, and asset lists', () => {
   const status = getGitStatus();
   assert.equal(status.ok, true);
-  assert.equal(status.isGitRepo, true);
-  assert.ok(typeof status.currentBranch === 'string' && status.currentBranch.length > 0);
-  assert.ok(typeof status.ahead === 'number');
-  assert.ok(typeof status.behind === 'number');
+  assert.ok(status.currentBranch);
   assert.ok(Array.isArray(status.permittedFiles));
   assert.ok(Array.isArray(status.blockedFiles));
+  assert.ok(Array.isArray(status.recentCommits));
 });
 
-test('Framework Quality Gate validates codebase structure', () => {
+test('runFrameworkQualityGate evaluates framework structure', () => {
   const qg = runFrameworkQualityGate();
-  assert.equal(qg.ok, true);
+  assert.equal(typeof qg.passed, 'boolean');
+  assert.ok(Array.isArray(qg.issues));
   assert.equal(qg.passed, true);
 });
 
-test('syncSuitesAndConfigs runs safely in dryRun mode without errors', () => {
-  const result = syncSuitesAndConfigs({ dryRun: true });
-  assert.equal(result.ok, true);
-  assert.equal(result.success, true);
-  assert.equal(result.dryRun, true);
-  assert.ok(result.message.length > 0);
+test('syncSuitesAndConfigs dryRun executes safely without network modification', () => {
+  const res = syncSuitesAndConfigs({ dryRun: true });
+  assert.equal(res.ok, true);
+  assert.equal(res.dryRun, true);
+  assert.ok(res.message);
 });

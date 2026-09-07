@@ -157,7 +157,6 @@ function compileVisualScenario(scenarioData, options = {}) {
   // 1. Phân tích các fixtures cần import
   const fixtureSet = new Set(['test']);
   const dataImports = new Set();
-  let hasDynamicPages = false;
 
   normalized.dataSources.forEach((source) => {
     const variable = source.variable;
@@ -171,22 +170,11 @@ function compileVisualScenario(scenarioData, options = {}) {
     }
   });
   if (normalized.precondition.auth === 'authenticated') fixtureSet.add('authenticatedUser');
-  if (normalized.precondition.closeOnboarding) fixtureSet.add('onboardingPopup');
-  if (normalized.precondition.verifyLandingPage || normalized.precondition.captureInitial) fixtureSet.add('homePage');
 
   normalized.steps.forEach((step) => {
     const preset = PRESET_ACTIONS.find((p) => p.id === step.actionId);
     if (preset && preset.fixture) {
       preset.fixture.split(',').forEach((f) => fixtureSet.add(f.trim()));
-    }
-    if (step.actionId === 'auth_login_precondition' || step.actionId === 'select_first_job') {
-      dataImports.add("const usersData = require('../../../data/users.json');");
-    }
-    if (step.actionId === 'fill_mini_profile' || step.actionId === 'bulk_apply_all') {
-      dataImports.add("const applyData = require('../../../data/applyJobData.json');");
-    }
-    if (step.actionId === 'select_first_job') {
-      hasDynamicPages = true;
     }
     if (step.actionId && (step.actionId.startsWith('assert_') || step.actionId.startsWith('assertion_'))) {
       fixtureSet.add('expect');
@@ -201,9 +189,9 @@ function compileVisualScenario(scenarioData, options = {}) {
   // 2. Tạo phần thân các bước BDD test.step()
   const stepBlocks = [];
   const preconditionLines = [];
-  if (normalized.precondition.closeOnboarding) preconditionLines.push('      await onboardingPopup.closeIfVisible(undefined, { modalTimeout: 15000, closeBtnTimeout: 5000 });');
-  if (normalized.precondition.verifyLandingPage) preconditionLines.push('      await homePage.expectHomepageVisible();');
-  if (normalized.precondition.captureInitial) preconditionLines.push("      await homePage.capture('precondition_initial_state');");
+  if (normalized.precondition.auth === 'authenticated') preconditionLines.push('      // Precondition: Đã chứng thực người dùng');
+  if (normalized.precondition.verifyLandingPage) preconditionLines.push('      // Precondition: Xác thực trang đích');
+  if (normalized.precondition.captureInitial) preconditionLines.push("      await page.screenshot({ path: 'evidence/precondition_initial_state.png' });");
   if (!preconditionLines.length) preconditionLines.push('      // Precondition đã sẵn sàng.');
   normalized.steps.forEach((step, idx) => {
     const stepType = step.stepType || (idx === 0 ? 'Given' : 'When');
@@ -244,7 +232,6 @@ function compileVisualScenario(scenarioData, options = {}) {
 
   // 3. Ghép thành file Spec hoàn chỉnh
   const fixturesArgList = Array.from(fixtureSet)
-    .filter((f) => !(hasDynamicPages && f === 'jobApplyNoCVPage'))
     .filter((f) => f !== 'test' && f !== 'expect')
     .join(',\n    ');
 
@@ -268,7 +255,7 @@ test.describe(${quote(`Feature: ${cleanFeatureName} ${cleanTagStr}`)}, () => {
 ${preconditionLines.join('\n')}
     });
 
-${hasDynamicPages ? '    let jobApplyNoCVPage;\n' : ''}${stepBlocks.join('\n\n')}
+${stepBlocks.join('\n\n')}
   });
 });
 `;
@@ -287,30 +274,15 @@ ${hasDynamicPages ? '    let jobApplyNoCVPage;\n' : ''}${stepBlocks.join('\n\n')
 }
 
 const FIXTURE_PAGE_MAP = {
-  homePage: { name: 'HomePage.js', relativePath: 'pages/desktop/HomePage.js', className: 'HomePage' },
-  loginPopup: { name: 'LoginPopup.js', relativePath: 'pages/desktop/LoginPopup.js', className: 'LoginPopup' },
-  onboardingPopup: { name: 'OnboardingPopup.js', relativePath: 'pages/desktop/OnboardingPopup.js', className: 'OnboardingPopup' },
-  popupConsent: { name: 'PopupConsent.js', relativePath: 'pages/desktop/PopupConsent.js', className: 'PopupConsent' },
-  jobSearchPage: { name: 'JobSearchPage.js', relativePath: 'pages/desktop/JobSearchPage.js', className: 'JobSearchPage' },
-  jobApplyPage: { name: 'JobApplyPage.js', relativePath: 'pages/desktop/JobApplyPage.js', className: 'JobApplyPage' },
-  jobApplyNoCVPage: { name: 'JobApplyNoCVPage.js', relativePath: 'pages/desktop/JobApplyNoCVPage.js', className: 'JobApplyNoCVPage' },
-  userProfilePage: { name: 'UserProfilePage.js', relativePath: 'pages/desktop/UserProfilePage.js', className: 'UserProfilePage' },
-  createJobApplyPage: { name: 'JobApplyPage.js', relativePath: 'pages/desktop/JobApplyPage.js', className: 'JobApplyPage' },
-  createJobApplyNoCVPage: { name: 'JobApplyNoCVPage.js', relativePath: 'pages/desktop/JobApplyNoCVPage.js', className: 'JobApplyNoCVPage' },
-  mobileHomePage: { name: 'MobileHomePage.js', relativePath: 'pages/mobile-web/MobileHomePage.js', className: 'MobileHomePage' },
-  mobileLoginPopup: { name: 'MobileLoginPopup.js', relativePath: 'pages/mobile-web/MobileLoginPopup.js', className: 'MobileLoginPopup' },
-  mobileOnboardingPopup: { name: 'MobileOnboardingPopup.js', relativePath: 'pages/mobile-web/MobileOnboardingPopup.js', className: 'MobileOnboardingPopup' },
-  mobilePopupConsent: { name: 'MobilePopupConsent.js', relativePath: 'pages/mobile-web/MobilePopupConsent.js', className: 'MobilePopupConsent' },
-  mobileJobSearchPage: { name: 'MobileJobSearchPage.js', relativePath: 'pages/mobile-web/MobileJobSearchPage.js', className: 'MobileJobSearchPage' },
-  mobileJobApplyNoCVPage: { name: 'MobileJobApplyNoCVPage.js', relativePath: 'pages/mobile-web/MobileJobApplyNoCVPage.js', className: 'MobileJobApplyNoCVPage' },
-  mobileJobApplyPage: { name: 'MobileJobApplyPage.js', relativePath: 'pages/mobile-web/MobileJobApplyPage.js', className: 'MobileJobApplyPage' },
-  mobileUserProfilePage: { name: 'MobileUserProfilePage.js', relativePath: 'pages/mobile-web/MobileUserProfilePage.js', className: 'MobileUserProfilePage' },
+  samplePage: { name: 'SamplePage.js', relativePath: 'pages/desktop/SamplePage.js', className: 'SamplePage' },
+  sampleMobilePage: { name: 'SampleMobilePage.js', relativePath: 'pages/mobile/SampleMobilePage.js', className: 'SampleMobilePage' },
 };
 
 function getFixturePageMap(rootDir = process.cwd()) {
   const map = { ...FIXTURE_PAGE_MAP };
   const scanDirs = [
     { dir: 'pages/desktop', platform: 'desktop' },
+    { dir: 'pages/mobile', platform: 'mobile' },
     { dir: 'pages/mobile-web', platform: 'mobile-web' },
     { dir: 'pages', platform: 'base' },
   ];
@@ -417,18 +389,6 @@ function parseExistingSpecFile(filePath, rootDir = process.cwd()) {
         }
       }
 
-      if (fixName.startsWith('createJobApply')) {
-        const boundVar = fixName === 'createJobApplyPage' ? 'jobApplyPage' : 'jobApplyNoCVPage';
-        const boundActRegex = new RegExp(`\\b${boundVar}\\.([a-zA-Z0-9_]+)\\s*\\(`, 'g');
-        let bMatch;
-        while ((bMatch = boundActRegex.exec(content)) !== null) {
-          const act = bMatch[1];
-          if (!['capture', 'waitForLoadState', 'waitForTimeout'].includes(act) && !actions.includes(act)) {
-            actions.push(act);
-          }
-        }
-      }
-
       const existing = pageMap.get(pageInfo.relativePath);
       if (existing) {
         actions.forEach((a) => {
@@ -467,34 +427,24 @@ function parseExistingSpecFile(filePath, rootDir = process.cwd()) {
 
     let matchedActionId = '';
 
-    // 1. Kiểm tra chính xác các method invocation đặc trưng
-    if (body.includes('.bulkApply(')) {
-      matchedActionId = 'bulk_apply_all';
-    } else if (body.includes('.openAppliedJobs(') || body.includes('.expectAppliedJobsVisible(')) {
-      matchedActionId = 'verify_applied_jobs';
-    } else if (body.includes('.fillMiniProfile(') || body.includes('.submitProfile(') || body.includes('.submitGuestProfile(')) {
-      matchedActionId = 'fill_mini_profile';
-    } else if (body.includes('.clickFirstJob(') || body.includes('.startApplyNoCV(')) {
-      matchedActionId = 'select_first_job';
-    } else if (body.includes('.clickNoCVJobLink(')) {
-      matchedActionId = 'open_nocv_job_list';
-    } else if (body.includes('onboardingPopup') && body.includes('.closeIfVisible(')) {
-      matchedActionId = 'close_onboarding_popup';
-    } else if (body.includes('.expectHomepageVisible(')) {
-      matchedActionId = 'auth_login_precondition';
-    } else if (body.includes('.goto(')) {
+    // 1. Kiểm tra chính xác các method invocation chuẩn
+    if (body.includes('.goto(')) {
       matchedActionId = 'navigate_url';
+    } else if (body.includes('.waitFor({') || body.includes('.waitFor(')) {
+      matchedActionId = 'wait_visible';
+    } else if (body.includes('.screenshot(') || body.includes('.capture(')) {
+      matchedActionId = 'take_screenshot';
+    } else if (body.includes('.click(')) {
+      matchedActionId = 'click_element';
+    } else if (body.includes('.fill(')) {
+      matchedActionId = 'fill_text';
     }
 
-    // 2. Kiểm tra semantic từ tiêu đề bước
+    // 2. Khớp assertion nếu có
     if (!matchedActionId) {
-      const lowerTitle = cleanTitle.toLowerCase();
-      if (lowerTitle.includes('bulk apply') || lowerTitle.includes('hàng loạt') || lowerTitle.includes('apply tất cả')) {
-        matchedActionId = 'bulk_apply_all';
-      } else if (lowerTitle.includes('đã ứng tuyển')) {
-        matchedActionId = 'verify_applied_jobs';
-      } else if (lowerTitle.includes('profile mini')) {
-        matchedActionId = 'fill_mini_profile';
+      const assertionMatch = body.match(/\.((?:toBeVisible|toBeHidden|toHaveText|toContainText|toHaveValue|toHaveURL|toBeEnabled|toBeDisabled))\s*\(/);
+      if (assertionMatch) {
+        matchedActionId = `assertion_${assertionMatch[1]}`;
       }
     }
 
@@ -503,14 +453,6 @@ function parseExistingSpecFile(filePath, rootDir = process.cwd()) {
       const exactPreset = PRESET_ACTIONS.find((p) => p.name.toLowerCase() === cleanTitle.toLowerCase());
       if (exactPreset) {
         matchedActionId = exactPreset.id;
-      }
-    }
-
-    // 4. Khớp assertion nếu có
-    if (!matchedActionId) {
-      const assertionMatch = body.match(/\.((?:toBeVisible|toBeHidden|toHaveText|toContainText|toHaveValue|toHaveURL|toBeEnabled|toBeDisabled))\s*\(/);
-      if (assertionMatch) {
-        matchedActionId = `assertion_${assertionMatch[1]}`;
       }
     }
 

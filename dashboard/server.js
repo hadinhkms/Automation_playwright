@@ -2264,8 +2264,6 @@ const server = http.createServer(async (request, response) => {
  
 test.describe('Feature: ${featureName} ${tags}', () => {
   test('${scenarioName}', async ({
-    authenticatedUser,
-    onboardingPopup,
     ${fixtureName},
   }, testInfo) => {
     test.setTimeout(180000);
@@ -2273,13 +2271,11 @@ test.describe('Feature: ${featureName} ${tags}', () => {
     // Gắn tag Precondition hiển thị trên header của Playwright Report
     testInfo.annotations.push({
       type: 'Precondition',
-      description: 'Đã đăng nhập tài khoản ứng viên hợp lệ (authSetup)',
+      description: 'Môi trường sẵn sàng, khởi tạo kịch bản kiểm thử',
     });
 
-    await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang chủ', async () => {
-      await onboardingPopup.closeIfVisible();
-      await ${fixtureName}.expectHomepageVisible();
-      await ${fixtureName}.capture('precondition_logged_in_ready');
+    await test.step('Given Tiền điều kiện: Mở trang kiểm thử và chuẩn bị môi trường', async () => {
+      await ${fixtureName}.capture('precondition_ready');
     });
 
     await test.step('When Người dùng thực hiện các bước kiểm thử', async () => {

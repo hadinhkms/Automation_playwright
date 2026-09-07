@@ -108,27 +108,27 @@ function categorizeAsset(filePath) {
   const normalized = normalizeRelativePath(filePath);
 
   if (isBlockedPath(normalized)) {
-    return { type: 'blocked', label: 'Bị chặn (Bảo mật/Rác)', icon: 'ph-shield-warning', color: 'danger' };
+    return { type: 'blocked', category: 'blocked', label: 'Bị chặn (Bảo mật/Rác)', icon: 'ph-shield-warning', color: 'danger' };
   }
   if (normalized.startsWith('tests/')) {
-    return { type: 'test_script', label: 'Kịch bản Test', icon: 'ph-tree-structure', color: 'primary' };
+    return { type: 'test_script', category: 'test_script', label: 'Kịch bản Test', icon: 'ph-tree-structure', color: 'primary' };
   }
   if (normalized.startsWith('pages/')) {
-    return { type: 'page_object', label: 'Page Object', icon: 'ph-browsers', color: 'purple' };
+    return { type: 'page_object', category: 'page_object', label: 'Page Object', icon: 'ph-browsers', color: 'purple' };
   }
   if (normalized.startsWith('data/')) {
-    return { type: 'test_data', label: 'Dữ liệu Test', icon: 'ph-database', color: 'teal' };
+    return { type: 'test_data', category: 'test_data', label: 'Dữ liệu Test', icon: 'ph-database', color: 'teal' };
   }
   if (normalized.includes('dashboardConfig') || normalized.includes('qa-engine.config') || normalized.includes('playwright.config')) {
-    return { type: 'test_suite', label: 'Suite & Cấu hình', icon: 'ph-stack', color: 'amber' };
+    return { type: 'test_suite', category: 'test_suite', label: 'Suite & Cấu hình', icon: 'ph-stack', color: 'amber' };
   }
   if (normalized.startsWith('docs/') || normalized.endsWith('.md')) {
-    return { type: 'docs', label: 'Tài liệu hướng dẫn', icon: 'ph-book-open', color: 'blue' };
+    return { type: 'docs', category: 'docs', label: 'Tài liệu hướng dẫn', icon: 'ph-book-open', color: 'blue' };
   }
   if (isPermittedPath(normalized)) {
-    return { type: 'code', label: 'Mã nguồn hệ thống', icon: 'ph-code', color: 'slate' };
+    return { type: 'code', category: 'code', label: 'Mã nguồn hệ thống', icon: 'ph-code', color: 'slate' };
   }
-  return { type: 'other', label: 'Khác', icon: 'ph-file', color: 'secondary' };
+  return { type: 'other', category: 'other', label: 'Khác', icon: 'ph-file', color: 'secondary' };
 }
 
 /**

@@ -31,8 +31,8 @@ function saveDraftFiles({
     return path.resolve(ROOT, normalized);
   };
 
-  const pomAbsPath = validateSandboxPath(pomFile.path, ['pages/desktop/', 'pages/mobile-web/']);
-  const specAbsPath = validateSandboxPath(specFile.path, ['tests/e2e/desktop/', 'tests/e2e/mobile-web/']);
+  const pomAbsPath = validateSandboxPath(pomFile.path, ['pages/desktop/', 'pages/mobile/', 'pages/mobile-web/', 'pages/']);
+  const specAbsPath = validateSandboxPath(specFile.path, ['tests/e2e/desktop/', 'tests/e2e/mobile/', 'tests/e2e/mobile-web/', 'tests/e2e/', 'tests/']);
 
   // 2. Validate JavaScript Syntax trước khi ghi đĩa
   try {

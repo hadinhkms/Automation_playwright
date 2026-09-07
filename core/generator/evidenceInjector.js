@@ -120,7 +120,7 @@ function injectSmartEvidenceCaptures(specCode, options = {}) {
     });
   }
 
-  // Nhận diện các biến dynamic như jobApplyNoCVPage = createJobApplyNoCVPage(newPage)
+  // Nhận diện các biến dynamic như detailsPage = createDetailsPage(newPage)
   const dynPageRegex = /(\b[a-zA-Z0-9_]+Page\b)\s*=\s*(?:create\w+|new\s+\w+)/g;
   let dynMatch;
   while ((dynMatch = dynPageRegex.exec(specCode)) !== null) {
@@ -233,7 +233,7 @@ function injectSmartEvidenceCaptures(specCode, options = {}) {
         for (let j = i + 1; j < lines.length; j++) {
           const nextTrimmed = lines[j].trim();
           if (!nextTrimmed || nextTrimmed.startsWith('//')) continue;
-          // Bỏ qua dòng gán biến Page Object như: jobApplyNoCVPage = createJobApplyNoCVPage(...)
+          // Bỏ qua dòng gán biến Page Object như: detailsPage = createDetailsPage(...)
           if (/^(?:let|const|var\s+)?[a-zA-Z0-9_]+\s*=\s*/.test(nextTrimmed)) continue;
           if (/\.capture\(\s*['"`]/.test(nextTrimmed)) {
             nextHasCapture = true;

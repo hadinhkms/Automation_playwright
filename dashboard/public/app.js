@@ -2822,17 +2822,8 @@ function createSharedCodeEditor({
     }
 
     // 3. Framework Page Objects & Fixture Actions
-    if (/^\s*await\s+homePage\.$/.test(currentLine)) {
-      return "expectHomepageVisible();";
-    }
-    if (/^\s*await\s+jobApplyNoCVPage\.$/.test(currentLine)) {
-      return "fillMiniProfile(applyData.nocvApply.job1);";
-    }
-    if (/^\s*await\s+jobSearchPage\.$/.test(currentLine)) {
-      return "searchJob('tester');";
-    }
-    if (/^\s*await\s+onboardingPopup\.$/.test(currentLine)) {
-      return "closeBlockingModalIfVisible();";
+    if (/^\s*await\s+[a-zA-Z0-9_]+Page\.$/.test(currentLine)) {
+      return "capture('action_step');";
     }
     if (/^\s*await\s+page\.$/.test(currentLine)) {
       return "goto('/');";
@@ -7774,16 +7765,14 @@ const DATA_ARCHETYPE_TEMPLATES = {
     title: 'Tìm kiếm & Bộ lọc (Search)',
     badge: 'Đối tượng (Object)',
     icon: 'ph-magnifying-glass',
-    desc: 'Các tham số lọc tìm việc: từ khóa, tỉnh thành, ngành nghề, mức lương, kinh nghiệm làm việc.',
-    defaultFileName: 'jobSearchCriteria.json',
+    desc: 'Các tham số lọc tìm kiếm: từ khóa, danh mục, khu vực, trạng thái.',
+    defaultFileName: 'searchCriteria.json',
     defaultData: {
-      keyword: "Chuyên viên Kiểm thử Tự động Playwright",
-      location: "Hà Nội",
-      industry: "Công nghệ thông tin",
-      salaryMin: "15000000",
-      salaryMax: "30000000",
-      experience: "2-3 năm",
-      jobType: "Toàn thời gian"
+      keyword: "Automation Testing",
+      category: "Default",
+      status: "active",
+      page: 1,
+      limit: 20
     }
   },
   profile: {
@@ -7791,40 +7780,36 @@ const DATA_ARCHETYPE_TEMPLATES = {
     title: 'Hồ sơ & Form cá nhân (Profile)',
     badge: 'Phân cấp (Nested)',
     icon: 'ph-identification-card',
-    desc: 'Cấu trúc biểu mẫu hồ sơ: thông tin chung, học vấn, kinh nghiệm, kỹ năng, mục tiêu nghề nghiệp.',
-    defaultFileName: 'candidateProfileData.json',
+    desc: 'Cấu trúc biểu mẫu người dùng: thông tin cá nhân, liên hệ, vai trò, cài đặt.',
+    defaultFileName: 'userProfileData.json',
     defaultData: {
       personalInfo: {
         fullName: "{{random_name}}",
-        dob: "1995-08-15",
-        gender: "Nam",
-        address: "Cầu Giấy, Hà Nội",
+        address: "Hà Nội, Việt Nam",
         phone: "{{random_phone}}",
         email: "{{random_email}}"
       },
-      careerGoal: "Trở thành Senior QA Automation Lead",
-      skills: ["Playwright", "JavaScript", "BDD Cucumber", "CI/CD GitHub Actions"],
-      expectedSalary: "25000000"
+      role: "Standard User",
+      status: "active"
     }
   },
   apply: {
     id: 'apply',
-    title: 'Ứng tuyển việc làm (Job Apply)',
+    title: 'Biểu mẫu nghiệp vụ (Form Submission)',
     badge: 'Quy trình (Flow)',
     icon: 'ph-paper-plane-tilt',
-    desc: 'Dữ liệu nộp hồ sơ nhanh không CV, ứng tuyển bằng CV đính kèm, bulk apply nhiều tin tuyển dụng.',
-    defaultFileName: 'jobApplyData.json',
+    desc: 'Dữ liệu biểu mẫu nghiệp vụ, gửi thông tin và đính kèm tài liệu.',
+    defaultFileName: 'formData.json',
     defaultData: {
-      noCVApply: {
-        job1: {
+      submission: {
+        title: "Test Submission",
+        applicant: {
           name: "{{random_name}}",
           phone: "{{random_phone}}",
-          email: "{{random_email}}",
-          note: "Ứng tuyển vị trí QA Engineer"
-        }
-      },
-      cvPath: "data/TemplateCV.pdf",
-      bulkApplyCount: 3
+          email: "{{random_email}}"
+        },
+        notes: "Ghi chú kiểm thử tự động"
+      }
     }
   },
   table: {
@@ -9903,14 +9888,13 @@ function buildWizardLivePreview(state, validationMessage = '') {
     : '../../../core/fixtures/baseTest';
   const tags = Array.isArray(state.tags) ? state.tags.join(' ') : String(state.tags || '@e2e');
   const fixtures = [
-    'authenticatedUser',
-    'onboardingPopup',
-    ...(state.precondition?.verifyLandingPage || state.precondition?.captureInitial ? ['homePage'] : []),
+    ...(state.precondition?.auth === 'authenticated' ? ['authenticatedUser'] : []),
     ...state.pageObjects.map((page) => {
-    const fileName = page.split('/').pop().replace(/\.js$/, '');
-    return fileName.charAt(0).toLowerCase() + fileName.slice(1);
+      const fileName = page.split('/').pop().replace(/\.js$/, '');
+      return fileName.charAt(0).toLowerCase() + fileName.slice(1);
     }),
   ];
+  if (fixtures.length === 0) fixtures.push('page');
   const uniqueFixtures = Array.from(new Set(fixtures));
   const dataImports = state.dataSources.map((source) => `const ${source.variable} = require('../../../${source.file}');`);
   const precondition = state.precondition || {};
@@ -9927,13 +9911,11 @@ function buildWizardLivePreview(state, validationMessage = '') {
     '',
     '    testInfo.annotations.push({',
     '      type: "Precondition",',
-    `      description: ${JSON.stringify(precondition.description || 'Tiền điều kiện chưa hoàn thiện')},`,
+    `      description: ${JSON.stringify(precondition.description || 'Tiền điều kiện kịch bản kiểm thử')},`,
     '    });',
     '',
     `    await test.step(${JSON.stringify(`Given ${precondition.description || 'Tiền điều kiện ban đầu'}`)}, async () => {`,
-    precondition.closeOnboarding ? '      await onboardingPopup.closeIfVisible();' : '      // Chưa bật xử lý onboarding popup.',
-    precondition.verifyLandingPage ? '      await homePage.expectHomepageVisible();' : '      // Chưa bật kiểm tra trang bắt đầu.',
-    precondition.captureInitial ? "      await homePage.capture('precondition_initial_state');" : '      // Chưa bật evidence ban đầu.',
+    precondition.captureInitial ? "      await page.screenshot({ path: 'evidence/precondition_initial_state.png' });" : '      // Precondition đã sẵn sàng.',
     '    });',
     '',
   ];
@@ -12142,21 +12124,16 @@ function renderNonTechOverview() {
   const detectedPages = new Map();
 
   const fixtureMap = {
-    loginPopup: { icon: 'ph-lock-key', label: 'Form Đăng Ký / Đăng Nhập (LoginPopup.js)' },
-    homePage: { icon: 'ph-house', label: 'Trang Chủ Việc Làm 24h (HomePage.js)' },
-    jobSearchPage: { icon: 'ph-magnifying-glass', label: 'Tìm Kiếm Việc Làm (JobSearchPage.js)' },
-    jobApplyNoCVPage: { icon: 'ph-file-text', label: 'Nộp Hồ Sơ Nhanh (JobApplyNoCVPage.js)' },
-    jobApplyPage: { icon: 'ph-paperclip', label: 'Nộp Hồ Sơ Có CV (JobApplyPage.js)' },
-    onboardingPopup: { icon: 'ph-sparkle', label: 'Popup Onboarding (OnboardingPopup.js)' },
-    popupConsent: { icon: 'ph-shield-check', label: 'Popup Cookie / Điều Khoản (PopupConsent.js)' },
-    userProfilePage: { icon: 'ph-user', label: 'Hồ Sơ Ứng Viên (UserProfilePage.js)' },
+    samplePage: { icon: 'ph-browsers', label: 'Trang mẫu (SamplePage.js)' },
+    sampleMobilePage: { icon: 'ph-device-mobile', label: 'Trang di động mẫu (SampleMobilePage.js)' },
     authenticatedUser: { icon: 'ph-user-check', label: 'Precondition Đăng Nhập Sẵn' },
   };
 
   // Check loaded fixtures first
   if (builderLoadedFixtures && builderLoadedFixtures.length > 0) {
     builderLoadedFixtures.forEach((fix) => {
-      const info = fixtureMap[fix] || { icon: 'ph-browsers', label: `${fix}.js` };
+      const formatted = fix.charAt(0).toUpperCase() + fix.slice(1);
+      const info = fixtureMap[fix] || { icon: 'ph-browsers', label: `${formatted}.js` };
       detectedPages.set(fix, { icon: info.icon, label: info.label, count: 1 });
     });
   }
@@ -12164,37 +12141,17 @@ function renderNonTechOverview() {
   // Also check step contents
   builderSteps.forEach((step) => {
     const act = builderPresetActions.find((a) => a.id === step.actionId);
-    const text = `${step.title || ''} ${act?.fixture || ''} ${step.code || ''}`.toLowerCase();
-
-    if (text.includes('homepage') || text.includes('trang chủ') || text.includes('quảng cáo')) {
-      const cur = detectedPages.get('homePage') || { icon: 'ph-house', label: 'Trang Chủ Việc Làm 24h (HomePage.js)', count: 0 };
+    if (act?.fixture) {
+      const fix = act.fixture.trim();
+      const formatted = fix.charAt(0).toUpperCase() + fix.slice(1);
+      const cur = detectedPages.get(fix) || { icon: 'ph-browsers', label: `${formatted}.js`, count: 0 };
       cur.count += 1;
-      detectedPages.set('homePage', cur);
-    }
-    if (text.includes('login') || text.includes('đăng nhập') || text.includes('đăng ký') || text.includes('otp')) {
-      const cur = detectedPages.get('loginPopup') || { icon: 'ph-lock-key', label: 'Form Đăng Ký / Đăng Nhập (LoginPopup.js)', count: 0 };
-      cur.count += 1;
-      detectedPages.set('loginPopup', cur);
-    }
-    if (text.includes('jobsearch') || text.includes('tìm việc') || text.includes('danh sách việc')) {
-      const cur = detectedPages.get('jobSearchPage') || { icon: 'ph-magnifying-glass', label: 'Tìm Kiếm Việc Làm (JobSearchPage.js)', count: 0 };
-      cur.count += 1;
-      detectedPages.set('jobSearchPage', cur);
-    }
-    if (text.includes('apply') || text.includes('ứng tuyển') || text.includes('nộp hồ sơ')) {
-      const cur = detectedPages.get('jobApplyNoCVPage') || { icon: 'ph-file-text', label: 'Nộp Hồ Sơ Nhanh (JobApplyNoCVPage.js)', count: 0 };
-      cur.count += 1;
-      detectedPages.set('jobApplyNoCVPage', cur);
-    }
-    if (text.includes('onboarding') || text.includes('khảo sát')) {
-      const cur = detectedPages.get('onboardingPopup') || { icon: 'ph-sparkle', label: 'Popup Onboarding (OnboardingPopup.js)', count: 0 };
-      cur.count += 1;
-      detectedPages.set('onboardingPopup', cur);
+      detectedPages.set(fix, cur);
     }
   });
 
   if (detectedPages.size === 0) {
-    detectedPages.set('homePage', { icon: 'ph-house', label: 'Trang Chủ Việc Làm 24h (HomePage.js)', count: 1 });
+    detectedPages.set('defaultPage', { icon: 'ph-browsers', label: 'Màn hình kiểm thử', count: 1 });
   }
 
   if (pagesCount) pagesCount.textContent = `${detectedPages.size} màn hình`;
@@ -12425,8 +12382,8 @@ function highlightJsTokens(str) {
     .replace(/(&quot;.*?&quot;|&#39;.*?&#39;|`.*?`|'.*?'|".*?")/g, '<span class="tok-string">$1</span>')
     .replace(/\b(test\.describe|test\.step|test\.slow|test\.setTimeout|test|expect)\b/g, '<span class="tok-api">$1</span>')
     .replace(/\b(const|let|var|async|await|function|return|require|import|from|export|new|class|extends|if|else|try|catch|throw|finally)\b/g, '<span class="tok-keyword">$1</span>')
-    .replace(/\b(page|authenticatedUser|onboardingPopup|homePage|jobSearchPage|jobApplyNoCVPage|usersData)\b/g, '<span class="tok-fixture">$1</span>')
-    .replace(/\.(toBeVisible|toBeHidden|toHaveText|toContainText|toHaveValue|toBeEnabled|click|fill|waitFor|goto|closeIfVisible|clickNoCVJobLink|startApplyNoCV|capture)\b/g, '.<span class="tok-method">$1</span>')
+    .replace(/\b(page|authenticatedUser|samplePage|sampleMobilePage|[a-zA-Z0-9_]+Page|[a-zA-Z0-9_]+Data)\b/g, '<span class="tok-fixture">$1</span>')
+    .replace(/\.(toBeVisible|toBeHidden|toHaveText|toContainText|toHaveValue|toHaveURL|toBeEnabled|toBeDisabled|click|fill|waitFor|goto|closeIfVisible|capture|press|selectOption|check|uncheck)\b/g, '.<span class="tok-method">$1</span>')
     .replace(/\b(true|false|null|undefined|\d+)\b/g, '<span class="tok-number">$1</span>');
 }
 
