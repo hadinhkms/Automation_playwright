@@ -53,12 +53,12 @@
     "autoCleanupReports": false
   },
   "branding": {
-    "projectName": "QA Automation Studio",
+    "projectName": "VIECLAM24H",
     "projectSubtitle": "Playwright Automation Framework",
     "pageTitle": "QA Automation Dashboard",
-    "logoUrl": "https://playwright.dev/img/playwright-logo.svg",
-    "primaryColor": "#0A65CC",
-    "backgroundColor": "",
+    "logoUrl": "https://play-lh.googleusercontent.com/R8cYKCy5V-aXI5e8EwuvfGU9A2TZyU2LARWbe6S5RWwhA906xQnLtJ4pGVTbgp4RXpTrtGPfpb7CBIEnyJae=s96-rw",
+    "primaryColor": "#451DA0",
+    "backgroundColor": "#f1f5f9",
     "fontSize": "14px"
   },
   "suites": {

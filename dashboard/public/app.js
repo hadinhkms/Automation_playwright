@@ -68,8 +68,12 @@ function applyAppConfig(config) {
   if (config.primaryColor) {
     root.style.setProperty('--accent', config.primaryColor);
   }
-  if (config.backgroundColor) {
+  window.__dashboardCustomBg = config.backgroundColor || '';
+  const activeTheme = document.documentElement.dataset.theme || preferredTheme();
+  if (activeTheme === 'light' && config.backgroundColor) {
     root.style.setProperty('--bg', config.backgroundColor);
+  } else {
+    root.style.removeProperty('--bg');
   }
   applyFontScale(root, config.fontSize);
 }
@@ -102,6 +106,13 @@ function preferredTheme() {
 function applyTheme(theme) {
   const isLight = theme === 'light';
   document.documentElement.dataset.theme = theme;
+  const root = document.documentElement;
+  const customBg = window.__dashboardCustomBg || '';
+  if (isLight && customBg) {
+    root.style.setProperty('--bg', customBg);
+  } else {
+    root.style.removeProperty('--bg');
+  }
   const btn = $('#theme-button');
   if (btn) {
     btn.setAttribute('aria-pressed', String(isLight));

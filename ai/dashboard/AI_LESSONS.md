@@ -133,3 +133,21 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 - Preventive rule: Never invoke `execSync` or `spawn` without `windowsHide: true` in background server modules. Prefer in-process verification over subprocess calls whenever inspecting framework structure.
 - Regression check: Click `#topbar-git-btn` ("main") in a detached dashboard server running on Windows; verify zero console windows appear, `/api/git/status` and `/api/git/quality-check` return HTTP 200 with complete branch and quality status, and `npm run check:framework` remains green.
 - Related files: `core/system/gitSyncService.js`, `scripts/check-framework-structure.js`, `core/generator/recordWriter.js`, `core/system/updater.js`, `dashboard/server.js`, `dashboard/public/app.js`, `scripts/sync-satellites.js`.
+
+### 2026-09-08 — Brand logo badges must render child img tags with fallback and respect theme-aware background colors
+
+- Area: Dashboard Branding, Topbar Brand Badge & Theme Switching.
+- Symptom: Setting a custom `logoUrl` in Dashboard Settings (Giao diện & Branding) resulted in an empty, invisible brand badge in the topbar `#brand-logo`, even though the live preview mockup rendered the logo. Additionally, setting a custom light background color broke dark mode contrast.
+- Root cause:
+  1. `applyLogoElement` cleared `innerHTML` and set inline `style.backgroundImage = url(...)`. Meanwhile, `.brand-mark-badge.has-logo` in `styles.css` specified `background: transparent !important;`. The CSS shorthand `background` reset `background-image` and overrode the inline style due to `!important`, leaving an empty invisible container.
+  2. Setting `root.style.setProperty('--bg', config.backgroundColor)` applied an inline style that overrode dark mode theme variables, destroying dark mode contrast when a light background color was saved.
+  3. Clicking `#topbar-git-btn` fired duplicate handlers because the button already carried the `.view-tab` class while also having an independent programmatic `.click()` attached.
+- Correct pattern:
+  1. Render a dedicated `<img>` child element inside `.brand-mark-badge` with `object-fit: contain; width: 100%; height: 100%;` and an `onerror` handler that automatically restores the fallback badge ("QA") and removes `.has-logo`.
+  2. Bind real-time topbar brand logo updates inside `updateBrandingPreview()` so live input changes reflect instantly in both the preview and topbar.
+  3. Manage custom background colors via theme-aware logic (`applyTheme` only sets custom `--bg` when `theme === 'light'`, removing it in dark mode to preserve dark palette integrity).
+  4. Guard `openGitStudio()` against re-entrant calls and remove redundant synthetic click dispatchers.
+- Preventive rule: Never rely on `style.backgroundImage` when parent CSS uses `background: ... !important`. Always render explicit `<img>` tags for brand logos with automatic graceful fallbacks. Never let light theme background overrides corrupt dark mode variables.
+- Regression check: In Chromium at 1920x1080 and 1440x900, verify `#brand-logo` renders `<img>` with clean scaling; test valid SVG, valid PNG, empty URL, and broken image URLs; toggle dark and light modes and verify razor-sharp contrast across both.
+- Related files: `dashboard/public/app.js`, `dashboard/public/styles.css`, `core/system/gitSyncService.js`.
+
