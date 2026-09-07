@@ -148,11 +148,11 @@ function applyUpdate(options = {}) {
   try {
     if (isGitRepo) {
       log.push('Phát hiện chế độ Git repository. Đang kéo mã nguồn mới nhất (git pull)...');
-      const pullOutput = execSync('git pull --ff-only', { cwd: ENGINE_DIR, encoding: 'utf8', timeout: 30000 });
+      const pullOutput = execSync('git pull --ff-only', { cwd: ENGINE_DIR, encoding: 'utf8', timeout: 30000, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
       log.push(pullOutput.trim());
       log.push('Đang cập nhật dependencies...');
       try {
-        const npmOutput = execSync('npm install --prefer-offline', { cwd: ENGINE_DIR, encoding: 'utf8', timeout: 60000 });
+        const npmOutput = execSync('npm install --prefer-offline', { cwd: ENGINE_DIR, encoding: 'utf8', timeout: 60000, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
         log.push('Dependencies đã được cập nhật.');
       } catch (npmErr) {
         log.push('Cảnh báo npm install: ' + npmErr.message);
@@ -160,7 +160,7 @@ function applyUpdate(options = {}) {
     } else {
       log.push('Phát hiện chế độ NPM package. Đang chạy lệnh npm update...');
       const pkgName = options.packageName || '@hadinhkms/qa-engine';
-      const updateOutput = execSync(`npm install ${pkgName}@latest`, { cwd: process.cwd(), encoding: 'utf8', timeout: 60000 });
+      const updateOutput = execSync(`npm install ${pkgName}@latest`, { cwd: process.cwd(), encoding: 'utf8', timeout: 60000, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
       log.push(updateOutput.trim());
     }
 

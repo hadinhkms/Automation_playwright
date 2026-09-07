@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 
 const ENGINE_DIR = path.resolve(__dirname, '..', '..');
 let detectedRoot = process.env.QA_PROJECT_ROOT ? path.resolve(process.env.QA_PROJECT_ROOT) : ENGINE_DIR;
@@ -132,28 +132,99 @@ function categorizeAsset(filePath) {
 }
 
 /**
- * Chạy lệnh git với timeout an toàn
+ * Chuyển chuỗi lệnh git thành mảng arguments an toàn
+ */
+function parseGitArgs(command) {
+  let str = String(command || '').trim();
+  if (str.startsWith('git ')) {
+    str = str.slice(4).trim();
+  }
+  const args = [];
+  let current = '';
+  let inQuotes = false;
+  let quoteChar = '';
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if ((char === '"' || char === "'") && !inQuotes) {
+      inQuotes = true;
+      quoteChar = char;
+    } else if (char === quoteChar && inQuotes) {
+      inQuotes = false;
+      quoteChar = '';
+    } else if (char === ' ' && !inQuotes) {
+      if (current.length > 0) {
+        args.push(current);
+        current = '';
+      }
+    } else {
+      current += char;
+    }
+  }
+  if (current.length > 0) {
+    args.push(current);
+  }
+  return args;
+}
+
+const GIT_EXECUTABLE = (() => {
+  if (process.platform === 'win32') {
+    const candidates = [
+      'C:\\Program Files\\Git\\mingw64\\bin\\git.exe',
+      'C:\\Program Files (x86)\\Git\\mingw64\\bin\\git.exe',
+      path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'mingw64', 'bin', 'git.exe'),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+  }
+  return 'git';
+})();
+
+/**
+ * Chạy lệnh git với spawnSync trực tiếp vào binary Git thật (không qua wrapper cmd.exe),
+ * windowsHide: true tuyệt đối không bao giờ chớp tắt console.
  */
 function runGit(command, options = {}) {
+  const timeout = options.timeout || 30000;
+  const env = { ...process.env, PAGER: 'cat' };
+
   try {
-    const output = execSync(command, {
+    const args = Array.isArray(command) ? command : parseGitArgs(command);
+    const res = spawnSync(GIT_EXECUTABLE, args, {
       cwd: ROOT,
       encoding: 'utf8',
-      timeout: options.timeout || 30000,
-      env: { ...process.env, PAGER: 'cat' },
+      timeout,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env,
     });
-    return { ok: true, output: (output || '').trim() };
+
+    if (res.error) {
+      throw res.error;
+    }
+
+    if (res.status !== 0) {
+      return {
+        ok: false,
+        output: (res.stdout || '').trim(),
+        error: (res.stderr || res.stdout || '').trim() || `Exit code ${res.status}`,
+      };
+    }
+
+    return { ok: true, output: (res.stdout || '').trim() };
   } catch (err) {
     return {
       ok: false,
-      output: (err.stdout || '').trim(),
-      error: (err.stderr || err.message || '').trim(),
+      output: '',
+      error: (err.message || String(err)).trim(),
     };
   }
 }
 
 /**
  * Lấy trạng thái Git hiện tại của kho mã nguồn
+ * Tối ưu hóa gom lệnh: dùng 1 lệnh git status --porcelain=v1 -uall --branch
  */
 function getGitStatus() {
   const isGitRepo = fs.existsSync(path.join(ROOT, '.git'));
@@ -165,44 +236,55 @@ function getGitStatus() {
     };
   }
 
-  // 1. Nhánh hiện tại
+  // 1. Chạy git status gom branch và file status trong 1 lệnh duy nhất
   let currentBranch = 'unknown';
-  const branchRes = runGit('git rev-parse --abbrev-ref HEAD');
-  if (branchRes.ok) {
-    currentBranch = branchRes.output;
-  }
-
-  // 2. Remote Origin URL
-  let remoteUrl = '';
-  const remoteRes = runGit('git config --get remote.origin.url');
-  if (remoteRes.ok) {
-    remoteUrl = remoteRes.output;
-  }
-
-  // 3. Kiểm tra Tracking & Ahead/Behind
+  let trackingBranch = '';
   let ahead = 0;
   let behind = 0;
-  let trackingBranch = '';
-  const trackingRes = runGit('git rev-parse --abbrev-ref --symbolic-full-name @{u}');
-  if (trackingRes.ok) {
-    trackingBranch = trackingRes.output;
-    const countRes = runGit('git rev-list --left-right --count HEAD...@{u}');
-    if (countRes.ok) {
-      const parts = countRes.output.split(/\s+/);
-      ahead = parseInt(parts[0], 10) || 0;
-      behind = parseInt(parts[1], 10) || 0;
-    }
-  }
 
-  // 4. Lấy danh sách tệp tin thay đổi (git status --porcelain=v1)
-  const statusRes = runGit('git status --porcelain=v1 -uall');
+  const statusRes = runGit(['status', '--porcelain=v1', '-uall', '--branch']);
   const permittedFiles = [];
   const blockedFiles = [];
   const otherFiles = [];
 
   if (statusRes.ok && statusRes.output) {
     const lines = statusRes.output.split(/\r?\n/).filter(Boolean);
-    for (const line of lines) {
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Dòng đầu tiên chứa thông tin nhánh và tracking: ## branch...tracking [ahead X, behind Y]
+      if (line.startsWith('## ')) {
+        const branchLine = line.slice(3).trim();
+
+        if (branchLine.startsWith('No commits yet on ')) {
+          currentBranch = branchLine.replace('No commits yet on ', '').trim();
+        } else if (branchLine.startsWith('HEAD (no branch)') || branchLine.startsWith('HEAD')) {
+          currentBranch = 'HEAD';
+        } else {
+          // Bóc tách ahead/behind nếu có
+          const bracketMatch = branchLine.match(/\[(.*?)\]/);
+          if (bracketMatch) {
+            const meta = bracketMatch[1];
+            const aheadMatch = meta.match(/ahead\s+(\d+)/);
+            const behindMatch = meta.match(/behind\s+(\d+)/);
+            if (aheadMatch) ahead = parseInt(aheadMatch[1], 10) || 0;
+            if (behindMatch) behind = parseInt(behindMatch[1], 10) || 0;
+          }
+
+          const branchPart = branchLine.replace(/\[.*?\]/, '').trim();
+          if (branchPart.includes('...')) {
+            const parts = branchPart.split('...');
+            currentBranch = (parts[0] || '').trim();
+            trackingBranch = (parts[1] || '').trim();
+          } else {
+            currentBranch = branchPart.trim();
+          }
+        }
+        continue;
+      }
+
+      // Các dòng tiếp theo là danh sách tệp tin thay đổi
       const match = line.match(/^([ MADRCU?!]{1,2})\s+(.*)$/);
       let statusCode = '';
       let rawPath = '';
@@ -213,11 +295,9 @@ function getGitStatus() {
         statusCode = line.substring(0, 2).trim();
         rawPath = line.substring(3).trim();
       }
-      // Handle rename "old -> new"
       if (rawPath.includes(' -> ')) {
         rawPath = rawPath.split(' -> ')[1].trim();
       }
-      // Remove surrounding quotes if git outputs them
       rawPath = rawPath.replace(/^["']|["']$/g, '');
 
       const normalized = normalizeRelativePath(rawPath);
@@ -226,7 +306,7 @@ function getGitStatus() {
       const fileItem = {
         path: normalized,
         rawPath,
-        status: statusCode, // 'M', 'A', 'D', '??', etc.
+        status: statusCode,
         statusText: getStatusDescription(statusCode),
         category: cat.type,
         categoryLabel: cat.label,
@@ -246,9 +326,24 @@ function getGitStatus() {
     }
   }
 
-  // 5. Lấy 10 commit gần nhất
+  // Fallback lấy currentBranch nếu status chưa trích xuất được
+  if (!currentBranch || currentBranch === 'unknown') {
+    const branchRes = runGit(['rev-parse', '--abbrev-ref', 'HEAD']);
+    if (branchRes.ok && branchRes.output) {
+      currentBranch = branchRes.output;
+    }
+  }
+
+  // 2. Remote Origin URL
+  let remoteUrl = '';
+  const remoteRes = runGit(['config', '--get', 'remote.origin.url']);
+  if (remoteRes.ok) {
+    remoteUrl = remoteRes.output;
+  }
+
+  // 3. Lấy 10 commit gần nhất
   const commits = [];
-  const logRes = runGit('git log -n 10 --pretty=format:"%h%x09%an%x09%ar%x09%s"');
+  const logRes = runGit(['log', '-n', '10', '--pretty=format:%h%x09%an%x09%ar%x09%s']);
   if (logRes.ok && logRes.output) {
     const logLines = logRes.output.split(/\r?\n/).filter(Boolean);
     for (const logLine of logLines) {
@@ -256,6 +351,9 @@ function getGitStatus() {
       commits.push({ hash, author, timeAgo, subject });
     }
   }
+
+  // 4. Lấy danh sách branches luôn để app.js không cần gọi thêm request riêng
+  const branchData = listBranches();
 
   return {
     ok: true,
@@ -274,6 +372,7 @@ function getGitStatus() {
     otherFiles,
     totalChangedCount: permittedFiles.length + blockedFiles.length + otherFiles.length,
     recentCommits: commits,
+    branches: branchData.branches || [],
   };
 }
 
@@ -329,6 +428,7 @@ function getFileDiff(filePath) {
 
 /**
  * Chạy kiểm tra chất lượng Framework Quality Gate (scripts/check-framework-structure.js)
+ * Ưu tiên chạy in-process trong bộ nhớ (< 5ms, 0 subprocess, 0 console window)
  */
 function runFrameworkQualityGate() {
   const checkScript = path.join(ROOT, 'scripts', 'check-framework-structure.js');
@@ -341,20 +441,43 @@ function runFrameworkQualityGate() {
     };
   }
 
+  // 1. Ưu tiên chạy in-process trong bộ nhớ để đạt hiệu năng tối đa và triệt tiêu chớp tắt cửa sổ
   try {
-    const output = execSync('node scripts/check-framework-structure.js', {
+    delete require.cache[require.resolve(checkScript)];
+    const checker = require(checkScript);
+    if (typeof checker.runFrameworkCheck === 'function') {
+      const result = checker.runFrameworkCheck({ root: ROOT });
+      return {
+        ok: true,
+        passed: result.passed,
+        summary: result.summary,
+        issues: result.issues || [],
+      };
+    }
+  } catch (_) {
+    // Fallback sang subprocess nếu require in-process gặp sự cố
+  }
+
+  // 2. Subprocess fallback có windowsHide: true và stdio: ['pipe', 'pipe', 'pipe']
+  try {
+    const res = spawnSync(process.execPath, [checkScript], {
       cwd: ROOT,
       encoding: 'utf8',
       timeout: 20000,
+      windowsHide: true,
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
-    return {
-      ok: true,
-      passed: true,
-      summary: (output || '').trim(),
-      issues: [],
-    };
-  } catch (err) {
-    const errText = (err.stdout || '') + '\n' + (err.stderr || '');
+
+    if (res.status === 0) {
+      return {
+        ok: true,
+        passed: true,
+        summary: (res.stdout || '').trim(),
+        issues: [],
+      };
+    }
+
+    const errText = (res.stdout || '') + '\n' + (res.stderr || '');
     const issues = errText
       .split(/\r?\n/)
       .filter((line) => line.trim().startsWith('- ') || line.includes('violations found'))
@@ -364,8 +487,15 @@ function runFrameworkQualityGate() {
       ok: true,
       passed: false,
       error: 'Framework check không đạt chuẩn',
-      summary: (err.stdout || '').trim(),
-      issues: issues.length > 0 ? issues : [(err.stderr || err.message || '').trim()],
+      summary: (res.stdout || '').trim(),
+      issues: issues.length > 0 ? issues : [(res.stderr || '').trim()],
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      passed: false,
+      error: 'Lỗi khi kích hoạt bài kiểm tra: ' + err.message,
+      issues: [err.message],
     };
   }
 }
@@ -452,7 +582,13 @@ function pullCode(options = {}) {
   if (pullRes.output && (pullRes.output.includes('package.json') || pullRes.output.includes('package-lock.json'))) {
     logs.push('[4/4] Phát hiện cập nhật package.json, đang chạy npm install...');
     try {
-      const npmRes = execSync('npm install --prefer-offline', { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
+      const npmRes = execSync('npm install --prefer-offline', {
+        cwd: ROOT,
+        encoding: 'utf8',
+        timeout: 60000,
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
       logs.push('Đã cập nhật dependencies thành công.');
       npmUpdated = true;
     } catch (npmErr) {

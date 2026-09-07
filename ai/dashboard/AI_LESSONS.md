@@ -120,6 +120,16 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 - Regression check: Assert presence of all 3 panels (`sidebar`, `middle-panel`, `right-panel`) in DOM, test sidebar collapse/expand rail, verify responsive grid stacking on 1400px, 1050px, and 375px mobile, and verify zero horizontal overflow.
 - Related files: `dashboard/public/index.html`, `dashboard/public/styles.css`, `dashboard/public/app.js`.
 
+### 2026-09-08 — Subprocess execution in detached dashboard servers must enforce windowsHide and in-process execution
 
-
-
+- Area: Git Sync Studio, Framework Quality Gate & Background Services.
+- Symptom: When clicking the "main" branch button on the Dashboard in satellite projects, multiple black command prompt (`cmd.exe`) windows flash open and closed rapidly.
+- Root cause: Satellite dashboards run detached without an attached console window (`detached: true, stdio: 'ignore'`). Invoking `execSync(command)` on Windows executes `cmd.exe /d /s /c ...` without `windowsHide: true`, causing Windows to allocate a new console window for each command. The sequence of 6 Git queries, 1 branch query, and 1 node quality check caused 8 console windows to flicker in rapid succession.
+- Correct pattern:
+  1. Always pass `windowsHide: true` and `stdio: ['pipe', 'pipe', 'pipe']` to all child process executions (`spawnSync`, `execSync`, `spawn`).
+  2. Invoke `git.exe` directly via `spawnSync('git', args)` rather than spawning `cmd.exe`.
+  3. Batch Git status and tracking queries using `git status --porcelain=v1 -uall --branch`.
+  4. Run framework quality checks in-process via an exported module function (`runFrameworkCheck`) rather than spawning a separate `node` runtime.
+- Preventive rule: Never invoke `execSync` or `spawn` without `windowsHide: true` in background server modules. Prefer in-process verification over subprocess calls whenever inspecting framework structure.
+- Regression check: Click `#topbar-git-btn` ("main") in a detached dashboard server running on Windows; verify zero console windows appear, `/api/git/status` and `/api/git/quality-check` return HTTP 200 with complete branch and quality status, and `npm run check:framework` remains green.
+- Related files: `core/system/gitSyncService.js`, `scripts/check-framework-structure.js`, `core/generator/recordWriter.js`, `core/system/updater.js`, `dashboard/server.js`, `dashboard/public/app.js`, `scripts/sync-satellites.js`.

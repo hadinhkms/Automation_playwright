@@ -26,6 +26,18 @@ function readPort() {
   return typeof configured === 'number' ? configured : 4180;
 }
 
+function getProjectTitle() {
+  try {
+    const cfgPath = path.join(ROOT, 'core', 'config', 'dashboardConfig.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      if (cfg?.branding?.projectName) return cfg.branding.projectName;
+    }
+  } catch (_) {}
+  return 'QA Automation Studio';
+}
+const PROJECT_TITLE = getProjectTitle();
+
 async function stop() {
   const port = readPort();
   const url = `http://127.0.0.1:${port}`;
@@ -41,9 +53,9 @@ async function stop() {
       fs.rmSync(STATE_PATH, { force: true });
     }
 
-    console.log(`Đã tắt QA Automation Studio dashboard tại ${url}`);
+    console.log(`Đã tắt ${PROJECT_TITLE} dashboard tại ${url}`);
   } catch {
-    console.log(`Không có QA Automation Studio dashboard đang chạy tại ${url}`);
+    console.log(`Không có ${PROJECT_TITLE} dashboard đang chạy tại ${url}`);
   }
 }
 

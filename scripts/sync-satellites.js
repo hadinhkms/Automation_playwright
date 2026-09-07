@@ -168,7 +168,7 @@ async function run() {
     const checkScript = path.join(workingDir, 'scripts', 'check-framework-structure.js');
     if (fs.existsSync(checkScript)) {
       try {
-        const qgOutput = execSync(`node "${checkScript}"`, { cwd: workingDir, encoding: 'utf8' });
+        const qgOutput = execSync(`node "${checkScript}"`, { cwd: workingDir, encoding: 'utf8', windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
         console.log(`${colors.green}✅ Quality Gate ĐẠT:${colors.reset} ${qgOutput.trim()}`);
       } catch (qgErr) {
         console.error(`${colors.red}⚠️ Cảnh báo Quality Gate tại ${sat.name}:${colors.reset}\n${qgErr.stdout || qgErr.message}`);
@@ -177,18 +177,18 @@ async function run() {
 
     // Kiểm tra thay đổi git
     try {
-      const gitStatus = execSync('git status --porcelain', { cwd: workingDir, encoding: 'utf8' }).trim();
+      const gitStatus = execSync('git status --porcelain', { cwd: workingDir, encoding: 'utf8', windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
       if (!gitStatus) {
         console.log(`${colors.green}✅ Không có thay đổi mới nào cần commit.${colors.reset}`);
       } else {
         console.log(`📝 Phát hiện thay đổi, đang commit và push...`);
-        execSync('git config user.name "github-actions[bot]"', { cwd: workingDir });
-        execSync('git config user.email "github-actions[bot]@users.noreply.github.com"', { cwd: workingDir });
-        execSync('git add -A', { cwd: workingDir });
-        execSync('git commit -m "chore(framework): sync latest dashboard and core engine from hub [skip ci]"', { cwd: workingDir });
+        execSync('git config user.name "github-actions[bot]"', { cwd: workingDir, windowsHide: true });
+        execSync('git config user.email "github-actions[bot]@users.noreply.github.com"', { cwd: workingDir, windowsHide: true });
+        execSync('git add -A', { cwd: workingDir, windowsHide: true });
+        execSync('git commit -m "chore(framework): sync latest dashboard and core engine from hub [skip ci]"', { cwd: workingDir, windowsHide: true });
 
         if (isCI) {
-          execSync(`git push origin ${sat.branch}`, { cwd: workingDir, stdio: 'inherit' });
+          execSync(`git push origin ${sat.branch}`, { cwd: workingDir, stdio: 'inherit', windowsHide: true });
           console.log(`${colors.green}${colors.bright}🎉 Đã push thành công lên GitHub của ${sat.name}!${colors.reset}`);
         } else {
           console.log(`${colors.green}✅ Đã cập nhật và commit tại thư mục cục bộ ${sat.localPath}.${colors.reset}`);

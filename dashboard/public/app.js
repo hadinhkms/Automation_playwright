@@ -19,8 +19,14 @@ function applyFontScale(root, fontSize) {
 
 function applyLogoElement(element, logoUrl) {
   if (!element) return;
-  if (!logoUrl) {
+  const cleanUrl = typeof logoUrl === 'string' ? logoUrl.trim() : '';
+  if (!cleanUrl) {
     element.classList.remove('has-logo');
+    if (element.tagName === 'IMG') {
+      element.src = '';
+    } else {
+      element.textContent = 'QA';
+    }
     element.style.backgroundImage = '';
     element.style.background = '';
     element.style.boxShadow = '';
@@ -28,18 +34,15 @@ function applyLogoElement(element, logoUrl) {
     return;
   }
   if (element.tagName === 'IMG') {
-    element.src = logoUrl;
+    element.src = cleanUrl;
     return;
   }
   element.classList.add('has-logo');
-  element.innerHTML = '';
+  element.style.backgroundImage = '';
   element.style.background = 'transparent';
-  element.style.backgroundImage = `url("${String(logoUrl).replace(/"/g, '\\"')}")`;
-  element.style.backgroundSize = 'contain';
-  element.style.backgroundPosition = 'center';
-  element.style.backgroundRepeat = 'no-repeat';
   element.style.boxShadow = 'none';
   element.style.border = 'none';
+  element.innerHTML = `<img src="${String(cleanUrl).replace(/"/g, '&quot;')}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain; display: block;" onerror="this.parentElement.classList.remove('has-logo'); this.parentElement.textContent='QA';">`;
 }
 
 function applyAppConfig(config) {
@@ -55,16 +58,7 @@ function applyAppConfig(config) {
   
   const brandLogo = document.getElementById('brand-logo');
   if (brandLogo) {
-    if (config.logoUrl) {
-      applyLogoElement(brandLogo, config.logoUrl);
-    } else {
-      brandLogo.classList.remove('has-logo');
-      brandLogo.style.backgroundImage = '';
-      brandLogo.style.background = '';
-      brandLogo.style.boxShadow = '';
-      brandLogo.style.border = '';
-      brandLogo.textContent = 'QA';
-    }
+    applyLogoElement(brandLogo, config.logoUrl);
   }
   
   const favicon = document.getElementById('favicon');
@@ -4275,6 +4269,8 @@ function updateBrandingPreview() {
 
   if (logo) applyLogoElement(logo, logoUrl);
   if (favicon) applyLogoElement(favicon, logoUrl);
+  const brandLogo = $('#brand-logo');
+  if (brandLogo) applyLogoElement(brandLogo, logoUrl);
 
   // Sync primary color
   if (/^#[0-9A-Fa-f]{6}$/.test(primaryColor)) {
@@ -13148,8 +13144,8 @@ async function loadGitStatus(silent = false) {
     // 5. Render danh sách blocked files (Security Shield)
     renderGitBlockedFiles(res.blockedFiles || []);
 
-    // 6. Cập nhật danh sách branch
-    await loadGitBranches();
+    // 6. Cập nhật danh sách branch (dùng res.branches nếu có sẵn để tối ưu tốc độ)
+    await loadGitBranches(res.branches);
 
     // 7. Cập nhật trạng thái nút commit
     updateGitCommitButtonState();
@@ -13282,13 +13278,19 @@ function renderGitBlockedFiles(blockedFiles) {
   `).join('');
 }
 
-async function loadGitBranches() {
+async function loadGitBranches(providedBranches = null) {
   try {
-    const res = await request('/api/git/branches');
+    let branches = Array.isArray(providedBranches) ? providedBranches : null;
+    if (!branches) {
+      const res = await request('/api/git/branches');
+      if (res.ok && Array.isArray(res.branches)) {
+        branches = res.branches;
+      }
+    }
     const select = document.getElementById('git-branch-select');
-    if (!select || !res.ok) return;
+    if (!select || !branches) return;
 
-    select.innerHTML = res.branches
+    select.innerHTML = branches
       .filter((b) => !b.isRemote)
       .map((b) => `<option value="${escapeHtml(b.name)}" ${b.isCurrent ? 'selected' : ''}>${escapeHtml(b.name)}${b.isCurrent ? ' (hiện tại)' : ''}</option>`)
       .join('');
@@ -13517,9 +13519,16 @@ async function handleGitCommitPush(e) {
   }
 }
 
+let gitStudioLoading = false;
 async function openGitStudio() {
-  await loadGitStatus(false);
-  await runGitQualityGate();
+  if (gitStudioLoading) return;
+  gitStudioLoading = true;
+  try {
+    await loadGitStatus(false);
+    await runGitQualityGate();
+  } finally {
+    gitStudioLoading = false;
+  }
 }
 
 function initGitStudio() {
@@ -13647,11 +13656,14 @@ function initGitStudio() {
     }
   });
 
-  // Topbar Git button opens git-view
-  document.getElementById('topbar-git-btn')?.addEventListener('click', () => {
-    const gitTab = document.querySelector('.nav-dropdown-item[data-view="git-view"]');
-    if (gitTab) gitTab.click();
-  });
+  // Topbar Git button opens git-view (nếu không phải là view-tab tự kích hoạt)
+  const topbarGitBtn = document.getElementById('topbar-git-btn');
+  if (topbarGitBtn && !topbarGitBtn.classList.contains('view-tab')) {
+    topbarGitBtn.addEventListener('click', () => {
+      const gitTab = document.querySelector('.nav-dropdown-item[data-view="git-view"]');
+      if (gitTab) gitTab.click();
+    });
+  }
 
   updateGitCommitPreview();
 

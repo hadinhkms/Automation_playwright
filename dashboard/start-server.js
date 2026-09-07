@@ -16,7 +16,33 @@ try {
   resolveConfiguredPort = () => 4180;
 }
 
-const APP_NAME = process.env.DASHBOARD_APP_NAME || 'qa-automation-engine';
+function getAppName() {
+  if (process.env.DASHBOARD_APP_NAME) return process.env.DASHBOARD_APP_NAME;
+  try {
+    const cfgPath = path.join(ROOT, 'core', 'config', 'dashboardConfig.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      if (cfg?.branding?.projectName) {
+        return cfg.branding.projectName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      }
+    }
+  } catch (_) {}
+  return path.basename(ROOT).toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+}
+
+function getProjectTitle() {
+  try {
+    const cfgPath = path.join(ROOT, 'core', 'config', 'dashboardConfig.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      if (cfg?.branding?.projectName) return cfg.branding.projectName;
+    }
+  } catch (_) {}
+  return 'QA Automation Studio';
+}
+
+const APP_NAME = getAppName();
+const PROJECT_TITLE = getProjectTitle();
 const STATE_PATH = path.join(ROOT, '.dashboard-server.json');
 const MAX_PORT_ATTEMPTS = 20;
 
@@ -142,11 +168,11 @@ async function start() {
   if (selected.status === 'same-dashboard') {
     if (await hasCurrentSettingsApi(selected.port)) {
       writeState(selected.port);
-      console.log(`QA Automation Studio dashboard đã chạy tại ${url}`);
+      console.log(`${PROJECT_TITLE} dashboard đã chạy tại ${url}`);
       return;
     }
 
-    console.log(`QA Automation Studio dashboard tại ${url} đang chạy phiên bản cũ, đang khởi động lại...`);
+    console.log(`${PROJECT_TITLE} dashboard tại ${url} đang chạy phiên bản cũ, đang khởi động lại...`);
     await stopRunningDashboard(selected.port);
   }
 
@@ -167,7 +193,7 @@ async function start() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     if (await isRunning(selected.port)) {
       writeState(selected.port);
-      console.log(`QA Automation Studio dashboard đang chạy ngầm tại ${url}`);
+      console.log(`${PROJECT_TITLE} dashboard đang chạy ngầm tại ${url}`);
       console.log('Tắt bằng: npm run dashboard:stop');
       return;
     }

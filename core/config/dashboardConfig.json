@@ -34,6 +34,9 @@
     "showEnvBanner": false,
     "debugOptionalPopups": false
   },
+  "server": {
+    "port": 4180
+  },
   "api": {
     "registrationBearerToken": "",
     "branch": "main",
@@ -49,14 +52,11 @@
     "autoCleanupEvidence": false,
     "autoCleanupReports": false
   },
-  "server": {
-    "port": 4180
-  },
   "branding": {
     "projectName": "QA Automation Studio",
     "projectSubtitle": "Playwright Automation Framework",
     "pageTitle": "QA Automation Dashboard",
-    "logoUrl": "",
+    "logoUrl": "https://playwright.dev/img/playwright-logo.svg",
     "primaryColor": "#0A65CC",
     "backgroundColor": "",
     "fontSize": "14px"

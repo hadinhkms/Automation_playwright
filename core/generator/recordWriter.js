@@ -73,6 +73,7 @@ function saveDraftFiles({
         cwd: ROOT,
         stdio: 'pipe',
         timeout: 10000,
+        windowsHide: true,
       }).toString();
       frameworkCheck = { passed: true, output: checkOutput.trim() };
     } catch (checkErr) {

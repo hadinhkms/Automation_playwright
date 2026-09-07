@@ -149,8 +149,18 @@ function getRandomPort(min = 4200, max = 4999) {
 }
 const CONFIGURED_PORT = resolveConfiguredPort(ROOT);
 const IS_RANDOM_PORT = CONFIGURED_PORT === 'random' || CONFIGURED_PORT === 0;
+function getAppName() {
+  if (process.env.DASHBOARD_APP_NAME) return process.env.DASHBOARD_APP_NAME;
+  try {
+    const cfg = getDashboardConfig();
+    if (cfg?.branding?.projectName) {
+      return cfg.branding.projectName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    }
+  } catch (_) {}
+  return path.basename(ROOT).toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+}
+const APP_NAME = getAppName();
 const PORT = IS_RANDOM_PORT ? getRandomPort() : CONFIGURED_PORT;
-const APP_NAME = process.env.DASHBOARD_APP_NAME || 'qa-automation-engine';
 const PUBLIC_DOCUMENTS = [
   'docs/SETUP_GUIDE.md',
   'docs/DISCORD_BOT_SETUP_GUIDE.md',
@@ -1611,7 +1621,7 @@ const server = http.createServer(async (request, response) => {
     try {
       if (process.platform === 'win32' && current.child?.pid) {
         try {
-          execSync(`taskkill /pid ${current.child.pid} /T /F`, { stdio: 'ignore' });
+          execSync(`taskkill /pid ${current.child.pid} /T /F`, { stdio: 'ignore', windowsHide: true });
         } catch (e) {}
       } else if (current.child) {
         current.child.kill('SIGTERM');
@@ -2464,7 +2474,7 @@ function shutdown() {
   if (activeRecorder?.child) {
     try {
       if (process.platform === 'win32') {
-        execSync(`taskkill /pid ${activeRecorder.child.pid} /T /F`, { stdio: 'ignore' });
+        execSync(`taskkill /pid ${activeRecorder.child.pid} /T /F`, { stdio: 'ignore', windowsHide: true });
       } else {
         activeRecorder.child.kill('SIGTERM');
       }
