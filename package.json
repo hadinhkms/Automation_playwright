@@ -30,7 +30,11 @@
     "suite:api": "playwright test --project=\"API Tests\"",
     "suite:register": "playwright test --project=\"Desktop Smoke Tests\" --grep \"@register\"",
     "report": "playwright show-report",
-    "check:framework": "node scripts/check-framework-structure.js"
+    "check:framework": "node scripts/check-framework-structure.js",
+    "git:status": "node scripts/git-sync.js status",
+    "git:pull": "node scripts/git-sync.js pull",
+    "git:push": "node scripts/git-sync.js push",
+    "git:check": "node scripts/git-sync.js check"
   },
   "dependencies": {
     "dotenv": "^16.3.1"

@@ -5876,6 +5876,7 @@ const toolShortLabels = {
   'recorder-view': 'Ghi kịch bản',
   'data-view': 'Dữ liệu test',
   'compare-view': 'So sánh ảnh',
+  'git-view': 'Đồng bộ Git',
 };
 
 toolsBtn?.addEventListener('click', (e) => {
@@ -5918,6 +5919,7 @@ document.querySelectorAll('.view-tab').forEach((button) => button.addEventListen
   if (button.dataset.view === 'recorder-view') await openRecorderStudio();
   if (button.dataset.view === 'data-view') await openDataManager();
   if (button.dataset.view === 'builder-view') await initVisualBuilder();
+  if (button.dataset.view === 'git-view') await openGitStudio();
 }));
 document.querySelectorAll('.resource-filter').forEach((button) => button.addEventListener('click', () => {
   activeResourceCategory = button.dataset.category;
@@ -12953,3 +12955,712 @@ document.getElementById('btn-apply-update')?.addEventListener('click', () => {
 setTimeout(() => {
   checkSystemUpdate(false);
 }, 2000);
+
+/* ==============================================================================
+   GIT STUDIO CONTROLLER (Commit, Push, Pull & Whitelist Asset Management)
+============================================================================== */
+const gitStudioState = {
+  status: null,
+  selectedFiles: new Set(),
+  activeFilter: 'all',
+  isQualityGatePassed: true,
+  isInitialized: false,
+};
+
+function appendGitTerminalLog(text) {
+  const terminal = document.getElementById('git-terminal-body');
+  if (!terminal) return;
+  const timestamp = new Date().toLocaleTimeString('vi-VN');
+  terminal.textContent += `\n[${timestamp}] ${text}`;
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function updateGitCommitPreview() {
+  const typeEl = document.getElementById('git-commit-type');
+  const scopeEl = document.getElementById('git-commit-scope');
+  const subjectEl = document.getElementById('git-commit-subject');
+  const previewEl = document.getElementById('git-commit-preview-text');
+  const featureBranchInput = document.getElementById('git-feature-branch-input');
+
+  if (!previewEl) return;
+  const type = typeEl?.value || 'test';
+  const scope = (scopeEl?.value || '').trim();
+  const subject = (subjectEl?.value || '').trim() || 'cập nhật bài test';
+  const prefix = scope ? `${type}(${scope}): ` : `${type}: `;
+  previewEl.textContent = `${prefix}${subject}`;
+
+  // Tự động gợi ý tên nhánh Feature khi người dùng nhập scope
+  if (gitStudioState.status?.isProtectedBranch && featureBranchInput && scope && (!featureBranchInput.value || featureBranchInput.value.startsWith('feature/'))) {
+    const cleanScope = scope.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    featureBranchInput.value = `feature/${cleanScope}`;
+  }
+
+  updateGitCommitButtonState();
+}
+
+function updateGitCommitButtonState() {
+  const btn = document.getElementById('btn-git-commit-push');
+  const subjectEl = document.getElementById('git-commit-subject');
+  const featureBranchInput = document.getElementById('git-feature-branch-input');
+  const btnText = document.getElementById('text-git-commit-push');
+  const btnIcon = document.getElementById('icon-git-commit-push');
+  if (!btn) return;
+
+  const isProtected = !!gitStudioState.status?.isProtectedBranch;
+  const hasFiles = gitStudioState.selectedFiles.size > 0;
+  const hasSubject = (subjectEl?.value || '').trim().length > 0;
+  const qgOk = gitStudioState.isQualityGatePassed;
+  const hasBranchIfProtected = !isProtected || (featureBranchInput?.value || '').trim().length > 0;
+
+  btn.disabled = !(hasFiles && hasSubject && qgOk && hasBranchIfProtected);
+
+  if (btnText && btnIcon) {
+    if (isProtected) {
+      btnIcon.className = 'ph-bold ph-git-pull-request';
+      btnText.textContent = 'Tạo Nhánh & Push Tạo PR';
+    } else {
+      btnIcon.className = 'ph-bold ph-cloud-arrow-up';
+      btnText.textContent = 'Commit & Push Lên Remote';
+    }
+  }
+}
+
+async function loadGitStatus(silent = false) {
+  try {
+    const res = await request('/api/git/status');
+    gitStudioState.status = res;
+
+    // 1. Nhánh & Remote
+    const branchNameEl = document.getElementById('git-current-branch-name');
+    const topbarBranchLabel = document.getElementById('topbar-git-branch-label');
+    const remoteUrlEl = document.getElementById('git-remote-url-text');
+    const aheadPill = document.getElementById('git-ahead-pill');
+    const behindPill = document.getElementById('git-behind-pill');
+    const aheadCount = document.getElementById('git-ahead-count');
+    const behindCount = document.getElementById('git-behind-count');
+    const syncPill = document.getElementById('git-sync-state-pill');
+    const syncText = document.getElementById('git-sync-state-text');
+    const syncIcon = document.getElementById('git-sync-state-icon');
+    const topbarDot = document.getElementById('topbar-git-sync-dot');
+    const protectedCard = document.getElementById('git-protected-card');
+    const featureBranchInput = document.getElementById('git-feature-branch-input');
+
+    if (branchNameEl) branchNameEl.textContent = res.currentBranch || 'main';
+    if (topbarBranchLabel) topbarBranchLabel.textContent = res.currentBranch || 'main';
+    if (remoteUrlEl && res.remoteUrl) {
+      const displayUrl = res.remoteUrl.replace(/^https?:\/\/github\.com\//i, '').replace(/\.git$/i, '');
+      remoteUrlEl.textContent = displayUrl || res.remoteUrl;
+    }
+
+    if (aheadCount) aheadCount.textContent = res.ahead || 0;
+    if (behindCount) behindCount.textContent = res.behind || 0;
+    if (aheadPill) aheadPill.classList.toggle('has-count', (res.ahead || 0) > 0);
+    if (behindPill) behindPill.classList.toggle('has-count', (res.behind || 0) > 0);
+
+    // Xử lý cảnh báo Protected Branch
+    if (protectedCard) {
+      protectedCard.style.display = res.isProtectedBranch ? 'flex' : 'none';
+      if (res.isProtectedBranch && featureBranchInput && !featureBranchInput.value) {
+        const scopeVal = document.getElementById('git-commit-scope')?.value?.trim();
+        featureBranchInput.value = scopeVal ? `feature/${scopeVal.toLowerCase()}` : `feature/test-${new Date().toISOString().slice(5, 10).replace('-', '')}`;
+      }
+    }
+
+    // Trạng thái đồng bộ (Pill & Dot)
+    if (res.behind > 0) {
+      if (syncPill) {
+        syncPill.className = 'draft-status-pill is-behind';
+        syncPill.style.background = 'rgba(245, 158, 11, 0.15)';
+        syncPill.style.color = '#d97706';
+        syncPill.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+      }
+      if (syncIcon) syncIcon.className = 'ph-bold ph-arrow-down';
+      if (syncText) syncText.textContent = `Có ${res.behind} commit mới cần kéo về`;
+      if (topbarDot) topbarDot.style.background = '#f59e0b';
+    } else if (res.ahead > 0) {
+      if (syncPill) {
+        syncPill.className = 'draft-status-pill is-ahead';
+        syncPill.style.background = 'rgba(10, 101, 204, 0.15)';
+        syncPill.style.color = '#0A65CC';
+        syncPill.style.borderColor = 'rgba(10, 101, 204, 0.3)';
+      }
+      if (syncIcon) syncIcon.className = 'ph-bold ph-arrow-up';
+      if (syncText) syncText.textContent = `Có ${res.ahead} commit chưa đẩy`;
+      if (topbarDot) topbarDot.style.background = '#3b82f6';
+    } else if (res.hasChanges) {
+      if (syncPill) {
+        syncPill.className = 'draft-status-pill is-dirty';
+        syncPill.style.background = 'rgba(245, 158, 11, 0.15)';
+        syncPill.style.color = '#d97706';
+        syncPill.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+      }
+      if (syncIcon) syncIcon.className = 'ph-bold ph-pencil-simple';
+      if (syncText) syncText.textContent = res.isProtectedBranch ? 'Có thay đổi (Nhánh main được bảo vệ)' : 'Có thay đổi chưa commit';
+      if (topbarDot) topbarDot.style.background = '#f59e0b';
+    } else {
+      if (syncPill) {
+        syncPill.className = 'draft-status-pill is-synced';
+        syncPill.style.background = 'rgba(34, 197, 94, 0.15)';
+        syncPill.style.color = '#16a34a';
+        syncPill.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+      }
+      if (syncIcon) syncIcon.className = 'ph-bold ph-check-circle';
+      if (syncText) syncText.textContent = 'Đã đồng bộ';
+      if (topbarDot) topbarDot.style.background = '#22c55e';
+    }
+
+    // 2. Cập nhật đếm số lượng tệp theo loại
+    const permitted = res.permittedFiles || [];
+    const testsCount = permitted.filter((f) => f.category === 'test_script').length;
+    const pagesCount = permitted.filter((f) => f.category === 'page_object').length;
+    const dataCount = permitted.filter((f) => f.category === 'test_data').length;
+    const suitesCount = permitted.filter((f) => f.category === 'test_suite').length;
+
+    const changedCountEl = document.getElementById('git-changed-count');
+    if (changedCountEl) changedCountEl.textContent = permitted.length;
+
+    const pAll = document.getElementById('pill-count-all');
+    const pTests = document.getElementById('pill-count-tests');
+    const pPages = document.getElementById('pill-count-pages');
+    const pData = document.getElementById('pill-count-data');
+    const pSuites = document.getElementById('pill-count-suites');
+    if (pAll) pAll.textContent = permitted.length;
+    if (pTests) pTests.textContent = testsCount;
+    if (pPages) pPages.textContent = pagesCount;
+    if (pData) pData.textContent = dataCount;
+    if (pSuites) pSuites.textContent = suitesCount;
+
+    // Mặc định chọn toàn bộ tệp hợp lệ nếu chưa chọn
+    if (gitStudioState.selectedFiles.size === 0) {
+      permitted.forEach((f) => gitStudioState.selectedFiles.add(f.path));
+    } else {
+      // Giữ lại các tệp còn tồn tại
+      const currentValidPaths = new Set(permitted.map((f) => f.path));
+      for (const p of gitStudioState.selectedFiles) {
+        if (!currentValidPaths.has(p)) gitStudioState.selectedFiles.delete(p);
+      }
+    }
+
+    // 3. Render bảng tệp
+    renderGitFilesTable();
+
+    // 4. Render danh sách commit gần nhất
+    renderGitCommitList(res.recentCommits || []);
+
+    // 5. Render danh sách blocked files (Security Shield)
+    renderGitBlockedFiles(res.blockedFiles || []);
+
+    // 6. Cập nhật danh sách branch
+    await loadGitBranches();
+
+    // 7. Cập nhật trạng thái nút commit
+    updateGitCommitButtonState();
+
+    if (!silent) {
+      showToast('Đã làm mới trạng thái kho mã nguồn Git.', 'info');
+    }
+  } catch (err) {
+    console.error('Lỗi khi tải trạng thái Git:', err);
+    if (!silent) {
+      showToast('Không thể kết nối Git: ' + err.message, 'error');
+    }
+  }
+}
+
+function renderGitFilesTable() {
+  const tbody = document.getElementById('git-file-table-body');
+  if (!tbody) return;
+
+  const permitted = (gitStudioState.status?.permittedFiles) || [];
+  const filter = gitStudioState.activeFilter;
+
+  let filtered = permitted;
+  if (filter === 'tests') filtered = permitted.filter((f) => f.category === 'test_script');
+  else if (filter === 'pages') filtered = permitted.filter((f) => f.category === 'page_object');
+  else if (filter === 'data') filtered = permitted.filter((f) => f.category === 'test_data');
+  else if (filter === 'suites') filtered = permitted.filter((f) => f.category === 'test_suite');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" class="git-empty-row">
+          <div class="git-empty-state">
+            <i class="ph-bold ph-check-circle" style="color: #22c55e; font-size: 28px;"></i>
+            <p>${permitted.length === 0 ? 'Mã nguồn của bạn đang sạch (Clean working tree). Không có thay đổi nào chưa commit.' : 'Không có tệp tin nào thuộc bộ lọc này.'}</p>
+          </div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((file) => {
+    const isChecked = gitStudioState.selectedFiles.has(file.path) ? 'checked' : '';
+    const statusClass = file.status === '??' ? 'status-untracked' : (file.status.includes('M') ? 'status-modified' : (file.status.includes('D') ? 'status-deleted' : 'status-added'));
+
+    return `
+      <tr data-filepath="${escapeHtml(file.path)}">
+        <td>
+          <input type="checkbox" class="git-file-chk" data-path="${escapeHtml(file.path)}" ${isChecked}>
+        </td>
+        <td>
+          <span class="git-cat-badge cat-${escapeHtml(file.color || 'primary')}">
+            <i class="ph-bold ${escapeHtml(file.icon || 'ph-file')}"></i>
+            ${escapeHtml(file.categoryLabel || file.category)}
+          </span>
+        </td>
+        <td class="git-file-path-cell" title="${escapeHtml(file.path)}">
+          ${escapeHtml(file.path)}
+        </td>
+        <td>
+          <span class="git-status-badge ${statusClass}">
+            ${escapeHtml(file.statusText || file.status)}
+          </span>
+        </td>
+        <td style="text-align: right;">
+          <button type="button" class="btn-icon-subtle btn-view-diff" data-path="${escapeHtml(file.path)}" title="Xem chi tiết Diff">
+            <i class="ph-bold ph-file-search"></i>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Gắn sự kiện checkbox
+  tbody.querySelectorAll('.git-file-chk').forEach((chk) => {
+    chk.addEventListener('change', (e) => {
+      const filePath = e.target.dataset.path;
+      if (e.target.checked) {
+        gitStudioState.selectedFiles.add(filePath);
+      } else {
+        gitStudioState.selectedFiles.delete(filePath);
+      }
+      updateGitCommitButtonState();
+    });
+  });
+
+  // Gắn sự kiện nút xem diff
+  tbody.querySelectorAll('.btn-view-diff').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const filePath = btn.dataset.path;
+      if (filePath) viewGitFileDiff(filePath);
+    });
+  });
+}
+
+function renderGitCommitList(commits) {
+  const ul = document.getElementById('git-commit-list');
+  if (!ul) return;
+
+  if (commits.length === 0) {
+    ul.innerHTML = '<li class="git-commit-item-empty">Chưa có commit nào.</li>';
+    return;
+  }
+
+  ul.innerHTML = commits.map((c) => `
+    <li class="git-commit-item">
+      <div class="git-commit-meta">
+        <span class="git-commit-hash">${escapeHtml(c.hash)}</span>
+        <span class="git-commit-time">${escapeHtml(c.timeAgo)} - ${escapeHtml(c.author)}</span>
+      </div>
+      <div class="git-commit-msg">${escapeHtml(c.subject)}</div>
+    </li>
+  `).join('');
+}
+
+function renderGitBlockedFiles(blockedFiles) {
+  const container = document.getElementById('git-blocked-files-list');
+  const ul = document.getElementById('git-blocked-items-ul');
+  if (!container || !ul) return;
+
+  if (!blockedFiles || blockedFiles.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  container.style.display = 'block';
+  ul.innerHTML = blockedFiles.slice(0, 8).map((f) => `
+    <li>🛡️ ${escapeHtml(f.path)} (${escapeHtml(f.statusText || 'Bị chặn')})</li>
+  `).join('');
+}
+
+async function loadGitBranches() {
+  try {
+    const res = await request('/api/git/branches');
+    const select = document.getElementById('git-branch-select');
+    if (!select || !res.ok) return;
+
+    select.innerHTML = res.branches
+      .filter((b) => !b.isRemote)
+      .map((b) => `<option value="${escapeHtml(b.name)}" ${b.isCurrent ? 'selected' : ''}>${escapeHtml(b.name)}${b.isCurrent ? ' (hiện tại)' : ''}</option>`)
+      .join('');
+  } catch (err) {
+    console.warn('Lỗi khi tải danh sách branch:', err);
+  }
+}
+
+async function viewGitFileDiff(filePath) {
+  const diffCard = document.getElementById('git-diff-card');
+  const fileNameEl = document.getElementById('git-diff-filename');
+  const diffContentEl = document.getElementById('git-diff-content');
+  if (!diffCard || !diffContentEl) return;
+
+  if (fileNameEl) fileNameEl.textContent = filePath;
+  diffContentEl.textContent = 'Đang tải nội dung diff…';
+  diffCard.style.display = 'block';
+  diffCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  try {
+    const res = await request('/api/git/diff?file=' + encodeURIComponent(filePath));
+    if (res.ok) {
+      diffContentEl.textContent = res.diff;
+      if (window.Prism && Prism.languages.diff) {
+        diffContentEl.innerHTML = Prism.highlight(res.diff, Prism.languages.diff, 'diff');
+      }
+    } else {
+      diffContentEl.textContent = 'Lỗi: ' + (res.error || 'Không thể lấy diff');
+    }
+  } catch (err) {
+    diffContentEl.textContent = 'Lỗi kết nối khi lấy diff: ' + err.message;
+  }
+}
+
+async function runGitQualityGate() {
+  const badge = document.getElementById('git-qg-badge');
+  const summary = document.getElementById('git-qg-summary');
+  const issuesBox = document.getElementById('git-qg-issues');
+  const issuesUl = document.getElementById('git-qg-issues-list');
+  const runBtn = document.getElementById('btn-git-run-qg');
+
+  if (badge) {
+    badge.className = 'git-qg-badge is-checking';
+    badge.textContent = 'Đang kiểm tra…';
+  }
+  if (runBtn) runBtn.disabled = true;
+
+  try {
+    const res = await request('/api/git/quality-check', { method: 'POST' });
+    gitStudioState.isQualityGatePassed = !!res.passed;
+
+    if (res.passed) {
+      if (badge) {
+        badge.className = 'git-qg-badge is-passed';
+        badge.textContent = 'Đạt chuẩn';
+      }
+      if (summary) summary.textContent = res.summary || 'Toàn bộ kịch bản test và Page Objects đều tuân thủ kiến trúc framework.';
+      if (issuesBox) issuesBox.style.display = 'none';
+      appendGitTerminalLog('✅ Framework Quality Gate: PASSED.');
+    } else {
+      if (badge) {
+        badge.className = 'git-qg-badge is-failed';
+        badge.textContent = 'Không đạt';
+      }
+      if (summary) summary.textContent = 'Phát hiện lỗi vi phạm quy chuẩn framework! Vui lòng khắc phục trước khi commit.';
+      if (issuesBox && issuesUl) {
+        issuesBox.style.display = 'block';
+        issuesUl.innerHTML = (res.issues || []).map((iss) => `<li>${escapeHtml(iss)}</li>`).join('');
+      }
+      appendGitTerminalLog(`❌ Framework Quality Gate: FAILED (${(res.issues || []).length} lỗi).`);
+    }
+    updateGitCommitButtonState();
+  } catch (err) {
+    if (badge) {
+      badge.className = 'git-qg-badge is-failed';
+      badge.textContent = 'Lỗi';
+    }
+    if (summary) summary.textContent = 'Lỗi khi kích hoạt bài kiểm tra: ' + err.message;
+    gitStudioState.isQualityGatePassed = false;
+    updateGitCommitButtonState();
+  } finally {
+    if (runBtn) runBtn.disabled = false;
+  }
+}
+
+async function handleGitPull() {
+  const pullBtn = document.getElementById('btn-git-pull');
+  const autoStash = !!document.getElementById('git-pull-auto-stash')?.checked;
+
+  if (pullBtn) {
+    pullBtn.disabled = true;
+    pullBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Đang kéo mã mới…';
+  }
+
+  appendGitTerminalLog('Đang thực hiện Git Pull từ remote...');
+
+  try {
+    const res = await request('/api/git/pull', {
+      method: 'POST',
+      body: JSON.stringify({ stashIfDirty: autoStash }),
+    });
+
+    if (Array.isArray(res.logs)) {
+      res.logs.forEach((l) => appendGitTerminalLog(l));
+    }
+
+    if (res.ok) {
+      showToast(res.message || 'Kéo mã mới thành công!', 'success');
+      appendGitTerminalLog('🎉 Git Pull hoàn tất thành công!');
+      await loadGitStatus(true);
+    } else {
+      showToast(res.message || 'Kéo mã mới thất bại', 'error');
+      appendGitTerminalLog('❌ Git Pull thất bại: ' + res.message);
+    }
+  } catch (err) {
+    showToast('Lỗi khi thực hiện Pull: ' + err.message, 'error');
+    appendGitTerminalLog('❌ Lỗi ngoại lệ: ' + err.message);
+  } finally {
+    if (pullBtn) {
+      pullBtn.disabled = false;
+      pullBtn.innerHTML = '<i class="ph-bold ph-cloud-arrow-down"></i> Kéo mã mới về máy';
+    }
+  }
+}
+
+async function handleGitCommitPush(e) {
+  if (e) e.preventDefault();
+
+  const commitBtn = document.getElementById('btn-git-commit-push');
+  const subjectEl = document.getElementById('git-commit-subject');
+  const typeEl = document.getElementById('git-commit-type');
+  const scopeEl = document.getElementById('git-commit-scope');
+
+  const selectedFiles = Array.from(gitStudioState.selectedFiles);
+  if (selectedFiles.length === 0) {
+    showToast('Vui lòng chọn ít nhất 1 tệp tin hợp lệ để commit.', 'warning');
+    return;
+  }
+
+  const subject = (subjectEl?.value || '').trim();
+  if (!subject) {
+    showToast('Vui lòng nhập tóm tắt mô tả nội dung commit.', 'warning');
+    subjectEl?.focus();
+    return;
+  }
+
+  const type = typeEl?.value || 'test';
+  const scope = (scopeEl?.value || '').trim();
+  const commitMessage = scope ? `${type}(${scope}): ${subject}` : `${type}: ${subject}`;
+
+  const isProtected = !!gitStudioState.status?.isProtectedBranch;
+  const featureBranchInput = document.getElementById('git-feature-branch-input');
+  let newBranch = null;
+
+  if (isProtected) {
+    newBranch = (featureBranchInput?.value || '').trim();
+    if (!newBranch) {
+      showToast('Nhánh main được bảo vệ! Vui lòng nhập tên nhánh Feature để đẩy lên.', 'warning');
+      featureBranchInput?.focus();
+      return;
+    }
+  }
+
+  if (commitBtn) {
+    commitBtn.disabled = true;
+    commitBtn.innerHTML = '<i class="ph-bold ph-spinner animate-spin"></i> Đang Commit & Push…';
+  }
+
+  appendGitTerminalLog(`Bắt đầu đóng gói Commit & Push (${selectedFiles.length} tệp)...`);
+  appendGitTerminalLog(`Commit message: "${commitMessage}"`);
+  if (newBranch) {
+    appendGitTerminalLog(`🌿 Đẩy lên nhánh Feature: ${newBranch} (để tạo PR duyệt vào main)`);
+  }
+
+  try {
+    const res = await request('/api/git/commit-push', {
+      method: 'POST',
+      body: JSON.stringify({
+        files: selectedFiles,
+        message: commitMessage,
+        branch: gitStudioState.status?.currentBranch || 'main',
+        newBranch: newBranch,
+      }),
+    });
+
+    if (Array.isArray(res.logs)) {
+      res.logs.forEach((l) => appendGitTerminalLog(l));
+    }
+
+    if (res.ok) {
+      showToast(res.message || 'Đã Commit & Push thành công lên Remote!', 'success');
+      appendGitTerminalLog(`🎉 Thành công! Mã commit: ${res.commitHash || ''}`);
+
+      const prBox = document.getElementById('git-pr-success-box');
+      const prBtn = document.getElementById('btn-open-github-pr');
+      const prDesc = document.getElementById('git-pr-success-desc');
+
+      if (res.prUrl && prBox && prBtn) {
+        prBox.style.display = 'flex';
+        prBtn.href = res.prUrl;
+        if (prDesc) prDesc.textContent = `Mã nguồn đã được đưa lên nhánh ${res.branch} an toàn. Bấm nút dưới đây để tạo Pull Request trên GitHub gửi Lead phê duyệt vào main:`;
+        appendGitTerminalLog(`🔗 Link Pull Request GitHub: ${res.prUrl}`);
+        prBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } else if (prBox) {
+        prBox.style.display = 'none';
+      }
+
+      if (subjectEl) subjectEl.value = '';
+      if (scopeEl) scopeEl.value = '';
+      if (featureBranchInput && isProtected) featureBranchInput.value = '';
+      gitStudioState.selectedFiles.clear();
+      updateGitCommitPreview();
+      await loadGitStatus(true);
+    } else {
+      showToast(res.message || 'Commit & Push thất bại.', 'error');
+      appendGitTerminalLog('❌ Lỗi: ' + res.message);
+    }
+  } catch (err) {
+    showToast('Lỗi khi commit & push: ' + err.message, 'error');
+    appendGitTerminalLog('❌ Ngoại lệ: ' + err.message);
+  } finally {
+    if (commitBtn) {
+      commitBtn.disabled = false;
+      updateGitCommitButtonState();
+    }
+  }
+}
+
+async function openGitStudio() {
+  await loadGitStatus(false);
+  await runGitQualityGate();
+}
+
+function initGitStudio() {
+  if (gitStudioState.isInitialized) return;
+  gitStudioState.isInitialized = true;
+
+  // Lắng nghe nút Fetch
+  document.getElementById('btn-git-fetch')?.addEventListener('click', () => {
+    const icon = document.getElementById('icon-git-fetch');
+    if (icon) icon.classList.add('animate-spin');
+    loadGitStatus(false).finally(() => {
+      if (icon) icon.classList.remove('animate-spin');
+    });
+  });
+
+  // Lắng nghe nút Pull
+  document.getElementById('btn-git-pull')?.addEventListener('click', () => {
+    handleGitPull();
+  });
+
+  // Lắng nghe Chọn tất cả / Bỏ chọn
+  document.getElementById('btn-git-select-all')?.addEventListener('click', () => {
+    const permitted = gitStudioState.status?.permittedFiles || [];
+    permitted.forEach((f) => gitStudioState.selectedFiles.add(f.path));
+    renderGitFilesTable();
+    updateGitCommitButtonState();
+  });
+
+  document.getElementById('btn-git-deselect-all')?.addEventListener('click', () => {
+    gitStudioState.selectedFiles.clear();
+    renderGitFilesTable();
+    updateGitCommitButtonState();
+  });
+
+  // Filter pills
+  document.querySelectorAll('#git-filter-pills .filter-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#git-filter-pills .filter-pill').forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      gitStudioState.activeFilter = pill.dataset.gitFilter || 'all';
+      renderGitFilesTable();
+    });
+  });
+
+  // Đóng diff
+  document.getElementById('btn-close-diff')?.addEventListener('click', () => {
+    const card = document.getElementById('git-diff-card');
+    if (card) card.style.display = 'none';
+  });
+
+  // Quality gate check
+  document.getElementById('btn-git-run-qg')?.addEventListener('click', () => {
+    runGitQualityGate();
+  });
+
+  // Commit Form & Preview
+  document.getElementById('git-commit-type')?.addEventListener('change', updateGitCommitPreview);
+  document.getElementById('git-commit-scope')?.addEventListener('input', updateGitCommitPreview);
+  document.getElementById('git-commit-subject')?.addEventListener('input', updateGitCommitPreview);
+  document.getElementById('git-feature-branch-input')?.addEventListener('input', updateGitCommitButtonState);
+  document.getElementById('git-commit-form')?.addEventListener('submit', handleGitCommitPush);
+
+  // Clear log
+  document.getElementById('btn-clear-git-log')?.addEventListener('click', () => {
+    const terminal = document.getElementById('git-terminal-body');
+    if (terminal) terminal.textContent = 'Log đã được xóa. Sẵn sàng nhận lệnh mới.';
+  });
+
+  // Toggle new branch form
+  document.getElementById('btn-toggle-new-branch')?.addEventListener('click', () => {
+    const form = document.getElementById('git-new-branch-form');
+    if (form) {
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+      if (form.style.display === 'block') {
+        document.getElementById('git-new-branch-name')?.focus();
+      }
+    }
+  });
+
+  // Checkout branch
+  document.getElementById('btn-git-checkout')?.addEventListener('click', async () => {
+    const branch = document.getElementById('git-branch-select')?.value;
+    if (!branch) return;
+    try {
+      const res = await request('/api/git/branch/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ branch }),
+      });
+      if (res.ok) {
+        showToast(res.message || `Đã chuyển sang nhánh ${branch}`, 'success');
+        await loadGitStatus(true);
+      } else {
+        showToast(res.message || 'Không thể chuyển nhánh', 'error');
+      }
+    } catch (err) {
+      showToast('Lỗi khi chuyển nhánh: ' + err.message, 'error');
+    }
+  });
+
+  // Create branch
+  document.getElementById('btn-create-branch')?.addEventListener('click', async () => {
+    const input = document.getElementById('git-new-branch-name');
+    const branch = (input?.value || '').trim();
+    if (!branch) {
+      showToast('Vui lòng nhập tên nhánh mới.', 'warning');
+      input?.focus();
+      return;
+    }
+    try {
+      const res = await request('/api/git/branch/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ branch, createNew: true }),
+      });
+      if (res.ok) {
+        showToast(res.message || `Đã tạo và chuyển sang nhánh ${branch}`, 'success');
+        if (input) input.value = '';
+        const form = document.getElementById('git-new-branch-form');
+        if (form) form.style.display = 'none';
+        await loadGitStatus(true);
+      } else {
+        showToast(res.message || 'Không thể tạo nhánh', 'error');
+      }
+    } catch (err) {
+      showToast('Lỗi khi tạo nhánh: ' + err.message, 'error');
+    }
+  });
+
+  // Topbar Git button opens git-view
+  document.getElementById('topbar-git-btn')?.addEventListener('click', () => {
+    const gitTab = document.querySelector('.nav-dropdown-item[data-view="git-view"]');
+    if (gitTab) gitTab.click();
+  });
+
+  updateGitCommitPreview();
+
+  // Khởi động ngầm lấy trạng thái Git ban đầu sau 1 giây
+  setTimeout(() => {
+    loadGitStatus(true);
+  }, 1000);
+}
+
+initGitStudio();

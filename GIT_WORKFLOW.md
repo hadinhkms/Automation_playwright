@@ -82,32 +82,52 @@ git remote -v
 
 ---
 
-## ⚡ Lệnh Nhanh (Quick Commands)
+## ⚡ 1. Sử Dụng Trực Tiếp Trên Dashboard: Git Sync Studio (Khuyên dùng)
 
-Thêm vào `package.json`:
+Hệ thống đã tích hợp sẵn **Git Sync Studio** trên Web Dashboard tại `http://127.0.0.1:4174`:
+- **Truy cập:** Bấm vào nút Git trên **Thanh điều hướng (Topbar)** hoặc vào menu **Tiện ích -> Đồng bộ Git (Sync Code)**.
+- **Tính năng nổi bật:**
+  - 🔄 **Kéo mã mới về máy (Git Pull):** 1-Click kéo code từ remote, hỗ trợ tự động Stash bảo vệ code dở dang và tự động chạy `npm install` nếu có package mới.
+  - 🛡️ **Khiên bảo vệ mã nguồn (Security Guard):** Tự động phân loại tài nguyên hợp lệ (tests, pages, data, suites) và chặn triệt để `.env`, `playwright-report/`, `test-results/`, `evidence/`, `.dashboard-drafts/`, file log và prompt cá nhân.
+  - 🔍 **Xem trước Diff trực quan (Visual Diff Inspector):** Bấm "Xem Diff" của bất kỳ file nào để xem trực tiếp các dòng thêm mới / thay đổi trước khi commit.
+  - 🚦 **Tự động kích hoạt Framework Quality Gate:** Kiểm tra quy chuẩn cấu trúc test script (`npm run check:framework`) trước khi cho phép commit/push.
+  - 📦 **Trình soạn Commit Message chuẩn:** Hỗ trợ định dạng Conventional Commits (`test(...)`, `feat(...)`, `fix(...)`, `data(...)`).
 
-```json
-"scripts": {
-  "test": "playwright test",
-  "git:status": "git status",
-  "git:push": "git add . && git commit -m \"test: update tests\" && git push"
-}
-```
+---
 
-Sau đó chỉ cần:
+## ⚡ 2. Bộ Lệnh Dòng Lệnh Nhanh & An Toàn (Safe CLI Commands)
+
+Trong terminal, bạn có thể sử dụng các lệnh tiện ích được tích hợp sẵn:
+
 ```bash
-npm run git:push
+# Kiểm tra trạng thái Git, tệp hợp lệ và tệp bị chặn bảo mật
+npm run git:status
+
+# Kéo mã mới nhất từ remote về máy an toàn (tự động stash nếu dirty)
+npm run git:pull
+
+# Kiểm tra chất lượng cấu trúc mã nguồn trước khi push
+npm run git:check
+
+# Đóng gói và đẩy các tệp hợp lệ lên máy chủ
+npm run git:push -- "test(login): thêm kịch bản kiểm tra đăng nhập"
 ```
 
 ---
 
-## ✅ Checklist Trước Khi Push
+## ✅ Danh Mục Thông Tin Được Phép & Bị Chặn (Asset Whitelist & Shield)
 
-- [ ] Chạy `npm run check:framework` (kiểm tra cấu trúc)
-- [ ] Chạy test đã thay đổi: `npm run test -- tests/e2e/mytest.spec.js`
-- [ ] Xem commit message rõ ràng
-- [ ] Không commit file tự động sinh (test-results, playwright-report, evidence)
-- [ ] Không commit .env hoặc credential
+- 🟢 **Được phép đồng bộ (Permitted Whitelist):**
+  - `tests/**`: Kịch bản kiểm thử e2e, api, spec BDD.
+  - `pages/**`: Page Object Models.
+  - `data/**`: Dữ liệu test JSON, CSV fixtures.
+  - `dashboardConfig.json`, `qa-engine.config.json`: Cấu hình test suites và môi trường.
+  - `docs/**`: Tài liệu hướng dẫn.
+- 🔴 **Tuyệt đối chặn bảo mật (Strictly Blocked):**
+  - `.env`, `.env.*`, credential, tokens, mật khẩu.
+  - `playwright-report/**`, `test-results/**`, `evidence/**` (Ảnh/Video/Trace).
+  - `.dashboard-drafts/**`, `.dashboard-backups/**`, `tmp/**`.
+  - `ai/personal/**`, `node_modules/**`, log và file OS.
 
 ---
 
