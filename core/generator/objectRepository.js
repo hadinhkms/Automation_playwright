@@ -27,7 +27,7 @@ function getReadiness({ relativePath, className, baseClass, content }) {
     try { new Function(content); return true; } catch (_) { return false; }
   })();
   if (isFixture) {
-    const exportReady = /module\.exports\s*=\s*\{[^}]*test\b/.test(content);
+    const exportReady = /module\.exports\s*=\s*\{[^}]*test\b/.test(content) || /exports\.test\b/.test(content);
     const importReady = /require\(['"][^'"]+['"]\)/.test(content);
     const platformReady = true;
     const checks = { syntax, export: exportReady, import: importReady, platform: platformReady };

@@ -19,11 +19,11 @@
  * Danh sách các pattern hành động cần bắt
  */
 const ACTION_PATTERNS = {
-  NAVIGATE: /\.(?:navigate|goto|clickFirstJob|openAppliedJobs|open\w+)\s*\(/i,
+  NAVIGATE: /\.(?:navigate|goto|open\w*)\s*\(/i,
   FILL: /\.(?:fill\w*|input\w*|set\w*)\s*\(/i,
-  SUBMIT: /\.(?:submit\w*|clickContinue|clickLogin|clickRegister|bulkApply|clickSave|startApply\w*|clickSubmit|save\w*|confirm\w*)\s*\(/i,
-  ASSERT: /\.(?:expect\w+Visible|expect\w+Hidden|expect\w+Success|expectApplied\w*)\s*\(/i,
-  POPUP_ACTION: /\b(?:onboardingPopup|loginPopup|popupConsent|modal|dialog|otp)\b/i,
+  SUBMIT: /\.(?:submit\w*|clickContinue|clickLogin|clickRegister|clickSave|clickSubmit|save\w*|confirm\w*)\s*\(/i,
+  ASSERT: /\.(?:expect\w+Visible|expect\w+Hidden|expect\w+Success)\s*\(/i,
+  POPUP_ACTION: /\b(?:modal|dialog|popup|drawer|otp)\b/i,
 };
 
 /**
@@ -52,25 +52,19 @@ function generateSemanticCaptureName(stepTitle, actionLine, actionType, existing
   const methodName = methodMatch ? methodMatch[1] : '';
 
   if (actionType === 'NAVIGATE') {
-    if (methodName.includes('FirstJob')) baseName = 'job_detail_opened';
-    else if (methodName.includes('AppliedJobs')) baseName = 'applied_jobs_page_opened';
-    else if (methodName.includes('navigate') || methodName.includes('goto')) baseName = 'page_loaded';
+    if (methodName.includes('navigate') || methodName.includes('goto')) baseName = 'page_loaded';
     else baseName = `${toSafeSlug(methodName)}_opened`;
   } else if (actionType === 'FILL') {
-    if (methodName.includes('MiniProfile') || methodName.includes('Profile')) baseName = 'profile_form_filled';
-    else if (methodName.includes('Email')) baseName = 'email_input_filled';
+    if (methodName.includes('Email')) baseName = 'email_input_filled';
     else if (methodName.includes('Password')) baseName = 'password_input_filled';
     else if (methodName.includes('Phone')) baseName = 'phone_input_filled';
     else baseName = `${toSafeSlug(methodName)}_filled`;
   } else if (actionType === 'SUBMIT') {
-    if (methodName.includes('bulkApply')) baseName = 'bulk_apply_completed';
-    else if (methodName.includes('startApply')) baseName = 'apply_started';
-    else if (methodName.includes('submit')) baseName = `${toSafeSlug(methodName)}_submitted`;
+    if (methodName.includes('submit')) baseName = `${toSafeSlug(methodName)}_submitted`;
     else if (methodName.includes('Continue')) baseName = 'continue_clicked';
     else baseName = `${toSafeSlug(methodName)}_completed`;
   } else if (actionType === 'ASSERT') {
-    if (methodName.includes('AppliedJobsVisible')) baseName = 'applied_jobs_list_visible';
-    else if (methodName.includes('Visible')) baseName = `${toSafeSlug(methodName.replace(/^expect/, ''))}_visible`;
+    if (methodName.includes('Visible')) baseName = `${toSafeSlug(methodName.replace(/^expect/, ''))}_visible`;
     else baseName = `${toSafeSlug(methodName)}_verified`;
   }
 
