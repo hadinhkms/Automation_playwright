@@ -1,6 +1,6 @@
-# Automation Testing Framework - Việc Làm 24h
+# QA Automation Studio - Playwright Automation Framework
 
-Framework kiểm thử tự động cho hệ thống Việc Làm 24h, xây dựng bằng Playwright và JavaScript theo Page Object Model (POM). Repository hiện bao gồm E2E UI, API test, dữ liệu kiểm thử, evidence screenshot và HTML report tùy chỉnh.
+Framework kiểm thử tự động đa nền tảng (Web Desktop, Mobile Web, API), xây dựng bằng Playwright và JavaScript theo chuẩn Page Object Model (POM) và BDD step. Repository bao gồm E2E UI, API test, bộ dữ liệu fixtures, evidence screenshot, HTML report và Web Studio điều khiển tập trung.
 
 ## Yêu cầu hệ thống
 
@@ -142,7 +142,7 @@ Dashboard là ứng dụng web điều khiển kiểm thử tự động trực 
 * 🔍 **So sánh Evidence (Compare Tab)**:
   * Tích hợp công cụ Visual Compare (`tools/visual_compare.html`) hỗ trợ so sánh ảnh chụp baseline và actual theo nhiều chế độ (Side-by-side, 2-up Diff, Slider, Blink).
 * ⚙️ **Cấu hình & Tùy biến (Settings Tab)**:
-  * **Branding & Theme**: Tùy chỉnh màu chủ đạo (Vieclam24h tím/xanh hoặc mã màu tùy chọn), màu nền, logo, tiêu đề và kích thước chữ.
+  * **Branding & Theme**: Tùy chỉnh màu chủ đạo (mã màu tùy chọn của dự án), màu nền, logo, tiêu đề và kích thước chữ.
   * **Runtime & Môi trường**: Cấu hình URL môi trường (`qc`, `stg`, `prod`), số worker, timeout, retry, kích thước viewport.
   * **Discord Notification & QA Bot**: Nhập Discord Webhook URL để nhận thông báo tự động ngay khi test kết thúc (xem hướng dẫn chi tiết tại `docs/DISCORD_BOT_SETUP_GUIDE.md`).
   * **Cấu hình AI Cá nhân**: Thiết lập API key cá nhân (Gemini / OpenAI / DeepSeek) lưu an toàn trên trình duyệt (`localStorage`) mà không cần sửa file `.env`.

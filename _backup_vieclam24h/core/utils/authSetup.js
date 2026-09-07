@@ -3,16 +3,9 @@ const path = require('path');
 const { expect, request: playwrightRequest } = require('@playwright/test');
 const { generateRandomVNPhone, generateRandomEmail } = require('./commonUtils');
 const { RegistrationApiHelper } = require('./registrationApiHelper');
-let LoginPopup = class { constructor(page) {} };
-let HomePage = class { constructor(page) {} async navigate() {} async closeAdsIfVisible() {} };
-let PopupConsent = class { constructor(page) {} };
-try {
-  ({ LoginPopup } = require('../../pages/desktop/LoginPopup'));
-  ({ HomePage } = require('../../pages/desktop/HomePage'));
-  ({ PopupConsent } = require('../../pages/desktop/PopupConsent'));
-} catch (_) {
-  // Graceful fallback when running in clean multi-project framework
-}
+const { LoginPopup } = require('../../pages/desktop/LoginPopup');
+const { HomePage } = require('../../pages/desktop/HomePage');
+const { PopupConsent } = require('../../pages/desktop/PopupConsent');
 
 function getRuntimeUserDirectory() {
   return path.join(__dirname, '../../test-results/runtime-users');

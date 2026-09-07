@@ -1,6 +1,6 @@
 # 📘 Hướng Dẫn Cài Đặt & Vận Hành Môi Trường Kiểm Thử (Setup & Operating Guide)
 
-Chào mừng bạn gia nhập đội ngũ QA Automation của dự án **Việc Làm 24h**!  
+Chào mừng bạn đến với **QA Automation Studio - Playwright Automation Framework**!  
 Tài liệu này hướng dẫn chi tiết từng bước thiết lập toàn bộ môi trường làm việc từ con số 0 trên máy tính của bạn trong **15 - 20 phút**, giúp bạn sẵn sàng chạy test, khai thác Dashboard và làm việc hiệu quả với các trợ lý AI tích hợp sẵn.
 
 ---
@@ -339,4 +339,4 @@ Hãy tích chọn đầy đủ các mục dưới đây để xác nhận máy t
 
 ---
 
-> 💡 **Hỗ trợ thêm**: Nếu bạn gặp bất kỳ vướng mắc nào trong quá trình thiết lập, hãy chụp ảnh màn hình terminal hoặc Dashboard và liên hệ Leader / Mentor QA của dự án để được hỗ trợ kịp thời. Chúc bạn có trải nghiệm làm việc năng suất và tuyệt vời cùng dự án Việc Làm 24h!
+> 💡 **Hỗ trợ thêm**: Nếu bạn gặp bất kỳ vướng mắc nào trong quá trình thiết lập, hãy chụp ảnh màn hình terminal hoặc Dashboard và liên hệ Technical Lead / Maintainer của framework để được hỗ trợ kịp thời. Chúc bạn có trải nghiệm làm việc năng suất và tuyệt vời!

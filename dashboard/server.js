@@ -144,43 +144,45 @@ function writeEnvFile(filePath, envObj) {
 const CODE_ROOTS = ['tests', 'pages', 'core'];
 const PORT = Number.parseInt(process.env.DASHBOARD_PORT || '4174', 10);
 const APP_NAME = process.env.DASHBOARD_APP_NAME || 'qa-automation-dashboard';
-const CANONICAL_DOCUMENTS = [
+const PUBLIC_DOCUMENTS = [
+  'docs/SETUP_GUIDE.md',
+  'docs/DISCORD_BOT_SETUP_GUIDE.md',
+  'GIT_WORKFLOW.md',
+  'README.md',
   'ai/shared/AI_PROMPTS.md',
   'ai/shared/TEST_AUTOMATION_LESSONS.md',
+  '.agents/skills/playwright_test/SKILL.md',
+];
+
+const DEV_DOCUMENTS = [
   'ai/dashboard/DASHBOARD_AI_PROMPT.md',
   'ai/dashboard/AI_LESSONS.md',
-  'ai/README.md',
+  '.agents/skills/dashboard-maintainer/SKILL.md',
   'AGENTS.md',
   'GEMINI.md',
   'CLAUDE.md',
   'QA_AI_RULES.md',
   '.github/copilot-instructions.md',
-  '.agents/skills/playwright_test/SKILL.md',
-  '.agents/skills/dashboard-maintainer/SKILL.md',
-  'README.md',
-  'GIT_WORKFLOW.md',
-  'docs/SETUP_GUIDE.md',
-  'docs/DISCORD_BOT_SETUP_GUIDE.md',
+  'ai/README.md',
 ];
 
-function listDocumentResources() {
-  const discovered = new Set(CANONICAL_DOCUMENTS);
-  const scanDirs = ['ai', '.agents/skills', 'docs'];
-  const walk = (dir) => {
-    const fullDir = path.join(ROOT, dir);
-    if (!fs.existsSync(fullDir)) return;
-    for (const entry of fs.readdirSync(fullDir, { withFileTypes: true })) {
-      const relPath = path.join(dir, entry.name).split(path.sep).join('/');
-      if (entry.isDirectory()) {
-        walk(relPath);
-      } else if (entry.isFile() && entry.name.endsWith('.md')) {
-        discovered.add(relPath);
-      }
-    }
-  };
-  scanDirs.forEach(walk);
+const CANONICAL_DOCUMENTS = [...PUBLIC_DOCUMENTS, ...DEV_DOCUMENTS];
 
-  return Array.from(discovered).filter((f) => fs.existsSync(path.join(ROOT, f))).sort();
+function isDeveloperRequest(request) {
+  if (process.env.FRAMEWORK_DEV_MODE === 'true' || process.env.FRAMEWORK_DEV_MODE === '1') {
+    return true;
+  }
+  const headerMode = request?.headers ? request.headers['x-developer-mode'] : null;
+  const token = request?.headers ? request.headers['x-developer-token'] : null;
+  const expectedToken = process.env.FRAMEWORK_DEV_TOKEN || 'lead_developer';
+  if (headerMode === 'true' && (!process.env.FRAMEWORK_DEV_TOKEN || token === expectedToken)) {
+    return true;
+  }
+  return false;
+}
+
+function listDocumentResources() {
+  return PUBLIC_DOCUMENTS.filter((f) => fs.existsSync(path.join(ROOT, f))).sort();
 }
 
 function getPlaywrightProjects() {
@@ -378,9 +380,9 @@ function resolveCodeFile(filePath) {
   return validRoot ? absolutePath : null;
 }
 
-function listResources() {
+function listResources(isDev = false) {
   cleanupArtifacts();
-  const documents = listDocumentResources();
+  const documents = listDocumentResources(isDev);
   const dataDirectory = path.join(ROOT, 'data');
   const data = fs.existsSync(dataDirectory)
     ? fs.readdirSync(dataDirectory, { withFileTypes: true })
@@ -431,8 +433,8 @@ function listResources() {
   };
 }
 
-function resolveResource(resourcePath) {
-  const resources = listResources();
+function resolveResource(resourcePath, isDev = true) {
+  const resources = listResources(isDev);
   const allowed = [...resources.documents, ...resources.data];
   if (!allowed.includes(resourcePath)) return null;
   const absolutePath = path.resolve(ROOT, resourcePath);
@@ -605,8 +607,8 @@ function countFolderArtifacts(directory) {
   return result;
 }
 
-function readResourceBody(resourcePath, reveal = false) {
-  const absolutePath = resolveResource(resourcePath);
+function readResourceBody(resourcePath, reveal = false, isDev = false) {
+  const absolutePath = resolveResource(resourcePath, isDev);
   if (!absolutePath) return null;
   if (fs.statSync(absolutePath).size > 1_048_576) return { error: 'Resource lớn hơn giới hạn 1 MB.', status: 413 };
   const extension = path.extname(absolutePath).toLowerCase();
@@ -615,12 +617,19 @@ function readResourceBody(resourcePath, reveal = false) {
     try {
       const parsed = JSON.parse(rawContent);
       const content = reveal ? parsed : maskSensitiveData(parsed);
-      return { path: resourcePath, type: 'json', content: JSON.stringify(content, null, 2), masked: !reveal, editable: true };
+      return { path: resourcePath, type: 'json', content: JSON.stringify(content, null, 2), masked: !reveal, editable: true, isProtected: false };
     } catch {
       return { error: 'File JSON không hợp lệ.', status: 422 };
     }
   }
-  return { path: resourcePath, type: 'markdown', content: rawContent, masked: false, editable: resourcePath.endsWith('.md') };
+  return { 
+    path: resourcePath, 
+    type: 'markdown', 
+    content: rawContent, 
+    masked: false, 
+    editable: isDev, // Chỉ developer mới được edit
+    isProtected: !isDev 
+  };
 }
 
 function maskSensitiveData(value, key = '') {
@@ -1234,7 +1243,12 @@ const server = http.createServer(async (request, response) => {
     }
   }
   if (request.method === 'GET' && url.pathname === '/api/resources') {
-    return sendJson(response, 200, listResources());
+    const isDev = isDeveloperRequest(request);
+    const resources = listResources(isDev);
+    return sendJson(response, 200, {
+      ...resources,
+      isDeveloper: isDev,
+    });
   }
   if (request.method === 'GET' && url.pathname === '/api/code-files') {
     return sendJson(response, 200, { files: listCodeFiles() });
@@ -1265,18 +1279,32 @@ const server = http.createServer(async (request, response) => {
   }
   if (request.method === 'GET' && url.pathname === '/api/resource') {
     const resourcePath = url.searchParams.get('path') || '';
-    const resource = readResourceBody(resourcePath, url.searchParams.get('reveal') === 'true');
+    const isDev = isDeveloperRequest(request);
+    const resource = readResourceBody(resourcePath, url.searchParams.get('reveal') === 'true', isDev);
     if (!resource) return sendJson(response, 404, { error: 'Resource không hợp lệ.' });
     if (resource.error) return sendJson(response, resource.status, { error: resource.error });
     return sendJson(response, 200, resource);
   }
   if (request.method === 'PUT' && url.pathname === '/api/resource') {
     try {
+      const isDev = isDeveloperRequest(request);
       const body = await parseBody(request);
       const resourcePath = String(body.path || '');
-      const absolutePath = resolveResource(resourcePath);
-      const editable = resourcePath.endsWith('.md') || (resourcePath.startsWith('data/') && resourcePath.endsWith('.json'));
-      if (!absolutePath || !editable) return sendJson(response, 403, { error: 'Resource này không được phép chỉnh sửa.' });
+      const absolutePath = resolveResource(resourcePath, isDev);
+      const isUserData = resourcePath.startsWith('data/') && resourcePath.endsWith('.json');
+      const isFrameworkDoc = resourcePath.endsWith('.md');
+      
+      if (!absolutePath) return sendJson(response, 404, { error: 'Resource không tồn tại.' });
+      
+      if (isFrameworkDoc && !isDev) {
+        return sendJson(response, 403, { 
+          error: 'Tài liệu chuẩn của framework được bảo vệ. Chỉ nhà phát triển (Developer) mới có quyền chỉnh sửa.' 
+        });
+      }
+      
+      if (!isUserData && !isFrameworkDoc) {
+        return sendJson(response, 403, { error: 'Resource này không được phép chỉnh sửa.' });
+      }
       const content = String(body.content ?? '');
       if (Buffer.byteLength(content, 'utf8') > 1_048_576) return sendJson(response, 413, { error: 'Nội dung lớn hơn giới hạn 1 MB.' });
       if (resourcePath.endsWith('.json')) JSON.parse(content);

@@ -4,8 +4,9 @@ Thư mục này chứa toàn bộ các kịch bản kiểm thử, page objects, 
 
 ## Danh sách dữ liệu đã sao lưu:
 - `tests/`: Gồm toàn bộ test cases E2E (Desktop, Mobile-web) và API.
-- `pages/`: Gồm toàn bộ Page Object Models (Desktop, Mobile-web) và BasePage gốc.
+- `pages/`: Gồm toàn bộ Page Object Models (Desktop, Mobile-web) và BasePage gốc của Vieclam24h.
 - `data/`: Gồm toàn bộ file dữ liệu test JSON, mẫu CV, hình ảnh test.
+- `core/`: Gồm các custom fixtures (`baseTest.js`, `mobileWebTest.js`) và utils (`authSetup.js`, `registrationApiHelper.js`) gắn với Vieclam24h.
 - `.env`: File cấu hình môi trường, tài khoản và URL bí mật của Vieclam24h.
 
 ---
@@ -19,6 +20,7 @@ Mở PowerShell tại thư mục gốc của dự án (`d:\_Automation-Project`)
 Copy-Item -Recurse -Force "_backup_vieclam24h/tests/*" "tests/"
 Copy-Item -Recurse -Force "_backup_vieclam24h/pages/*" "pages/"
 Copy-Item -Recurse -Force "_backup_vieclam24h/data/*" "data/"
+if (Test-Path "_backup_vieclam24h/core") { Copy-Item -Recurse -Force "_backup_vieclam24h/core/*" "core/" }
 if (Test-Path "_backup_vieclam24h/.env") { Copy-Item -Force "_backup_vieclam24h/.env" ".env" }
 Write-Host "Khôi phục dữ liệu Vieclam24h hoàn tất!" -ForegroundColor Green
 ```
