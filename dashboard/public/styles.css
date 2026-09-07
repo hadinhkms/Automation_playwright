@@ -2634,10 +2634,12 @@ label.settings-toggle > div small {
   pointer-events: none;
   background: var(--code-bg);
   color: var(--code-text);
+}
+.code-editor-stage.editing .code-preview {
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
-.code-preview::-webkit-scrollbar {
+.code-editor-stage.editing .code-preview::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
@@ -7200,14 +7202,19 @@ button.data-file-item.active,
 }
 
 #modal-view-page-code .code-preview {
-  pointer-events: none !important;
+  pointer-events: auto;
+  user-select: text;
   background: var(--code-bg, #0d1117) !important;
   color: var(--code-text, #e6edf3) !important;
   z-index: 1 !important;
+}
+#modal-view-page-code .code-editor-stage.editing .code-preview {
+  pointer-events: none !important;
+  user-select: none !important;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
 }
-#modal-view-page-code .code-preview::-webkit-scrollbar {
+#modal-view-page-code .code-editor-stage.editing .code-preview::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
@@ -12745,12 +12752,73 @@ button.data-file-item.active,
   background: var(--code-bg);
   color: var(--code-text);
   z-index: 1;
-  overflow: auto;
+  overflow: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: color-mix(in srgb, var(--line) 70%, var(--muted)) transparent !important;
+  -ms-overflow-style: auto !important;
+}
+
+.script-code-stage:not(.editing) .code-preview::-webkit-scrollbar,
+.pm-code-stage:not(.editing) .code-preview::-webkit-scrollbar,
+.data-code-stage:not(.editing) .code-preview::-webkit-scrollbar,
+.code-editor-stage:not(.editing) .code-preview::-webkit-scrollbar,
+.code-editor::-webkit-scrollbar {
+  display: block !important;
+  width: 9px !important;
+  height: 9px !important;
+}
+
+.script-code-stage:not(.editing) .code-preview::-webkit-scrollbar-track,
+.pm-code-stage:not(.editing) .code-preview::-webkit-scrollbar-track,
+.data-code-stage:not(.editing) .code-preview::-webkit-scrollbar-track,
+.code-editor-stage:not(.editing) .code-preview::-webkit-scrollbar-track,
+.code-editor::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15) !important;
+  border-radius: 6px;
+}
+
+.script-code-stage:not(.editing) .code-preview::-webkit-scrollbar-thumb,
+.pm-code-stage:not(.editing) .code-preview::-webkit-scrollbar-thumb,
+.data-code-stage:not(.editing) .code-preview::-webkit-scrollbar-thumb,
+.code-editor-stage:not(.editing) .code-preview::-webkit-scrollbar-thumb,
+.code-editor::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--line) 70%, var(--muted)) !important;
+  border-radius: 6px !important;
+  border: 2px solid transparent !important;
+  background-clip: padding-box !important;
+}
+
+.script-code-stage:not(.editing) .code-preview::-webkit-scrollbar-thumb:hover,
+.pm-code-stage:not(.editing) .code-preview::-webkit-scrollbar-thumb:hover,
+.data-code-stage:not(.editing) .code-preview::-webkit-scrollbar-thumb:hover,
+.code-editor-stage:not(.editing) .code-preview::-webkit-scrollbar-thumb:hover,
+.code-editor::-webkit-scrollbar-thumb:hover {
+  background: var(--accent) !important;
+  background-clip: padding-box !important;
+}
+
+/* Chế độ Tự động xuống dòng (Word Wrap Mode) khi người dùng bật */
+.script-code-stage.word-wrap .code-preview,
+.script-code-stage.word-wrap .code-preview code,
+.script-code-stage.word-wrap .code-editor,
+.pm-code-stage.word-wrap .code-preview,
+.pm-code-stage.word-wrap .code-preview code,
+.pm-code-stage.word-wrap .code-editor,
+.data-code-stage.word-wrap .code-preview,
+.data-code-stage.word-wrap .code-preview code,
+.data-code-stage.word-wrap .code-editor {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-x: hidden !important;
 }
 
 .script-code-stage .code-preview code,
 .pm-code-stage .code-preview code,
 .data-code-stage .code-preview code {
+  display: inline-block !important;
+  min-width: 100% !important;
+  padding-right: 36px !important;
+  box-sizing: border-box !important;
   font-family: inherit !important;
   font-size: inherit !important;
   line-height: inherit !important;
@@ -12760,7 +12828,9 @@ button.data-file-item.active,
   white-space: inherit !important;
   font-variant-ligatures: none !important;
   background: transparent !important;
-  padding: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 0 !important;
   margin: 0 !important;
 }
 

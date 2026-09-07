@@ -6023,6 +6023,23 @@ $('#pm-btn-revert-code')?.addEventListener('click', () => {
   }
 });
 $('#pm-btn-copy-code')?.addEventListener('click', copyCurrentPageManagerCode);
+$('#pm-btn-toggle-wrap')?.addEventListener('click', () => {
+  const stage = $('#pm-code-stage');
+  if (!stage) return;
+  const isWrapped = stage.classList.toggle('word-wrap');
+  const btn = $('#pm-btn-toggle-wrap');
+  if (btn) {
+    btn.classList.toggle('active', isWrapped);
+    btn.title = isWrapped
+      ? 'Chuyển sang chế độ cuộn ngang (giữ nguyên độ dài dòng code)'
+      : 'Bật/Tắt tự động xuống dòng (Word Wrap) hoặc cuộn ngang';
+  }
+  const icon = $('#pm-wrap-icon');
+  if (icon) {
+    icon.className = isWrapped ? 'ph-bold ph-text-align-justify' : 'ph-bold ph-text-align-left';
+  }
+  notify(isWrapped ? 'Đã bật chế độ tự động xuống dòng (Word Wrap)' : 'Đã bật chế độ cuộn ngang (Horizontal Scroll)', 'info');
+});
 
 $('#pm-btn-add-quick-locator')?.addEventListener('click', openAddLocatorToPageModal);
 $('#btn-close-add-locator-modal')?.addEventListener('click', closeAddLocatorToPageModal);
