@@ -67,7 +67,7 @@
       "description": "",
       "type": "single",
       "platform": "desktop",
-      "project": "all",
+      "project": "Desktop Smoke Tests",
       "device": "",
       "viewport": {
         "preset": "default",
@@ -123,8 +123,8 @@
       ],
       "workers": 2
     },
-    "suite-mtsqeigr": {
-      "label": "Kịch bản mới",
+    "e2e-sanity": {
+      "label": "E2E Sanity Suite",
       "description": "",
       "type": "single",
       "platform": "desktop",

@@ -3994,6 +3994,187 @@ function loadSuiteIntoEditor(id, suite) {
   updateSuiteRunButtonState();
 }
 
+function resolveSuiteSpecs(suite, allSuites = suitesCache) {
+  if (!suite) return [];
+  const allAvailableSpecs = (typeof testCatalog !== 'undefined' && Array.isArray(testCatalog?.specs)) ? testCatalog.specs : [];
+  const specTagsMap = (typeof testCatalog !== 'undefined' && testCatalog?.specTags) ? testCatalog.specTags : {};
+
+  // Case 1: Composite Suite (Suite Cha)
+  if (suite.type === 'composite' || (Array.isArray(suite.suites) && suite.suites.length > 0)) {
+    const childKeys = Array.isArray(suite.suites) ? suite.suites : [];
+    const aggregated = [];
+    const seenKeys = new Set();
+
+    childKeys.forEach((cid) => {
+      const childSuite = allSuites ? allSuites[cid] : null;
+      if (!childSuite) return;
+      const childSpecs = resolveSuiteSpecs(childSuite, allSuites);
+      childSpecs.forEach((item) => {
+        const uniqueKey = `${item.path}::${item.platform}`;
+        if (!seenKeys.has(uniqueKey)) {
+          seenKeys.add(uniqueKey);
+          aggregated.push({
+            ...item,
+            childOrigin: childSuite.label || cid
+          });
+        }
+      });
+    });
+    return aggregated;
+  }
+
+  // Case 2: Single Suite
+  const plat = suite.platform || (suite.project && suite.project.toLowerCase().includes('mobile') ? 'mobile' : 'desktop');
+
+  // 2a. Explicitly selected files
+  if (Array.isArray(suite.specs) && suite.specs.length > 0 && suite.specs !== 'all') {
+    return suite.specs.map((path) => {
+      const isMob = path.includes('mobile');
+      const isApi = path.includes('api');
+      return {
+        path,
+        name: path.split('/').pop(),
+        platform: isMob ? 'mobile' : (isApi ? 'api' : 'desktop'),
+        tags: specTagsMap[path] || [],
+        childOrigin: null
+      };
+    });
+  }
+
+  // 2b. Grep by Tag
+  if (suite.grep && suite.grep.trim()) {
+    const rawGrep = suite.grep.trim();
+    const grepParts = rawGrep.split('|').map((s) => s.trim().toLowerCase().replace(/^@/, '')).filter(Boolean);
+
+    return allAvailableSpecs.filter((path) => {
+      const isMob = path.includes('mobile');
+      if (plat === 'mobile' && !isMob) return false;
+      if (plat === 'desktop' && isMob) return false;
+
+      const fileTags = (specTagsMap[path] || []).map((t) => t.toLowerCase().replace(/^@/, ''));
+      const fileNameLower = path.toLowerCase();
+
+      return grepParts.some((part) => fileTags.some((t) => t.includes(part)) || fileNameLower.includes(part));
+    }).map((path) => {
+      const isMob = path.includes('mobile');
+      const isApi = path.includes('api');
+      return {
+        path,
+        name: path.split('/').pop(),
+        platform: isMob ? 'mobile' : (isApi ? 'api' : 'desktop'),
+        tags: specTagsMap[path] || [],
+        childOrigin: null
+      };
+    });
+  }
+
+  // 2c. All specs for the suite's platform
+  return allAvailableSpecs.filter((path) => {
+    const isMob = path.includes('mobile');
+    if (plat === 'mobile') return isMob;
+    if (plat === 'desktop') return !isMob;
+    return true;
+  }).map((path) => {
+    const isMob = path.includes('mobile');
+    const isApi = path.includes('api');
+    return {
+      path,
+      name: path.split('/').pop(),
+      platform: isMob ? 'mobile' : (isApi ? 'api' : 'desktop'),
+      tags: specTagsMap[path] || [],
+      childOrigin: null
+    };
+  });
+}
+
+function renderSuiteScriptsPreview(specs = []) {
+  const container = $('#suite-scripts-list');
+  const countBadge = $('#suite-scripts-count');
+  if (!container) return;
+
+  if (countBadge) {
+    countBadge.textContent = `${specs.length} kịch bản`;
+  }
+
+  if (specs.length === 0) {
+    container.innerHTML = `
+      <div class="suite-scripts-empty">
+        <i class="ph-bold ph-files"></i>
+        <span>Không tìm thấy test script nào khớp với bộ lọc kịch bản này.</span>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = specs.map((item) => {
+    const platClass = item.platform || 'desktop';
+    const platLabel = platClass.toUpperCase();
+    const tagsHtml = (item.tags || []).map((t) => `<span class="suite-script-tag">${escapeHtml(t)}</span>`).join('');
+    const originHtml = item.childOrigin ? `<span class="suite-script-origin-pill" title="Thuộc kịch bản con"><i class="ph-bold ph-git-commit"></i> ${escapeHtml(item.childOrigin)}</span>` : '';
+
+    return `
+      <div class="suite-script-item" data-path="${escapeHtml(item.path)}" title="Bấm để xem mã nguồn test script">
+        <div class="suite-script-main">
+          <i class="ph-bold ph-file-js suite-script-icon"></i>
+          <div class="suite-script-info">
+            <div class="suite-script-name-row">
+              <span class="suite-script-badge ${platClass}">${platLabel}</span>
+              <span class="suite-script-name">${escapeHtml(item.name || item.path.split('/').pop())}</span>
+              ${originHtml}
+            </div>
+            <span class="suite-script-path">${escapeHtml(item.path)}</span>
+            ${tagsHtml ? `<div class="suite-script-tags">${tagsHtml}</div>` : ''}
+          </div>
+        </div>
+        <div class="suite-script-actions" onclick="event.stopPropagation();">
+          <button type="button" class="btn-icon-subtle btn-copy-spec-path" data-path="${escapeHtml(item.path)}" title="Sao chép đường dẫn file">
+            <i class="ph-bold ph-copy"></i>
+          </button>
+          <button type="button" class="btn-icon-subtle btn-open-spec-code" data-path="${escapeHtml(item.path)}" title="Xem mã nguồn">
+            <i class="ph-bold ph-code"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function openSuiteSpecModal(filePath) {
+  if (!filePath) return;
+  const modal = $('#modal-suite-spec-viewer');
+  if (!modal) return;
+
+  const fileName = filePath.split('/').pop();
+  $('#suite-spec-modal-title').textContent = fileName;
+  $('#suite-spec-modal-path').textContent = filePath;
+  const isMob = filePath.includes('mobile');
+  const isApi = filePath.includes('api');
+  const plat = isMob ? 'mobile' : (isApi ? 'api' : 'desktop');
+  const badge = $('#suite-spec-modal-badge');
+  if (badge) {
+    badge.className = `suite-script-badge ${plat}`;
+    badge.textContent = plat.toUpperCase();
+  }
+  const codeEl = $('#suite-spec-modal-code');
+  if (codeEl) codeEl.textContent = 'Đang tải mã nguồn test script...';
+  $('#suite-spec-modal-meta').textContent = 'Đang tải...';
+
+  modal.showModal();
+
+  try {
+    const res = await request(`/api/code?path=${encodeURIComponent(filePath)}`);
+    const content = res.content || '';
+    const lineCount = content.split('\n').length;
+    $('#suite-spec-modal-meta').textContent = `${lineCount} dòng · JavaScript`;
+    if (codeEl) {
+      codeEl.innerHTML = highlightCode(content, 'javascript');
+    }
+  } catch (err) {
+    if (codeEl) codeEl.textContent = `// Lỗi tải file: ${err.message}`;
+    notify(`Không thể tải mã nguồn: ${err.message}`);
+  }
+}
+
 function updateSuitePreview(id, suite) {
   if (!suite) return;
 
@@ -4099,6 +4280,14 @@ function updateSuitePreview(id, suite) {
     if (cliBox) {
       cliBox.textContent = cliParts.join(' ');
     }
+  }
+
+  // Live render the test scripts box for this suite
+  try {
+    const resolvedSpecs = resolveSuiteSpecs(suite, suitesCache);
+    renderSuiteScriptsPreview(resolvedSpecs);
+  } catch (err) {
+    console.warn('[Suite Preview] Error resolving test scripts:', err);
   }
 }
 
@@ -4360,6 +4549,45 @@ function initSuitesView() {
     if (cmd) {
       navigator.clipboard?.writeText(cmd);
       notify('Đã sao chép lệnh terminal Playwright CLI!');
+    }
+  });
+
+  $('#suite-btn-copy-all-specs')?.addEventListener('click', () => {
+    const specItems = Array.from(document.querySelectorAll('#suite-scripts-list .suite-script-item'));
+    const paths = specItems.map((el) => el.dataset.path).filter(Boolean);
+    if (paths.length === 0) {
+      notify('Không có test script nào để sao chép.');
+      return;
+    }
+    navigator.clipboard?.writeText(paths.join(' '));
+    notify(`Đã sao chép đường dẫn của ${paths.length} test script!`);
+  });
+
+  $('#suite-scripts-list')?.addEventListener('click', (e) => {
+    const copyBtn = e.target.closest('.btn-copy-spec-path');
+    if (copyBtn) {
+      const path = copyBtn.dataset.path;
+      if (path) {
+        navigator.clipboard?.writeText(path);
+        notify(`Đã sao chép: ${path}`);
+      }
+      return;
+    }
+
+    const item = e.target.closest('.suite-script-item');
+    if (item) {
+      const path = item.dataset.path;
+      if (path) {
+        openSuiteSpecModal(path);
+      }
+    }
+  });
+
+  $('#suite-spec-modal-copy-btn')?.addEventListener('click', () => {
+    const code = $('#suite-spec-modal-code')?.textContent || '';
+    if (code) {
+      navigator.clipboard?.writeText(code);
+      notify('Đã sao chép toàn bộ mã nguồn test script!');
     }
   });
 
