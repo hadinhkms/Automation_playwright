@@ -42,3 +42,18 @@
   2. Đồng nhất chiều cao tuyệt đối (`height: 40px; box-sizing: border-box;`) giữa `<select>` và `<input>` để triệt tiêu chênh lệch render mặc định của trình duyệt.
   3. Phân bổ tỉ lệ cột grid linh hoạt với cột số lượng (Workers) nhỏ gọn (96px - 100px) căn giữa rõ ràng, tránh text helper bị rớt dòng đơn lẻ.
 
+### [LEARN-003] Thiết Kế Segmented Control Duy Nhất Cho Artifacts Explorer Thay Thế Nút Trùng Lặp (Duplicate Buttons Anti-Pattern)
+- **Nguồn trích xuất:** UI/UX-REPORTS-EVIDENCE-REDESIGN
+- **Role quan sát:** Senior UI/UX Designer & Product Owner
+- **Quan sát (Observation):** Việc đồng thời bố trí khối nút danh mục dạng thẻ lớn (Results Orientation) ở đầu và hàng nút lọc (Resource Filter Pills) ngay dưới thanh tìm kiếm gây hiện tượng trùng lặp chức năng trực quan (duplicate mode switcher), làm người dùng bối rối và lãng phí không gian dọc quý giá của thanh điều hướng (sidebar).
+- **Bằng chứng (Evidence):** `dashboard/public/index.html` (#resources-view, #resource-nav), `dashboard/public/styles.css` (.resource-segmented-control, .resource-seg-btn, .resource-platform-pills), `dashboard/public/app.js` (switchResourceCategory, renderResourceList)
+- **Đề xuất phân loại:** APPROVED STANDARD
+- **Phạm vi đề xuất:** PROJECT
+- **Đề xuất Owner duyệt:** Senior UI/UX Designer / QA Lead
+- **Trạng thái:** PENDING
+- **Nguyên tắc rút ra:**
+  1. Loại bỏ triệt để việc xếp chồng 2 hàng nút chuyển đổi cùng một danh mục (Reports vs Evidence). Hợp nhất thành một Segmented Control duy nhất theo phong cách Linear/SaaS với badge số lượng trực tiếp và mô tả phụ gọn gàng.
+  2. Ghim cố định (pinned) Header, Segmented Control, Hộp tìm kiếm và Thanh công cụ thư mục ở trên cùng của sidebar (`display: flex; flex-direction: column; height: 100%`), chỉ cho phép cây thư mục (`.resource-list-scroll`) cuộn dọc để người dùng không bao giờ bị trôi mất ô tìm kiếm hay bộ lọc.
+  3. Cung cấp nút tiện ích "Mở tất cả / Thu gọn" (`#resource-toggle-tree-btn`) và tự động mở thư mục ngày gần nhất để tối ưu hóa thao tác kiểm tra artifact hàng ngày của tester.
+  4. Bổ sung bộ lọc nền tảng nhanh (`Tất cả`, `Desktop`, `Mobile`) khi xem Evidence để lọc tức thì trong hàng trăm ảnh chụp màn hình mà không cần lùng sục từng cấp folder.
+
