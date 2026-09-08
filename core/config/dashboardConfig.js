@@ -100,6 +100,10 @@ function getResolvedConfigPath() {
   if (fs.existsSync(projectDashboardConfig)) {
     return projectDashboardConfig;
   }
+  const projectCoreConfig = path.join(projectRoot, 'core', 'config', 'dashboardConfig.json');
+  if (fs.existsSync(projectCoreConfig)) {
+    return projectCoreConfig;
+  }
   return CONFIG_PATH;
 }
 
