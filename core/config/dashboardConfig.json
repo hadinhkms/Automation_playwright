@@ -63,10 +63,12 @@
   },
   "suites": {
     "smoke": {
+      "label": "Smoke Tests",
+      "description": "",
       "type": "single",
       "platform": "desktop",
-      "label": "Smoke Tests",
       "project": "all",
+      "device": "",
       "viewport": {
         "preset": "default",
         "width": 1920,
@@ -78,10 +80,10 @@
       "workers": 2
     },
     "regression-desktop": {
-      "type": "single",
-      "platform": "desktop",
       "label": "Regression Desktop Web",
       "description": "Kịch bản kiểm thử hồi quy cho nền tảng máy tính (Desktop Chrome)",
+      "type": "single",
+      "platform": "desktop",
       "project": "Desktop Smoke Tests",
       "device": "",
       "viewport": {
@@ -95,10 +97,10 @@
       "workers": 2
     },
     "regression-mobile": {
-      "type": "single",
-      "platform": "mobile",
       "label": "Regression Mobile Web",
       "description": "Kịch bản kiểm thử hồi quy cho nền tảng di động (Pixel 7)",
+      "type": "single",
+      "platform": "mobile",
       "project": "Mobile Chrome Smoke Tests",
       "device": "Pixel 7",
       "viewport": {
@@ -112,13 +114,30 @@
       "workers": 2
     },
     "full-regression": {
-      "type": "composite",
       "label": "Full Regression (Đa nền tảng)",
       "description": "Kịch bản tổng hợp: tự động chạy cả 2 kịch bản Regression Desktop và Regression Mobile",
+      "type": "composite",
       "suites": [
         "regression-desktop",
         "regression-mobile"
       ],
+      "workers": 2
+    },
+    "suite-mtsqeigr": {
+      "label": "Kịch bản mới",
+      "description": "",
+      "type": "single",
+      "platform": "desktop",
+      "project": "all",
+      "device": "",
+      "viewport": {
+        "preset": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all",
+      "grep": "",
       "workers": 2
     }
   },
