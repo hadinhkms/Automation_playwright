@@ -44,7 +44,7 @@ const MODULES_TO_SYNC = [
   {
     src: 'core',
     dest: 'core',
-    excludes: ['core/config/dashboardConfig.json'], // Không ghi đè config riêng
+    excludes: ['core/config/dashboardConfig.json', 'core/fixtures/custom'], // Không ghi đè config riêng và custom fixtures legacy
   },
   { src: 'bin', dest: 'bin' },
   { src: 'scripts', dest: 'scripts', excludes: ['scripts/sync-satellites.js', 'scripts/sync-from-core.js'] },

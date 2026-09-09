@@ -19,4 +19,9 @@ test('Desktop container and manual page agree on local mock @smoke @e2e', async 
     expect(pages.sample.page).toBe(page);
     expect(pages.sample.featureName).toBe(featureName);
   });
+    await test.step('Then Tôi thực hiện open efwefrwert', async () => {
+      await samplePage.open();
+      await samplePage.capture('then_open_completed');
+    });
+
 });

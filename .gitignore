@@ -31,9 +31,11 @@ debug.log
 /presentation/demo/results/
 /presentation/demo/reports/
 
-# Runtime failure alerts and interrupted atomic writes
-/scratch/consecutive_failures_alert.json
+# Scratchpad, debug scripts & runtime failure alerts (không commit lên Git)
+/scratch/*
+!/scratch/.gitkeep
 *.tmp
+test_rec.js
 
 # Local environment variants (keep shareable templates)
 .env.*

@@ -18,4 +18,24 @@ test('Mobile container and manual page agree on local mock @smoke @mobile', asyn
     expect(pages.sampleMobile.page).toBe(page);
     expect(pages.sampleMobile.featureName).toBe(featureName);
   });
+    await test.step('When Tôi thực hiện getHeadingText', async () => {
+      await sampleMobilePage.getHeadingText();
+      await sampleMobilePage.capture('when_getHeadingText_completed');
+    });
+
+    await test.step('When Tôi thực hiện open', async () => {
+      await sampleMobilePage.open();
+      await sampleMobilePage.capture('when_open_completed');
+    });
+
+    await test.step('Given Tôi thực hiện openerwe', async () => {
+      await sampleMobilePage.open();
+      await sampleMobilePage.capture('given_open_completed');
+    });
+
+    await test.step('Then Tôi thực hiện opensdfsdfsdfsdczxczxc', async () => {
+      await sampleMobilePage.open();
+      await sampleMobilePage.capture('then_open_completed');
+    });
+
 });
