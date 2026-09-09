@@ -1,0 +1,11 @@
+[
+  {
+    "fullName": "{{random_name}}",
+    "phone": "{{random_phone}}",
+    "email": "{{random_email}}",
+    "password": "Test@1234",
+    "otp": "1111",
+    "role": "candidate",
+    "status": "active"
+  }
+]

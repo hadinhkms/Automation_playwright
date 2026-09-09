@@ -175,5 +175,69 @@
   3. **Hỗ Trợ Đầy Đủ Thoát Nhanh (Escape Routes):** Dialog phải luôn gắn listener click vào backdrop (`e.target === modal`) để đóng ngoài nút Đóng "X" và "Hủy".
   4. **Toàn Vẹn Cấu Trúc HTML `<dialog>`:** Kiểm tra nghiêm ngặt tính cân bằng cặp thẻ `<div>...</div>` bên trong `<dialog>` để tránh việc trình duyệt tự động đóng tag gây lỗi cấu trúc lồng nhau ngoài ý muốn.
 
+### [LEARN-009] Kiến Trúc Accordion / Collapsible Sections Trong Màn Hình Biên Tập Script Đa Khối
+- **Nguồn trích xuất:** UI/UX-BDD-SCRIPT-EDIT-ACCORDION
+- **Role quan sát:** Senior BA & Lead Product Designer
+- **Quan sát (Observation):** Khi nâng cấp màn hình chỉnh sửa kịch bản test từ dạng đơn giản lên dạng toàn diện 5 khối (Thông tin, Bước BDD, Tiền điều kiện, Page Objects, File Data), nếu hiển thị tất cả các khối ở trạng thái mở phẳng (flat expanded):
+  1. Chiều cao form quá dài, tạo gánh nặng nhận thức (cognitive overload), người dùng phải cuộn trang liên tục để tìm mục cần sửa.
+  2. Bố trí các nút thao tác nhanh (+ Given, + When, Chọn hết/Bỏ chọn) chèn ép lên cùng hàng tiêu đề accordion header sẽ gây tràn viền (overflow/clipping), đè chữ tiêu đề khi độ rộng cột hẹp (< 450px).
+- **Bằng chứng (Evidence):** `dashboard/public/index.html` (#script-edit-view, .script-accordion-item), `dashboard/public/styles.css` (.script-accordion-*), `dashboard/public/app.js` (initScriptEditAccordions, updateEditAccordionSummaries)
+- **Đề xuất phân loại:** APPROVED STANDARD
+- **Phạm vi đề xuất:** PROJECT
+- **Đề xuất Owner duyệt:** Senior Product Designer / Frontend Lead
+- **Trạng thái:** PENDING
+- **Nguyên tắc rút ra:**
+  1. **Đồng Bộ 1:1 Thứ Tự Xem vs Sửa:** Luôn giữ thứ tự các khối giữa chế độ Xem (Inspect) và Sửa (Edit) đồng nhất tuyệt đối (01 Info $\rightarrow$ 02 Steps $\rightarrow$ 03 Preconditions $\rightarrow$ 04 Page Objects $\rightarrow$ 05 Data Files) để duy trì mental model của người dùng.
+  2. **Tiêu Chuẩn Tối Giản Cho Accordion Header:** Header của accordion chỉ nên chứa: Icon Chevron + Tag danh mục + Tiêu đề khối (bên trái) và Chip tóm tắt dữ liệu hiện thời (bên phải). Không đặt các cụm nút bấm thao tác hàng loạt trên header ở các cột có độ rộng co giãn để triệt tiêu nguy cơ đè chữ.
+  3. **Thanh Công Cụ Nằm Trong Body (Body-Anchored Toolbars):** Đặt cụm nút thao tác (như `+ Given/When/Then`, `Chọn hết/Bỏ chọn`) nằm ở hàng đầu tiên bên trong `.script-accordion-body` của khối đó. Khi mở rộng, người dùng có không gian thao tác rộng rãi, khi thu gọn thì giao diện sạch sẽ tối đa.
+  4. **Quy Tắc Mở Mặc Định Theo Tần Suất (80/20 Default State):** Mặc định khi vào chỉnh sửa, chỉ mở sẵn các khối có tần suất sửa 80% (Khối 01 Tên kịch bản & Khối 02 Các bước BDD); các khối cấu hình phụ (03, 04, 05) mặc định thu gọn kèm summary chip để người dùng nắm trọn thông tin mà không bị rối mắt.
+  5. **Hỗ Trợ Nút Tiện Ích Toàn Cục:** Luôn cung cấp bộ đôi nút "Mở rộng tất cả" / "Thu gọn tất cả" ở đầu danh sách để người dùng có toàn quyền kiểm soát không gian làm việc.
+
+### [LEARN-010] Phòng Chống Co Ép & Cắt Xén Phần Tử (Flex-Shrink Clipping Pitfall) Trong Khung Cuộn Accordion
+- **Nguồn trích xuất:** BUG-BDD-ACCORDION-EXPAND-ALL-SQUEEZE
+- **Role quan sát:** Senior Frontend Engineer / Senior QA
+- **Quan sát (Observation):** Khi các khối Accordion (`.script-accordion-item`) được đặt bên trong container có `display: flex; flex-direction: column; overflow-y: auto;`, giá trị mặc định của CSS Flexbox cho các phần tử con là `flex-shrink: 1`. Khi người dùng bấm "Mở tất cả" (Expand All), tổng chiều cao thực tế của các khối vượt quá chiều cao container. Vì `.script-accordion-item` có `overflow: hidden`, thay vì kích hoạt thanh cuộn dọc mượt mà cho toàn container, Flexbox tự động co ép (shrink) chiều cao của từng khối accordion (ví dụ: khối Info từ 228px bị ép xuống 111px; khối POM từ 248px bị ép xuống 121px). Hậu quả là các box nhỏ bên trong (input feature, tags, danh sách steps, thẻ Page Object) bị đè mất và cắt xén một nửa (clipping defect).
+- **Bằng chứng (Evidence):** `dashboard/public/styles.css` (.script-accordion-item, .script-middle-scroll-wrap), `dashboard/public/index.html` (#script-edit-view)
+- **Đề xuất phân loại:** APPROVED STANDARD / KNOWN PITFALL
+- **Phạm vi đề xuất:** PROJECT
+- **Đề xuất Owner duyệt:** Frontend Lead / Senior QA
+- **Trạng thái:** PENDING
+- **Nguyên tắc rút ra:**
+  1. **Bắt buộc `flex-shrink: 0` trên Accordion Cards:** Mọi phần tử khối collapsible hoặc card accordion nằm trong flex scroll container BẮT BUỘC phải khai báo `flex-shrink: 0;` và `min-height: fit-content;` để bảo toàn kích thước thực tế theo nội dung bên trong khi mở rộng.
+  2. **Khai báo `min-height: 0` cho Flex Scroll Wrappers:** Container cha có `overflow-y: auto` và `flex: 1` phải có `min-height: 0` để đảm bảo cơ chế scrollbar của Flexbox hoạt động nhất quán trên mọi engine trình duyệt.
+  3. **Không Khóa Cứng Chiều Cao Lồng Nhau (Nested Fixed Height):** Tránh lồng các thuộc tính `max-height` hạn chế quá ngắn (như inline `max-height: 200px`) lên các lưới con nhiều hàng (`.dependency-grid`), để lưới có thể giãn nở tự nhiên theo số lượng item và cuộn nhẹ nhàng theo container chính.
+
+### [LEARN-011] Cơ Chế Soạn Thảo Nháp Đầu Tiên (Draft-First Pattern) Cho Hành Động Chèn Modal Trong BDD Editor
+- **Nguồn trích xuất:** UX-BDD-LINKER-PREMATURE-DISK-SAVE
+- **Role quan sát:** Senior BA & Lead Product Designer / Senior QA
+- **Quan sát (Observation):** Khi người dùng đang ở chế độ Chỉnh sửa kịch bản (`#script-edit-view`) và bấm nút `+ Thêm từ Page` (`#btn-edit-add-step-pom`) để mở modal chèn method/locator:
+  1. Thay vì chỉ thêm bước vào danh sách nháp (`editableSteps`), hệ thống cũ lại gọi ngay API `/api/builder/insert-step` ghi đè trực tiếp lên file `.spec.js` trên đĩa cứng HĐH khi người dùng bấm "Chèn vào kịch bản" trong modal.
+  2. Việc ghi đè file trên đĩa kích hoạt tải lại danh sách script và chuyển kịch bản về trạng thái xem từ đĩa (Inspect Mode), làm xóa sạch các nội dung nháp chưa lưu (tiêu đề, tên tính năng, tags, các bước thêm mới trước đó) mà người dùng vừa gõ trên form.
+- **Bằng chứng (Evidence):** `dashboard/public/app.js` (submitPomActionToBdd, generatePomStepCodeAndTitle)
+- **Đề xuất phân loại:** APPROVED STANDARD / KNOWN PITFALL
+- **Phạm vi đề xuất:** PROJECT
+- **Đề xuất Owner duyệt:** Senior Product Designer / Frontend Lead
+- **Trạng thái:** PENDING
+- **Nguyên tắc rút ra:**
+  1. **Tuân Thủ Tuyệt Đối Chu Trình Soạn Thảo Nháp (Drafting Lifecycle):** Trong giao diện biên tập trực quan (Visual Editor), nút "Thêm" từ modal chỉ có nhiệm vụ chèn dữ liệu vào state nháp của bộ nhớ UI (`editableSteps`), tự động đánh dấu trạng thái "Chưa lưu" (`isDirty`), cập nhật live preview và giữ người dùng ở lại màn hình chỉnh sửa.
+  2. **Chỉ Lưu Đĩa Khi Người Dùng Xác Nhận Rõ Ràng (Explicit User Consent):** Nghiêm cấm mọi hành vi tự ý gọi API ghi đè file trên đĩa cứng trước khi người dùng chủ động bấm nút "Lưu kịch bản" (`#btn-save-edit-script` hoặc Ctrl+S).
+  3. **Tự Động Đồng Bộ Dependencies:** Khi thêm bước từ Page Object mới vào bản nháp, hệ thống phải tự động thêm tệp Page Object đó vào danh sách liên kết (`editSelectedPoms`) để khi người dùng bấm "Lưu kịch bản", các tham số fixture và import được tự động biên dịch đầy đủ mà không bắt tester phải tick thủ công.
+
+### [LEARN-012] Đồng Bộ Đa Phân Hệ & Hủy Bộ Nhớ Đệm Tự Động (Cross-Module Invalidation) Cho Danh Mục Dataset
+- **Nguồn trích xuất:** BUG-CROSS-MODULE-DATASET-SYNC-BLINDSPOT
+- **Role quan sát:** Senior Fullstack Engineer / Senior QA
+- **Quan sát (Observation):** Khi người dùng tạo một tệp dữ liệu test mới (`test.json`) tại phân hệ Test Data Studio (`data-view`), tệp đã được ghi thành công vào thư mục `data/` trên đĩa và cập nhật danh sách của `data-view`. Tuy nhiên khi chuyển sang phân hệ Kịch bản BDD (`builder-view`), dropdown chọn dataset ở Khối 05 và Wizard không hề hiển thị tệp mới tạo. Nguyên nhân do biến mảng `wizardAvailableDatasets` được nạp 1 lần duy nhất lúc khởi động và bị kiểm tra điều kiện `if (!wizardAvailableDatasets || wizardAvailableDatasets.length === 0)` chặn lại, không bao giờ fetch lại từ API `/api/data/datasets`.
+- **Bằng chứng (Evidence):** `dashboard/public/app.js` (loadEditDatasets, loadDataFilesList, submitCreateDataset, initVisualBuilder)
+- **Đề xuất phân loại:** APPROVED STANDARD / KNOWN PITFALL
+- **Phạm vi đề xuất:** PROJECT
+- **Đề xuất Owner duyệt:** Frontend Lead / Fullstack Lead
+- **Trạng thái:** PENDING
+- **Nguyên tắc rút ra:**
+  1. **Hủy Cache Ngay Khi Có Mutation:** Bất cứ khi nào có hành động tạo mới (`submitCreateDataset`), sửa đổi hoặc xóa (`data-delete-file-btn`) tệp dữ liệu, hệ thống BẮT BUỘC phải đồng bộ ngay lập tức các biến cache dùng chung giữa các phân hệ (`datasetsCache`, `wizardAvailableDatasets`).
+  2. **Luôn Fetch Dữ Liệu Tươi (Fresh Data) Khi Mở Chế Độ Soạn Thảo:** Hàm `loadEditDatasets()` khi được gọi trong chế độ chỉnh sửa kịch bản phải luôn nạp danh sách tệp mới nhất từ `/api/data/datasets` thay vì tin tưởng vào mảng cache cũ trong bộ nhớ.
+  3. **Lắng Nghe Sự Kiện Mở Rộng Khối (Accordion Expansion Trigger):** Khi người dùng mở rộng Khối 05 (Quản lý dữ liệu test), hệ thống chủ động gọi `loadEditDatasets(true)` để người dùng vừa tạo tệp ở tab khác quay lại là thấy ngay lập tức tệp vừa tạo.
+
+
+
 
 
