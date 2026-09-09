@@ -12,12 +12,15 @@ Mọi yêu cầu phát triển phần mềm, thay đổi UI/UX hoặc cải ti�
   [.master_process/00_CORE_PROCESS_GUIDE.md](file:///.master_process/00_CORE_PROCESS_GUIDE.md) (hoặc [D:\_Master_Process\00_CORE_PROCESS_GUIDE.md](file:///D:/_Master_Process/00_CORE_PROCESS_GUIDE.md))
 * 📜 **Quy trình chi tiết 5 giai đoạn (A -> E):**  
   [.master_process/SOFTWARE_DELIVERY_PROCESS_MASTER.md](file:///.master_process/SOFTWARE_DELIVERY_PROCESS_MASTER.md) (hoặc [D:\_Master_Process\SOFTWARE_DELIVERY_PROCESS_MASTER.md](file:///D:/_Master_Process/SOFTWARE_DELIVERY_PROCESS_MASTER.md))
+* ⚡ **Kiến trúc Kiểm soát Quota & Tối ưu Token v1.0:**  
+  [.master_process/01_TOKEN_OPTIMIZATION_AND_KNOWLEDGE_SCALING.md](file:///.master_process/01_TOKEN_OPTIMIZATION_AND_KNOWLEDGE_SCALING.md) (hoặc [D:\_Master_Process\01_TOKEN_OPTIMIZATION_AND_KNOWLEDGE_SCALING.md](file:///D:/_Master_Process/01_TOKEN_OPTIMIZATION_AND_KNOWLEDGE_SCALING.md))
 * 🧠 **Nguyên lý Tự học & Quản trị Tri thức (Gate 0.5):**  
   [.master_process/project_intelligence_layer_10_of_10.md](file:///.master_process/project_intelligence_layer_10_of_10.md) (hoặc [D:\_Master_Process\project_intelligence_layer_10_of_10.md](file:///D:/_Master_Process/project_intelligence_layer_10_of_10.md))
 * 🎯 **Kho Master Prompts cho từng Role:**  
   [.master_process/prompts/](file:///.master_process/prompts/) (hoặc [D:\_Master_Process\prompts](file:///D:/_Master_Process/prompts))
 
 ### Tối Ưu Tốc Độ & Tiết Kiệm Token (Speed & Token-Saving Policy)
+- **Tra cứu JIT 2 tầng (Tiered JIT):** Luôn tra cứu Bản đồ tri thức nhanh [.ai/knowledge/manifest.json](file:///.ai/knowledge/manifest.json) (< 400 tokens) trước, CHỈ NẠP đúng 1-2 file `.md` liên quan trực tiếp đến task.
 - **Tác vụ nhỏ/vừa (L1/L2):** Dùng ngay file gộp siêu tốc [.master_process/prompts/00_Fast_Track_L1_L2.prompt.md](file:///.master_process/prompts/00_Fast_Track_L1_L2.prompt.md) để giải quyết trọn vẹn cả 5 vai trò trong 1 lượt prompt duy nhất, tiết kiệm 80% token.
 - **Tác vụ lớn (L3/L4):** Thực hiện tuần tự qua các file prompt con tương ứng (A1 -> A2 -> A3 -> B -> C -> D -> E).
 - **Nguyên tắc phản hồi:** Trả lời trực diện, súc tích, đi thẳng vào bảng ma trận, code diff và checklist kiểm thử; KHÔNG chào hỏi xã giao, KHÔNG lặp lại toàn bộ đề bài, KHÔNG giải thích triết lý lan man.
@@ -29,15 +32,18 @@ Mọi yêu cầu phát triển phần mềm, thay đổi UI/UX hoặc cải ti�
 Mọi tri thức tự học, quyết định kỹ thuật, quy tắc bất biến của riêng dự án này được lưu trữ và tra cứu tại thư mục `.ai/` cục bộ:
 
 ### A. Tri thức Kỹ thuật & Kiểm thử (Engineering & QA)
+* Bản đồ tri thức nhanh (L0 Manifest Router): [.ai/knowledge/manifest.json](file:///.ai/knowledge/manifest.json)
 * Hồ sơ kỹ thuật & Lệnh chạy: [.ai/knowledge/engineering/project-profile.md](file:///.ai/knowledge/engineering/project-profile.md)
 * Tiêu chuẩn viết code & Rào chắn: [.ai/knowledge/engineering/coding-conventions.md](file:///.ai/knowledge/engineering/coding-conventions.md)
 * Quy chuẩn kịch bản kiểm thử: [.ai/knowledge/qa/test-conventions.md](file:///.ai/knowledge/qa/test-conventions.md)
 * Điểm nóng hồi quy & Cạm bẫy: [.ai/knowledge/qa/regression-hotspots.md](file:///.ai/knowledge/qa/regression-hotspots.md)
 
-### B. Vùng Tự Học & Đề Xuất Mới (Self-Learning Loop)
+### B. Vùng Tự Học & Quản Trị Tri Thức (Self-Learning & Archiving Loop)
 * Sau mỗi feature, bugfix hoặc review, mọi quan sát và bài học mới phải được trích xuất vào:  
-  👉 [.ai/learning/candidates.md](file:///.ai/learning/candidates.md)
+  👉 [.ai/learning/candidates.md](file:///.ai/learning/candidates.md) (Giới hạn trần < 50 dòng)
 * Định kỳ chạy **Knowledge Curator (Gate 0.5)** qua [.master_process/prompts/11_Knowledge_Curator_Gate0_5.prompt.md](file:///.master_process/prompts/11_Knowledge_Curator_Gate0_5.prompt.md) để thăng cấp candidate thành tiêu chuẩn dự án.
+* Công cụ tự động hóa đo lường & lưu trữ lạnh: `powershell -ExecutionPolicy Bypass -File ".master_process/scripts/optimize-knowledge.ps1"`
+* Kho lưu trữ lạnh (L2 Cold Archive): [.ai/learning/archive/](file:///.ai/learning/archive/) (0 token trong context hàng ngày)
 
 ---
 

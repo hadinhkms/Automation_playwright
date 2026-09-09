@@ -31,3 +31,12 @@
    - Sử dụng Vanilla HTML5, CSS3, JavaScript. Tránh đưa các framework như React/Vue/Tailwind vào nếu không có yêu cầu rõ ràng.
 2. **Tái sử dụng Design Primitives**:
    - Tái sử dụng design tokens, layout, panels, và code editor có sẵn trong `dashboard/`.
+3. **Scoped DOM Queries & Namespace**:
+   - Luôn query kèm container ID (ví dụ: `#script-files-list .script-card-item`). Cấm dùng `querySelectorAll` toàn cục cho class card/pill để tránh reset nhầm tab khác.
+4. **Draft-First Pattern (Soạn thảo nháp)**:
+   - Các thao tác thêm bước từ modal chỉ chèn vào in-memory draft (`editableSteps`), cập nhật live preview và giữ màn hình edit; chỉ ghi đĩa khi người dùng bấm "Lưu".
+5. **Git Sync Asset Whitelist**:
+   - Chỉ cho phép commit các đường dẫn whitelist (`tests/**`, `pages/**`, `data/**`); bắt buộc chạy `npm run check:framework` trước khi commit/push.
+6. **Căn hàng Grid Form**:
+   - Thẻ `<label>` trong grid item phải có `min-height` cố định và `align-items: flex-end`; chiều cao `<input>` và `<select>` đồng nhất 40px để tránh lệch bậc thang.
+
