@@ -10,6 +10,7 @@ class BasePage {
     this.actions = new UiActions(page);
     const resolvedFeatureName = featureName || this.constructor.name.toLowerCase();
     this.screenshotHelper = new ScreenshotHelper(page, resolvedFeatureName);
+    this.featureName = resolvedFeatureName;
   }
 
   async navigate(url, options = {}) {

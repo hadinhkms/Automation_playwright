@@ -57,3 +57,36 @@
   3. Cung cấp nút tiện ích "Mở tất cả / Thu gọn" (`#resource-toggle-tree-btn`) và tự động mở thư mục ngày gần nhất để tối ưu hóa thao tác kiểm tra artifact hàng ngày của tester.
   4. Bổ sung bộ lọc nền tảng nhanh (`Tất cả`, `Desktop`, `Mobile`) khi xem Evidence để lọc tức thì trong hàng trăm ảnh chụp màn hình mà không cần lùng sục từng cấp folder.
 
+
+### [LEARN-004] Page Studio catalog separation must preserve fixture consumers
+- Date: 2026-09-09.
+- Source: Review plan 07.
+- Role: Code Reviewer / Senior QA.
+- Observation: Removing fixtures from both scanner and path validation breaks the existing BDD Inspector capability lookup.
+- Evidence: dashboard/public/app.js:9762 still requests core/fixtures via object-repository/page; parsePageObject rejects that path; node --test core/generator/objectRepository.test.js reports 6 passed, 1 failed.
+- Proposed classification: FAILURE PATTERN.
+- Scope: PROJECT.
+- Owner: Technical Lead / QA Lead.
+- Status: PENDING.
+- Preventive proposal: Separate UI catalog filtering from shared inspection contracts; migrate consumers and regression tests together. Align Studio page destinations with runtime resolution: Studio creates mobile-web pages while the current container selects mobile whenever that directory exists.
+
+### [LEARN-005] Plan 07 follow-up: contract assertions beyond smoke coverage
+- Date: 2026-09-09.
+- Source: 07_IMPLEMENTATION_REVIEW_2026-09-09.md.
+- Role: Reviewer / Senior QA.
+- Status: PENDING.
+- Scope: PROJECT.
+- Evidence: Existing 27 tests and 3 new local browser smoke tests pass, but targeted checks reproduce an undefined isFixture in Page Manager, a sibling-prefix junction escape in pagesFactory, and desktop selection for a public isMobile=true project named Handset.
+- Observation: Fixture GET compatibility from LEARN-004 is restored. Capability parsing still omits authenticatedUser/options/failureTrackerHook; malformed fixture source is marked ready. Container script metadata still reports zero pages.
+- Preventive proposal: Assert complete capability keys and invalid-source readiness, canonical path boundaries/cache identity, custom device platform selection, and execute nonempty UI render paths. Test labels alone do not prove the Plan 07 T01-T18 contracts.
+- Related files: core/fixtures/pagesFactory.js, core/fixtures/baseTest.js, core/generator/objectRepository.js, core/generator/visualBuilderCompiler.js, dashboard/public/app.js.
+
+### [LEARN-006] Plan 08 needs consumer-owned fixtures and observable cleanup contracts
+- Date: 2026-09-09.
+- Source: Review 08_PLAN_FIXTURE_AND_HOOKS_STUDIO.md.
+- Role: Reviewer / Senior QA.
+- Status: PENDING.
+- Scope: PROJECT.
+- Evidence: scripts/sync-satellites.js copies core recursively and excludes only core/config/dashboardConfig.json; custom fixture loader defaults to package __dirname; cleanupQueueFixture ignores runAll error results. A mock delete failure logs a warning but the fixture resolves successfully. customFixtures.test.js passes 3/3 without verifying teardown through an HTTP API after a real runner failure/timeout.
+- Preventive proposal: Store consumer fixtures outside engine-owned sync paths (or explicitly preserve custom files), resolve consumer root consistently, validate exported keys at runtime, specify dependency-safe teardown ownership, bounded cleanup and observable error outcomes. Keep the canonical three-frame Studio layout. Register compensation immediately after resource creation, not at an unreachable final BDD step.
+- Related files: core/fixtures/custom/index.js, core/fixtures/cleanupRegistry.js, scripts/sync-satellites.js, ai/dashboard/DASHBOARD_AI_PROMPT.md.

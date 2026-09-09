@@ -8,8 +8,8 @@ class SampleMobilePage extends BasePage {
   /**
    * @param {import('@playwright/test').Page} page
    */
-  constructor(page) {
-    super(page, 'sample_mobile_page');
+  constructor(page, featureName) {
+    super(page, featureName || 'sample_mobile_page');
     this.heading = page.locator('h1');
     this.description = page.locator('p');
     this.moreInfoLink = page.locator('a');

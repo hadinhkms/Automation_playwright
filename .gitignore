@@ -57,6 +57,18 @@ debug.log
 !.vscode/launch.json
 .idea/
 *.swp
+
+# AI prompt cá nhân: không commit lên Git
+/ai/personal/*
+!/ai/personal/.gitkeep
+
+# IDE và editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.swp
 *.swo
 
 # OS
@@ -68,3 +80,9 @@ Thumbs.db
 
 # AI Temporary Workspace
 .ai/learning/scratch/
+
+# Temporary Test Data & Scratch Files (Không commit data test tạm)
+/data/temp_*
+/data/test_*
+/data/scratch/
+.tmp/test-data/

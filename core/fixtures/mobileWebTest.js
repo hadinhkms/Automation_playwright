@@ -11,6 +11,21 @@ const {
  * Kế thừa baseTest và tự động hook theo dõi trạng thái test (Failure Tracing)
  */
 const test = baseTest.extend({
+  pageObjectsPlatform: ['mobile-web', { option: true }],
+  pages: async ({ page, featureName, pageObjectsRoot, pageObjectsPlatform }, use) => {
+    const platform = (pageObjectsPlatform || 'mobile-web').toLowerCase();
+    if (platform === 'desktop') {
+      throw new Error(
+        `[mobileWebTest] Cấu hình pageObjectsPlatform='desktop' không hợp lệ khi chạy mobileWebTest. Vui lòng sử dụng fixture baseTest cho các kịch bản Desktop Web.`
+      );
+    }
+    const { createPageContainer } = require('./pagesFactory');
+    await use(createPageContainer(page, {
+      rootDir: pageObjectsRoot,
+      platform: 'mobile-web',
+      featureName,
+    }));
+  },
   authenticatedUser: async ({ page, workerUserData }, use, testInfo) => {
     testInfo.annotations.push({
       type: 'Precondition',

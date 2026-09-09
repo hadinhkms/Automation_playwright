@@ -6,10 +6,14 @@ const {
   loginUserFromDataForPrecondition,
   removeRuntimeUserData,
 } = require('../utils/authSetup');
+const { createPageContainer } = require('./pagesFactory');
+const { cleanupQueueFixture } = require('./cleanupRegistry');
+const { customFixtures } = require('./custom');
 
 /**
  * Core Framework Base Fixture
- * Quản lý vòng đời kiểm thử, cô lập worker session và nạp BasePage nền tảng
+ * Quản lý vòng đời kiểm thử, cô lập worker session, nạp BasePage nền tảng
+ * và cung cấp Lazy Page Container (pages) đạt chuẩn 10/10.
  */
 const test = base.extend({
   workerUserData: async ({}, use, testInfo) => {
@@ -26,6 +30,16 @@ const test = base.extend({
   basePage: async ({ page, featureName }, use) => {
     await use(new BasePage(page, featureName));
   },
+  pageObjectsRoot: [undefined, { option: true }],
+  pageObjectsPlatform: [undefined, { option: true }],
+  pages: async ({ page, featureName, pageObjectsRoot, pageObjectsPlatform, isMobile }, use, testInfo) => {
+    const container = createPageContainer(page, {
+      rootDir: pageObjectsRoot,
+      platform: pageObjectsPlatform || (isMobile ? 'mobile-web' : 'desktop'),
+      featureName,
+    });
+    await use(container);
+  },
   authenticatedUser: async ({ page, workerUserData }, use, testInfo) => {
     testInfo.annotations.push({
       type: 'Precondition',
@@ -36,6 +50,8 @@ const test = base.extend({
     });
     await use({ ...user, runtimeDataPath: workerUserData.filePath });
   },
+  cleanupQueue: cleanupQueueFixture,
+  ...customFixtures,
 });
 
 module.exports = { test, expect };
