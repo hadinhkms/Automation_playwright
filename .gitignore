@@ -22,6 +22,30 @@ debug.log
 /tmp/
 /.tmp/
 
+# Local dashboard state and generated QA screenshots
+/.dashboard-server.json
+/artifacts/
+
+# Playwright run state and locally generated demo output
+.last-run.json
+/presentation/demo/results/
+/presentation/demo/reports/
+
+# Runtime failure alerts and interrupted atomic writes
+/scratch/consecutive_failures_alert.json
+*.tmp
+
+# Local environment variants (keep shareable templates)
+.env.*
+!.env.example
+!.env.*.example
+
+# Browser authentication state and test caches
+/playwright/.auth/
+/blob-report/
+/coverage/
+/.nyc_output/
+
 # AI prompt cá nhân: không commit lên Git
 /ai/personal/*
 !/ai/personal/.gitkeep
