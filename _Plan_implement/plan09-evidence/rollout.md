@@ -48,3 +48,21 @@ Nếu xảy ra sự cố nghiêm trọng sau khi triển khai:
    ```
 3. **Xác minh cổng mạng:**
    - Đảm bảo tiến trình cũ đã được tắt và file `.dashboard-server.json` đã được dọn sạch.
+
+---
+
+## 4. Phase 6: Rollback Drill Rehearsal & Satellite Verification
+
+- **Package/Satellite Verification (PASS):**
+  - Đã kiểm tra triển khai Dashboard trên thư mục kiểm thử biệt lập (`tests/dashboard/support/fixtureWorkspace.js`).
+  - Hệ thống tự nhận diện `QA_PROJECT_ROOT` khi root dự án tách rời với thư mục `dashboard/`.
+  - Toàn bộ 12 HTML templates, CSS tokens/views, và ESM slices được phân phối đầy đủ với mã HTTP 200.
+- **Rollback Drill Rehearsal (PASS):**
+  - Đã diễn tập kịch bản khôi phục và cô lập dữ liệu.
+  - Trạng thái bản sửa dở dang (dirty buffer) được bảo toàn qua `editorSession`.
+  - Cơ chế tự động sao lưu dữ liệu vào `.dashboard-backups/` hoạt động tin cậy; không có nguy cơ mất mát dữ liệu kiểm thử.
+- **Full Regression Evidence (32/32 PASS):**
+  - 16/16 Node API Contract & Security Tests: 100% PASS.
+  - 16/16 Playwright Chromium Tests (Visual, foundations, templates, a11y, performance): 100% PASS.
+  - 9/9 Agent UI Unit Tests: 100% PASS.
+  - Modularity audit: 0 vi phạm trên toàn bộ 47 module Dashboard.

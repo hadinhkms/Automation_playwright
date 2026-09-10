@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$JunitPath
+    [Parameter(Mandatory = $true)][string]$JunitPath,
+    [string]$Specs = 'tests/dashboard/smoke.spec.js tests/dashboard/css-parity.spec.js tests/dashboard/foundation-parity.spec.js'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,5 +13,6 @@ if (-not (Test-Path $junitDir)) {
 }
 
 $env:PLAYWRIGHT_JUNIT_OUTPUT_NAME = $junitResolved
-& npx.cmd playwright test --config=playwright.dashboard.config.js tests/dashboard/templates-performance-a11y.spec.js --reporter=junit
+$specList = $Specs -split ' '
+& npx.cmd playwright test --config=playwright.dashboard.config.js @specList --reporter=junit
 exit $LASTEXITCODE
