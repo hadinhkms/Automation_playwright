@@ -11,6 +11,7 @@ import { featureRegistry } from './core/featureRegistry.js';
 import { apiClient } from './core/apiClient.js';
 import { editorSession } from './components/editor/editorSession.js';
 import { legacyAdapter } from './legacy/legacyAdapter.js';
+import { dataSlice } from './views/data/dataSlice.js';
 
 // 1. Register the 13 Studio Views from Inventory
 const INVENTORY_VIEWS = [
@@ -30,10 +31,19 @@ const INVENTORY_VIEWS = [
 ];
 
 INVENTORY_VIEWS.forEach((viewDef) => {
-  featureRegistry.registerView(viewDef.id, {
-    ...viewDef,
-    isLegacy: true,
-  });
+  if (viewDef.id === 'data-view') {
+    featureRegistry.registerView('data-view', {
+      ...viewDef,
+      isLegacy: false,
+      mount: () => dataSlice.mount(),
+      unmount: () => dataSlice.unmount(),
+    });
+  } else {
+    featureRegistry.registerView(viewDef.id, {
+      ...viewDef,
+      isLegacy: true,
+    });
+  }
 });
 
 // 2. Initialize Legacy Compatibility Adapter
@@ -49,6 +59,7 @@ if (typeof window !== 'undefined') {
     featureRegistry,
     apiClient,
     editorSession,
+    dataSlice,
   };
   console.log('[Studio Core] Modular Architecture Foundation initialized.');
 }
@@ -60,4 +71,6 @@ export {
   featureRegistry,
   apiClient,
   editorSession,
+  dataSlice,
 };
+
