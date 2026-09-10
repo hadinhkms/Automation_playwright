@@ -63,7 +63,7 @@ test.describe('Phase 5: Templates, Accessibility & Performance Verification', ()
     await page.keyboard.press('Escape');
   });
 
-  test('TC-13: DOM Templates Protocol §8: Initial DOM < 1500 elements & On-demand Template Mount', async ({ page }) => {
+  test('TC-13: DOM Templates Protocol Section 8: Initial DOM < 1500 elements & On-demand Template Mount', async ({ page }) => {
     await page.goto(harness.url);
     await page.waitForSelector('.shell');
     await page.waitForFunction(() => Boolean(window.__STUDIO_CORE__));
@@ -118,7 +118,7 @@ test.describe('Phase 5: Templates, Accessibility & Performance Verification', ()
     expect(stabilityMetrics.finalListeners).toBe(stabilityMetrics.initialListeners);
   });
 
-  test('TC-15: Performance Protocol §8: WindowBridge Cleanup, Cache Reusability & Resource Stability', async ({ page }) => {
+  test('TC-15: Performance Protocol Section 8: WindowBridge Cleanup, Cache Reusability & Resource Stability', async ({ page }) => {
     await page.goto(harness.url);
     await page.waitForFunction(() => Boolean(window.__STUDIO_CORE__));
 

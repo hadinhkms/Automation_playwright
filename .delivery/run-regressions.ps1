@@ -86,20 +86,23 @@ try {
     if ($pwExitCode -ne 0) { exit $pwExitCode }
 
     Write-Host ">>> Merging test reports into $junitResolved..." -ForegroundColor Cyan
-    [xml]$apiDoc = Get-Content -Path $apiXmlPath -Raw -Encoding UTF8
-    [xml]$pwDoc = Get-Content -Path $pwXmlPath -Raw -Encoding UTF8
+    & python -c "
+import xml.etree.ElementTree as ET
+import sys
 
-    $mergedDoc = [xml]"<?xml version=`"1.0`" encoding=`"UTF-8`"?><testsuites></testsuites>"
-    $rootNode = $mergedDoc.SelectSingleNode("/testsuites")
+api_tree = ET.parse(sys.argv[1])
+pw_tree = ET.parse(sys.argv[2])
+root = ET.Element('testsuites')
 
-    foreach ($suite in $apiDoc.SelectNodes("//testsuite")) {
-        $rootNode.AppendChild($mergedDoc.ImportNode($suite, $true)) | Out-Null
-    }
-    foreach ($suite in $pwDoc.SelectNodes("//testsuite")) {
-        $rootNode.AppendChild($mergedDoc.ImportNode($suite, $true)) | Out-Null
-    }
+for suite in api_tree.findall('.//testsuite'):
+    root.append(suite)
+for suite in pw_tree.findall('.//testsuite'):
+    root.append(suite)
 
-    $mergedDoc.Save($junitResolved)
+merged_tree = ET.ElementTree(root)
+merged_tree.write(sys.argv[3], encoding='utf-8', xml_declaration=True)
+" $apiXmlPath $pwXmlPath $junitResolved
+
     Write-Host "Merged JUnit successfully written to $junitResolved" -ForegroundColor Green
     exit 0
 } finally {
