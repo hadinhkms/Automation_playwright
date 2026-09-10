@@ -19,7 +19,7 @@ test.describe('Dashboard Studio Baseline Smoke Test', () => {
 
   test('TC-SMOKE-01: Dashboard boots on isolated port and renders Shell container', async ({ page }) => {
     const consoleErrors = [];
-    page.on('pageerror', (err) => consoleErrors.push(err.message));
+    page.on('pageerror', (err) => consoleErrors.push(err.stack || err.message));
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
         consoleErrors.push(msg.text());

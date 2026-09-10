@@ -9,6 +9,7 @@ import { stateStore } from './core/stateStore.js';
 import { windowBridge } from './core/windowBridge.js';
 import { featureRegistry } from './core/featureRegistry.js';
 import { apiClient } from './core/apiClient.js';
+import { templateLoader } from './core/templateLoader.js';
 import { editorSession } from './components/editor/editorSession.js';
 import { sharedShell } from './components/shell/sharedShell.js';
 import { legacyAdapter } from './legacy/legacyAdapter.js';
@@ -68,6 +69,7 @@ if (typeof window !== 'undefined') {
     windowBridge,
     featureRegistry,
     apiClient,
+    templateLoader,
     editorSession,
     sharedShell,
     slices: {
@@ -86,7 +88,7 @@ if (typeof window !== 'undefined') {
       settings: settingsSlice,
     },
   };
-  console.log('[Studio Core] All 13 Feature Slices & Shared Shell active.');
+  console.log('[Studio Core] All 13 Feature Slices, Shared Shell & Template Loader active.');
 }
 
 export {
@@ -95,6 +97,7 @@ export {
   windowBridge,
   featureRegistry,
   apiClient,
+  templateLoader,
   editorSession,
   sharedShell,
   dataSlice,

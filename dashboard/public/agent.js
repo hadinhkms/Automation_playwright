@@ -1,13 +1,7 @@
 (() => {
   'use strict';
   const byId = id => document.getElementById(id);
-  const form = byId('agent-form');
-  const model = byId('agent-model');
-  const prompt = byId('agent-prompt');
-  const start = byId('agent-start');
-  const stop = byId('agent-stop');
-  const history = byId('agent-history');
-  const events = byId('agent-events');
+  let form = byId('agent-form'), model = byId('agent-model'), prompt = byId('agent-prompt'), start = byId('agent-start'), stop = byId('agent-stop'), history = byId('agent-history'), events = byId('agent-events');
   let available = false, activeId = null, selectedId = null, working = false;
   let refreshPending = false, timer, generation = 0, lastRender = '', pollFailures = 0;
   const labels = { running: 'Đang làm việc', completed: 'Đã kết thúc', failed: 'Chưa hoàn tất', stopped: 'Đã dừng' };
@@ -209,40 +203,48 @@
       feedback(message);
     } finally { refreshPending = false; byId('agent-refresh').disabled = false; controls(); }
   }
-  form.addEventListener('submit', async event => {
-    event.preventDefault();
-    if (working || activeId || refreshPending || !available) return;
-    if (!prompt.value.trim()) { feedback('Hãy nhập yêu cầu cho Agent.'); prompt.focus(); return; }
-    if (prompt.value.length > prompt.maxLength) { feedback(`Yêu cầu tối đa ${prompt.maxLength} ký tự.`); prompt.focus(); return; }
-    const unsavedReason = getUnsavedCodeReason();
-    if (unsavedReason) { feedback(unsavedReason); return; }
-    working = true; controls(); feedback();
-    try {
-      const { session } = await api('/api/agent/sessions', { prompt: prompt.value, model: model.value });
-      watch(session); await loadHistory();
-    } catch (error) { feedback(error.message); }
-    finally { working = false; controls(); }
-  });
-  stop.addEventListener('click', async () => {
-    if (!activeId || working) return;
-    working = true; controls();
-    try { watch((await api(`/api/agent/sessions/${activeId}/stop`, {})).session); }
-    catch (error) { feedback(error.message); }
-    finally { working = false; controls(); }
-  });
-  history.addEventListener('change', async () => {
-    if (!history.value || activeId) return;
-    working = true; controls();
-    try { watch((await api(`/api/agent/sessions/${history.value}`)).session); }
-    catch (error) { feedback(error.message); }
-    finally { working = false; controls(); }
-  });
-  byId('agent-refresh').addEventListener('click', refresh);
-  byId('agent-tab').addEventListener('click', refresh);
-  prompt.addEventListener('input', () => feedback(''));
-  prompt.addEventListener('keydown', event => {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); if (!start.disabled) form.requestSubmit(); }
-  });
+  function bind() {
+    form = byId('agent-form');
+    if (!form || form._b) return;
+    form._b = true;
+    model = byId('agent-model'); prompt = byId('agent-prompt'); start = byId('agent-start');
+    stop = byId('agent-stop'); history = byId('agent-history'); events = byId('agent-events');
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (working || activeId || refreshPending || !available) return;
+      if (!prompt.value.trim()) { feedback('Hãy nhập yêu cầu cho Agent.'); prompt.focus(); return; }
+      if (prompt.value.length > prompt.maxLength) { feedback(`Yêu cầu tối đa ${prompt.maxLength} ký tự.`); prompt.focus(); return; }
+      const unsavedReason = getUnsavedCodeReason();
+      if (unsavedReason) { feedback(unsavedReason); return; }
+      working = true; controls(); feedback();
+      try {
+        const { session } = await api('/api/agent/sessions', { prompt: prompt.value, model: model.value });
+        watch(session); await loadHistory();
+      } catch (error) { feedback(error.message); }
+      finally { working = false; controls(); }
+    });
+    stop?.addEventListener('click', async () => {
+      if (!activeId || working) return;
+      working = true; controls();
+      try { watch((await api(`/api/agent/sessions/${activeId}/stop`, {})).session); }
+      catch (error) { feedback(error.message); }
+      finally { working = false; controls(); }
+    });
+    history?.addEventListener('change', async () => {
+      if (!history.value || activeId) return;
+      working = true; controls();
+      try { watch((await api(`/api/agent/sessions/${history.value}`)).session); }
+      catch (error) { feedback(error.message); }
+      finally { working = false; controls(); }
+    });
+    prompt?.addEventListener('input', () => feedback(''));
+    prompt?.addEventListener('keydown', event => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); if (!start?.disabled) form?.requestSubmit(); }
+    });
+  }
+  byId('agent-refresh')?.addEventListener('click', refresh);
+  byId('agent-tab')?.addEventListener('click', refresh);
   window.addEventListener('beforeunload', () => { clearTimeout(timer); generation += 1; });
-  if (!byId('agent-view').hidden) refresh();
+  bind();
+  if (byId('agent-view') && !byId('agent-view').hidden) refresh();
 })();
