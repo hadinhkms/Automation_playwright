@@ -21,6 +21,7 @@ debug.log
 /.dashboard-drafts/
 /tmp/
 /.tmp/
+/.tmp-gate-runs/
 
 # Local dashboard state and generated QA screenshots
 /.dashboard-server.json
