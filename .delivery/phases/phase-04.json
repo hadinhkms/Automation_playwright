@@ -48,8 +48,7 @@
           "critical": true,
           "scenarios": [
             "ASYNC-01",
-            "OWN-02",
-            "UI-02"
+            "OWN-02"
           ]
         }
       ]
