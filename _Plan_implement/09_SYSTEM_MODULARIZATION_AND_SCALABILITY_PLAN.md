@@ -282,7 +282,7 @@ Mỗi tiêu chí được 1 điểm khi có artifact đáp ứng đầy đủ v�
 - [x] Phase 1: backend routes/services extraction và contract parity. (Trạng thái: ĐÃ HOÀN TẤT NGHIỆM THU GATE 4 — Hồ sơ `.delivery/phases/phase-01-evidence.json`, commit `425fe06`, 16/16 API tests PASS, Gate 4 PASS).
 - [x] Phase 2: CSS extraction và visual parity. (Trạng thái: ĐÃ HOÀN TẤT NGHIỆM THU GATE 4 — Hồ sơ `.delivery/phases/phase-02-evidence.json`, commit `7cff3dc`, 3/3 CSS tests PASS, Gate 4 PASS).
 - [x] Phase 3: registry/bridge/state/session/editor foundations. (Trạng thái: ĐÃ HOÀN TẤT NGHIỆM THU GATE 4 — Hồ sơ `.delivery/phases/phase-03-evidence.json`, commit `7cff3dc`, 29/29 full regressions PASS, Gate 4 PASS).
-- [ ] Phase 4: đủ 13 slice + shell; agent.js và test budget; rollback từng slice.
+- [x] Phase 4: đủ 13 slice + shell; agent.js và test budget; rollback từng slice. (Trạng thái: ĐÃ HOÀN TẤT NGHIỆM THU GATE 4 — Hồ sơ `.delivery/phases/phase-04-evidence.json`, commit `1eb6e29`, 13 view slices + sharedShell, agent.js <= 250 dòng không exemption, agent-ui tests split độc lập, 29/29 regressions PASS, Gate 4 PASS).
 - [ ] Phase 5: DOM templates, accessibility, performance và bridge cleanup.
 - [ ] Phase 6: full verification, package/satellite, rollout và rollback.
 - [ ] Gate 0.5: cập nhật candidate có evidence; không tự promote thành project standard.

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "phase-04",
-  "revision": "96ffad557c555307399fc0d1704597d39352e6ff",
+  "revision": "1eb6e29e0cfe7b4de87a364a4657dc738749f39a",
   "contract_sha256": "5bb9056ebb8784689841982f7543437cc3a1341f8199a00d3a8e9f043b47dc26",
   "implementation": {
     "actor": "Ha Dinh",
@@ -136,8 +136,8 @@
       },
       "assertions": [
         {
-          "line": 64,
-          "snippet": "expect(result.listenersRemainConstant).toBe(true);",
+          "line": 71,
+          "snippet": "expect(result.initialListeners).toBe(result.finalListeners);",
           "observable": "Verified intent: Full regression suite passes across all 13 slices and API endpoints without regressions"
         }
       ],
@@ -150,9 +150,9 @@
   ],
   "reviews": {
     "gate3": {
-      "actor": "code-reviewer",
-      "session": "session-phase4-g3",
-      "revision": "96ffad557c555307399fc0d1704597d39352e6ff",
+      "actor": "senior-qa",
+      "session": "dev-session-p4-qa",
+      "revision": "1eb6e29e0cfe7b4de87a364a4657dc738749f39a",
       "decision": "PASS",
       "cases_confirmed": [
         "TC-10",
@@ -174,9 +174,9 @@
       }
     },
     "gate4": {
-      "actor": "senior-qa-gate4",
-      "session": "session-phase4-g4",
-      "revision": "96ffad557c555307399fc0d1704597d39352e6ff",
+      "actor": "senior-qa",
+      "session": "dev-session-p4-qa",
+      "revision": "1eb6e29e0cfe7b4de87a364a4657dc738749f39a",
       "decision": "PASS",
       "cases_confirmed": [
         "TC-10",
