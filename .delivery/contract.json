@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
-  "phase": "phase-02",
+  "phase": "phase-03",
   "groups": {
     "async_state": {
-      "applies": false,
-      "reason": "CSS modularization does not affect async state semantics."
+      "applies": true,
+      "reason": ""
     },
     "ownership_lifecycle": {
-      "applies": false,
-      "reason": "CSS stylesheets do not manage JS component registration lifecycle."
+      "applies": true,
+      "reason": ""
     },
     "router_ui": {
-      "applies": false,
-      "reason": "CSS modularization focuses on stylesheet extraction, cascade order and responsive visual parity; DOM router and dirty guards are verified in Phase 3."
+      "applies": true,
+      "reason": ""
     },
     "lifecycle_integration": {
       "applies": true,
@@ -21,46 +21,101 @@
   },
   "criteria": [
     {
-      "id": "AC-01",
-      "text": "Modular CSS Delivery: All modular CSS files are delivered with HTTP 200 and no 404 errors",
+      "id": "AC-04",
+      "text": "Actions và Views catalog đầy đủ: 13 views DOM inventory được định danh và đăng ký chính xác trong featureRegistry",
       "cases": [
         {
-          "id": "TC-CSS-01",
-          "intent": "All modular CSS files are delivered with HTTP 200 and no 404 errors",
+          "id": "TC-04",
+          "intent": "Studio Core initializes on window.__STUDIO_CORE__ with all 13 views cataloged matching DOM inventory",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "UI-01",
+            "UI-03"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-05",
+      "text": "Single Ownership, Mutation Lock và Isolation: một nguồn quản trị state duy nhất, snapshot bất biến và vòng đời view không rò rỉ listener",
+      "cases": [
+        {
+          "id": "TC-05",
+          "intent": "Single ownership, mutation lock, deep immutable snapshot isolation and 20 view transition roundtrips",
           "level": "integration",
           "critical": true,
           "scenarios": [
+            "OWN-04",
             "LIFE-01"
           ]
         }
       ]
     },
     {
-      "id": "AC-02",
-      "text": "Design Tokens and Theme Switcher: CSS tokens parity between Dark and Light mode",
+      "id": "AC-06",
+      "text": "Cross-slice EventBus và Navigation Race Protection: Pub/Sub độc lập và điều hướng nhanh A-B-A kích hoạt đúng view cuối cùng",
       "cases": [
         {
-          "id": "TC-CSS-02",
-          "intent": "Design Tokens and Theme Switcher parity between Dark and Light mode",
-          "level": "integration",
+          "id": "TC-06",
+          "intent": "EventBus decouples cross-slice events and Rapid A-B-A navigation applies only latest",
+          "level": "e2e",
           "critical": true,
           "scenarios": [
-            "LIFE-01"
+            "UI-02",
+            "UI-04",
+            "ASYNC-03"
           ]
         }
       ]
     },
     {
-      "id": "AC-03",
-      "text": "Responsive Layout Integrity: Visual layout parity across 1920x1080, 1440x900, 1280x800, and 390x844",
+      "id": "AC-07",
+      "text": "EditorSession buffer và State Integrity: bảo toàn dirty state khi lưu đồng thời, chuyển đổi file và hủy bỏ bản nháp",
       "cases": [
         {
-          "id": "TC-CSS-03",
-          "intent": "Responsive layout integrity across 1920x1080, 1440x900, 1280x800, and 390x844",
+          "id": "TC-07",
+          "intent": "EditorSession manages buffer, dirty state, save races, multi-file switch and safe discard",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-01",
+            "ASYNC-02",
+            "ASYNC-05",
+            "UI-05"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-08",
+      "text": "WindowBridge Handler Ownership và Disposer Safety: token guard ngăn disposer cũ xóa handler mới và cho phép double dispose an toàn",
+      "cases": [
+        {
+          "id": "TC-08",
+          "intent": "WindowBridge exposes module actions, protects replacement with token guard and safe double disposal",
           "level": "integration",
           "critical": true,
           "scenarios": [
-            "LIFE-01"
+            "OWN-01",
+            "OWN-02",
+            "OWN-03",
+            "OWN-05"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-09",
+      "text": "ApiClient Request Lifecycle và Cancellation Guard: tôn trọng AbortSignal người gọi, hủy request giữa chừng và bảo vệ timeout",
+      "cases": [
+        {
+          "id": "TC-09",
+          "intent": "ApiClient honors caller AbortSignal and cancels request mid-flight and preserves correct state on failure",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-04"
           ]
         }
       ]

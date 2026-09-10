@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "phase": "phase-02",
+  "revision": "425fe0671e9b66e6048d3b826d1d0687b645262a",
+  "contract_sha256": "64d129717ddaa13ea4f53a244d0afb9dcfd032f6e0b7d9dd1a11be2c6c315a5d",
+  "implementation": {
+    "actor": "dev-agent",
+    "session": "dev-session-p2"
+  },
+  "design": {
+    "lifecycle_integration": {
+      "public_entrypoint": {
+        "path": "dashboard/public/styles.css",
+        "sha256": "4bc8aa14833ec7a5444396518925f725dc63fc6ec2b418cca9d2f857804562e9",
+        "line": 8,
+        "snippet": "@import url('./styles/tokens.css');"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "TC-CSS-01",
+      "ac_id": "AC-01",
+      "ac_sha256": "92c133764e08e74f340fa9349e29dc9c6557dad62d775c40333c83de70f5fc4a",
+      "intent_sha256": "b509922d8ce631990707e6a3a7d7b92aceac03532926de575867a1a50e5e8eaf",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "css-parity.spec.js.TC-10: CSS Modularization & Visual Parity Verification › TC-10-A: All modular CSS files are delivered with HTTP 200 and no 404 errors",
+      "source": {
+        "path": "tests/dashboard/css-parity.spec.js",
+        "sha256": "685615063563f878b61ffa5e0899cd85c54dd39c9013cb0453d02ee31b53acc1"
+      },
+      "assertions": [
+        {
+          "line": 38,
+          "snippet": "expect(failedRequests).toEqual([]);",
+          "observable": "All modular CSS files load with 200 OK and zero 404/failure errors"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-CSS-02",
+      "ac_id": "AC-02",
+      "ac_sha256": "4a0a94e75681a920e7f4957266eb69b7785c97946cbbed196cb6c6e9b3168af7",
+      "intent_sha256": "5c1643a93aa50c4ec2b4014bcb9cc69ff6ed1927ffe458bdfc618d06d4cf8d92",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "css-parity.spec.js.TC-10: CSS Modularization & Visual Parity Verification › TC-10-B: Design Tokens and Theme Switcher parity between Dark and Light mode",
+      "source": {
+        "path": "tests/dashboard/css-parity.spec.js",
+        "sha256": "685615063563f878b61ffa5e0899cd85c54dd39c9013cb0453d02ee31b53acc1"
+      },
+      "assertions": [
+        {
+          "line": 74,
+          "snippet": "expect(darkBg.toUpperCase()).toBe('#0A0514');",
+          "observable": "Design token variables resolve exact colors in dark and light themes"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-CSS-03",
+      "ac_id": "AC-03",
+      "ac_sha256": "41558bb8804cfec853b7a6bd98590f84b660e02c94a398e85f3e3b2e3ebd7cb5",
+      "intent_sha256": "542a6cee3c649c6005ceaa8a80d3c92a3fe4ce89302e98592c94983d25647922",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "css-parity.spec.js.TC-10: CSS Modularization & Visual Parity Verification › TC-10-C: Responsive layout integrity across 1920x1080, 1440x900, 1280x800, and 390x844",
+      "source": {
+        "path": "tests/dashboard/css-parity.spec.js",
+        "sha256": "685615063563f878b61ffa5e0899cd85c54dd39c9013cb0453d02ee31b53acc1"
+      },
+      "assertions": [
+        {
+          "line": 110,
+          "snippet": "await expect(shell).toBeVisible();",
+          "observable": "Shell and topbar remain visible and within viewport bounds across all 4 responsive sizes"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    }
+  ],
+  "reviews": {
+    "gate3": {
+      "actor": "reviewer-qa",
+      "session": "session-phase02-qa",
+      "revision": "425fe0671e9b66e6048d3b826d1d0687b645262a",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-CSS-01",
+        "TC-CSS-02",
+        "TC-CSS-03"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [
+        "async_state",
+        "ownership_lifecycle",
+        "router_ui"
+      ],
+      "regression_exceptions_confirmed": [
+        "TC-CSS-01",
+        "TC-CSS-02",
+        "TC-CSS-03"
+      ],
+      "reruns": {
+        "TC-CSS-01": "critical",
+        "TC-CSS-02": "critical",
+        "TC-CSS-03": "critical"
+      }
+    },
+    "gate4": {
+      "actor": "reviewer-qa",
+      "session": "session-phase02-qa",
+      "revision": "425fe0671e9b66e6048d3b826d1d0687b645262a",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-CSS-01",
+        "TC-CSS-02",
+        "TC-CSS-03"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [
+        "async_state",
+        "ownership_lifecycle",
+        "router_ui"
+      ],
+      "regression_exceptions_confirmed": [
+        "TC-CSS-01",
+        "TC-CSS-02",
+        "TC-CSS-03"
+      ],
+      "reruns": {
+        "TC-CSS-01": "critical",
+        "TC-CSS-02": "critical",
+        "TC-CSS-03": "critical"
+      }
+    }
+  }
+}
