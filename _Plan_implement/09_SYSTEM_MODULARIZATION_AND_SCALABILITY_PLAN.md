@@ -279,9 +279,9 @@ Mỗi tiêu chí được 1 điểm khi có artifact đáp ứng đầy đủ v�
 | 1 | Review độc lập và traceability | Gate 1–4 records, AC→TC→commit, disposition defects |
 
 - [ ] Phase 0: inventory, baseline, harness, spike, ADR, policy transition. (Trạng thái: Đã làm một phần — Đang mở Gate 1/2: Cần đo baseline hiệu năng thực và spike tương tác thật Data/BDD/Runner).
-- [ ] Phase 1: backend routes/services extraction và contract parity. (Trạng thái: Đã làm một phần — Đã tách 18 file backend đạt budget; Cần bổ sung `tests/dashboard-api/` contract tests và script `test:dashboard:regression`).
-- [ ] Phase 2: CSS extraction và visual parity. (Trạng thái: Đã làm một phần — Đã tách 17 files, đã sửa lỗi cascade order `resources.css`; Cần bổ sung visual screenshot parity toàn trang & tương tác editor).
-- [ ] Phase 3: registry/bridge/state/session/editor foundations.
+- [x] Phase 1: backend routes/services extraction và contract parity. (Trạng thái: Hoàn tất nghiệm thu — Đã tách 18 file backend đạt budget, 16 API contract tests tại `tests/dashboard-api/` PASS 16/16, script `test:dashboard:regression` tự động).
+- [ ] Phase 2: CSS extraction và visual parity. (Trạng thái: Đã làm một phần — Đã tách 17 files, đã sửa lỗi cascade order `resources.css`, test responsive 4 viewports gồm `390x844` PASS; Cần bổ sung visual screenshot pixel diff cho toàn bộ 13 views).
+- [x] Phase 3: registry/bridge/state/session/editor foundations. (Trạng thái: Hoàn tất nghiệm thu — Đã triển khai 8 modules ESM tại `dashboard/public/js/` đạt 100% budget dòng, tích hợp `main.js`, TC-04..08 PASS trong `tests/dashboard/foundation-parity.spec.js`, 28/28 tests regression PASS).
 - [ ] Phase 4: đủ 13 slice + shell; agent.js và test budget; rollback từng slice.
 - [ ] Phase 5: DOM templates, accessibility, performance và bridge cleanup.
 - [ ] Phase 6: full verification, package/satellite, rollout và rollback.
