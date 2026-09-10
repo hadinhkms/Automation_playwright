@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "phase": "phase-04",
+  "groups": {
+    "async_state": {
+      "applies": true,
+      "reason": ""
+    },
+    "ownership_lifecycle": {
+      "applies": true,
+      "reason": ""
+    },
+    "router_ui": {
+      "applies": true,
+      "reason": ""
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "AC-10",
+      "text": "13 Feature Slices & Shared Shell Architecture: Tất cả 13 view slices và shared shell được tách độc lập thành Clean ESM slices dưới 250 dòng, tích hợp qua FeatureRegistry và SharedShell",
+      "cases": [
+        {
+          "id": "TC-10",
+          "intent": "All 13 view slices and shared shell mount/unmount cleanly via FeatureRegistry with zero line violations",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "UI-01",
+            "OWN-01",
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-11",
+      "text": "Agent UI & Test Budget Modularity: Phân rã agent.js và tách biệt agent-ui tests đạt chuẩn modularity không vượt ngân sách dòng",
+      "cases": [
+        {
+          "id": "TC-11",
+          "intent": "Agent UI controller and test subsuites execute with 100% pass rate and zero budget violations",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-01",
+            "OWN-02",
+            "UI-02"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-12",
+      "text": "Full Regression Integrity & Strangler Pattern Coexistence: Toàn bộ bộ test hồi quy API và Playwright E2E vượt qua kiểm tra đồng thời",
+      "cases": [
+        {
+          "id": "TC-12",
+          "intent": "Full regression suite passes across all 13 slices and API endpoints without regressions",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-03",
+            "ASYNC-04",
+            "OWN-04",
+            "UI-03",
+            "UI-04"
+          ]
+        }
+      ]
+    }
+  ]
+}
