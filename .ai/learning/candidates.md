@@ -40,3 +40,7 @@
 - Evidence: dashboard/public/templates/, templateLoader.js, agent.js, run-regressions.ps1.
 - Proposed rule: Decouple non-default view DOM via on-demand templates; make script event binders idempotent/lazy; use Python ElementTree for XML reports on Windows.
 - Scope: PROJECT. Owner: Technical Lead / QA. Status: PENDING.
+
+### [LEARN-REC-001] Hide Node.exe console window on Windows GUI tool spawn
+- Confirmed: Spawning `node.exe` with `windowsHide: false` forces a black CUI console window; `windowsHide: true` hides console while GUI child windows (Chromium, Inspector) remain visible.
+- Scope: PROJECT. Owner: Fullstack Dev. Status: PENDING.
