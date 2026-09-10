@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "phase": "phase-00",
+  "revision": "b56cb314da30bdacc49ac3990fd7f67f04b6e6c2",
+  "contract_sha256": "33970372618ccc7e8099a2ea8123eff2b52ba727b4d5dd0ed9857ec207852dd0",
+  "implementation": {
+    "actor": "dev-agent",
+    "session": "dev-session-p0"
+  },
+  "design": {
+    "lifecycle_integration": {
+      "public_entrypoint": {
+        "path": "dashboard/public/js/main.js",
+        "sha256": "7ad15d0536506c4525edc6350173053a243dfdc65e160a63adf8dbece5c65184",
+        "line": 44,
+        "snippet": "window.__STUDIO_CORE__ = {"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "TC-SMOKE-01",
+      "ac_id": "AC-01",
+      "ac_sha256": "49717957aabdba87bb89c7182279d4f010fa71ea5ad54e96f8987beebae99bf4",
+      "intent_sha256": "2263e094359e762cbf60e108ac9aadcdbbffdf3907b3b0e9e6bd03ff32e8353d",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "smoke.spec.js.Dashboard Studio Baseline Smoke Test › TC-SMOKE-01: Dashboard boots on isolated port and renders Shell container",
+      "source": {
+        "path": "tests/dashboard/smoke.spec.js",
+        "sha256": "5e2e5be6f58a55438fa8a9a0d489c95ccc1114908fa57254d671084d64c7c279"
+      },
+      "assertions": [
+        {
+          "line": 30,
+          "snippet": "expect(response?.status()).toBe(200);",
+          "observable": "Verified intent: Dashboard boots on isolated port and renders Shell container"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-SPIKE-01",
+      "ac_id": "AC-02",
+      "ac_sha256": "03f9894c821d2c94491f69d026671b0d36358a821ad7c466611858822cc74180",
+      "intent_sha256": "980a43ee5e8aa809709a9db7f596385de3c008750c17d4dfe8e9f6d45ffa3187",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "spike-esm-coexistence.spec.js.SPIKE-01: ESM Feature Slice & Legacy Coexistence › SPIKE-01-A: WindowBridge pattern exposes ESM action to global window without ReferenceError",
+      "source": {
+        "path": "tests/dashboard/spike-esm-coexistence.spec.js",
+        "sha256": "38f274ff4a683a87b33c560c906c5b3d0e6c6161a3ed79fcf2b1b59e93c685a4"
+      },
+      "assertions": [
+        {
+          "line": 55,
+          "snippet": "expect(result).toBe('Processed item 42');",
+          "observable": "Verified intent: WindowBridge pattern exposes ESM action to global window without ReferenceError"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-SPIKE-02",
+      "ac_id": "AC-03",
+      "ac_sha256": "b9754bd85e9aef17a445bdd74a3a41704e563616adcf9920f4aa24f0177ec7aa",
+      "intent_sha256": "7d321a662a0d384cfdad9faac0915dc5ab4f229d0e83591aaaf4cfd9b021de44",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "spike-esm-coexistence.spec.js.SPIKE-01: ESM Feature Slice & Legacy Coexistence › SPIKE-01-B: EventBus enables cross-slice event emission without direct global state mutation",
+      "source": {
+        "path": "tests/dashboard/spike-esm-coexistence.spec.js",
+        "sha256": "38f274ff4a683a87b33c560c906c5b3d0e6c6161a3ed79fcf2b1b59e93c685a4"
+      },
+      "assertions": [
+        {
+          "line": 86,
+          "snippet": "expect(receivedPayload).toEqual({",
+          "observable": "Verified intent: EventBus enables cross-slice event emission without direct global state mutation"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-SPIKE-03",
+      "ac_id": "AC-04",
+      "ac_sha256": "0666e1b406086c0f1184edce5805a64723b7b7fe6cce169548b5fc3d7596abf0",
+      "intent_sha256": "1da33a33c8e40bbaac2732715f7348f6f9a1c1be5d3dc082977f62f729e0926e",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "spike-esm-coexistence.spec.js.SPIKE-01: ESM Feature Slice & Legacy Coexistence › SPIKE-01-C: Single Ownership & Mutation Guard: one action triggers exactly one mutation",
+      "source": {
+        "path": "tests/dashboard/spike-esm-coexistence.spec.js",
+        "sha256": "38f274ff4a683a87b33c560c906c5b3d0e6c6161a3ed79fcf2b1b59e93c685a4"
+      },
+      "assertions": [
+        {
+          "line": 117,
+          "snippet": "expect(mutationCount).toBe(1);",
+          "observable": "Verified intent: Single Ownership & Mutation Guard: one action triggers exactly one mutation"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    }
+  ],
+  "reviews": {
+    "gate3": {
+      "actor": "reviewer-qa",
+      "session": "session-phase00-qa",
+      "revision": "b56cb314da30bdacc49ac3990fd7f67f04b6e6c2",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-SMOKE-01",
+        "TC-SPIKE-01",
+        "TC-SPIKE-02",
+        "TC-SPIKE-03"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [
+        "async_state",
+        "ownership_lifecycle",
+        "router_ui"
+      ],
+      "regression_exceptions_confirmed": [
+        "TC-SMOKE-01",
+        "TC-SPIKE-01",
+        "TC-SPIKE-02",
+        "TC-SPIKE-03"
+      ],
+      "reruns": {
+        "TC-SMOKE-01": "critical",
+        "TC-SPIKE-01": "critical",
+        "TC-SPIKE-02": "critical",
+        "TC-SPIKE-03": "critical"
+      }
+    },
+    "gate4": {
+      "actor": "reviewer-qa",
+      "session": "session-phase00-qa",
+      "revision": "b56cb314da30bdacc49ac3990fd7f67f04b6e6c2",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-SMOKE-01",
+        "TC-SPIKE-01",
+        "TC-SPIKE-02",
+        "TC-SPIKE-03"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [
+        "async_state",
+        "ownership_lifecycle",
+        "router_ui"
+      ],
+      "regression_exceptions_confirmed": [
+        "TC-SMOKE-01",
+        "TC-SPIKE-01",
+        "TC-SPIKE-02",
+        "TC-SPIKE-03"
+      ],
+      "reruns": {
+        "TC-SMOKE-01": "critical",
+        "TC-SPIKE-01": "critical",
+        "TC-SPIKE-02": "critical",
+        "TC-SPIKE-03": "critical"
+      }
+    }
+  }
+}
