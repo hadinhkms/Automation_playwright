@@ -25,3 +25,10 @@
 - Proposed rule: Capture the actual audit baseline, define per-phase scope, and verify test discovery before declaring migration acceptance runnable.
 - Follow-up 2026-09-10: Plan 09 v4 records 13 distinct data-view targets from index.html and requires complete view/action ownership mapping; migration evidence remains pending Phase 0.
 - Scope: FEATURE-LOCAL. Owner: Technical Lead / QA. Status: PENDING.
+
+### [LEARN-PLAN09-002] Passing smoke tests do not close migration acceptance
+- Source: Phase 0–2 review, 2026-09-10; Dashboard suite rerun: 7 passed (18.6s).
+- Evidence: spike-esm-coexistence.spec.js tests injected mocks; css-parity.spec.js omits mobile/image comparison; tests/dashboard-api is absent.
+- Confirmed mismatch: styles.css imports resources after toggle-switch/common-scale although extracted original ranges place resources first (1801–2362 before 2363–3408).
+- Proposed rule: Preserve AC/TC meanings across reports; verify source-order ledger against imports and require actual contract/visual evidence before phase sign-off.
+- Scope: FEATURE-LOCAL. Owner: Technical Lead / QA. Status: PENDING.

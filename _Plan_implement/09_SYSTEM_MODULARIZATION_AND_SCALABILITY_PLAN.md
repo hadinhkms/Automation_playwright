@@ -1,4 +1,4 @@
-﻿# PLAN 09: SYSTEM MODULARIZATION & SCALABILITY
+# PLAN 09: SYSTEM MODULARIZATION & SCALABILITY
 
 > **Phiên bản:** 4.0 — cập nhật 2026-09-10 sau review v3.
 > **Phân loại triển khai:** L4 — refactor kiến trúc, giữ tương thích hành vi và dữ liệu.
@@ -278,9 +278,9 @@ Mỗi tiêu chí được 1 điểm khi có artifact đáp ứng đầy đủ v�
 | 1 | Rollout/rollback/package | Rehearsal + TC-12 |
 | 1 | Review độc lập và traceability | Gate 1–4 records, AC→TC→commit, disposition defects |
 
-- [ ] Phase 0: inventory, baseline, harness, spike, ADR, policy transition.
-- [ ] Phase 1: backend routes/services extraction và contract parity.
-- [ ] Phase 2: CSS extraction và visual parity.
+- [ ] Phase 0: inventory, baseline, harness, spike, ADR, policy transition. (Trạng thái: Đã làm một phần — Đang mở Gate 1/2: Cần đo baseline hiệu năng thực và spike tương tác thật Data/BDD/Runner).
+- [ ] Phase 1: backend routes/services extraction và contract parity. (Trạng thái: Đã làm một phần — Đã tách 18 file backend đạt budget; Cần bổ sung `tests/dashboard-api/` contract tests và script `test:dashboard:regression`).
+- [ ] Phase 2: CSS extraction và visual parity. (Trạng thái: Đã làm một phần — Đã tách 17 files, đã sửa lỗi cascade order `resources.css`; Cần bổ sung visual screenshot parity toàn trang & tương tác editor).
 - [ ] Phase 3: registry/bridge/state/session/editor foundations.
 - [ ] Phase 4: đủ 13 slice + shell; agent.js và test budget; rollback từng slice.
 - [ ] Phase 5: DOM templates, accessibility, performance và bridge cleanup.

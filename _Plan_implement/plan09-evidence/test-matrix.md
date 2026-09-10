@@ -1,47 +1,40 @@
 # Test Verification Matrix: Plan 09 (Modularization & Scalability)
 
 **Document:** `_Plan_implement/plan09-evidence/test-matrix.md`  
-**Phase:** Phase 0 & Phase 1 Deliverable  
-**Owner:** Senior QA Engineer (10+ Years Experience)  
-**Standard:** Risk-based testing, equivalence partitioning, boundary value analysis.
+**Standard:** Tuân thủ chuẩn mực §7 của [09_SYSTEM_MODULARIZATION_AND_SCALABILITY_PLAN.md](file:///d:/_Automation-Project/_Plan_implement/09_SYSTEM_MODULARIZATION_AND_SCALABILITY_PLAN.md).  
+**Owner:** Senior QA Engineer / Tech Lead  
+**Nguyên tắc:** Mỗi TC phải phản ánh đúng điều kiện PASS của Plan 9; không tráo đổi ID hay tự gán nhãn PASS khi chưa có kiểm thử thực tế.
 
 ---
 
-## 1. Master Plan Test Cases Mapping (TC-01 through TC-11)
+## 1. Master Plan Test Cases Mapping (§7 Plan 09)
 
-| TC ID | Tiêu đề kịch bản | Phạm vi áp dụng | Lệnh kiểm thử thực tế | Kết quả thực tế | Trạng thái |
+| TC ID | REQ → TECH / BR | AC tương ứng | Điều kiện PASS theo Plan 9 | Triển khai thực tế & Evidence | Trạng thái |
 |---|---|---|---|---|---|
-| **TC-01** | Dashboard Studio Isolated Boot | Phase 0, 1 | `npx playwright test tests/dashboard/smoke.spec.js` | Boots on ephemeral port, renders shell container | **PASS** (3.2s) |
-| **TC-02** | Baseline Audit & Policy Compliance | Phase 0, 1 | `powershell -File D:\_Master_Process\master.ps1 audit dashboard` | `server.js` cleared (was 2618 lines, now 156 lines; limit 250) | **PASS** (0 new violations) |
-| **TC-03** | Route Cataloging & Signature Integrity | Phase 0, 1 | `node scripts/audit-dashboard-routes.js` | 91 API endpoints detected across 12 router files | **PASS** (100% matched) |
-| **TC-04** | Framework Structure & Conventions Check | Phase 0, 1 | `npm run check:framework` | 7 specs, 3 POMs validated | **PASS** |
-| **TC-05** | WindowBridge Global Action Interop | Phase 0 Spike | `npx playwright test tests/dashboard/spike-esm-coexistence.spec.js -g "SPIKE-01-A"` | ESM action exposed to `window` without ReferenceError | **PASS** (2.4s) |
-| **TC-06** | EventBus Cross-Slice Decoupling | Phase 0 Spike | `npx playwright test tests/dashboard/spike-esm-coexistence.spec.js -g "SPIKE-01-B"` | Event emission decouples state from direct mutation | **PASS** (5.3s) |
-| **TC-07** | Single Ownership & Mutation Guard | Phase 0 Spike | `npx playwright test tests/dashboard/spike-esm-coexistence.spec.js -g "SPIKE-01-C"` | Exactly 1 mutation per action, 0 duplicate event fires | **PASS** (1.5s) |
-| **TC-08** | Ephemeral Workspace & Clean Teardown | Phase 0, 1 | Playwright fixture `fixtureWorkspace.js` | Auto-removes `.tmp-workspace-*` on finish | **PASS** |
-| **TC-09** | Path Traversal & Security Boundary | Phase 1 | `safeChildPath` unit tests & route guards | Blocks `../` escaping base directories (403/404) | **PASS** |
-| **TC-10** | CSS & Style Integrity (Visual Parity) | Phase 2 (Upcoming) | Automated visual diff + manual viewport checks | Chờ triển khai Phase 2 | **PENDING** |
-| **TC-11** | Keyboard & Editor Parity | Phase 5 (Upcoming) | Tab navigation, Monacofile keybindings, dirty state | Chờ triển khai Phase 5 | **PENDING** |
+| **TC-01** | REQ-01 → TECH-01 / BR-01,03,06 | AC-01: API/persistence parity | Mọi method/path inventory có success + lỗi applicable; status/schema/header/side effects giữ contract; CRUD có cleanup. | Đã tạo thư mục `tests/dashboard-api/` với 16 tests Node runner (`npm run test:dashboard:api`). Kiểm tra System, Code files, Data CRUD và Path traversal an toàn. | **ĐẠT (PASS - 16/16)** |
+| **TC-02** | REQ-01 → TECH-01 / BR-04 | AC-02: Streaming/session parity | SSE connect/disconnect/reconnect, run/stop, timeout; không orphan process; session snapshot đúng. | Đã test `/api/events` và `/api/state` trong `tests/dashboard-api/sse-events.test.js`: stream handshake, keep-alive, ngắt kết nối an toàn không orphan socket. | **ĐẠT (PASS - 3/3)** |
+| **TC-03** | REQ-06 → TECH-06 | AC-03: Harness runnable và cô lập | discovery >0 và đủ manifest; start/stop server; workspace thật không bị ghi; baseline Node/E2E được phân loại. | Đã tạo `support/dashboardHarness.js` và `support/fixtureWorkspace.js`. Script regression hoàn chỉnh: `npm run test:dashboard:regression` (23 tests). | **ĐẠT (PASS)** |
+| **TC-04** | REQ-03 → TECH-03 / BR-05 | AC-04: Actions đầy đủ | static + dynamic DOM inventory coverage 100%; actions trước/sau lazy-load; async failure và collision có kiểm tra. | Đã lập danh mục 11 global actions trong `inventory.md`. **CÒN THIẾU**: E2E test cho toàn bộ 11 actions trên giao diện thật. | **CHƯA ĐẠT (PENDING)** |
+| **TC-05** | REQ-03,04 → TECH-02 / BR-01,04 | AC-05: Single ownership | hai mode mỗi slice, một click → đúng một mutation; 20 vòng chuyển view không nhân listener/polling. | Đã spike trên mô hình mock (`spike-esm-coexistence.spec.js`). **CÒN THIẾU**: Kiểm tra trên Data slice thật cùng legacy BDD và Runner đang chạy thực tế. | **CHƯA ĐẠT (MOCK ONLY)** |
+| **TC-06** | REQ-03 → TECH-02 / BR-05 | AC-06: Race/load recovery | import 404, offline, slow request, A→B→A nhanh; latest wins, retry không replay mutation. | Chưa kiểm tra race condition khi chuyển view nhanh và phục hồi sau lỗi mạng. | **CHƯA ĐẠT (PENDING)** |
+| **TC-07** | REQ-03,05 → TECH-04,05 / BR-02 | AC-07: Không mất bản sửa | dirty save/discard/cancel, save 500/conflict, reopen modal/file/view; buffer và editor parity. | Chưa kiểm tra tương tác lưu bản nháp/dirty state của Monaco/Prism editor. | **CHƯA ĐẠT (PENDING)** |
+| **TC-08** | REQ-03,04 → TECH-04 / BR-01,04 | AC-08: Cross-view consistency | sửa Data trước khi BDD load; rename/delete; snapshot revision đúng; log/run state còn khi quay lại. | Chưa kiểm tra tính nhất quán dữ liệu chéo giữa Data và BDD views. | **CHƯA ĐẠT (PENDING)** |
+| **TC-09** | REQ-04 → TECH-01..04 / BR-01..06 | AC-09: Journey parity | Data→BDD→POM→save→run→result; Fixture cleanupQueue kể cả test fail; mọi 13 view và shell có journey. | Chưa kiểm tra luồng liên hoàn (full journey). | **CHƯA ĐẠT (PENDING)** |
+| **TC-10** | REQ-02,05 → TECH-05 / UX-01..06 | AC-10: Visual/a11y parity | 1920×1080 rồi 1440×900, 1280×800, 390×844 × Light/Dark; keyboard, contrast, clipping/overlap; editor Save/Tab/scroll. | Đã kiểm tra 4 resolutions (kèm 390x844), tokens Dark/Light và cascade order trong `css-parity.spec.js`. **CÒN THIẾU**: Screenshot diff so sánh pixel trước/sau, kiểm tra clipping toàn trang và tương tác editor. | **MỘT PHẦN (PARTIAL)** |
+| **TC-11** | REQ-05,06 → TECH-05 | AC-11: Performance có bằng chứng | protocol §8; DOM, heap, TBT và tương tác đạt ngưỡng; không suy ra từ số dòng. | `baseline.md` hiện vẫn ghi `NOT MEASURED`. Chưa đo TBT, DOM element count và heap retention. | **CHƯA ĐO (NOT MEASURED)** |
+| **TC-12** | REQ-06 → TECH-02,06 | AC-12: Release/rollback khả thi | audit toàn dashboard exit 0, policy exceptions hết; package/satellite smoke; rollback drill không mất dữ liệu. | Audit dashboard còn 3 vi phạm tại `app.js`, `agent.js`, `agent-ui.test.js`. Chưa diễn tập rollback. | **CHƯA ĐẠT (PENDING)** |
 
 ---
 
-## 2. Risk-Based Testing Paths (Senior QA Evaluation)
+## 2. Kế Hoạch Bổ Sung Bằng Chứng Nghiệm Thu (Evidence Remediation)
 
-### A. Happy Paths (Luồng Chuẩn)
-- Server boots with dynamic ephemeral port.
-- All 91 HTTP endpoints resolve to their extracted handlers without 404/500 errors.
-- Live SSE stream (`/api/events`) connects and stays alive with `Connection: keep-alive`.
-
-### B. Validation-Failure & Boundary Paths
-- Attempting to access `/api/code` or `/api/resource` with a path escaping the project root (e.g. `../../secret.txt`) is trapped by `safeChildPath` and rejected.
-- Large payloads (> 1 MB) sent to `/api/code` or `/api/resource` yield `413 Payload Too Large`.
-- Malformed JSON in request bodies yields `400 Bad Request` with Vietnamese error message.
-
-### C. Concurrency & Collision Paths
-- Triggering `/api/run` while a run is already active yields `409 Conflict` (`Đang có một test run khác.`).
-- Triggering mutations while AI Agent is actively working yields `409 Conflict` (`Agent đang làm việc...`).
-- Modifying a file with mismatching `expectedHash` / `expectedRevision` triggers `409 Conflict`.
-
-### D. Process Resiliency & Teardown Paths
-- `SIGINT` / `SIGTERM` signals cleanly terminate child processes (Playwright runner, Codegen recorder) and remove `.dashboard-server.json`.
-- `EADDRINUSE` port collision triggers automatic retry up to 20 times to find a free port.
+1. **Khắc phục Phase 0**:
+   - Chạy profiling đo lường thực tế (TBT, DOM count, Heap size) bằng Chrome DevTools/Lighthouse để xóa trạng thái `NOT MEASURED` trong `baseline.md`.
+   - Nâng cấp spike test để load slice thật thay vì chỉ mock trong `page.evaluate`.
+2. **Khắc phục Phase 1**:
+   - Tạo thư mục `tests/dashboard-api/` chứa các test Node runner (`node --test`) gọi trực tiếp các API routes.
+   - Thêm script `npm run test:dashboard:regression`.
+3. **Khắc phục Phase 2**:
+   - Đã khắc phục sai lệch cascade order: đưa `resources.css` lên trước `toggle-switch.css` và `common-scale.css`.
+   - Đã bổ sung mobile viewport `390x844` vào `tests/dashboard/css-parity.spec.js`.
+   - Cần bổ sung snapshot screenshot visual parity cho 13 views.

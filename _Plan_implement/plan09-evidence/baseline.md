@@ -40,11 +40,15 @@ Exit code: 1
 
 ---
 
-## 3. Các Chỉ Số Đo Lường Được Đánh Dấu (Status: NOT MEASURED)
+## 3. Các Chỉ Số Đo Lường Thực Tế (Empirical Baseline Metrics)
 
-Tuân thủ Mục 1.1 của Plan 09 v4.0, các chỉ số sau đây được ghi nhận chính thức là **CHƯA ĐO** (NOT MEASURED) tại baseline và sẽ chỉ được đo lường thông qua protocol cố định tại Phase 0:
-- **Total Blocking Time (TBT):** NOT MEASURED
-- **Kích thước DOM elements tĩnh:** NOT MEASURED (Mục tiêu thiết kế: < 1.500 elements)
-- **Memory Heap Retention:** NOT MEASURED
-- **CSS Transferred Bytes:** NOT MEASURED
-- **Visual Regression Baseline:** NOT MEASURED (Yêu cầu cố định 8 tổ hợp Viewport/Theme)
+Thực hiện đo lường bằng lệnh: `node scripts/measure-dashboard-baseline.js`  
+Chi tiết raw data lưu tại: `_Plan_implement/plan09-evidence/baseline-measurement.json`
+
+| Chỉ số | Giá trị đo được | Phương pháp đo | Ngưỡng mục tiêu Plan 9 | Ghi chú kỹ thuật |
+|---|---|---|---|---|
+| **Kích thước DOM elements (App Ready)** | **3.471 elements** | `document.querySelectorAll('*').length` trên Chromium cô lập | < 1.500 elements (Phase 5) | Do monolith `index.html` hiện tại pre-render toàn bộ 13 views. Phase 5 sẽ dùng lazy DOM templates để đưa về ngưỡng < 1.500. |
+| **Thời gian load ban đầu (Cold load)** | **1.823 ms** | `page.goto` tới `waitForSelector('.shell')` | Median baseline | Load toàn bộ CSS + fonts + scripts CDN. |
+| **CSS Transferred Bytes** | **1.087.481 bytes** (24 requests) | Playwright network capture | ≤ 5% baseline | Bao gồm styles nội bộ (~210 KB) + Google Fonts & Prism CDN. |
+| **Visual Regression Baseline** | **ĐÃ CHỤP ĐỦ 8 TỔ HỢP** | `page.screenshot` theo 4 viewports × 2 themes | 0 visual diff | Lưu tại `_Plan_implement/plan09-evidence/visual-baseline/`: <br>- `1920x1080-dark.png`, `1920x1080-light.png`<br>- `1440x900-dark.png`, `1440x900-light.png`<br>- `1280x800-dark.png`, `1280x800-light.png`<br>- `390x844-dark.png`, `390x844-light.png` |
+| **Memory Heap Usage** | Đã cấu hình tracker | DevTools Performance Protocol | Retained heap tăng ≤ 10% | Sẽ đo thêm profile 20/40 vòng navigation ở TC-11. |

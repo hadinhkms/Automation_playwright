@@ -34,8 +34,9 @@
                     "git:status":  "node scripts/git-sync.js status",
                     "git:pull":  "node scripts/git-sync.js pull",
                     "git:push":  "node scripts/git-sync.js push",
-                    "git:check":  "node scripts/git-sync.js check",
-                    "sync:satellites":  "node scripts/sync-satellites.js"
+                    "sync:satellites":  "node scripts/sync-satellites.js",
+                    "test:dashboard:api": "node scripts/run-dashboard-api-tests.js",
+                    "test:dashboard:regression": "npm run test:dashboard:api && npx playwright test --config=playwright.dashboard.config.js"
                 },
     "dependencies":  {
                          "dotenv":  "^16.3.1"

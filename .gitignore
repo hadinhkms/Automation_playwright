@@ -88,3 +88,4 @@ Thumbs.db
 /data/test_*
 /data/scratch/
 .tmp/test-data/
+tests/dashboard/.tmp-workspace-*

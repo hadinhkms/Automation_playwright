@@ -1,0 +1,173 @@
+{
+  "timestamp": "2026-09-10T07:20:14.604Z",
+  "harnessUrl": "http://127.0.0.1:54282",
+  "cssMetrics": {
+    "requests": 24,
+    "totalBytes": 1087481,
+    "files": [
+      {
+        "url": "/styles.css?v=4.8",
+        "status": 200,
+        "bytes": 1337
+      },
+      {
+        "url": "/styles/tokens.css",
+        "status": 200,
+        "bytes": 2127
+      },
+      {
+        "url": "/styles/base.css",
+        "status": 200,
+        "bytes": 10281
+      },
+      {
+        "url": "/styles/components/ui-primitives.css",
+        "status": 200,
+        "bytes": 29499
+      },
+      {
+        "url": "/styles/views/resources.css",
+        "status": 200,
+        "bytes": 12436
+      },
+      {
+        "url": "/styles/components/toggle-switch.css",
+        "status": 200,
+        "bytes": 2693
+      },
+      {
+        "url": "/styles/components/common-scale.css",
+        "status": 200,
+        "bytes": 20816
+      },
+      {
+        "url": "/styles/views/suites-quick.css",
+        "status": 200,
+        "bytes": 16606
+      },
+      {
+        "url": "/styles/views/runner.css",
+        "status": 200,
+        "bytes": 2715
+      },
+      {
+        "url": "/styles/views/settings.css",
+        "status": 200,
+        "bytes": 29236
+      },
+      {
+        "url": "/styles/views/recorder.css",
+        "status": 200,
+        "bytes": 26933
+      },
+      {
+        "url": "/styles/views/data.css",
+        "status": 200,
+        "bytes": 20187
+      },
+      {
+        "url": "/styles/views/bdd.css",
+        "status": 200,
+        "bytes": 75073
+      },
+      {
+        "url": "/styles/views/docs.css",
+        "status": 200,
+        "bytes": 36839
+      },
+      {
+        "url": "/styles/views/git.css",
+        "status": 200,
+        "bytes": 13227
+      },
+      {
+        "url": "/styles/views/suites.css",
+        "status": 200,
+        "bytes": 26986
+      },
+      {
+        "url": "/styles/views/fixtures.css",
+        "status": 200,
+        "bytes": 13691
+      },
+      {
+        "url": "/styles/views/pages.css",
+        "status": 200,
+        "bytes": 92362
+      },
+      {
+        "url": "https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/thin/style.css",
+        "status": 200,
+        "bytes": 85821
+      },
+      {
+        "url": "https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/light/style.css",
+        "status": 200,
+        "bytes": 87359
+      },
+      {
+        "url": "https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css",
+        "status": 200,
+        "bytes": 85821
+      },
+      {
+        "url": "https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css",
+        "status": 200,
+        "bytes": 85821
+      },
+      {
+        "url": "https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css",
+        "status": 200,
+        "bytes": 231484
+      },
+      {
+        "url": "https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css",
+        "status": 200,
+        "bytes": 78131
+      }
+    ]
+  },
+  "domMetrics": {
+    "shellInitial": 3471,
+    "loadTimeMs": 1823
+  },
+  "memoryMetrics": {
+    "usedJSHeapSize": 10000000,
+    "totalJSHeapSize": 10000000,
+    "jsHeapSizeLimit": 3760000000
+  },
+  "screenshots": [
+    {
+      "combo": "1920x1080-dark",
+      "path": "D:\\_Automation-Project\\_Plan_implement\\plan09-evidence\\visual-baseline\\1920x1080-dark.png"
+    },
+    {
+      "combo": "1920x1080-light",
+      "path": "D:\\_Automation-Project\\_Plan_implement\\plan09-evidence\\visual-baseline\\1920x1080-light.png"
+    },
+    {
+      "combo": "1440x900-dark",
+      "path": "D:\\_Automation-Project\\_Plan_implement\\plan09-evidence\\visual-baseline\\1440x900-dark.png"
+    },
+    {
+      "combo": "1440x900-light",
+      "path": "D:\\_Automation-Project\\_Plan_implement\\plan09-evidence\\visual-baseline\\1440x900-light.png"
+    },
+    {
+      "combo": "1280x800-dark",
+      "path": "D:\\_Automation-Project\\_Plan_implement\\plan09-evidence\\visual-baseline\\1280x800-dark.png"
+    },
+    {
+      "combo": "1280x800-light",
+      "path": "D:\\_Automation-Project\\_Plan_implement\\plan09-evidence\\visual-baseline\\1280x800-light.png"
+    },
+    {
+      "combo": "390x844-dark",
+      "path": "D:\\_Automation-Project\\_Plan_implement\\plan09-evidence\\visual-baseline\\390x844-dark.png"
+    },
+    {
+      "combo": "390x844-light",
+      "path": "D:\\_Automation-Project\\_Plan_implement\\plan09-evidence\\visual-baseline\\390x844-light.png"
+    }
+  ]
+}
