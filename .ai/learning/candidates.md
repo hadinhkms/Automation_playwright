@@ -1,4 +1,4 @@
-﻿# Learning Candidates (Pending Gate 0.5 Review)
+# Learning Candidates (Pending Gate 0.5 Review)
 
 > [!NOTE]
 > Đây là nơi chứa các bài học, quan sát, quy tắc mới được AI và các Role trích xuất sau khi hoàn thành Feature, Bug fix, Review hoặc QA.
@@ -32,3 +32,11 @@
 - Confirmed mismatch: styles.css imports resources after toggle-switch/common-scale although extracted original ranges place resources first (1801–2362 before 2363–3408).
 - Proposed rule: Preserve AC/TC meanings across reports; verify source-order ledger against imports and require actual contract/visual evidence before phase sign-off.
 - Scope: FEATURE-LOCAL. Owner: Technical Lead / QA. Status: PENDING.
+
+### [LEARN-PLAN09-003] Isolate Hub test data from Satellite repository synchronization
+- Source: Satellite sync review, 2026-09-10.
+- Observation: Satellite repositories (Vieclam24h, CarThings) have independent domain business data; syncing Hub's demo test data (data/, tests/, pages/) will overwrite or pollute satellite domain assets.
+- Evidence: scripts/sync-satellites.js; .github/workflows/sync-satellites.yml; GIT_WORKFLOW.md.
+- Proposed rule: Strictly exclude data/, tests/, pages/ from MODULES_TO_SYNC; enforce code-level assertion in sync scripts preventing Hub data from propagating to satellites.
+- Scope: PROJECT. Owner: Technical Lead / Release Owner. Status: PENDING.
+

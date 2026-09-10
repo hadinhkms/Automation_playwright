@@ -1,0 +1,33 @@
+{
+  "targetSite": {
+    "name": "SauceDemo E-Commerce Studio",
+    "url": "https://www.saucedemo.com"
+  },
+  "validCredentials": {
+    "username": "standard_user",
+    "password": "secret_sauce",
+    "expectedUrl": "https://www.saucedemo.com/inventory.html",
+    "expectedTitle": "Products"
+  },
+  "lockedOutCredentials": {
+    "username": "locked_out_user",
+    "password": "secret_sauce",
+    "expectedError": "Epic sadface: Sorry, this user has been locked out."
+  },
+  "invalidCredentials": {
+    "username": "invalid_user",
+    "password": "wrong_password",
+    "expectedError": "Epic sadface: Username and password do not match any user in this service"
+  },
+  "emptyCredentials": {
+    "username": "",
+    "password": "",
+    "expectedError": "Epic sadface: Username is required"
+  },
+  "dynamicCustomer": {
+    "customerName": "{{random_name}}",
+    "email": "{{random_email}}",
+    "phone": "{{random_phone}}",
+    "createdAt": "{{date}}"
+  }
+}

@@ -39,6 +39,14 @@ const SATELLITES = [
   },
 ];
 
+/**
+ * QUY TẮC BẤT BIẾN (HUB-TO-SPOKE ARCHITECTURE):
+ * - Thư mục data/, tests/, pages/ TUYỆT ĐỐI KHÔNG ĐƯỢC ĐỒNG BỘ từ Hub sang Vệ tinh.
+ * - Mỗi dự án vệ tinh (Vieclam24h, CarThings, v.v.) sở hữu tập Test Data và Test Scripts
+ *   riêng biệt theo nghiệp vụ dự án đó. Không bao giờ ghi đè hay đẩy data của Hub sang vệ tinh.
+ */
+const FORBIDDEN_SYNC_MODULES = ['data', 'tests', 'pages'];
+
 const MODULES_TO_SYNC = [
   { src: 'dashboard', dest: 'dashboard' },
   {
@@ -51,6 +59,11 @@ const MODULES_TO_SYNC = [
   { src: 'ai', dest: 'ai' },
   { src: 'tools', dest: 'tools' },
 ];
+
+// Bảo vệ an toàn: Ngăn chặn tuyệt đối mọi hành vi vô tình thêm data/tests/pages vào danh sách sync
+if (MODULES_TO_SYNC.some((m) => FORBIDDEN_SYNC_MODULES.includes(m.src) || FORBIDDEN_SYNC_MODULES.includes(m.dest))) {
+  throw new Error('VI PHẠM NGUYÊN TẮC: data/, tests/, pages/ không được phép đồng bộ sang các nhánh vệ tinh!');
+}
 
 const ROOT_FILES_TO_SYNC = [
   'Start_Dashboard.bat',

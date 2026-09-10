@@ -247,3 +247,17 @@ git add .
 git diff --cached
 ```
 
+---
+
+## 🛰️ 3. Quy Tắc Đồng Bộ Vệ Tinh (Hub-to-Spoke Satellite Sync)
+
+Hệ thống hoạt động theo mô hình **Hub-to-Spoke**:
+- **Nhánh chính (Hub - `Automation_playwright`):** Đóng vai trò là trung tâm phát triển framework engine (`core/`, `dashboard/`, `bin/`, `scripts/`, `ai/`, `tools/`).
+- **Các dự án vệ tinh (Satellites - `Vieclam24h`, `CarThings`):** Nhận mã nguồn engine mới nhất từ Hub khi chạy lệnh `npm run sync:satellites` hoặc qua GitHub Actions CI.
+
+### 🛡️ Nguyên Tắc Phân Tách Chủ Quyền Dữ Liệu (Data Sovereignty):
+1. **Dữ liệu kiểm thử (`data/`) KHÔNG BAO GIỜ đồng bộ từ nhánh chính sang vệ tinh**: Mỗi dự án vệ tinh có bộ dữ liệu nghiệp vụ thực tế độc lập (ví dụ tài khoản ứng viên, tin tuyển dụng của Vieclam24h; xe, showroom của CarThings). Đồng bộ dữ liệu mẫu từ nhánh chính sẽ làm hỏng hoặc ghi đè dữ liệu của vệ tinh.
+2. **Kịch bản test (`tests/`) và Page Objects (`pages/`) KHÔNG đồng bộ từ Hub**: Vệ tinh tự do phát triển Page Object và kịch bản test đặc thù mà không bị nhánh chính can thiệp hay ghi đè.
+3. **Cấu hình riêng (`dashboardConfig.json`) & Custom Fixtures (`core/fixtures/custom`)**: Được bảo vệ tự động bằng cơ chế Exclude để giữ nguyên cấu hình local của từng vệ tinh.
+
+
