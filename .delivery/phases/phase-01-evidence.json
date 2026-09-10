@@ -1,0 +1,574 @@
+{
+  "schema_version": 1,
+  "phase": "phase-01",
+  "revision": "59212b53cc70b46934bd123d1991baf8c9b7349b",
+  "contract_sha256": "5d25774082225417c9e94541647c74f83a4fc1f1d467fddbaa0b5c6fa8f86885",
+  "implementation": {
+    "actor": "dev-agent",
+    "session": "dev-session-p1"
+  },
+  "design": {
+    "lifecycle_integration": {
+      "public_entrypoint": {
+        "path": "dashboard/server.js",
+        "sha256": "1a23dd98e5e5d8f5edd1841e72cc2d2a2bb09d7b60bb99464113886ebdb1c1e0",
+        "line": 69,
+        "snippet": "const server = http.createServer(async (request, response) => {"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "TC-API-SYS-01",
+      "ac_id": "AC-01",
+      "ac_sha256": "05dcab3be437283b367c4b610576690af052c7e04192925af0791afb76c542f9",
+      "intent_sha256": "9102e8040126e0ace5fb906ab0f0f460495d65cd5d535b7d85c3248bbfdd451d",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/health returns 200 and healthy server payload",
+      "source": {
+        "path": "tests/dashboard-api/system.test.js",
+        "sha256": "225decb7e475c0dd57c3541abf0af4ee534f742aaac2a61e23603880079c361b"
+      },
+      "assertions": [
+        {
+          "line": 27,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "GET /api/health returns 200 OK and healthy status payload"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-SYS-02",
+      "ac_id": "AC-01",
+      "ac_sha256": "05dcab3be437283b367c4b610576690af052c7e04192925af0791afb76c542f9",
+      "intent_sha256": "d8135c5f565d8b7ca641ce4af9f31ab538fe23ea65f0db8f2b8515a8e951babd",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/config returns 200 and valid configuration schema",
+      "source": {
+        "path": "tests/dashboard-api/system.test.js",
+        "sha256": "225decb7e475c0dd57c3541abf0af4ee534f742aaac2a61e23603880079c361b"
+      },
+      "assertions": [
+        {
+          "line": 38,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "GET /api/config returns 200 OK and valid JSON configuration schema"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-SYS-03",
+      "ac_id": "AC-01",
+      "ac_sha256": "05dcab3be437283b367c4b610576690af052c7e04192925af0791afb76c542f9",
+      "intent_sha256": "0fd688c3a082b6339022fd485e17079b842a00de9f174af8d2cea28e277e6b8d",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/state returns 200 and runner state schema",
+      "source": {
+        "path": "tests/dashboard-api/system.test.js",
+        "sha256": "225decb7e475c0dd57c3541abf0af4ee534f742aaac2a61e23603880079c361b"
+      },
+      "assertions": [
+        {
+          "line": 47,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "GET /api/state returns 200 OK and runner state payload"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-SYS-04",
+      "ac_id": "AC-01",
+      "ac_sha256": "05dcab3be437283b367c4b610576690af052c7e04192925af0791afb76c542f9",
+      "intent_sha256": "b86e6086a442e35a9d2f6f4cb2444c2f94166d25e9af28f30855206bf0293171",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/unknown-endpoint returns 404 with error payload",
+      "source": {
+        "path": "tests/dashboard-api/system.test.js",
+        "sha256": "225decb7e475c0dd57c3541abf0af4ee534f742aaac2a61e23603880079c361b"
+      },
+      "assertions": [
+        {
+          "line": 55,
+          "snippet": "assert.equal(res.status, 404);",
+          "observable": "Unknown endpoint returns 404 error payload"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-DATA-01",
+      "ac_id": "AC-02",
+      "ac_sha256": "16356b9835a5e3bbb21b77b5e16a2cc00ddf2a1bf738500ff7aacf5f7cf8cbb8",
+      "intent_sha256": "965410d193f19f81cb1eb9121829ca7278aa95d236ce8f8c37537f4d809ececa",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/data/datasets returns 200 and datasets list",
+      "source": {
+        "path": "tests/dashboard-api/data-crud.test.js",
+        "sha256": "fe0cfcfc1666693560d610501d7ffc582a088e0d81eb6ac893434cab06efe35f"
+      },
+      "assertions": [
+        {
+          "line": 31,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "GET /api/data/datasets returns 200 and datasets array"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-DATA-02",
+      "ac_id": "AC-02",
+      "ac_sha256": "16356b9835a5e3bbb21b77b5e16a2cc00ddf2a1bf738500ff7aacf5f7cf8cbb8",
+      "intent_sha256": "786139972044ab7bfc55941ba1bb57bffd2db5904e48388a9457b1349079830b",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/data/dataset without file param returns 400",
+      "source": {
+        "path": "tests/dashboard-api/data-crud.test.js",
+        "sha256": "fe0cfcfc1666693560d610501d7ffc582a088e0d81eb6ac893434cab06efe35f"
+      },
+      "assertions": [
+        {
+          "line": 38,
+          "snippet": "assert.equal(res.status, 400);",
+          "observable": "Missing file param returns 400 Bad Request"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-DATA-03",
+      "ac_id": "AC-02",
+      "ac_sha256": "16356b9835a5e3bbb21b77b5e16a2cc00ddf2a1bf738500ff7aacf5f7cf8cbb8",
+      "intent_sha256": "e3961384be89ebf90f57c86cec41db042169e82309b45746f3205008aeff986d",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.POST /api/data/create-dataset creates a new dataset successfully",
+      "source": {
+        "path": "tests/dashboard-api/data-crud.test.js",
+        "sha256": "fe0cfcfc1666693560d610501d7ffc582a088e0d81eb6ac893434cab06efe35f"
+      },
+      "assertions": [
+        {
+          "line": 52,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "Dataset creation returns 200 OK and success boolean"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-DATA-04",
+      "ac_id": "AC-02",
+      "ac_sha256": "16356b9835a5e3bbb21b77b5e16a2cc00ddf2a1bf738500ff7aacf5f7cf8cbb8",
+      "intent_sha256": "3178b540314b51ad778acb104c43a0ae4a276d8aea0d853b2e1e70ab13645b52",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/data/dataset retrieves the created dataset",
+      "source": {
+        "path": "tests/dashboard-api/data-crud.test.js",
+        "sha256": "fe0cfcfc1666693560d610501d7ffc582a088e0d81eb6ac893434cab06efe35f"
+      },
+      "assertions": [
+        {
+          "line": 59,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "GET dataset retrieves newly created dataset content"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-DATA-05",
+      "ac_id": "AC-02",
+      "ac_sha256": "16356b9835a5e3bbb21b77b5e16a2cc00ddf2a1bf738500ff7aacf5f7cf8cbb8",
+      "intent_sha256": "daa7946e857e4c114abe7ea6880857289b52e9014f99771b2d82a69254fc1b7d",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.POST /api/data/delete-dataset deletes the created dataset cleanly",
+      "source": {
+        "path": "tests/dashboard-api/data-crud.test.js",
+        "sha256": "fe0cfcfc1666693560d610501d7ffc582a088e0d81eb6ac893434cab06efe35f"
+      },
+      "assertions": [
+        {
+          "line": 70,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "POST /api/data/delete-dataset deletes dataset and returns 200"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-RES-01",
+      "ac_id": "AC-03",
+      "ac_sha256": "4c820975ebc271137c96c81bcb13b04d8187e1d871f827914aa595cd52892b57",
+      "intent_sha256": "f60af6f397be2569856a7ee9ec50d3437ea54a64f25e1b6c918f0b2a1c74392a",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/resources returns 200 and lists resource categories",
+      "source": {
+        "path": "tests/dashboard-api/resources-security.test.js",
+        "sha256": "5f7d78f7b1b78a7108af7464e922857523249283f80a8213c1a4be81dd94feeb"
+      },
+      "assertions": [
+        {
+          "line": 29,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "GET /api/resources returns 200 and categories object"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-RES-02",
+      "ac_id": "AC-03",
+      "ac_sha256": "4c820975ebc271137c96c81bcb13b04d8187e1d871f827914aa595cd52892b57",
+      "intent_sha256": "e60c992e2755117c7b35368f91fafb51dfa55c9621f33769575d84ee11cea0de",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/code without filePath returns 404 and error",
+      "source": {
+        "path": "tests/dashboard-api/resources-security.test.js",
+        "sha256": "5f7d78f7b1b78a7108af7464e922857523249283f80a8213c1a4be81dd94feeb"
+      },
+      "assertions": [
+        {
+          "line": 37,
+          "snippet": "assert.equal(res.status, 404);",
+          "observable": "Missing filePath returns 404 error"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-RES-03",
+      "ac_id": "AC-03",
+      "ac_sha256": "4c820975ebc271137c96c81bcb13b04d8187e1d871f827914aa595cd52892b57",
+      "intent_sha256": "e5f1a17a7e6dbb62f60b7f8fcc8b97a274848630b72142471c13e400e26da160",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/code with path traversal (../../) is blocked with 403 or 400",
+      "source": {
+        "path": "tests/dashboard-api/resources-security.test.js",
+        "sha256": "5f7d78f7b1b78a7108af7464e922857523249283f80a8213c1a4be81dd94feeb"
+      },
+      "assertions": [
+        {
+          "line": 44,
+          "snippet": "assert.ok([400, 403, 404].includes(res.status), `Expected 400/403/404 for traversal, got ${res.status}`);",
+          "observable": "Path traversal attempt is rejected with 400/403/404"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-RES-04",
+      "ac_id": "AC-03",
+      "ac_sha256": "4c820975ebc271137c96c81bcb13b04d8187e1d871f827914aa595cd52892b57",
+      "intent_sha256": "3005c1d1b9b4f6a6a8c17e6e54487f3fd8ef105d95d6da357ffe4fd2153eb707",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.POST /api/resource/delete with path traversal is rejected",
+      "source": {
+        "path": "tests/dashboard-api/resources-security.test.js",
+        "sha256": "5f7d78f7b1b78a7108af7464e922857523249283f80a8213c1a4be81dd94feeb"
+      },
+      "assertions": [
+        {
+          "line": 55,
+          "snippet": "assert.ok([400, 403, 404].includes(res.status), `Expected error status, got ${res.status}`);",
+          "observable": "Deletion with path traversal is rejected"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-SSE-01",
+      "ac_id": "AC-04",
+      "ac_sha256": "ffcdaeee599535e15d7bf600dc00171b1d3c3b83edf6521a320ee6999c0f2eea",
+      "intent_sha256": "aac51155e5ae8fa6600c135140ef51d016cf8ca349661e4fe136b4ab6a666758",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/events connects with text/event-stream and sends initial ping",
+      "source": {
+        "path": "tests/dashboard-api/sse-events.test.js",
+        "sha256": "af490eaf0f6bdd1d651ac26b60904734bc259e110a359ad78e7a76cab501d85d"
+      },
+      "assertions": [
+        {
+          "line": 29,
+          "snippet": "assert.equal(res.statusCode, 200);",
+          "observable": "GET /api/events establishes SSE text/event-stream with status 200"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-SSE-02",
+      "ac_id": "AC-04",
+      "ac_sha256": "ffcdaeee599535e15d7bf600dc00171b1d3c3b83edf6521a320ee6999c0f2eea",
+      "intent_sha256": "8b4b859efe4ce2c346e6f63c8f6c8b398cb4d0e13d2d14cfe4e410659526c823",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.GET /api/state returns valid initial state snapshot",
+      "source": {
+        "path": "tests/dashboard-api/sse-events.test.js",
+        "sha256": "af490eaf0f6bdd1d651ac26b60904734bc259e110a359ad78e7a76cab501d85d"
+      },
+      "assertions": [
+        {
+          "line": 63,
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "GET /api/state returns valid state snapshot"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-API-SSE-03",
+      "ac_id": "AC-04",
+      "ac_sha256": "ffcdaeee599535e15d7bf600dc00171b1d3c3b83edf6521a320ee6999c0f2eea",
+      "intent_sha256": "ddd93d556339171b46c57b22375c1265a0b32de6a2cf885c7a1ddf9b3e6d1e5b",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "test.POST /api/run with invalid spec returns 400 Bad Request",
+      "source": {
+        "path": "tests/dashboard-api/sse-events.test.js",
+        "sha256": "af490eaf0f6bdd1d651ac26b60904734bc259e110a359ad78e7a76cab501d85d"
+      },
+      "assertions": [
+        {
+          "line": 75,
+          "snippet": "assert.equal(res.status, 400);",
+          "observable": "POST /api/run with invalid spec returns 400 Bad Request"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    }
+  ],
+  "reviews": {
+    "gate3": {
+      "actor": "reviewer-qa",
+      "session": "session-phase01-qa",
+      "revision": "59212b53cc70b46934bd123d1991baf8c9b7349b",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-API-SYS-01",
+        "TC-API-SYS-02",
+        "TC-API-SYS-03",
+        "TC-API-SYS-04",
+        "TC-API-DATA-01",
+        "TC-API-DATA-02",
+        "TC-API-DATA-03",
+        "TC-API-DATA-04",
+        "TC-API-DATA-05",
+        "TC-API-RES-01",
+        "TC-API-RES-02",
+        "TC-API-RES-03",
+        "TC-API-RES-04",
+        "TC-API-SSE-01",
+        "TC-API-SSE-02",
+        "TC-API-SSE-03"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [
+        "async_state",
+        "ownership_lifecycle",
+        "router_ui"
+      ],
+      "regression_exceptions_confirmed": [
+        "TC-API-SYS-01",
+        "TC-API-SYS-02",
+        "TC-API-SYS-03",
+        "TC-API-SYS-04",
+        "TC-API-DATA-01",
+        "TC-API-DATA-02",
+        "TC-API-DATA-03",
+        "TC-API-DATA-04",
+        "TC-API-DATA-05",
+        "TC-API-RES-01",
+        "TC-API-RES-02",
+        "TC-API-RES-03",
+        "TC-API-RES-04",
+        "TC-API-SSE-01",
+        "TC-API-SSE-02",
+        "TC-API-SSE-03"
+      ],
+      "reruns": {
+        "TC-API-SYS-01": "critical",
+        "TC-API-DATA-01": "critical",
+        "TC-API-DATA-03": "critical",
+        "TC-API-DATA-05": "critical",
+        "TC-API-RES-03": "critical",
+        "TC-API-RES-04": "critical",
+        "TC-API-SSE-01": "critical",
+        "TC-API-SSE-03": "critical"
+      }
+    },
+    "gate4": {
+      "actor": "reviewer-qa",
+      "session": "session-phase01-qa",
+      "revision": "59212b53cc70b46934bd123d1991baf8c9b7349b",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-API-SYS-01",
+        "TC-API-SYS-02",
+        "TC-API-SYS-03",
+        "TC-API-SYS-04",
+        "TC-API-DATA-01",
+        "TC-API-DATA-02",
+        "TC-API-DATA-03",
+        "TC-API-DATA-04",
+        "TC-API-DATA-05",
+        "TC-API-RES-01",
+        "TC-API-RES-02",
+        "TC-API-RES-03",
+        "TC-API-RES-04",
+        "TC-API-SSE-01",
+        "TC-API-SSE-02",
+        "TC-API-SSE-03"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [
+        "async_state",
+        "ownership_lifecycle",
+        "router_ui"
+      ],
+      "regression_exceptions_confirmed": [
+        "TC-API-SYS-01",
+        "TC-API-SYS-02",
+        "TC-API-SYS-03",
+        "TC-API-SYS-04",
+        "TC-API-DATA-01",
+        "TC-API-DATA-02",
+        "TC-API-DATA-03",
+        "TC-API-DATA-04",
+        "TC-API-DATA-05",
+        "TC-API-RES-01",
+        "TC-API-RES-02",
+        "TC-API-RES-03",
+        "TC-API-RES-04",
+        "TC-API-SSE-01",
+        "TC-API-SSE-02",
+        "TC-API-SSE-03"
+      ],
+      "reruns": {
+        "TC-API-SYS-01": "critical",
+        "TC-API-DATA-01": "critical",
+        "TC-API-DATA-03": "critical",
+        "TC-API-DATA-05": "critical",
+        "TC-API-RES-03": "critical",
+        "TC-API-RES-04": "critical",
+        "TC-API-SSE-01": "critical",
+        "TC-API-SSE-03": "critical"
+      }
+    }
+  }
+}
