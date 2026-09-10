@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "phase": "phase-00",
+  "groups": {
+    "async_state": {
+      "applies": false,
+      "reason": "Phase 0 focuses on baseline metrics, inventory discovery, test harness setup and initial technical coexistence spike; async state management is verified in Phase 3."
+    },
+    "ownership_lifecycle": {
+      "applies": false,
+      "reason": "Full ownership lifecycle with remount and disposal is implemented and verified in Phase 3 foundation architecture."
+    },
+    "router_ui": {
+      "applies": false,
+      "reason": "Router UI navigation and dirty guards are implemented in Phase 3 and Phase 4."
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "AC-01",
+      "text": "Baseline Smoke Test: Dashboard server boots on isolated port and renders Shell container",
+      "cases": [
+        {
+          "id": "TC-SMOKE-01",
+          "intent": "Dashboard boots on isolated port and renders Shell container",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-02",
+      "text": "Technical Spike Coexistence: WindowBridge pattern exposes ESM action to global window without ReferenceError",
+      "cases": [
+        {
+          "id": "TC-SPIKE-01",
+          "intent": "WindowBridge pattern exposes ESM action to global window without ReferenceError",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-03",
+      "text": "Technical Spike EventBus: EventBus enables cross-slice event emission without direct global state mutation",
+      "cases": [
+        {
+          "id": "TC-SPIKE-02",
+          "intent": "EventBus enables cross-slice event emission without direct global state mutation",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-04",
+      "text": "Technical Spike Single Ownership: Mutation Guard ensures one action triggers exactly one mutation",
+      "cases": [
+        {
+          "id": "TC-SPIKE-03",
+          "intent": "Single Ownership & Mutation Guard: one action triggers exactly one mutation",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -89,3 +89,6 @@ Thumbs.db
 /data/scratch/
 .tmp/test-data/
 tests/dashboard/.tmp-workspace-*
+
+# Master Process Gate verification temporary artifacts & receipts
+/.gate-artifacts/

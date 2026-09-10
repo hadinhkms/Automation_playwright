@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "phase": "phase-03",
+  "revision": "",
+  "contract_sha256": "6d35408c6b8ba78f3a89c454aab614582444d5aa352f3b5876e0a4fa7bf19b00",
+  "implementation": {
+    "actor": "dev-agent",
+    "session": "session-phase03-dev"
+  },
+  "design": {
+    "async_state": {
+      "capture_identity": {
+        "path": "dashboard/public/js/components/editor/editorSession.js",
+        "sha256": "99c93103507c1a541583c59650964c719f5446404531a2df3ac5b3e968b0b00d",
+        "line": 42,
+        "snippet": "const saveSessionId = this._sessionId;"
+      },
+      "completion_guard": {
+        "path": "dashboard/public/js/components/editor/editorSession.js",
+        "sha256": "99c93103507c1a541583c59650964c719f5446404531a2df3ac5b3e968b0b00d",
+        "line": 50,
+        "snippet": "if (this._sessionId === saveSessionId && this._activeFile === fileBeingSaved) {"
+      }
+    },
+    "ownership_lifecycle": {
+      "registration_identity": {
+        "path": "dashboard/public/js/core/windowBridge.js",
+        "sha256": "9068ac8c0ec29fda436ddda8d85a5adf01e460c63b09eb44245022d5565146b4",
+        "line": 21,
+        "snippet": "const token = ++this._tokenCounter;"
+      },
+      "disposer_guard": {
+        "path": "dashboard/public/js/core/windowBridge.js",
+        "sha256": "9068ac8c0ec29fda436ddda8d85a5adf01e460c63b09eb44245022d5565146b4",
+        "line": 42,
+        "snippet": "if (expectedToken !== null && current.token !== expectedToken) {"
+      }
+    },
+    "router_ui": {
+      "registry": {
+        "path": "dashboard/public/js/core/featureRegistry.js",
+        "sha256": "10322c5e5c6fa52b6fde9f20c6d1064c8df07e5debb7a6de84e52e82bbd1e4dc",
+        "line": 19,
+        "snippet": "this._views.set(id, {"
+      },
+      "navigation": {
+        "path": "dashboard/public/js/core/featureRegistry.js",
+        "sha256": "10322c5e5c6fa52b6fde9f20c6d1064c8df07e5debb7a6de84e52e82bbd1e4dc",
+        "line": 42,
+        "snippet": "async switchView(targetViewId) {"
+      },
+      "inventory": {
+        "path": "dashboard/public/index.html",
+        "sha256": "80d3d022f4d232e3725c209b7e2778b00c4ec7e2159c23dddfbafc0c7eea450b",
+        "origin": "dom",
+        "derivation": "Static query of all data-view attributes in shell navigation and panels"
+      }
+    },
+    "lifecycle_integration": {
+      "public_entrypoint": {
+        "path": "dashboard/public/js/main.js",
+        "sha256": "7ad15d0536506c4525edc6350173053a243dfdc65e160a63adf8dbece5c65184",
+        "line": 44,
+        "snippet": "window.__STUDIO_CORE__ = {"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "TC-04",
+      "ac_id": "AC-04",
+      "ac_sha256": "f1cf833a3b369c4d961493c510d74e9f6f3254552fd2a81382a63930d5a5a71a",
+      "intent_sha256": "a4be00bdd08496bc26057a005ae563d342e036323603abd416ffbb5e455b866d",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "e2e",
+      "entrypoint": "ui",
+      "test_id": "foundation-parity.spec.js.Phase 3: Frontend Architecture & Foundation Verification › TC-04: Studio Core initializes on window.__STUDIO_CORE__ with all 13 views cataloged matching DOM",
+      "source": {
+        "path": "tests/dashboard/foundation-parity.spec.js",
+        "sha256": "43b153eed4eee9a94a166d6f37509bec3b3bec4bc52240fd293109ebbcac1c17"
+      },
+      "assertions": [
+        {
+          "line": 34,
+          "snippet": "expect(views.length).toBe(13);",
+          "observable": "View catalog count in window.__STUDIO_CORE__ matches 13 DOM views"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Phase 3 is an incremental greenfield ESM modular foundation architecture; no pre-existing breakage to reproduce."
+      }
+    },
+    {
+      "id": "TC-05",
+      "ac_id": "AC-05",
+      "ac_sha256": "8a6111c0c966de9ebed10e756ff766caa6c28d756767631a526422b0f4063be1",
+      "intent_sha256": "dfc17a0a3c7e57cc1e76589c994783365558f66c6eadf2bbbcdc93110ebb1b89",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "foundation-parity.spec.js.Phase 3: Frontend Architecture & Foundation Verification › TC-05: Single Ownership, Mutation Lock and Immutable Snapshot Isolation",
+      "source": {
+        "path": "tests/dashboard/foundation-parity.spec.js",
+        "sha256": "43b153eed4eee9a94a166d6f37509bec3b3bec4bc52240fd293109ebbcac1c17"
+      },
+      "assertions": [
+        {
+          "line": 71,
+          "snippet": "expect(result.initialListeners).toBe(result.finalListeners);",
+          "observable": "20 roundtrip view transitions do not multiply event listeners"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Phase 3 is an incremental greenfield ESM modular foundation architecture; no pre-existing breakage to reproduce."
+      }
+    },
+    {
+      "id": "TC-06",
+      "ac_id": "AC-06",
+      "ac_sha256": "8acd88dd81be40e1e956046ee52ac282e09129c96cf1492260d2fcabd185451f",
+      "intent_sha256": "578b41cba3e59b2ea07ceac84edf168c13831173b277a18a1c288fb9d941dee1",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "e2e",
+      "entrypoint": "ui",
+      "test_id": "foundation-parity.spec.js.Phase 3: Frontend Architecture & Foundation Verification › TC-06: EventBus decouples events and Rapid A-B-A navigation applies only latest",
+      "source": {
+        "path": "tests/dashboard/foundation-parity.spec.js",
+        "sha256": "43b153eed4eee9a94a166d6f37509bec3b3bec4bc52240fd293109ebbcac1c17"
+      },
+      "assertions": [
+        {
+          "line": 100,
+          "snippet": "expect(rapidResult).toBe('builder-view');",
+          "observable": "Rapid A-B-A navigation resolves exclusively to final target builder-view"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Phase 3 is an incremental greenfield ESM modular foundation architecture; no pre-existing breakage to reproduce."
+      }
+    },
+    {
+      "id": "TC-07",
+      "ac_id": "AC-07",
+      "ac_sha256": "7ff8f7fd8dd12210619863dd369b6650724bc595c0ef17e22f403a2b12dd8cdb",
+      "intent_sha256": "a1f7b48d8d7f80264fc65e71c36441816eba483207a56e539fa8b3a0edb2146b",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "e2e",
+      "entrypoint": "ui",
+      "test_id": "foundation-parity.spec.js.Phase 3: Frontend Architecture & Foundation Verification › TC-07: EditorSession manages buffer, dirty state, save races and session isolation",
+      "source": {
+        "path": "tests/dashboard/foundation-parity.spec.js",
+        "sha256": "43b153eed4eee9a94a166d6f37509bec3b3bec4bc52240fd293109ebbcac1c17"
+      },
+      "assertions": [
+        {
+          "line": 149,
+          "snippet": "expect(result.dirtyAfterConcurrentEdit).toBe(true);",
+          "observable": "Editor buffer retains dirty status when edited during pending save"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Phase 3 is an incremental greenfield ESM modular foundation architecture; no pre-existing breakage to reproduce."
+      }
+    },
+    {
+      "id": "TC-08",
+      "ac_id": "AC-08",
+      "ac_sha256": "98bd0ef508705357f6a6a7dc297f01b19c523b5b6567868adbac98f92324a70b",
+      "intent_sha256": "dbbd2b40ea1a199ae35c697af358d097474e6eb4003648a7ef4f7732dc341c76",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "foundation-parity.spec.js.Phase 3: Frontend Architecture & Foundation Verification › TC-08: WindowBridge exposes module actions and protects replacement with token guard",
+      "source": {
+        "path": "tests/dashboard/foundation-parity.spec.js",
+        "sha256": "43b153eed4eee9a94a166d6f37509bec3b3bec4bc52240fd293109ebbcac1c17"
+      },
+      "assertions": [
+        {
+          "line": 175,
+          "snippet": "expect(result.activeAfterStale).toBe(true);",
+          "observable": "Stale disposer does not delete replacement handler on WindowBridge"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Phase 3 is an incremental greenfield ESM modular foundation architecture; no pre-existing breakage to reproduce."
+      }
+    },
+    {
+      "id": "TC-09",
+      "ac_id": "AC-09",
+      "ac_sha256": "ef4e6ddaf54eff9286c37be933bd91d15af78d3b63d233c769fb51396661edcf",
+      "intent_sha256": "6f13829da3c250e25e589c20528098a522349d0202cd47664d9b1e97479db9de",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "integration",
+      "entrypoint": "public_api",
+      "test_id": "foundation-parity.spec.js.Phase 3: Frontend Architecture & Foundation Verification › TC-09: ApiClient honors caller AbortSignal and cancels request mid-flight",
+      "source": {
+        "path": "tests/dashboard/foundation-parity.spec.js",
+        "sha256": "43b153eed4eee9a94a166d6f37509bec3b3bec4bc52240fd293109ebbcac1c17"
+      },
+      "assertions": [
+        {
+          "line": 202,
+          "snippet": "expect(result.preAbortedCaught).toBe(true);",
+          "observable": "Pre-aborted signal aborts API client request immediately"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Phase 3 is an incremental greenfield ESM modular foundation architecture; no pre-existing breakage to reproduce."
+      }
+    }
+  ],
+  "reviews": {
+    "gate3": {
+      "actor": "reviewer-qa",
+      "session": "session-phase03-qa",
+      "revision": "",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-04",
+        "TC-05",
+        "TC-06",
+        "TC-07",
+        "TC-08",
+        "TC-09"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [],
+      "regression_exceptions_confirmed": [
+        "TC-04",
+        "TC-05",
+        "TC-06",
+        "TC-07",
+        "TC-08",
+        "TC-09"
+      ],
+      "reruns": {
+        "TC-04": "critical",
+        "TC-05": "critical",
+        "TC-06": "critical",
+        "TC-07": "critical",
+        "TC-08": "critical",
+        "TC-09": "critical"
+      }
+    },
+    "gate4": {
+      "actor": "reviewer-qa",
+      "session": "session-phase03-qa",
+      "revision": "",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-04",
+        "TC-05",
+        "TC-06",
+        "TC-07",
+        "TC-08",
+        "TC-09"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [],
+      "regression_exceptions_confirmed": [
+        "TC-04",
+        "TC-05",
+        "TC-06",
+        "TC-07",
+        "TC-08",
+        "TC-09"
+      ],
+      "reruns": {
+        "TC-04": "critical",
+        "TC-05": "critical",
+        "TC-06": "critical",
+        "TC-07": "critical",
+        "TC-08": "critical",
+        "TC-09": "critical"
+      }
+    }
+  }
+}

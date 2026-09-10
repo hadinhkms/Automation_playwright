@@ -278,10 +278,10 @@ Mỗi tiêu chí được 1 điểm khi có artifact đáp ứng đầy đủ v�
 | 1 | Rollout/rollback/package | Rehearsal + TC-12 |
 | 1 | Review độc lập và traceability | Gate 1–4 records, AC→TC→commit, disposition defects |
 
-- [ ] Phase 0: inventory, baseline, harness, spike, ADR, policy transition. (Trạng thái: Đã làm một phần — Đang mở Gate 1/2: Cần đo baseline hiệu năng thực và spike tương tác thật Data/BDD/Runner).
-- [x] Phase 1: backend routes/services extraction và contract parity. (Trạng thái: Hoàn tất nghiệm thu — Đã tách 18 file backend đạt budget, 16 API contract tests tại `tests/dashboard-api/` PASS 16/16, script `test:dashboard:regression` tự động).
-- [ ] Phase 2: CSS extraction và visual parity. (Trạng thái: Đã làm một phần — Đã tách 17 files, đã sửa lỗi cascade order `resources.css`, test responsive 4 viewports gồm `390x844` PASS; Cần bổ sung visual screenshot pixel diff cho toàn bộ 13 views).
-- [x] Phase 3: registry/bridge/state/session/editor foundations. (Trạng thái: Hoàn tất nghiệm thu — Đã triển khai 8 modules ESM tại `dashboard/public/js/` đạt 100% budget dòng, tích hợp `main.js`, TC-04..08 PASS trong `tests/dashboard/foundation-parity.spec.js`, 28/28 tests regression PASS).
+- [ ] Phase 0: inventory, baseline, harness, spike, ADR, policy transition. (Trạng thái: Sẵn sàng nghiệm thu Gate 1 & Gate 2 — Đã đo 5 chỉ số baseline, inventory 13 views, SPIKE-01 4/4 PASS, harness cô lập).
+- [ ] Phase 1: backend routes/services extraction và contract parity. (Trạng thái: Sẵn sàng nghiệm thu Gate 3 & Gate 4 — Đã tách 18 file backend đạt budget, 16 API contract tests PASS 16/16, contract phase-01).
+- [ ] Phase 2: CSS extraction và visual parity. (Trạng thái: Sẵn sàng nghiệm thu Gate 3 & Gate 4 — Đã tách 17 files CSS, sửa cascade order, visual evidence capture-ui và 3/3 CSS parity tests PASS).
+- [ ] Phase 3: registry/bridge/state/session/editor foundations. (Trạng thái: Sẵn sàng nghiệm thu Gate 3 & Gate 4 — Đã triển khai 8 modules ESM tại `dashboard/public/js/` đạt 100% budget dòng, tích hợp `main.js`, contract phase-03 khóa chuẩn v1.0, kịch bản TC-04..09 đáp ứng các nhóm scenarios ASYNC/OWN/UI/LIFE).
 - [ ] Phase 4: đủ 13 slice + shell; agent.js và test budget; rollback từng slice.
 - [ ] Phase 5: DOM templates, accessibility, performance và bridge cleanup.
 - [ ] Phase 6: full verification, package/satellite, rollout và rollback.

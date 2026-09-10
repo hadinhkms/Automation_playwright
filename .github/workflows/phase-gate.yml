@@ -1,0 +1,92 @@
+# .github/workflows/phase-gate.yml
+# Phase gate verification workflow for automated compliance reporting
+name: Phase acceptance
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  phase-gate:
+    name: phase-gate
+    runs-on: windows-latest
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+      REVIEWER: ${{ github.actor }}
+      REVIEW_STATE: ${{ github.event.review.state }}
+      SESSION: review:${{ github.run_id }}:${{ github.run_attempt }}
+      APPROVED_HASH: ${{ vars.APPROVED_PHASE_CONTRACT_SHA256 }}
+      MASTER_REVISION: ${{ vars.MASTER_PROCESS_REVISION }}
+    steps:
+      - name: Require approval event and immutable policy pins
+        shell: pwsh
+        run: |
+          if ($env:REVIEW_STATE -ne 'approved' -or $env:REVIEWER -eq $env:PR_AUTHOR) { throw 'Independent approval required' }
+          if ($env:MASTER_REVISION -notmatch '^[0-9a-f]{40}$' -or $env:APPROVED_HASH -notmatch '^[0-9a-f]{64}$') { throw 'Configure trusted Hub/contract pins' }
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: project
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: hadinhkms/_Process-WoW
+          ref: ${{ vars.MASTER_PROCESS_REVISION }}
+          token: ${{ secrets.MASTER_PROCESS_READ_TOKEN || github.token }}
+          path: hub
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare the actual application test environment
+        shell: pwsh
+        working-directory: project
+        run: |
+          pwsh -NoProfile -File ./.delivery/setup.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fetch authoritative review records
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          API: ${{ github.api_url }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          New-Item -ItemType Directory -Path project/.gate-artifacts -Force | Out-Null
+          $all = @()
+          $page = 1
+          do {
+            $url = "$env:API/repos/$env:REPO/pulls/$env:PR_NUMBER/reviews?per_page=100&page=$page"
+            $batch = @(Invoke-RestMethod -Uri $url -Headers @{Authorization="Bearer $env:GH_TOKEN"; Accept="application/vnd.github+json"})
+            $all += $batch
+            $page++
+          } while ($batch.Count -eq 100)
+          ConvertTo-Json -InputObject $all -Depth 30 | Set-Content project/.gate-artifacts/scm.json -Encoding utf8
+      - name: Run regressions and an independent critical rerun
+        shell: pwsh
+        run: |
+          $project = (Resolve-Path project).Path
+          $runner = (Resolve-Path hub/scripts/record-gate-run.py).Path
+          # Child script must exit nonzero on any failure and produce named JUnit cases.
+          python $runner --project $project --id ci --actor github-actions --session "ci:$env:SESSION" --junit .gate-artifacts/ci.xml --output .gate-artifacts/ci.json -- pwsh -NoProfile -File .delivery/run-regressions.ps1 -JunitPath .gate-artifacts/ci.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python $runner --project $project --id critical --actor $env:REVIEWER --session $env:SESSION --junit .gate-artifacts/critical.xml --output .gate-artifacts/critical.json -- pwsh -NoProfile -File .delivery/run-regressions.ps1 -JunitPath .gate-artifacts/critical.xml
+          exit $LASTEXITCODE
+      - name: Bind reviewed evidence to current execution
+        shell: pwsh
+        run: |
+          python hub/scripts/prepare-gate-evidence.py --template project/.delivery/evidence.json --output project/.gate-artifacts/evidence.json --revision $env:HEAD_SHA --implementation-actor $env:PR_AUTHOR --reviewer $env:REVIEWER --session $env:SESSION --scm-reviews project/.gate-artifacts/scm.json
+          exit $LASTEXITCODE
+      - name: Enforce full phase exit criteria
+        shell: pwsh
+        run: |
+          python hub/scripts/verify-gate.py --project project --contract project/.delivery/contract.json --evidence project/.gate-artifacts/evidence.json --approved-contract-sha256 $env:APPROVED_HASH --revision $env:HEAD_SHA --gate 4 --run-record project/.gate-artifacts/ci.json --run-record project/.gate-artifacts/critical.json --scm-reviews project/.gate-artifacts/scm.json
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: phase-evidence-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: project/.gate-artifacts/
+          if-no-files-found: error

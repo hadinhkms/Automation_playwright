@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "phase": "phase-02",
+  "groups": {
+    "async_state": {
+      "applies": false,
+      "reason": "CSS modularization does not affect async state semantics."
+    },
+    "ownership_lifecycle": {
+      "applies": false,
+      "reason": "CSS stylesheets do not manage JS component registration lifecycle."
+    },
+    "router_ui": {
+      "applies": false,
+      "reason": "CSS modularization focuses on stylesheet extraction, cascade order and responsive visual parity; DOM router and dirty guards are verified in Phase 3."
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "AC-01",
+      "text": "Modular CSS Delivery: All modular CSS files are delivered with HTTP 200 and no 404 errors",
+      "cases": [
+        {
+          "id": "TC-CSS-01",
+          "intent": "All modular CSS files are delivered with HTTP 200 and no 404 errors",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-02",
+      "text": "Design Tokens and Theme Switcher: CSS tokens parity between Dark and Light mode",
+      "cases": [
+        {
+          "id": "TC-CSS-02",
+          "intent": "Design Tokens and Theme Switcher parity between Dark and Light mode",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-03",
+      "text": "Responsive Layout Integrity: Visual layout parity across 1920x1080, 1440x900, 1280x800, and 390x844",
+      "cases": [
+        {
+          "id": "TC-CSS-03",
+          "intent": "Responsive layout integrity across 1920x1080, 1440x900, 1280x800, and 390x844",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    }
+  ]
+}

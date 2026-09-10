@@ -1,0 +1,192 @@
+{
+  "schema_version": 1,
+  "phase": "phase-01",
+  "groups": {
+    "async_state": {
+      "applies": false,
+      "reason": "Backend route extraction maintains exact existing async/streaming semantics; frontend state management is deferred to Phase 3."
+    },
+    "ownership_lifecycle": {
+      "applies": false,
+      "reason": "Backend services maintain existing singletons; frontend registration ownership is verified in Phase 3."
+    },
+    "router_ui": {
+      "applies": false,
+      "reason": "Phase 1 is purely backend REST and SSE API route modularization."
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "AC-01",
+      "text": "API Contract: System & Lifecycle Routes (/api/health, /api/config, /api/state)",
+      "cases": [
+        {
+          "id": "TC-API-SYS-01",
+          "intent": "GET /api/health returns 200 and healthy server payload",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-SYS-02",
+          "intent": "GET /api/config returns 200 and valid configuration schema",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-SYS-03",
+          "intent": "GET /api/state returns 200 and runner state schema",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-SYS-04",
+          "intent": "GET /api/unknown-endpoint returns 404 with error payload",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-02",
+      "text": "API Contract: Data Routes CRUD & Validation (/api/data/datasets, /api/data/dataset)",
+      "cases": [
+        {
+          "id": "TC-API-DATA-01",
+          "intent": "GET /api/data/datasets returns 200 and datasets list",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-DATA-02",
+          "intent": "GET /api/data/dataset without file param returns 400",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-DATA-03",
+          "intent": "POST /api/data/create-dataset creates a new dataset successfully",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-DATA-04",
+          "intent": "GET /api/data/dataset retrieves the created dataset",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-DATA-05",
+          "intent": "POST /api/data/delete-dataset deletes the created dataset cleanly",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-03",
+      "text": "API Contract & Security: Resource Routes and Path Traversal Prevention",
+      "cases": [
+        {
+          "id": "TC-API-RES-01",
+          "intent": "GET /api/resources returns 200 and lists resource categories",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-RES-02",
+          "intent": "GET /api/code without filePath returns 404 and error",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-RES-03",
+          "intent": "GET /api/code with path traversal (../../) is blocked with 403 or 400",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-RES-04",
+          "intent": "POST /api/resource/delete with path traversal is rejected",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-04",
+      "text": "API Contract: SSE Streaming & Runner State (TC-02)",
+      "cases": [
+        {
+          "id": "TC-API-SSE-01",
+          "intent": "GET /api/events connects with text/event-stream and sends initial ping",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-SSE-02",
+          "intent": "GET /api/state returns valid initial state snapshot",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "TC-API-SSE-03",
+          "intent": "POST /api/run with invalid spec returns 400 Bad Request",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    }
+  ]
+}
