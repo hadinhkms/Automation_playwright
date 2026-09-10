@@ -33,3 +33,10 @@
 - Evidence: scripts/sync-satellites.js; .github/workflows/sync-satellites.yml; GIT_WORKFLOW.md.
 - Proposed rule: Strictly exclude data/, tests/, pages/ from MODULES_TO_SYNC; enforce code-level assertion in sync scripts preventing Hub data from propagating to satellites.
 - Scope: PROJECT. Owner: Technical Lead / Release Owner. Status: PENDING.
+
+### [LEARN-PLAN09-006] Lazy DOM templates and safe idempotent script bindings
+- Source: Phase 5-6 delivery, 2026-09-10; full regressions 32/32 PASS, Gate 4 PASS.
+- Confirmed: Extracting non-default HTML templates to on-demand `/templates/*.html` dropped initial DOM tags from 3453 to 463 (<1500). Unmounted views require safe lazy event binding (`bind()`) to prevent startup crashes. Lossless XML merging on Windows requires Python ElementTree.
+- Evidence: dashboard/public/templates/, templateLoader.js, agent.js, run-regressions.ps1.
+- Proposed rule: Decouple non-default view DOM via on-demand templates; make script event binders idempotent/lazy; use Python ElementTree for XML reports on Windows.
+- Scope: PROJECT. Owner: Technical Lead / QA. Status: PENDING.
