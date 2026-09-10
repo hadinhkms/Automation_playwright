@@ -93,11 +93,11 @@ Quét được 78 vị trí khai báo endpoints, phân loại thành 9 nhóm rou
 - `POST /api/fixtures` — Lưu fixture mới
 - `DELETE /api/fixtures/delete` — Xóa fixture
 
-### Nhóm 6: Test Suites (`routes/suiteRoutes.js`)
-- `GET /api/suites` — Lấy danh sách suites
-- `POST /api/suites/save` — Lưu cấu hình suite
-- `POST /api/suites/run` — Chạy batch test suite
-- `DELETE /api/suites/delete` — Xóa suite
+### Nhóm 6: Test Suites & Batch Runs (`routes/systemRoutes.js` & `routes/runnerRoutes.js`)
+- `GET /api/config` — Nạp danh sách test suites từ `settings.suites`
+- `PUT /api/settings` — Lưu/xóa/cập nhật cấu hình test suites trong `dashboardConfig.json`
+- `POST /api/run` — Thực thi test suite (với `suiteId`, `suiteLabel`, `specs`, `projects`)
+- `POST /api/remote-run` — Điều phối chạy suite từ xa qua GitHub Actions/Discord
 
 ### Nhóm 7: Codegen Recorder (`routes/recorderRoutes.js`)
 - `POST /api/recorder/start` — Khởi động phiên Playwright Codegen
