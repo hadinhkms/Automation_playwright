@@ -1,42 +1,35 @@
 # Learning Candidates (Pending Gate 0.5 Review)
 
-> [!NOTE]
-> Đây là nơi chứa các bài học, quan sát, quy tắc mới được AI và các Role trích xuất sau khi hoàn thành Feature, Bug fix, Review hoặc QA.
-> Các candidate ở đây CHƯA PHẢI LÀ STANDARD cho đến khi được Knowledge Curator duyệt qua Gate 0.5.
+### [LEARN-PLAN09-004] Save completion must belong to the originating file/session
+- Source: Phase 3 follow-up browser probe, 2026-09-10; foundation suite 6/6 PASS.
+- Confirmed: saving A then opening B lets A completion overwrite B clean buffer; discard on B returns A content. Registry selects .view (0 matches) and leaves target hidden. Re-registering the same handler lets old bridge disposer delete new registration.
+- Evidence: editorSession.js save/openFile/discard; featureRegistry.js _updateDomTabsAndPanels; windowBridge.js expectedHandler guard; isolated Chromium runtime.
+- Proposed rule: Guard async completion with session identity; use per-registration tokens; verify router against actual panel DOM.
+- Scope: FEATURE-LOCAL. Owner: Technical Lead / QA. Status: PENDING.
 
-<!-- Mẫu ứng viên học hỏi:
-
-### [LEARN-001] Tiêu đề quan sát / bài học
-- **Nguồn trích xuất:** [FEATURE-X / BUG-Y / CODE-REVIEW]
-- **Role quan sát:** [Developer / QA / Tech Lead / BA]
-- **Quan sát (Observation):** Mô tả cụ thể hiện tượng hoặc vấn đề
-- **Bằng chứng (Evidence):** Link file hoặc mã lỗi thực tế
-- **Đề xuất phân loại:** [CURRENT PRACTICE / APPROVED STANDARD / KNOWN PITFALL]
-- **Phạm vi đề xuất:** [FEATURE-LOCAL / MODULE / PROJECT]
-- **Đề xuất Owner duyệt:** [Technical Lead / Principal QA / BA]
-- **Trạng thái:** [PENDING / APPROVED / REJECTED]
-
--->
+### [LEARN-PLAN09-003] Foundation gates need failure-path checks on real modules
+- Source: Phase 3 browser probe, 2026-09-10; existing foundation suite 5/5 PASS.
+- Confirmed: registry misses compare-view; edit during pending save clears dirty incorrectly; stale bridge disposer deletes replacement; state snapshots expose mutable nested state; API ignores caller abort signal.
+- Evidence: dashboard/public/js/{main.js,core/windowBridge.js,core/stateStore.js,core/apiClient.js,components/editor/editorSession.js}; isolated Chromium probe reproduced all five.
+- Proposed rule: Compare registry with DOM inventory and test save races, owner disposal, snapshot isolation and cancellation before foundation sign-off.
+- Scope: FEATURE-LOCAL. Owner: Technical Lead / QA. Status: PENDING.
 
 ### [LEARN-PLAN09-001] Verify migration gates against actual audit and test discovery
 - Source: Plan 09 v3 review, 2026-09-10.
-- Observation: audit dashboard reports 4 JS violations; CSS/HTML are outside policy extensions. Existing Playwright project patterns exclude a root tests/dashboard-modular-smoke.spec.js.
-- Evidence: D:/_Master_Process/config/quality-policy.json; core/config/defineConfig.js:134-187; master.ps1 audit dashboard (exit 1).
+- Observation: audit dashboard reports 4 JS violations; CSS/HTML are outside policy extensions.
+- Evidence: D:/_Master_Process/config/quality-policy.json; master.ps1 audit dashboard (exit 1).
 - Proposed rule: Capture the actual audit baseline, define per-phase scope, and verify test discovery before declaring migration acceptance runnable.
-- Follow-up 2026-09-10: Plan 09 v4 records 13 distinct data-view targets from index.html and requires complete view/action ownership mapping; migration evidence remains pending Phase 0.
 - Scope: FEATURE-LOCAL. Owner: Technical Lead / QA. Status: PENDING.
 
 ### [LEARN-PLAN09-002] Passing smoke tests do not close migration acceptance
 - Source: Phase 0–2 review, 2026-09-10; Dashboard suite rerun: 7 passed (18.6s).
-- Evidence: spike-esm-coexistence.spec.js tests injected mocks; css-parity.spec.js omits mobile/image comparison; tests/dashboard-api is absent.
 - Confirmed mismatch: styles.css imports resources after toggle-switch/common-scale although extracted original ranges place resources first (1801–2362 before 2363–3408).
 - Proposed rule: Preserve AC/TC meanings across reports; verify source-order ledger against imports and require actual contract/visual evidence before phase sign-off.
 - Scope: FEATURE-LOCAL. Owner: Technical Lead / QA. Status: PENDING.
 
-### [LEARN-PLAN09-003] Isolate Hub test data from Satellite repository synchronization
+### [LEARN-PLAN09-005] Isolate Hub test data from Satellite repository synchronization
 - Source: Satellite sync review, 2026-09-10.
-- Observation: Satellite repositories (Vieclam24h, CarThings) have independent domain business data; syncing Hub's demo test data (data/, tests/, pages/) will overwrite or pollute satellite domain assets.
+- Observation: Satellite repositories (Vieclam24h, CarThings) have independent domain business data; syncing Hub's demo test data (data/, tests/, pages/) will overwrite satellite domain assets.
 - Evidence: scripts/sync-satellites.js; .github/workflows/sync-satellites.yml; GIT_WORKFLOW.md.
 - Proposed rule: Strictly exclude data/, tests/, pages/ from MODULES_TO_SYNC; enforce code-level assertion in sync scripts preventing Hub data from propagating to satellites.
 - Scope: PROJECT. Owner: Technical Lead / Release Owner. Status: PENDING.
-

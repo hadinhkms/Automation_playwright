@@ -8,4 +8,6 @@
 
 | ID Conflict | Nguồn A (Hiện tại) | Nguồn B (Đề xuất / Code mới) | Mức độ ảnh hưởng | Owner phụ trách | Hướng xử lý |
 |---|---|---|---|---|---|
-| CONF-001 | (Ví dụ: Code cũ dùng Fetch) | (Ví dụ: Rule mới cấm Fetch) | Medium | Tech Lead | Refactor code cũ theo rule mới |
+<!--
+| CONF-001 | (Ví dụ: Code cũ dùng Fetch) | (Ví dụ: Rule mới cấm Fetch) | Medium | Tech Lead | Refactor code cũ theo rule mới | RESOLVED |
+-->
