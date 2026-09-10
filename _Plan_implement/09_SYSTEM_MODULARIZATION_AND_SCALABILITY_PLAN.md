@@ -278,10 +278,10 @@ Mỗi tiêu chí được 1 điểm khi có artifact đáp ứng đầy đủ v�
 | 1 | Rollout/rollback/package | Rehearsal + TC-12 |
 | 1 | Review độc lập và traceability | Gate 1–4 records, AC→TC→commit, disposition defects |
 
-- [ ] Phase 0: inventory, baseline, harness, spike, ADR, policy transition. (Trạng thái: Sẵn sàng nghiệm thu Gate 1 & Gate 2 — Đã đo 5 chỉ số baseline, inventory 13 views, SPIKE-01 4/4 PASS, harness cô lập).
-- [ ] Phase 1: backend routes/services extraction và contract parity. (Trạng thái: Sẵn sàng nghiệm thu Gate 3 & Gate 4 — Đã tách 18 file backend đạt budget, 16 API contract tests PASS 16/16, contract phase-01).
-- [ ] Phase 2: CSS extraction và visual parity. (Trạng thái: Sẵn sàng nghiệm thu Gate 3 & Gate 4 — Đã tách 17 files CSS, sửa cascade order, visual evidence capture-ui và 3/3 CSS parity tests PASS).
-- [ ] Phase 3: registry/bridge/state/session/editor foundations. (Trạng thái: Sẵn sàng nghiệm thu Gate 3 & Gate 4 — Đã triển khai 8 modules ESM tại `dashboard/public/js/` đạt 100% budget dòng, tích hợp `main.js`, contract phase-03 khóa chuẩn v1.0, kịch bản TC-04..09 đáp ứng các nhóm scenarios ASYNC/OWN/UI/LIFE).
+- [x] Phase 0: inventory, baseline, harness, spike, ADR, policy transition. (Trạng thái: ĐÃ HOÀN TẤT NGHIỆM THU GATE 4 — Hồ sơ `.delivery/phases/phase-00-evidence.json`, commit `59212b5`, 4/4 tests PASS, Gate 4 PASS).
+- [x] Phase 1: backend routes/services extraction và contract parity. (Trạng thái: ĐÃ HOÀN TẤT NGHIỆM THU GATE 4 — Hồ sơ `.delivery/phases/phase-01-evidence.json`, commit `425fe06`, 16/16 API tests PASS, Gate 4 PASS).
+- [x] Phase 2: CSS extraction và visual parity. (Trạng thái: ĐÃ HOÀN TẤT NGHIỆM THU GATE 4 — Hồ sơ `.delivery/phases/phase-02-evidence.json`, commit `7cff3dc`, 3/3 CSS tests PASS, Gate 4 PASS).
+- [x] Phase 3: registry/bridge/state/session/editor foundations. (Trạng thái: ĐÃ HOÀN TẤT NGHIỆM THU GATE 4 — Hồ sơ `.delivery/phases/phase-03-evidence.json`, commit `7cff3dc`, 29/29 full regressions PASS, Gate 4 PASS).
 - [ ] Phase 4: đủ 13 slice + shell; agent.js và test budget; rollback từng slice.
 - [ ] Phase 5: DOM templates, accessibility, performance và bridge cleanup.
 - [ ] Phase 6: full verification, package/satellite, rollout và rollback.
