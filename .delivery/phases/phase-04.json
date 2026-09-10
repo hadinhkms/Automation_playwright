@@ -31,8 +31,10 @@
           "critical": true,
           "scenarios": [
             "UI-01",
+            "UI-03",
+            "LIFE-01",
             "OWN-01",
-            "LIFE-01"
+            "OWN-03"
           ]
         }
       ]
@@ -44,10 +46,14 @@
         {
           "id": "TC-11",
           "intent": "Agent UI controller and test subsuites execute with 100% pass rate and zero budget violations",
-          "level": "integration",
+          "level": "e2e",
           "critical": true,
           "scenarios": [
+            "UI-02",
+            "UI-04",
             "ASYNC-01",
+            "ASYNC-02",
+            "ASYNC-03",
             "OWN-02"
           ]
         }
@@ -63,11 +69,11 @@
           "level": "e2e",
           "critical": true,
           "scenarios": [
-            "ASYNC-03",
+            "UI-05",
             "ASYNC-04",
+            "ASYNC-05",
             "OWN-04",
-            "UI-03",
-            "UI-04"
+            "OWN-05"
           ]
         }
       ]

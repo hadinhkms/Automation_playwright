@@ -2,7 +2,7 @@
   "schema_version": 1,
   "phase": "phase-04",
   "revision": "96ffad557c555307399fc0d1704597d39352e6ff",
-  "contract_sha256": "8606ef4851c11723cc67e4b576514897b3e98a54640ad16c909b1e95600cf182",
+  "contract_sha256": "5bb9056ebb8784689841982f7543437cc3a1341f8199a00d3a8e9f043b47dc26",
   "implementation": {
     "actor": "Ha Dinh",
     "session": "impl-e61ff307"
@@ -100,8 +100,8 @@
       "intent_sha256": "f16437f9b6fc730324d52e9ae9abd6309ecf2b3a9120055c395d20fa426f66b3",
       "coverage": "FULL",
       "result": "PASS",
-      "level": "integration",
-      "entrypoint": "public_api",
+      "level": "e2e",
+      "entrypoint": "ui",
       "test_id": "foundation-parity.spec.js.Phase 3: Frontend Architecture & Foundation Verification › TC-08: WindowBridge exposes module actions and protects replacement with token guard",
       "source": {
         "path": "tests/dashboard/foundation-parity.spec.js",
