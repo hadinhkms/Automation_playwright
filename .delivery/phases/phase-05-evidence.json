@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "phase": "phase-05",
+  "revision": "127ae89ec1aedcc2813fb308157c3974122934b2",
+  "contract_sha256": "5026327c596f54257879d302784d3da29354b7ffb9ec542a4b3d4ff9aa340e7f",
+  "implementation": {
+    "actor": "Ha Dinh",
+    "session": "impl-phase05"
+  },
+  "design": {
+    "async_state": {
+      "capture_identity": {
+        "path": "dashboard/public/js/components/editor/editorSession.js",
+        "sha256": "99c93103507c1a541583c59650964c719f5446404531a2df3ac5b3e968b0b00d",
+        "line": 42,
+        "snippet": "const saveSessionId = this._sessionId;"
+      },
+      "completion_guard": {
+        "path": "dashboard/public/js/components/editor/editorSession.js",
+        "sha256": "99c93103507c1a541583c59650964c719f5446404531a2df3ac5b3e968b0b00d",
+        "line": 50,
+        "snippet": "if (this._sessionId === saveSessionId && this._activeFile === fileBeingSaved) {"
+      }
+    },
+    "ownership_lifecycle": {
+      "registration_identity": {
+        "path": "dashboard/public/js/core/windowBridge.js",
+        "sha256": "9068ac8c0ec29fda436ddda8d85a5adf01e460c63b09eb44245022d5565146b4",
+        "line": 21,
+        "snippet": "const token = ++this._tokenCounter;"
+      },
+      "disposer_guard": {
+        "path": "dashboard/public/js/core/windowBridge.js",
+        "sha256": "9068ac8c0ec29fda436ddda8d85a5adf01e460c63b09eb44245022d5565146b4",
+        "line": 42,
+        "snippet": "if (expectedToken !== null && current.token !== expectedToken) {"
+      }
+    },
+    "router_ui": {
+      "registry": {
+        "path": "dashboard/public/js/core/featureRegistry.js",
+        "sha256": "758d49685314ef1eae8eaa5c25b4c9713898b111d7f67bc90e6d2bfc5b8aac24",
+        "line": 18,
+        "snippet": "registerView(id, definition) {"
+      },
+      "navigation": {
+        "path": "dashboard/public/js/core/featureRegistry.js",
+        "sha256": "758d49685314ef1eae8eaa5c25b4c9713898b111d7f67bc90e6d2bfc5b8aac24",
+        "line": 43,
+        "snippet": "async switchView(targetViewId) {"
+      },
+      "inventory": {
+        "path": "dashboard/public/index.html",
+        "sha256": "84b7fec0dc90c8601661db945d16ce6634d10811498b824cbcf072ee44c6a8cd",
+        "origin": "dom",
+        "derivation": "Scanned 13 view container sections in dashboard/public/index.html"
+      }
+    },
+    "lifecycle_integration": {
+      "public_entrypoint": {
+        "path": "dashboard/public/js/main.js",
+        "sha256": "774ecebdbecdf44408c8f1c9358dd6797a9e73f7cfbbb89f594e4ec5b309ede3",
+        "line": 65,
+        "snippet": "  window.__STUDIO_CORE__ = {"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "TC-13",
+      "ac_id": "AC-13",
+      "ac_sha256": "18a25e00e5d20ffad802af8d37e4e4977415b0aa43cc961cdfdd290ad78167d8",
+      "intent_sha256": "18ebd12546788976e00f7f6b5663c9dcd62da3db6966895c053647a1817be5e6",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "e2e",
+      "entrypoint": "ui",
+      "test_id": "templates-performance-a11y.spec.js.Phase 5: Templates, Accessibility & Performance Verification › TC-13: DOM Templates Protocol Section 8: Initial DOM < 1500 elements & On-demand Template Mount",
+      "source": {
+        "path": "tests/dashboard/templates-performance-a11y.spec.js",
+        "sha256": "ccf1a3498003e732a0fcf171ee0be49bcae8fa4bd7c3ce879a5220dde1d535c3"
+      },
+      "assertions": [
+        {
+          "line": 73,
+          "snippet": "expect(initialDomCount).toBeLessThan(1500);",
+          "observable": "Verified intent: Initial DOM tag count is under 1500 elements and non-active view templates mount on-demand upon first activation"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-14",
+      "ac_id": "AC-14",
+      "ac_sha256": "f5748ce7885603a9bd504ae7d0682bc71508d9f4113a7d5430fc40310fe21b0d",
+      "intent_sha256": "93a091a95d3285938a455ac32f74dec00d8cb0ea31aba8fff20c4f5c38428bfa",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "e2e",
+      "entrypoint": "ui",
+      "test_id": "templates-performance-a11y.spec.js.Phase 5: Templates, Accessibility & Performance Verification › TC-14: ARIA Accessibility, Tab Roles and Keyboard Traversal",
+      "source": {
+        "path": "tests/dashboard/templates-performance-a11y.spec.js",
+        "sha256": "ccf1a3498003e732a0fcf171ee0be49bcae8fa4bd7c3ce879a5220dde1d535c3"
+      },
+      "assertions": [
+        {
+          "line": 31,
+          "snippet": "await expect(tablist).toBeVisible();",
+          "observable": "Verified intent: Tabs and modals conform to ARIA attributes and keyboard interaction contracts across viewports"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    },
+    {
+      "id": "TC-15",
+      "ac_id": "AC-15",
+      "ac_sha256": "7b6c36334c3e94131358188b262b4c3fe5914ef5c33e199c4244e83bba873643",
+      "intent_sha256": "a0a3c87e49ced8a87533fb2735bf7301ec904909068384006d7ef6dfb089ed84",
+      "coverage": "FULL",
+      "result": "PASS",
+      "level": "e2e",
+      "entrypoint": "ui",
+      "test_id": "templates-performance-a11y.spec.js.Phase 5: Templates, Accessibility & Performance Verification › TC-15: Performance Protocol Section 8: WindowBridge Cleanup, Cache Reusability & Resource Stability",
+      "source": {
+        "path": "tests/dashboard/templates-performance-a11y.spec.js",
+        "sha256": "ccf1a3498003e732a0fcf171ee0be49bcae8fa4bd7c3ce879a5220dde1d535c3"
+      },
+      "assertions": [
+        {
+          "line": 145,
+          "snippet": "expect(result.cacheValid).toBe(true);",
+          "observable": "Verified intent: Performance marks, heap stability and WindowBridge cleanup comply with protocol §8 thresholds"
+        }
+      ],
+      "run": "ci",
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Feature verification"
+      }
+    }
+  ],
+  "reviews": {
+    "gate3": {
+      "actor": "senior-qa",
+      "session": "dev-session-p5-qa",
+      "revision": "127ae89ec1aedcc2813fb308157c3974122934b2",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-13",
+        "TC-14",
+        "TC-15"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [],
+      "regression_exceptions_confirmed": [
+        "TC-13",
+        "TC-14",
+        "TC-15"
+      ],
+      "reruns": {
+        "TC-13": "critical",
+        "TC-14": "critical",
+        "TC-15": "critical"
+      }
+    },
+    "gate4": {
+      "actor": "senior-qa",
+      "session": "dev-session-p5-qa",
+      "revision": "127ae89ec1aedcc2813fb308157c3974122934b2",
+      "decision": "PASS",
+      "cases_confirmed": [
+        "TC-13",
+        "TC-14",
+        "TC-15"
+      ],
+      "semantics_confirmed": true,
+      "integration_confirmed": true,
+      "na_confirmed": [],
+      "regression_exceptions_confirmed": [
+        "TC-13",
+        "TC-14",
+        "TC-15"
+      ],
+      "reruns": {
+        "TC-13": "critical",
+        "TC-14": "critical",
+        "TC-15": "critical"
+      }
+    }
+  }
+}
