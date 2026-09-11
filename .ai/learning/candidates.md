@@ -34,11 +34,11 @@
 - Proposed rule: Strictly exclude data/, tests/, pages/ from MODULES_TO_SYNC; enforce code-level assertion in sync scripts preventing Hub data from propagating to satellites.
 - Scope: PROJECT. Owner: Technical Lead / Release Owner. Status: PENDING.
 
-### [LEARN-PLAN09-006] Lazy DOM templates and safe idempotent script bindings
-- Source: Phase 5-6 delivery, 2026-09-10; full regressions 32/32 PASS, Gate 4 PASS.
-- Confirmed: Extracting non-default HTML templates to on-demand `/templates/*.html` dropped initial DOM tags from 3453 to 463 (<1500). Unmounted views require safe lazy event binding (`bind()`) to prevent startup crashes. Lossless XML merging on Windows requires Python ElementTree.
-- Evidence: dashboard/public/templates/, templateLoader.js, agent.js, run-regressions.ps1.
-- Proposed rule: Decouple non-default view DOM via on-demand templates; make script event binders idempotent/lazy; use Python ElementTree for XML reports on Windows.
+### [LEARN-PLAN09-006] Dynamic DOM templates require lifecycle-aware binding & null guards
+- Source: Phase 5 delivery & UI audit, 2026-09-10; full probe PASS.
+- Confirmed: Extracting views to on-demand templates leaves startup `addEventListener` bound to null, rendering buttons dead. Unguarded DOM mutations halt JS thread.
+- Evidence: dashboard/public/app.js, templateLoader.js, ai/dashboard/AI_LESSONS.md.
+- Proposed rule: Bind template events inside slice `mount()` or use event delegation; null-guard all shared DOM mutations; run `npm run sync:satellites` after Hub updates.
 - Scope: PROJECT. Owner: Technical Lead / QA. Status: PENDING.
 
 ### [LEARN-REC-001] Hide Node.exe console window on Windows GUI tool spawn
