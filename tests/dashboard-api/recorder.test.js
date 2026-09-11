@@ -56,4 +56,26 @@ describe('API Contract: Recorder & Codegen Routes', () => {
     assert.equal(body.platform, 'desktop');
     assert.ok(Array.isArray(body.pages));
   });
+
+  test('POST /api/recorder/start concurrent calls are guarded by mutex (one succeeds, one gets 409)', async () => {
+    const [res1, res2] = await Promise.all([
+      fetch(`${harness.url}/api/recorder/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://example.com', force: true }),
+      }),
+      fetch(`${harness.url}/api/recorder/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://example.com', force: true }),
+      }),
+    ]);
+
+    const statuses = [res1.status, res2.status];
+    assert.ok(statuses.includes(409), 'One concurrent start request must be rejected with 409 Conflict');
+    assert.ok(statuses.includes(200), 'One concurrent start request must succeed with 200 OK');
+
+    // Clean up active recorder session
+    await fetch(`${harness.url}/api/recorder/reset`, { method: 'POST' });
+  });
 });
