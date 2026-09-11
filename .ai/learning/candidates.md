@@ -42,5 +42,8 @@
 - Scope: PROJECT. Owner: Technical Lead / QA. Status: PENDING.
 
 ### [LEARN-REC-001] Hide Node.exe console window on Windows GUI tool spawn
-- Confirmed: Spawning `node.exe` with `windowsHide: false` forces a black CUI console window; `windowsHide: true` hides console while GUI child windows (Chromium, Inspector) remain visible.
-- Scope: PROJECT. Owner: Fullstack Dev. Status: PENDING.
+- Confirmed: Spawning `node.exe` with `windowsHide: true` hides console while GUI child windows remain visible. Scope: PROJECT. Owner: Fullstack Dev.
+
+### [LEARN-SUITE-001] Suites view: delegate creation/selection & dynamically populate child suites
+- Confirmed: Avoid browser `prompt()` on suite creation; delegate to `createNewSuite` inline editor. Toggling to Suite Cha (`composite`) must immediately invoke `renderCompositeChildrenList` and update type badge. Scope: PROJECT. Owner: Technical Lead / QA.
+
