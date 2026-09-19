@@ -243,7 +243,7 @@ class ScreenshotHelper {
 
   /**
    * Phát hiện xem hiện tại trên màn hình có Modal / Popup / Dialog / Drawer đang hiển thị không
-   * Tuân thủ quy định tại AI_PROMPTS.md Section 7:
+   * Tuân thủ quy định tại AI_PROMPTS.md Section 8:
    * "Khi không có popup/modal hiển thị, capture full page. Khi popup/modal đang hiển thị, chỉ capture viewport để tập trung vào popup/modal."
    * @returns {Promise<boolean>}
    */
