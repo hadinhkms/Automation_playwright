@@ -21,10 +21,18 @@ const {
   assertNoForbiddenModules,
   assertNoProjectOwnedRootFiles,
   ROOT_FILES_TO_SYNC,
+  PROJECT_OWNED_ROOT_FILES,
+  FORBIDDEN_SYNC_MODULES,
+  moduleOf,
+  modulesToSkip,
+  ROOT_MODULE,
 } = require('./sync-manifest');
 
+// Dấu phân cách kiểu Windows, viết bằng mã ký tự để không phụ thuộc vào escape.
+const SEP = String.fromCharCode(92);
+
 // An toàn vì sync-satellites.js đã có guard require.main === module; require không chạy sync.
-const { copyDirRecursive } = require('../sync-satellites');
+const { copyDirRecursive, syncToDirectory } = require('../sync-satellites');
 
 const TARGET = path.join('D:', '\\fake-satellite');
 const coreModule = MODULES_TO_SYNC.find((m) => m.src === 'core');
@@ -171,4 +179,138 @@ test('file gốc thuộc về dự án không bao giờ được Hub đồng b�
     () => assertNoProjectOwnedRootFiles([...ROOT_FILES_TO_SYNC, 'decisions.json']),
     /decisions\.json/,
   );
+});
+
+test('KHÔNG file nào thuộc dự án lọt vào ROOT_FILES_TO_SYNC', () => {
+  // decisions.json và qa.config.json chứa dữ liệu nghiệm thu của RIÊNG từng repo.
+  // Đồng bộ chúng đi là lấy quyết định của dự án này đè lên dự án khác.
+  for (const f of ['decisions.json', 'qa.config.json', '.env']) {
+    assert.ok(PROJECT_OWNED_ROOT_FILES.includes(f), `${f} phải nằm trong danh sách loại trừ`);
+    assert.equal(ROOT_FILES_TO_SYNC.includes(f), false, `${f} không được đồng bộ`);
+  }
+  assert.doesNotThrow(() => assertNoProjectOwnedRootFiles());
+
+  // Guard phải nổ cho TẮT CẢ, không chỉ riêng decisions.json.
+  for (const f of PROJECT_OWNED_ROOT_FILES) {
+    assert.throws(
+      () => assertNoProjectOwnedRootFiles([...ROOT_FILES_TO_SYNC, f]),
+      (err) => err.message.includes(f),
+      `thêm ${f} vào danh sách sync mà guard không nổ`,
+    );
+  }
+});
+
+test('KHÔNG module nào đi qua requirements/ hoặc test-cases/', () => {
+  // Hai thư mục này là nghiệp vụ của riêng dự án. Mục QA chỉ ĐỌC chúng;
+  // sync chạm vào là xoá tài liệu không có bản sao ở đâu khác.
+  for (const dir of ['requirements', 'test-cases']) {
+    assert.ok(FORBIDDEN_SYNC_MODULES.includes(dir), `${dir} phải nằm trong FORBIDDEN_SYNC_MODULES`);
+  }
+
+  for (const mod of MODULES_TO_SYNC) {
+    for (const p of [mod.src, mod.dest]) {
+      assert.equal(containsForbidden(p), false, `module ${p} đi qua thư mục bị cấm`);
+    }
+    // Cả excludes cũng không được nhắc tới hai thư mục đó: nếu phải exclude nghĩa là
+    // ai đó đã định sync chúng.
+    for (const ex of mod.excludes || []) {
+      assert.equal(containsForbidden(ex), false, `exclude ${ex} cho thấy module đang trùm lên thư mục cấm`);
+    }
+  }
+  assert.doesNotThrow(() => assertNoForbiddenModules());
+
+  // Guard phải bắt cả trường hợp lồng nhau, không chỉ so bằng.
+  assert.throws(() => assertNoForbiddenModules([{ src: 'docs/requirements', dest: 'docs/requirements' }]), /requirements/);
+  assert.throws(() => assertNoForbiddenModules([{ src: 'ai', dest: 'ai/test-cases' }]), /test-cases/);
+});
+
+test('MỘT LƯỢT SYNC THẬT không chạm vào dữ liệu của dự án', () => {
+  // Chạy chính syncToDirectory() lên một vệ tinh giả, rồi đối chiếu BYTE.
+  // Đây là bằng chứng cuối cùng cho giao kèo "mã đi, nội dung ở lại": ba nhóm dữ liệu
+  // dưới đây được bảo vệ bởi ba cơ chế KHÁC NHAU, nên phải kiểm cả ba cùng một lượt:
+  //   requirements/, test-cases/  -> FORBIDDEN_SYNC_MODULES (không hề có trong MODULES_TO_SYNC)
+  //   decisions.json              -> PROJECT_OWNED_ROOT_FILES (không có trong ROOT_FILES_TO_SYNC)
+  //   core/config/dashboardConfig.json -> excludes của module core
+  const NL = String.fromCharCode(10);
+  const target = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-noclobber-'));
+  const files = {
+    'requirements/REQ-001-dang-nhap.md': ['# REQ-001 Đăng nhập', '', '- AC-001: nghiệp vụ riêng của dự án.', ''].join(NL),
+    'test-cases/REQ-001.md': ['| REQ-001 | AC-001 | TC-001 | Candidate | - | P0 |', ''].join(NL),
+    'decisions.json': ['{"version":1,"decisions":[{"id":"D-01","answer":{"confirmedBy":"Hà"}}]}', ''].join(NL),
+    'core/config/dashboardConfig.json': ['{"environments":{},"qa":{"specs":"tests/e2e"}}', ''].join(NL),
+  };
+  for (const [rel, content] of Object.entries(files)) {
+    const full = path.join(target, rel);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, content, 'utf8');
+  }
+  const before = Object.fromEntries(
+    Object.keys(files).map((rel) => [rel, fs.readFileSync(path.join(target, rel))]),
+  );
+
+  try {
+    syncToDirectory(target);
+
+    for (const rel of Object.keys(files)) {
+      const full = path.join(target, rel);
+      assert.ok(fs.existsSync(full), `${rel} bị xoá mất sau khi sync`);
+      assert.ok(fs.readFileSync(full).equals(before[rel]), `${rel} bị thay đổi sau khi sync`);
+    }
+
+    // Không được tạo thêm file nào trong hai thư mục nghiệp vụ.
+    assert.deepEqual(fs.readdirSync(path.join(target, 'requirements')), ['REQ-001-dang-nhap.md']);
+    assert.deepEqual(fs.readdirSync(path.join(target, 'test-cases')), ['REQ-001.md']);
+
+    // Đối trọng: sync phải thực sự có ghi gì đó, nếu không bài test này xanh vô nghĩa.
+    assert.ok(fs.existsSync(path.join(target, 'dashboard', 'server.js')), 'sync phải giao dashboard/');
+    assert.ok(
+      fs.existsSync(path.join(target, 'dashboard', 'public', 'templates', 'qa.html')),
+      'sync phải giao template của mục QA',
+    );
+    assert.ok(fs.existsSync(path.join(target, 'scripts', 'lib', 'qaTrace.js')), 'sync phải giao analyzer');
+  } finally {
+    fs.rmSync(target, { recursive: true, force: true });
+  }
+});
+
+test('moduleOf quy đúng đường dẫn về module chứa nó', () => {
+  assert.equal(moduleOf('core/utils/commonUtils.js'), 'core');
+  assert.equal(moduleOf('dashboard/routes/qaRoutes.js'), 'dashboard');
+  assert.equal(moduleOf('scripts/lib/qaTrace.js'), 'scripts');
+  assert.equal(moduleOf('core'), 'core', 'chính thư mục gốc của module');
+  assert.equal(moduleOf('CLAUDE.md'), ROOT_MODULE);
+  assert.equal(moduleOf(''), ROOT_MODULE);
+});
+
+test('moduleOf chấp nhận cả dấu phân cách kiểu Windows', () => {
+  // pre-sync-drift trả đường dẫn đã chuẩn hoá, nhưng đừng để một dấu BS làm cả module
+  // rơi vào nhóm (root) rồi âm thầm chặn toàn bộ file gốc.
+  assert.equal(moduleOf('core' + SEP + 'utils' + SEP + 'commonUtils.js'), 'core');
+});
+
+test('moduleOf không nhầm module trùng tiền tố', () => {
+  assert.equal(moduleOf('corejs/x.js'), ROOT_MODULE, 'corejs không phải core');
+  assert.equal(moduleOf('dashboards/y.js'), ROOT_MODULE);
+});
+
+test('modulesToSkip gộp trùng và giữ đúng tập', () => {
+  assert.deepEqual(modulesToSkip([]), []);
+  assert.deepEqual(
+    modulesToSkip(['core/a.js', 'core/b.js', 'ai/shared/x.md']),
+    ['core', 'ai'],
+  );
+});
+
+test('nội dung riêng trong core/ KHÔNG được chặn dashboard/', () => {
+  // Đây là lý do của cả cơ chế: 129 dòng helper trong core/ từng chặn vĩnh viễn
+  // mọi tính năng dashboard mới tới vệ tinh.
+  const skip = modulesToSkip([
+    'core/utils/commonUtils.js',
+    'core/utils/commonUtils.test.js',
+    'core/config/dashboardConfig.js',
+  ]);
+  assert.deepEqual(skip, ['core']);
+  assert.ok(!skip.includes('dashboard'), 'dashboard phải vẫn được giao');
+  assert.ok(!skip.includes('scripts'), 'scripts phải vẫn được giao');
+  assert.ok(!skip.includes(ROOT_MODULE), 'file gốc phải vẫn được giao');
 });

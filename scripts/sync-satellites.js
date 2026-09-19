@@ -32,6 +32,7 @@ const {
   assertNoProjectOwnedRootFiles,
   resolveExcludes,
   isExcluded,
+  modulesToSkip,
 } = require('./lib/sync-manifest');
 const { verify: verifyDashboardFeatures } = require('./verify-dashboard-features');
 const { auditSatellite } = require('./pre-sync-drift');
@@ -80,15 +81,26 @@ function copyDirRecursive(srcDir, destDir, excludes = []) {
   return copied;
 }
 
-function syncToDirectory(targetDir) {
+/**
+ * @param {string} targetDir
+ * @param {{skipModules?: string[]}} [options] Module bị giữ lại vì vệ tinh có nội dung riêng
+ *   trong đó. Giữ theo MODULE chứ không theo từng file: trong cùng một module các file phụ
+ *   thuộc nhau (vd. core/utils/localExtensions.js mới đi cùng core/utils/commonUtils.js mới),
+ *   trộn bản mới với bản cũ sẽ tạo ra trạng thái không ai kiểm thử bao giờ.
+ */
+function syncToDirectory(targetDir, options = {}) {
+  const skip = new Set(options.skipModules || []);
   let updatedCount = 0;
 
   for (const mod of MODULES_TO_SYNC) {
+    if (skip.has(mod.dest)) continue;
     const srcPath = path.join(HUB_ROOT, mod.src);
     const destPath = path.join(targetDir, mod.dest);
     const excludes = resolveExcludes(targetDir, mod);
     updatedCount += copyDirRecursive(srcPath, destPath, excludes);
   }
+
+  if (skip.has('(root)')) return updatedCount;
 
   for (const file of ROOT_FILES_TO_SYNC) {
     const srcFile = path.join(HUB_ROOT, file);
@@ -121,6 +133,9 @@ async function run() {
   // Vệ tinh nào không qua được kiểm chứng tính năng thì tiến trình phải kết thúc bằng lỗi,
   // nếu không CI vẫn xanh trong khi nhánh con nhận về một dashboard hỏng.
   const failedSatellites = [];
+  // Vệ tinh nhận được một phần: tính năng mới vẫn tới, nhưng có module bị giữ lại.
+  // Phải hiện ra ở cuối, nếu không "sync xong" sẽ bị hiểu là "đã đồng bộ đủ".
+  const partialSatellites = [];
 
   // Cổng drift chạy THEO TỪNG VỆ TINH, ngay trước khi ghi vào vệ tinh đó. Trước đây cổng
   // chạy một lần cho tất cả rồi chặn cả job: một nhánh chưa migrate là nhánh còn lại cũng
@@ -162,9 +177,14 @@ async function run() {
 
     console.log(`📂 Thư mục làm việc: ${workingDir}`);
 
+    // Khoanh vùng theo MODULE. Trước đây một file có nội dung riêng là bỏ qua cả vệ tinh,
+    // nên 129 dòng helper trong core/ đủ sức chặn vĩnh viễn mọi tính năng dashboard mới.
+    // Nay chỉ module chứa nội dung riêng bị giữ lại; phần còn lại vẫn được giao.
     const { blocked } = auditSatellite({ ...sat, localPath: workingDir }, history);
+    const skipModules = modulesToSkip(blocked.map((f) => f.file));
+
     if (blocked.length) {
-      console.error(`${colors.red}${colors.bright}⛔ ${sat.name}: ${blocked.length} file có nội dung riêng sẽ bị xoá — KHÔNG ghi gì cả.${colors.reset}`);
+      console.error(`${colors.yellow}${colors.bright}⛔ ${sat.name}: giữ lại module ${skipModules.join(', ')} — có nội dung riêng sẽ bị xoá.${colors.reset}`);
       for (const f of blocked) {
         console.error(`${colors.red}   ${f.file} (${f.ownedLines.length} dòng)${colors.reset}`);
         for (const l of f.ownedLines.slice(0, 3)) {
@@ -173,14 +193,12 @@ async function run() {
         if (f.ownedLines.length > 3) console.error(`${colors.dim}      | ... còn ${f.ownedLines.length - 3} dòng${colors.reset}`);
       }
       console.error(`${colors.yellow}   → Xem ai/shared/SATELLITE_CORE_MIGRATION.md để chuyển phần riêng sang core/local/.${colors.reset}`);
-      failedSatellites.push(sat.name);
-      if (isTempDir) {
-        try { fs.rmSync(workingDir, { recursive: true, force: true }); } catch (_) {}
-      }
-      continue;
+      partialSatellites.push({ name: sat.name, skipModules });
     }
 
-    const updatedFiles = syncToDirectory(workingDir);
+    const delivered = MODULES_TO_SYNC.map((m) => m.dest).filter((m) => !skipModules.includes(m));
+    const updatedFiles = syncToDirectory(workingDir, { skipModules });
+    console.log(`${colors.green}📬 Module đã giao: ${delivered.join(', ')}${colors.reset}`);
     console.log(`📦 Số lượng tệp cập nhật: ${colors.yellow}${updatedFiles}${colors.reset}`);
 
     // Số tệp đã copy KHÔNG chứng minh tính năng chạy được. Một view chỉ sống khi đủ cả
@@ -249,11 +267,29 @@ async function run() {
     }
   }
 
+  if (partialSatellites.length) {
+    console.log(`${colors.yellow}${colors.bright}-----------------------------------------------------${colors.reset}`);
+    console.log(`${colors.yellow}${colors.bright}  ĐỒNG BỘ MỘT PHẦN${colors.reset}`);
+    for (const item of partialSatellites) {
+      console.log(`${colors.yellow}  ${item.name}: giữ lại ${item.skipModules.join(', ')}${colors.reset}`);
+    }
+    console.log(`${colors.yellow}${colors.bright}-----------------------------------------------------${colors.reset}`);
+  }
+
   if (failedSatellites.length) {
     console.error(`\n${colors.red}${colors.bright}=====================================================${colors.reset}`);
     console.error(`${colors.red}${colors.bright}  ĐỒNG BỘ THẤT BẠI: ${failedSatellites.join(', ')}${colors.reset}`);
     console.error(`${colors.red}${colors.bright}=====================================================${colors.reset}\n`);
     throw new Error(`Vệ tinh chưa nhận được bản mới: ${failedSatellites.join(', ')}`);
+  }
+
+  if (partialSatellites.length) {
+    // Không ném lỗi: phần đã giao là thật và cần được commit. Nhưng cũng không được báo
+    // xanh trơn, vì module bị giữ lại sẽ chìm nghỉm cho tới khi có người phát hiện
+    // dashboard ở vệ tinh thiếu tính năng.
+    const names = partialSatellites.map((i2) => `${i2.name} (${i2.skipModules.join('+')})`).join('; ');
+    console.log(`${colors.yellow}⚠️  Chưa đồng bộ trọn vẹn: ${names}${colors.reset}`);
+    process.exitCode = 2;
   }
 
   console.log(`\n${colors.green}${colors.bright}=====================================================${colors.reset}`);

@@ -35,6 +35,9 @@ const SATELLITES = [
  * - Mỗi dự án vệ tinh (Vieclam24h, CarThings, v.v.) sở hữu tập Test Data và Test Scripts
  *   riêng biệt theo nghiệp vụ dự án đó. Không bao giờ ghi đè hay đẩy data của Hub sang vệ tinh.
  */
+// Nhãn cho nhóm file nằm ở gốc repo, để phân biệt với các module thư mục.
+const ROOT_MODULE = '(root)';
+
 const FORBIDDEN_SYNC_MODULES = ['data', 'tests', 'pages', 'requirements', 'test-cases'];
 
 const MODULES_TO_SYNC = [
@@ -80,9 +83,22 @@ const MODULES_TO_SYNC = [
   { src: 'tools', dest: 'tools' },
 ];
 
-// File ở gốc repo thuộc về TỪNG dự án: Hub không bao giờ được đẩy chúng đi.
-// decisions.json là sổ quyết định do dashboard ghi (PUT /api/qa/decision) — đưa nó vào
-// ROOT_FILES_TO_SYNC sẽ khiến quyết định của dự án này ghi đè lên dự án khác.
+/**
+ * DANH SÁCH LOẠI TRỪ TƯỜNG MINH — file ở gốc repo thuộc về TỪNG DỰ ÁN.
+ * Hub không bao giờ được đẩy chúng đi. assertNoProjectOwnedRootFiles() chạy ngay lúc nạp
+ * module, nên vi phạm nổ tại chỗ chứ không chờ tới lúc sync thật.
+ *
+ * - `decisions.json` : sổ quyết định do dashboard ghi (PUT /api/qa/decision). Đưa vào
+ *                      ROOT_FILES_TO_SYNC sẽ khiến quyết định của dự án này ghi đè lên dự án
+ *                      khác — mất dấu vết nghiệm thu của cả hai bên.
+ * - `qa.config.json` : cấu hình QA riêng khi dự án dùng file rời thay cho mục `qa` trong
+ *                      core/config/dashboardConfig.json. Cùng bản chất: nó trỏ tới thư
+ *                      mục nghiệp vụ của riêng repo đó.
+ * - `.env`           : bí mật và endpoint của từng môi trường.
+ *
+ * KHÔNG thêm bất kỳ file nào ở đây vào ROOT_FILES_TO_SYNC. Cần chia sẻ một giá trị chung
+ * thì đặt mặc định trong code của Hub, để dự án ghi đè bằng file riêng của nó.
+ */
 const PROJECT_OWNED_ROOT_FILES = ['decisions.json', 'qa.config.json', '.env'];
 
 const ROOT_FILES_TO_SYNC = [
@@ -134,6 +150,24 @@ function isExcluded(destPath, excludes) {
   return excludes.some((ex) => destPath.toLowerCase().endsWith(path.normalize(ex).toLowerCase()));
 }
 
+/**
+ * Quy một đường dẫn tương đối về module chứa nó, hoặc ROOT_MODULE nếu là file gốc.
+ * Dùng để khoanh vùng khi vệ tinh có nội dung riêng: nội dung ấy nằm trong core/ thì chỉ
+ * core/ bị giữ lại, dashboard/ vẫn được giao.
+ */
+function moduleOf(relPath) {
+  const norm = String(relPath || '').split('\\').join('/');
+  for (const mod of MODULES_TO_SYNC) {
+    if (norm === mod.dest || norm.startsWith(`${mod.dest}/`)) return mod.dest;
+  }
+  return ROOT_MODULE;
+}
+
+/** Tập module phải giữ lại, suy ra từ danh sách file có nội dung riêng. */
+function modulesToSkip(blockedFiles = []) {
+  return [...new Set(blockedFiles.map(moduleOf))];
+}
+
 module.exports = {
   HUB_ROOT,
   SATELLITES,
@@ -146,4 +180,7 @@ module.exports = {
   PROJECT_OWNED_ROOT_FILES,
   resolveExcludes,
   isExcluded,
+  moduleOf,
+  modulesToSkip,
+  ROOT_MODULE,
 };

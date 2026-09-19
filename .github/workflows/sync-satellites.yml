@@ -59,11 +59,13 @@ jobs:
             "$RUNNER_TEMP/drift/Automation_Carthings"
           node scripts/pre-sync-drift.js --satellite-root="$RUNNER_TEMP/drift"
 
-      # Bước này tự chặn từng vệ tinh có nội dung riêng, tự kiểm tính năng dashboard tại
-      # đích sau khi ghi, và kết thúc bằng lỗi nếu có vệ tinh nào không nhận được bản mới.
+      # Bước này chặn theo TỪNG MODULE của từng vệ tinh: module nào đang chứa nội dung riêng
+      # thì bị giữ lại, các module còn lại vẫn được giao. Sau khi ghi, nó kiểm tại đích rằng mọi
+      # view dashboard đều đủ mảnh. Exit code: 0 = trọn vẹn, 2 = giao một phần, 1 = hỏng thật.
+      # `|| [ $? -eq 2 ]` để giao một phần không làm đỏ job, vì phần đã giao là thật và đã commit.
       - name: Run Hub-to-Spoke Synchronization
         env:
           SYNC_PAT: ${{ secrets.SYNC_PAT || secrets.GH_PAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CI: true
-        run: node scripts/sync-satellites.js
+        run: node scripts/sync-satellites.js || [ $? -eq 2 ]
