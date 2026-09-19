@@ -5,6 +5,8 @@
  * - GET  /api/qa/candidates
  * - GET  /api/qa/decisions
  * - PUT  /api/qa/decision
+ * - GET  /api/qa/documents
+ * - GET  /api/qa/document
  *
  * Chạy: npm run test:dashboard:api
  */
@@ -234,6 +236,60 @@ describe('API Contract: QA Docs & Automation', () => {
   });
 
   // --- Ranh giới Hub <-> project ---
+
+  // --- Đọc tài liệu ---
+
+  test('GET /api/qa/documents liệt kê đúng file và mã bên trong', async () => {
+    const res = await fetch(`${harness.url}/api/qa/documents`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.available, true);
+
+    const paths = body.documents.map((d) => d.path);
+    assert.ok(paths.includes('requirements/REQ-001.md'), 'thiếu file requirement');
+    assert.ok(paths.includes('test-cases/REQ-001.md'), 'thiếu file test case');
+
+    const req = body.documents.find((d) => d.path === 'requirements/REQ-001.md');
+    assert.equal(req.kind, 'requirement');
+    assert.deepEqual(req.ids, ['REQ-001']);
+
+    const tc = body.documents.find((d) => d.path === 'test-cases/REQ-001.md');
+    assert.equal(tc.kind, 'test-case');
+    assert.deepEqual(tc.ids.sort(), ['TC-001', 'TC-002', 'TC-003']);
+  });
+
+  test('GET /api/qa/document trả nội dung THÔ, không diễn giải sang HTML', async () => {
+    const res = await fetch(`${harness.url}/api/qa/document?path=${encodeURIComponent('requirements/REQ-001.md')}`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.path, 'requirements/REQ-001.md');
+    assert.equal(body.kind, 'requirement');
+    assert.equal(body.content, REQ_DOC, 'phải đúng byte gốc trên đĩa');
+    assert.ok(body.bytes > 0);
+    assert.ok(!/<p>|<ul>|<h1>/i.test(body.content), 'server không được dựng HTML hộ');
+  });
+
+  test('GET /api/qa/document chặn mọi đường dẫn ngoài danh sách tài liệu', async () => {
+    const outside = [
+      '../../../../Windows/win.ini',
+      'requirements/../../package.json',
+      'core/config/dashboardConfig.json',
+      'tests/e2e/login.spec.js',
+      'decisions.json',
+      '/etc/passwd',
+    ];
+    for (const p of outside) {
+      const res = await fetch(`${harness.url}/api/qa/document?path=${encodeURIComponent(p)}`);
+      assert.equal(res.status, 404, `${p} phải bị từ chối`);
+      const body = await res.json();
+      assert.ok(body.error, 'phải nói rõ vì sao');
+    }
+  });
+
+  test('GET /api/qa/document thiếu path trả 400', async () => {
+    const res = await fetch(`${harness.url}/api/qa/document`);
+    assert.equal(res.status, 400);
+  });
 
   test('cấu hình QA riêng của repo được tôn trọng và KHÔNG bị mục QA ghi đè', async () => {
     const cfgDir = path.join(fixture.rootPath, 'core', 'config');

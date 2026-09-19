@@ -147,19 +147,23 @@ test.describe('QA view: đồng bộ thiết kế với framework dashboard', ()
     const shape = await page.evaluate(() => ({
       hero: document.querySelectorAll('#qa-view header.hero').length,
       h1: document.querySelectorAll('#qa-view header.hero h1').length,
-      eyebrow: document.querySelectorAll('#qa-view .eyebrow').length,
+      eyebrow: document.querySelectorAll('#qa-view header.hero .eyebrow').length,
+      readerEyebrows: document.querySelectorAll('#qa-view .qa-reader-head .eyebrow').length,
       subtitle: document.querySelectorAll('#qa-view .subtitle').length,
       statCards: document.querySelectorAll('#qa-view .hero-stat-card').length,
-      panels: document.querySelectorAll('#qa-view section.panel.qa-panel').length,
+      panels: document.querySelectorAll('#qa-view .qa-panel').length,
+      cards: document.querySelectorAll('#qa-view .qa-panel .panel, #qa-view section.panel.qa-panel').length,
       subnav: document.querySelectorAll('#qa-view .view-subnav .view-subtab').length,
       strayH2: document.querySelectorAll('#qa-view h2.view-title').length,
     }));
 
     expect(shape.hero).toBe(1);
     expect(shape.h1).toBe(1);
-    expect(shape.eyebrow).toBe(1);
+    expect(shape.eyebrow, 'hero có đúng một eyebrow').toBe(1);
+    expect(shape.readerEyebrows, 'mỗi pane của trình đọc có kicker riêng').toBe(2);
     expect(shape.statCards).toBe(5);
-    expect(shape.panels).toBe(4);
+    expect(shape.panels, '4 tab con').toBe(4);
+    expect(shape.cards, 'mỗi tab phải nằm trong khung .panel của nhà').toBeGreaterThanOrEqual(4);
     expect(shape.subnav).toBe(4);
     expect(shape.strayH2, 'view-title là kiểu cũ, không có trong template chuẩn').toBe(0);
   });
