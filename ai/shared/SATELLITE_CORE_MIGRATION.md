@@ -181,6 +181,30 @@ cd D:/_Automation-Project && node scripts/pre-sync-drift.js --satellite=Vieclam2
 
 ---
 
+---
+
+## C. Áp dụng cho MỌI vệ tinh — xoá file mẫu của Hub còn sót
+
+Hub từng đặt nhầm một fixture **chỉ để làm ví dụ** vào vùng được sync:
+`core/fixtures/mockSampleTest.js`. Nó đọc `data/mock/sample.html` và chỉ được dùng bởi
+`tests/e2e/**/sample_container_mock.spec.js` — cả `data/` lẫn `tests/` đều nằm trong
+`FORBIDDEN_SYNC_MODULES`, nên ở vệ tinh file này là **code chết và sẽ lỗi nếu ai đó gọi tới**.
+
+Hub đã chuyển nó sang `tests/fixtures/mockSampleTest.js` (vùng không bao giờ sync).
+Nhưng **sync chỉ ghi đè và thêm, không bao giờ xoá**, nên bản cũ vẫn nằm lại ở vệ tinh.
+Mỗi repo tự dọn một lần:
+
+```bash
+# Xác nhận không có gì trong repo này dùng tới nó
+grep -rn "mockSampleTest" --include=*.js . | grep -v node_modules
+
+# Nếu kết quả rỗng thì xoá
+git rm core/fixtures/mockSampleTest.js
+```
+
+Nếu `grep` có kết quả, dừng lại và báo — nghĩa là dự án đã tự dùng nó, khi đó hãy chuyển
+file sang `core/local/` thay vì xoá.
+
 ## Quy tắc từ nay
 
 - Cần sửa `core/`? Hỏi: sửa này có giá trị cho **mọi** dự án không?

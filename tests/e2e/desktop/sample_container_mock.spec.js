@@ -1,6 +1,6 @@
 const { test: base, expect } = require('../../../core/fixtures/baseTest');
 const sampleData = require('../../../data/sampleData.json');
-const { withMockSample } = require('../../../core/fixtures/mockSampleTest');
+const { withMockSample } = require('../../fixtures/mockSampleTest');
 const SamplePage = require('../../../pages/desktop/SamplePage');
 const test = withMockSample(base);
 
