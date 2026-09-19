@@ -17,11 +17,14 @@
  *   node scripts/qa-trace.js gaps            # chỉ những chỗ đang hổng
  *   node scripts/qa-trace.js suggest         # test case đáng automation tiếp theo
  *   node scripts/qa-trace.js --strict        # exit 1 khi còn finding mức major
+ *   node scripts/qa-trace.js --since=origin/main   # chỉ soi phần vừa thay đổi
  *   node scripts/qa-trace.js --json
  *   node scripts/qa-trace.js --root=D:/_Script_automation --specs=playwright/tests
  */
 
-const { buildTraceReport, rankAutomationCandidates } = require('./lib/qaTrace');
+const { buildTraceReport, rankAutomationCandidates, assessChangeSet } = require('./lib/qaTrace');
+
+const { changedFilesSince } = require('./lib/gitChanges');
 
 const colors = {
   reset: '\x1b[0m',
@@ -38,6 +41,13 @@ const KIND_LABEL = {
   'ac-khong-co-tc': 'Nghiệp vụ chưa có test case',
   'tc-chua-automation': 'Test case chưa có script',
   'spec-khong-truy-vet': 'Spec không truy vết được về nghiệp vụ',
+  'spec-vua-sua-khong-truy-vet': 'Spec vừa sửa nhưng không truy vết được',
+  'sua-script-ma-khong-dong-tai-lieu': 'Sửa script mà tài liệu không đổi theo',
+  'tai-lieu-khong-doc-duoc': 'Tài liệu công cụ KHÔNG đọc được (nguy cơ báo sạch giả)',
+  'dinh-danh-sai-quy-uoc': 'Định danh sai quy ước',
+  'req-thieu-ac': 'Requirement chưa có acceptance criterion',
+  'test-khong-co-assertion': 'Test khai phủ AC nhưng không có assertion',
+  'ac-lech-giua-tai-lieu-va-spec': 'Tài liệu và spec nói khác nhau',
   'tc-co-y-thu-cong': 'Test case cố ý giữ thủ công (không phải nợ)',
   'dinh-danh-khong-ton-tai': 'Tham chiếu tới định danh không tồn tại',
 };
@@ -120,7 +130,21 @@ function main() {
   if (flag('test-cases')) dirs.testCases = flag('test-cases');
   if (flag('specs')) dirs.specs = flag('specs');
 
-  const report = buildTraceReport({ root: flag('root') || process.cwd(), dirs });
+  const root = flag('root') || process.cwd();
+  const report = buildTraceReport({ root, dirs });
+
+  // --since: chỉ soi phần vừa thay đổi. Dùng ở pre-commit hoặc PR gate, nơi bắt được
+  // việc "viết script xong mà không ghi lại nghiệp vụ" đúng lúc nó vừa xảy ra.
+  const since = flag('since');
+  let changeSet = null;
+  if (since) {
+    const changed = changedFilesSince(root, since);
+    if (changed) {
+      changeSet = assessChangeSet(report, changed);
+      report.findings.push(...changeSet.findings);
+    }
+  }
+
   const majors = report.findings.filter((f) => f.severity === 'major');
 
   if (asJson) {

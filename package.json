@@ -35,6 +35,7 @@
                     "qa:gaps":  "node scripts/qa-trace.js gaps",
                     "qa:suggest":  "node scripts/qa-trace.js suggest",
                     "qa:check":  "node scripts/qa-trace.js --strict",
+                    "qa:changed":  "node scripts/qa-trace.js --since=origin/main --strict",
                     "git:status":  "node scripts/git-sync.js status",
                     "git:pull":  "node scripts/git-sync.js pull",
                     "git:push":  "node scripts/git-sync.js push",

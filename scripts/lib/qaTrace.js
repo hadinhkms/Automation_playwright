@@ -35,6 +35,20 @@ const RE_PRIORITY = /\bP([0-3])\b/;
 const AUTOMATION_NO = new Set(['no', 'khong', 'không', 'manual', 'thu cong', 'thủ công', 'n/a']);
 const AUTOMATION_CANDIDATE = new Set(['candidate', 'ung vien', 'ứng viên', 'planned', 'todo']);
 
+// Bắt các chuỗi TRÔNG GIỐNG định danh nhưng sai quy ước: REQ-1, AC_012, tc-003, TC-0001.
+// Một parser im lặng bỏ qua chúng còn tệ hơn không có parser: cổng sẽ báo "sạch" trong khi
+// tài liệu thật ra không được đọc. Thà báo động nhầm còn hơn bỏ sót không ai biết.
+const RE_NEAR_MISS = /\b(REQ|AC|TC)([-_ ]?)(\d{1,4})\b/gi;
+const RE_EXACT = /^(REQ|AC|TC)-\d{3}$/;
+
+function findMalformedIds(text) {
+  const bad = new Set();
+  for (const m of text.matchAll(RE_NEAR_MISS)) {
+    if (!RE_EXACT.test(m[0])) bad.add(m[0]);
+  }
+  return [...bad];
+}
+
 function readAutomationColumn(line) {
   for (const cell of line.split('|').map((c) => c.trim().toLowerCase())) {
     if (AUTOMATION_NO.has(cell)) return 'no';
@@ -80,27 +94,46 @@ function parseRequirements(root, dir) {
   const files = listFiles(root, dir, (n) => n.endsWith('.md') && n.toUpperCase() !== 'README.MD');
   const requirements = new Map();
 
+  const unreadable = [];
+  const malformed = [];
+  const withoutAc = [];
+
   for (const file of files) {
     const text = stripCodeBlocks(fs.readFileSync(path.join(root, file), 'utf8'));
+    const bad = findMalformedIds(text);
+    if (bad.length) malformed.push({ file, ids: bad });
+
     const reqIds = uniqueMatches(text, RE_REQ);
-    if (!reqIds.length) continue;
+    if (!reqIds.length) {
+      unreadable.push(file);
+      continue;
+    }
     const primary = reqIds[0];
+    const acs = uniqueMatches(text, RE_AC);
+    if (!acs.length) withoutAc.push({ file, req: primary });
+
     const existing = requirements.get(primary) || { id: primary, files: [], acs: [] };
     existing.files.push(file);
-    existing.acs = [...new Set([...existing.acs, ...uniqueMatches(text, RE_AC)])];
+    existing.acs = [...new Set([...existing.acs, ...acs])];
     requirements.set(primary, existing);
   }
-  return { files, requirements };
+  return { files, requirements, unreadable, malformed, withoutAc };
 }
 
 function parseTestCases(root, dir) {
   const files = listFiles(root, dir, (n) => n.endsWith('.md') && n.toUpperCase() !== 'README.MD');
   const testCases = new Map();
+  const unreadable = [];
+  const malformed = [];
 
   for (const file of files) {
     const raw = fs.readFileSync(path.join(root, file), 'utf8');
     const text = stripCodeBlocks(raw);
     const fileReq = uniqueMatches(text, RE_REQ)[0] || null;
+
+    const bad = findMalformedIds(text);
+    if (bad.length) malformed.push({ file, ids: bad });
+    if (!uniqueMatches(text, RE_TC).length) unreadable.push(file);
 
     // Mỗi dòng chứa TC-xxx được coi là một khai báo test case; AC và priority lấy trên cùng dòng.
     for (const line of text.split(/\r?\n/)) {
@@ -130,7 +163,7 @@ function parseTestCases(root, dir) {
       }
     }
   }
-  return { files, testCases };
+  return { files, testCases, unreadable, malformed };
 }
 
 function parseSpecs(root, dir) {
@@ -140,13 +173,28 @@ function parseSpecs(root, dir) {
   for (const file of files) {
     const text = fs.readFileSync(path.join(root, file), 'utf8');
     const describeTitles = [...text.matchAll(/\btest\.describe\s*\(\s*(['"`])([\s\S]*?)\1/g)].map((m) => m[2]);
-    const testTitles = [...text.matchAll(/(?<!\.)\btest\s*\(\s*(['"`])([\s\S]*?)\1/g)].map((m) => m[2]);
 
+    // Cắt từng khối test để soi được THÂN hàm, không chỉ title: một test tuyên bố phủ AC-001
+    // nhưng bên trong không có assertion nào thì nó không kiểm chứng gì cả.
+    const testMatches = [...text.matchAll(/(?<!\.)\btest\s*\(\s*(['"`])([\s\S]*?)\1/g)];
+    const blocks = testMatches.map((m, i) => {
+      const start = m.index;
+      const end = i + 1 < testMatches.length ? testMatches[i + 1].index : text.length;
+      const body = text.slice(start, end);
+      return {
+        title: m[2],
+        tcs: uniqueMatches(m[2], RE_TC),
+        acs: uniqueMatches(m[2], RE_AC),
+        hasAssertion: /\bexpect\s*\(|\bassert[.(]/.test(body),
+      };
+    });
+
+    const testTitles = blocks.map((b) => b.title);
     const reqs = [...new Set(describeTitles.concat(testTitles).flatMap((t) => uniqueMatches(t, RE_REQ)))];
-    const tcs = [...new Set(testTitles.flatMap((t) => uniqueMatches(t, RE_TC)))];
-    const acs = [...new Set(testTitles.flatMap((t) => uniqueMatches(t, RE_AC)))];
+    const tcs = [...new Set(blocks.flatMap((b) => b.tcs))];
+    const acs = [...new Set(blocks.flatMap((b) => b.acs))];
 
-    specs.push({ file, reqs, tcs, acs, testCount: testTitles.length });
+    specs.push({ file, reqs, tcs, acs, blocks, testCount: blocks.length });
   }
   return { files, specs };
 }
@@ -161,8 +209,10 @@ function buildTraceReport({ root = process.cwd(), dirs = {} } = {}) {
   const hasRequirements = fs.existsSync(path.join(root, d.requirements));
   const hasTestCases = fs.existsSync(path.join(root, d.testCases));
 
-  const { requirements } = parseRequirements(root, d.requirements);
-  const { testCases } = parseTestCases(root, d.testCases);
+  const reqParse = parseRequirements(root, d.requirements);
+  const tcParse = parseTestCases(root, d.testCases);
+  const { requirements } = reqParse;
+  const { testCases } = tcParse;
   const { specs } = parseSpecs(root, d.specs);
 
   const allAcs = new Set();
@@ -179,6 +229,34 @@ function buildTraceReport({ root = process.cwd(), dirs = {} } = {}) {
   }
 
   const findings = [];
+
+  // 0. LINT TÀI LIỆU — phải chạy trước mọi kiểm tra khác.
+  //    Một parser im lặng bỏ qua file nó không hiểu sẽ báo "sạch" một cách dối trá.
+  //    Ở đây nó buộc phải tự thú.
+  for (const file of [...reqParse.unreadable, ...tcParse.unreadable]) {
+    findings.push({
+      kind: 'tai-lieu-khong-doc-duoc',
+      severity: 'major',
+      id: file,
+      detail: `${file}: không tìm thấy định danh nào đúng quy ước — công cụ KHÔNG đọc được file này`,
+    });
+  }
+  for (const { file, ids } of [...reqParse.malformed, ...tcParse.malformed]) {
+    findings.push({
+      kind: 'dinh-danh-sai-quy-uoc',
+      severity: 'major',
+      id: file,
+      detail: `${file}: ${ids.slice(0, 6).join(', ')} gần giống định danh nhưng sai quy ước (đúng: REQ-001, AC-001, TC-001)`,
+    });
+  }
+  for (const { file, req } of reqParse.withoutAc) {
+    findings.push({
+      kind: 'req-thieu-ac',
+      severity: 'major',
+      id: req,
+      detail: `${file}: ${req} không có acceptance criterion nào — nghiệp vụ chưa được chốt thành điều kiện kiểm được`,
+    });
+  }
 
   // 1. Nghiệp vụ đã ghi nhận nhưng chưa ai thiết kế test case.
   for (const ac of [...allAcs].sort()) {
@@ -254,6 +332,39 @@ function buildTraceReport({ root = process.cwd(), dirs = {} } = {}) {
     }
   }
 
+  // 5. Spec tuyên bố phủ AC nào đó nhưng bên trong không có assertion -> không kiểm chứng gì cả.
+  for (const s2 of specs) {
+    for (const b of s2.blocks) {
+      if (!b.tcs.length && !b.acs.length) continue;
+      if (b.hasAssertion) continue;
+      findings.push({
+        kind: 'test-khong-co-assertion',
+        severity: 'major',
+        id: `${s2.file}::${b.tcs.join(',') || b.acs.join(',')}`,
+        detail: `${s2.file}: "${b.title.slice(0, 70)}" khai phủ ${b.tcs.concat(b.acs).join(', ')} nhưng không có assertion nào`,
+      });
+    }
+  }
+
+  // 6. Spec và tài liệu nói khác nhau về việc TC đó phủ AC nào.
+  for (const s2 of specs) {
+    for (const b of s2.blocks) {
+      for (const tc of b.tcs) {
+        const doc = testCases.get(tc);
+        if (!doc || !doc.acs.length || !b.acs.length) continue;
+        const lech = b.acs.filter((ac) => !doc.acs.includes(ac));
+        if (lech.length) {
+          findings.push({
+            kind: 'ac-lech-giua-tai-lieu-va-spec',
+            severity: 'major',
+            id: tc,
+            detail: `${s2.file}: ${tc} ghi ${b.acs.join(',')} nhưng tài liệu khai ${doc.acs.join(',')}`,
+          });
+        }
+      }
+    }
+  }
+
   const bootstrap = !hasRequirements && !hasTestCases;
 
   return {
@@ -277,6 +388,50 @@ function buildTraceReport({ root = process.cwd(), dirs = {} } = {}) {
   };
 }
 
+/**
+ * Soi một tập thay đổi (từ git) để bắt việc viết script mà KHÔNG ghi nhận nghiệp vụ.
+ *
+ * Không cưỡng chế được hành vi "phải ghi tài liệu" — nhưng bắt được hậu quả của nó ngay tại
+ * commit, thay vì để lộ ra nhiều tháng sau. Hàm thuần: nhận sẵn danh sách file đã đổi.
+ *
+ * @param {object} report kết quả buildTraceReport
+ * @param {string[]} changedFiles đường dẫn tương đối, dùng dấu /
+ */
+function assessChangeSet(report, changedFiles) {
+  const d = report.dirs;
+  const isSpec = (f) => f.startsWith(`${d.specs}/`) && /\.spec\.(js|ts)$/.test(f);
+  const isDoc = (f) => f.startsWith(`${d.requirements}/`) || f.startsWith(`${d.testCases}/`);
+
+  const changedSpecs = changedFiles.filter(isSpec);
+  const changedDocs = changedFiles.filter(isDoc);
+  const findings = [];
+
+  for (const file of changedSpecs) {
+    const spec = report.specs.find((s) => s.file === file);
+    if (!spec) continue; // file đã bị xoá
+    if (spec.reqs.length === 0) {
+      findings.push({
+        kind: 'spec-vua-sua-khong-truy-vet',
+        severity: 'major',
+        id: file,
+        detail: `${file} vừa thay đổi nhưng không gắn @REQ-xxx — nghiệp vụ nó kiểm chứng không nằm trong tài liệu nào`,
+      });
+    }
+  }
+
+  if (changedSpecs.length > 0 && changedDocs.length === 0) {
+    findings.push({
+      kind: 'sua-script-ma-khong-dong-tai-lieu',
+      severity: 'minor',
+      id: `${changedSpecs.length} spec`,
+      detail: `${changedSpecs.length} spec thay đổi mà không file nào trong ${d.requirements}/ hay ${d.testCases}/ đổi theo`
+        + ' — nếu có phát hiện nghiệp vụ mới thì phải ghi lại (AI_PROMPTS.md mục 3.5a)',
+    });
+  }
+
+  return { changedSpecs, changedDocs, findings };
+}
+
 /** Ứng viên automation đã xếp hạng: P0 trước, rồi theo ID. */
 function rankAutomationCandidates(report, limit = 7) {
   const weight = { P0: 0, P1: 1, P2: 2, P3: 3 };
@@ -288,6 +443,7 @@ function rankAutomationCandidates(report, limit = 7) {
 module.exports = {
   DEFAULT_DIRS,
   buildTraceReport,
+  assessChangeSet,
   rankAutomationCandidates,
   parseRequirements,
   parseTestCases,
