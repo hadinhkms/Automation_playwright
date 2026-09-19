@@ -62,6 +62,8 @@ const MODULES_TO_SYNC = [
       'scripts/pre-sync-drift.js',
       'scripts/lib/sync-manifest.js',
       'scripts/lib/sync-manifest.test.js',
+      'scripts/lib/hubHistory.js',
+      'scripts/lib/hubHistory.test.js',
     ],
   },
   {
