@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { randomBytes } = require('crypto');
+const { withLocalOverrides } = require('./localExtensions');
 
 let globalScreenshotSequence = 0;
 
@@ -524,4 +525,15 @@ const generateRandomEmail = () => {
   return `test_auto_${Date.now()}@example.com`;
 };
 
-module.exports = { ScreenshotHelper, UiActions, generateRandomVNPhone, generateRandomEmail };
+const baseExports = { ScreenshotHelper, UiActions, generateRandomVNPhone, generateRandomEmail };
+
+/**
+ * Helper riêng của dự án đặt ở `core/local/commonUtils.local.js` (vùng không bao giờ bị
+ * sync ghi đè), export một object phẳng:
+ *
+ *   module.exports = { generateRandomVNIDCard, generateRandomCompanyName, ... };
+ *
+ * Người gọi giữ nguyên `require('core/utils/commonUtils')` — không phải sửa import nào.
+ * Chi tiết hợp đồng: core/utils/localExtensions.js
+ */
+module.exports = withLocalOverrides('commonUtils.local.js', baseExports);

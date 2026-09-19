@@ -2,6 +2,15 @@
 
 This file is the version-controlled memory for confirmed Playwright test automation failures. It complements `AI_PROMPTS.md`; it does not replace the stable rules there.
 
+> **Hub owns this file. It is overwritten on every sync.**
+> Only record lessons that apply to EVERY project here.
+> Lessons specific to one project go to that project's local store instead:
+> `.ai/knowledge/qa/test-automation-lessons.md` (new observations: `.ai/learning/candidates.md`).
+> `.ai/` is never synced, so project lessons survive and stay on that project's own branch.
+> The same rule applies to CODE: `core/` is Hub-owned and overwritten too — put project-specific
+> helpers in `core/local/` (see `core/local/README.md`) and run `node scripts/pre-sync-drift.js`
+> before a sync to catch anything still sitting in the overwrite zone.
+
 Only record a lesson after the issue is reproducible and its root cause is known. Do not store credentials, personal data, chat transcripts, guesses, or duplicate entries.
 
 ## Required entry format

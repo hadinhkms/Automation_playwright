@@ -34,7 +34,10 @@
                     "git:status":  "node scripts/git-sync.js status",
                     "git:pull":  "node scripts/git-sync.js pull",
                     "git:push":  "node scripts/git-sync.js push",
-                    "sync:satellites":  "node scripts/sync-satellites.js",
+                    "presync:drift":  "node scripts/pre-sync-drift.js",
+                    "presync:drift:strict":  "node scripts/pre-sync-drift.js --strict",
+                    "sync:satellites":  "node scripts/pre-sync-drift.js --strict && node scripts/sync-satellites.js",
+                    "sync:satellites:force":  "node scripts/sync-satellites.js",
                     "test:dashboard:api": "node scripts/run-dashboard-api-tests.js",
                     "test:dashboard:regression": "npm run test:dashboard:api && npx playwright test --config=playwright.dashboard.config.js"
                 },

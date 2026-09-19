@@ -22,53 +22,19 @@ const colors = {
   red: '\x1b[31m',
 };
 
-const HUB_ROOT = path.resolve(__dirname, '..');
+const {
+  HUB_ROOT,
+  SATELLITES,
+  MODULES_TO_SYNC,
+  ROOT_FILES_TO_SYNC,
+  assertNoForbiddenModules,
+  resolveExcludes,
+  isExcluded,
+} = require('./lib/sync-manifest');
 
-const SATELLITES = [
-  {
-    name: 'Vieclam24h-Automation_JS',
-    repo: 'hadtv-ctrl/Vieclam24h-Automation_JS',
-    branch: 'main',
-    localPath: 'D:\\_SieuVietGroup',
-  },
-  {
-    name: 'Automation_Carthings',
-    repo: 'hadinhkms/Automation_Carthings',
-    branch: 'main',
-    localPath: 'D:\\_CarThings\\Automation_Carthings',
-  },
-];
-
-/**
- * QUY TẮC BẤT BIẾN (HUB-TO-SPOKE ARCHITECTURE):
- * - Thư mục data/, tests/, pages/ TUYỆT ĐỐI KHÔNG ĐƯỢC ĐỒNG BỘ từ Hub sang Vệ tinh.
- * - Mỗi dự án vệ tinh (Vieclam24h, CarThings, v.v.) sở hữu tập Test Data và Test Scripts
- *   riêng biệt theo nghiệp vụ dự án đó. Không bao giờ ghi đè hay đẩy data của Hub sang vệ tinh.
- */
-const FORBIDDEN_SYNC_MODULES = ['data', 'tests', 'pages'];
-
-const MODULES_TO_SYNC = [
-  { src: 'dashboard', dest: 'dashboard' },
-  {
-    src: 'core',
-    dest: 'core',
-    excludes: ['core/config/dashboardConfig.json', 'core/fixtures/custom'], // Không ghi đè config riêng và custom fixtures legacy
-  },
-  { src: 'bin', dest: 'bin' },
-  { src: 'scripts', dest: 'scripts', excludes: ['scripts/sync-satellites.js', 'scripts/sync-from-core.js'] },
-  { src: 'ai', dest: 'ai' },
-  { src: 'tools', dest: 'tools' },
-];
-
-// Bảo vệ an toàn: Ngăn chặn tuyệt đối mọi hành vi vô tình thêm data/tests/pages vào danh sách sync
-if (MODULES_TO_SYNC.some((m) => FORBIDDEN_SYNC_MODULES.includes(m.src) || FORBIDDEN_SYNC_MODULES.includes(m.dest))) {
-  throw new Error('VI PHẠM NGUYÊN TẮC: data/, tests/, pages/ không được phép đồng bộ sang các nhánh vệ tinh!');
-}
-
-const ROOT_FILES_TO_SYNC = [
-  'Start_Dashboard.bat',
-  'Stop_Dashboard.bat',
-  ];
+// Cấu hình sync (SATELLITES / MODULES_TO_SYNC / ROOT_FILES_TO_SYNC / excludes) nằm ở
+// scripts/lib/sync-manifest.js để scripts/pre-sync-drift.js mô phỏng đúng hành vi tại đây.
+assertNoForbiddenModules();
 
 function copyDirRecursive(srcDir, destDir, excludes = []) {
   if (!fs.existsSync(srcDir)) return 0;
@@ -81,7 +47,9 @@ function copyDirRecursive(srcDir, destDir, excludes = []) {
     const srcPath = path.join(srcDir, entry.name);
     const destPath = path.join(destDir, entry.name);
 
-    if (excludes.some((ex) => destPath.toLowerCase().endsWith(path.normalize(ex).toLowerCase()))) {
+    // Kiểm tra loại trừ TRƯỚC khi đệ quy: một thư mục bị exclude (vd. core/local)
+    // phải được bỏ qua trọn vẹn, không duyệt vào bên trong.
+    if (isExcluded(destPath, excludes)) {
       continue;
     }
 
@@ -112,7 +80,7 @@ function syncToDirectory(targetDir) {
   for (const mod of MODULES_TO_SYNC) {
     const srcPath = path.join(HUB_ROOT, mod.src);
     const destPath = path.join(targetDir, mod.dest);
-    const excludes = (mod.excludes || []).map((e) => path.join(targetDir, e));
+    const excludes = resolveExcludes(targetDir, mod);
     updatedCount += copyDirRecursive(srcPath, destPath, excludes);
   }
 
@@ -225,7 +193,13 @@ async function run() {
   console.log(`${colors.green}${colors.bright}=====================================================${colors.reset}\n`);
 }
 
-run().catch((err) => {
-  console.error(`${colors.red}Lỗi nghiêm trọng: ${err.message}${colors.reset}`);
-  process.exit(1);
-});
+// AN TOÀN: chỉ chạy sync khi được gọi trực tiếp. Trước đây run() được gọi ở top-level,
+// nên bất kỳ require() nào (kể cả từ test hay tooling) cũng kích hoạt ghi đè thật lên vệ tinh.
+if (require.main === module) {
+  run().catch((err) => {
+    console.error(`${colors.red}Lỗi nghiêm trọng: ${err.message}${colors.reset}`);
+    process.exit(1);
+  });
+}
+
+module.exports = { copyDirRecursive, syncToDirectory, run };

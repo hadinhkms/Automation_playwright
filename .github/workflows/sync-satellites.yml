@@ -13,6 +13,12 @@ on:
       - 'tools/**'
       - 'Start_Dashboard.bat'
       - 'Stop_Dashboard.bat'
+      # Các file gốc nằm trong ROOT_FILES_TO_SYNC cũng phải kích hoạt sync,
+      # nếu không thì sửa AGENTS.md/CLAUDE.md sẽ không bao giờ tới được vệ tinh.
+      - 'AGENTS.md'
+      - 'CLAUDE.md'
+      - 'GEMINI.md'
+      - 'QA_AI_RULES.md'
   workflow_dispatch:
 
 jobs:
@@ -32,6 +38,25 @@ jobs:
 
       - name: Install Hub Dependencies
         run: npm ci || npm install --prefer-offline
+
+      # Cổng chặn drift: dừng job NGAY nếu vệ tinh đang có nội dung riêng trong vùng
+      # Hub sẽ ghi đè (bài học từ commit 7ad6984 tại Automation_Carthings).
+      # Clone từng vệ tinh ở chế độ chỉ đọc rồi mô phỏng sync trước khi ghi bất cứ gì.
+      - name: Pre-Sync Drift Gate (read-only)
+        env:
+          SYNC_PAT: ${{ secrets.SYNC_PAT || secrets.GH_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TOKEN="${SYNC_PAT:-$GITHUB_TOKEN}"
+          mkdir -p "$RUNNER_TEMP/drift"
+          git clone --depth 1 --branch main \
+            "https://x-access-token:${TOKEN}@github.com/hadtv-ctrl/Vieclam24h-Automation_JS.git" \
+            "$RUNNER_TEMP/drift/Vieclam24h-Automation_JS"
+          git clone --depth 1 --branch main \
+            "https://x-access-token:${TOKEN}@github.com/hadinhkms/Automation_Carthings.git" \
+            "$RUNNER_TEMP/drift/Automation_Carthings"
+          node scripts/pre-sync-drift.js --strict --satellite-root="$RUNNER_TEMP/drift"
 
       - name: Run Hub-to-Spoke Synchronization
         env:

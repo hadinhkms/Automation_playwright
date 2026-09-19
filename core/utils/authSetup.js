@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { generateRandomVNPhone, generateRandomEmail } = require('./commonUtils');
+const { withLocalOverrides } = require('./localExtensions');
 
 function getRuntimeUserDirectory() {
   return path.join(__dirname, '../../test-results/runtime-users');
@@ -61,10 +62,23 @@ async function registerUserByPhoneForPrecondition(page) {
   return loginUserFromDataForPrecondition(page);
 }
 
-module.exports = {
+const baseExports = {
   loginUserFromDataForPrecondition,
   registerUserByPhoneForPrecondition,
   createRegisteredUserForPrecondition,
   createRuntimeUserData,
   removeRuntimeUserData,
 };
+
+/**
+ * Các hàm trên chỉ là bản mặc định trung tính của Hub (không gọi API/UI thật).
+ * Mỗi dự án tự hiện thực luồng đăng ký/đăng nhập của mình tại
+ * `core/local/authSetup.local.js` và override đúng những hàm cần thiết:
+ *
+ *   module.exports = { loginUserFromDataForPrecondition, createRegisteredUserForPrecondition };
+ *
+ * `core/fixtures/baseTest.js` và `core/fixtures/mobileWebTest.js` (cũng do Hub sở hữu)
+ * vẫn require('../utils/authSetup') như cũ — KHÔNG được sửa import trong core/,
+ * vì chúng sẽ bị sync ghi đè. Chi tiết: core/utils/localExtensions.js
+ */
+module.exports = withLocalOverrides('authSetup.local.js', baseExports);

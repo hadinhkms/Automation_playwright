@@ -82,6 +82,10 @@ const DEFAULT_CONFIG = Object.freeze({
   },
 });
 
+// Các key của môi trường do Hub chuẩn hoá riêng ở trên. Mọi key chuỗi khác được coi là
+// mở rộng của dự án và giữ nguyên. KHÔNG thêm tên field riêng của dự án vào đây.
+const ENV_RESERVED_KEYS = new Set(['label', 'baseURL', 'apiBaseURL']);
+
 const TRACE_OPTIONS = ['off', 'on', 'retain-on-failure', 'on-first-retry'];
 const SCREENSHOT_OPTIONS = ['off', 'on', 'only-on-failure'];
 const VIDEO_OPTIONS = ['off', 'on', 'retain-on-failure', 'on-first-retry'];
@@ -177,9 +181,15 @@ function normalizeDashboardConfig(input = {}, existingConfig = DEFAULT_CONFIG) {
 
     const envEntry = { label, baseURL, apiBaseURL };
 
-    // Retain any project-defined custom URLs without hardcoding specific names
-    for (const [propKey, propVal] of Object.entries(envValue)) {
-      if (!['label', 'baseURL', 'apiBaseURL', 'carthingsURL', 'companyURL'].includes(propKey) && typeof propVal === 'string') {
+    // Giữ lại MỌI key chuỗi do dự án tự định nghĩa (vd. một URL phụ theo nghiệp vụ)
+    // mà KHÔNG hard-code tên field của bất kỳ dự án nào trong file thuộc sở hữu Hub này.
+    // Nguồn sự thật là dashboardConfig.json — file đã được loại khỏi sync nên mỗi dự án tự giữ.
+    // Ưu tiên: giá trị từ input; nếu input không khai báo thì lấy lại từ config hiện có
+    // để một lần lưu thiếu field không âm thầm xoá URL riêng của dự án.
+    for (const source of [fallback, envValue]) {
+      for (const [propKey, propVal] of Object.entries(source || {})) {
+        if (ENV_RESERVED_KEYS.has(propKey)) continue;
+        if (typeof propVal !== 'string') continue;
         envEntry[propKey] = propVal.trim();
       }
     }

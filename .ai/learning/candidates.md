@@ -1,5 +1,12 @@
 # Learning Candidates (Pending Gate 0.5 Review)
 
+### [LEARN-SYNC-001] Hub-owned `core/` needs one stable seam, not a growing exclude list
+- Source: Hub-to-Spoke sync audit, 2026-09-19.
+- Confirmed: satellites wrote project code INSIDE the Hub-owned overwrite zone; sync deleted it. Measured drift: CarThings `core/utils/commonUtils.js` 178 satellite-only lines, `core/utils/commonUtils.test.js` 11, `core/config/dashboardConfig.js` 6 (Hub hard-coded `carthingsURL`/`companyURL` in the reserved-key list, forcing a per-project `.js` fork). Vieclam24h: 9 `dashboard/` files diverged, all stale Hub versions, zero project customisation.
+- Evidence: commit `7ad6984` @ hadinhkms/Automation_Carthings (2026-09-16, github-actions[bot], "fix(core): restore commonUtils generators and environment URL mappings") restored 179+4+11 lines by hand; no guard was added, so it would have recurred every sync.
+- Proposed rule: keep exactly ONE stable exclude (`core/local/`) as the project seam and load it optionally from Hub files; never enumerate individual files in `excludes` (that freezes Hub updates for those files). Hub code must never name a project-specific field — read unknown keys through from the excluded `dashboardConfig.json`. Run `node scripts/pre-sync-drift.js --strict` (shares `MODULES_TO_SYNC`/`isExcluded` with the real sync via `scripts/lib/sync-manifest.js`) as a CI gate before any write, and fail it when a satellite cannot be inspected.
+- Scope: PROJECT. Owner: Technical Lead / Release Owner. Status: PENDING.
+
 ### [LEARN-PLAN09-004] Save completion must belong to the originating file/session
 - Source: Phase 3 follow-up browser probe, 2026-09-10; foundation suite 6/6 PASS.
 - Confirmed: saving A then opening B lets A completion overwrite B clean buffer; discard on B returns A content. Registry selects .view (0 matches) and leaves target hidden. Re-registering the same handler lets old bridge disposer delete new registration.
