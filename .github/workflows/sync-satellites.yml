@@ -39,10 +39,11 @@ jobs:
       - name: Install Hub Dependencies
         run: npm ci || npm install --prefer-offline
 
-      # Cổng chặn drift: dừng job NGAY nếu vệ tinh đang có nội dung riêng trong vùng
-      # Hub sẽ ghi đè (bài học từ commit 7ad6984 tại Automation_Carthings).
-      # Clone từng vệ tinh ở chế độ chỉ đọc rồi mô phỏng sync trước khi ghi bất cứ gì.
-      - name: Pre-Sync Drift Gate (read-only)
+      # Báo cáo drift toàn cảnh, CHỈ ĐỌC và KHÔNG chặn job.
+      # Việc chặn do scripts/sync-satellites.js đảm nhiệm, THEO TỪNG VỆ TINH, ngay trước khi
+      # ghi vào vệ tinh đó. Trước đây bước này dùng --strict nên một vệ tinh chưa migrate là
+      # vệ tinh còn lại cũng không bao giờ nhận được tính năng mới, dù nó hoàn toàn sạch.
+      - name: Pre-Sync Drift Report (read-only, không chặn)
         env:
           SYNC_PAT: ${{ secrets.SYNC_PAT || secrets.GH_PAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -56,8 +57,10 @@ jobs:
           git clone --depth 1 --branch main \
             "https://x-access-token:${TOKEN}@github.com/hadinhkms/Automation_Carthings.git" \
             "$RUNNER_TEMP/drift/Automation_Carthings"
-          node scripts/pre-sync-drift.js --strict --satellite-root="$RUNNER_TEMP/drift"
+          node scripts/pre-sync-drift.js --satellite-root="$RUNNER_TEMP/drift"
 
+      # Bước này tự chặn từng vệ tinh có nội dung riêng, tự kiểm tính năng dashboard tại
+      # đích sau khi ghi, và kết thúc bằng lỗi nếu có vệ tinh nào không nhận được bản mới.
       - name: Run Hub-to-Spoke Synchronization
         env:
           SYNC_PAT: ${{ secrets.SYNC_PAT || secrets.GH_PAT }}

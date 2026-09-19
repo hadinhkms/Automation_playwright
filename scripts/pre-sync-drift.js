@@ -371,4 +371,32 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { countSatelliteOnlyLines, collectSatellite, walkModule, splitLines, lostLines };
+/**
+ * Kiểm một vệ tinh và trả về danh sách file có nội dung RIÊNG sẽ bị xoá.
+ * Dùng chung bởi CLI ở trên và bởi scripts/sync-satellites.js, để cổng chặn trước khi ghi
+ * và báo cáo của CLI không bao giờ nói hai điều khác nhau.
+ *
+ * @param {{localPath: string}} sat
+ * @param {ReturnType<createHubHistoryProbe>} history
+ */
+function auditSatellite(sat, history) {
+  const { files, skipped } = collectSatellite(sat);
+  const blocked = [];
+  for (const f of files) {
+    const groups = classifyLostLines(f.file, f.lost || [], history);
+    f.staleCount = groups.stale.length;
+    f.trivialCount = groups.trivial.length;
+    f.ownedLines = groups.owned;
+    if (groups.owned.length) blocked.push(f);
+  }
+  return { files, skipped, blocked };
+}
+
+module.exports = {
+  countSatelliteOnlyLines,
+  collectSatellite,
+  walkModule,
+  splitLines,
+  lostLines,
+  auditSatellite,
+};

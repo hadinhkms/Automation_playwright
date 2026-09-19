@@ -20,6 +20,7 @@ const colors = {
   blue: '\x1b[34m',
   cyan: '\x1b[36m',
   red: '\x1b[31m',
+  dim: '\x1b[2m',
 };
 
 const {
@@ -32,6 +33,9 @@ const {
   resolveExcludes,
   isExcluded,
 } = require('./lib/sync-manifest');
+const { verify: verifyDashboardFeatures } = require('./verify-dashboard-features');
+const { auditSatellite } = require('./pre-sync-drift');
+const { createHubHistoryProbe } = require('./lib/hubHistory');
 
 // Cấu hình sync (SATELLITES / MODULES_TO_SYNC / ROOT_FILES_TO_SYNC / excludes) nằm ở
 // scripts/lib/sync-manifest.js để scripts/pre-sync-drift.js mô phỏng đúng hành vi tại đây.
@@ -114,6 +118,19 @@ async function run() {
 
   console.log(`📌 Chế độ thực thi: ${isCI ? 'CI (GitHub Actions)' : 'Local Machine'}`);
 
+  // Vệ tinh nào không qua được kiểm chứng tính năng thì tiến trình phải kết thúc bằng lỗi,
+  // nếu không CI vẫn xanh trong khi nhánh con nhận về một dashboard hỏng.
+  const failedSatellites = [];
+
+  // Cổng drift chạy THEO TỪNG VỆ TINH, ngay trước khi ghi vào vệ tinh đó. Trước đây cổng
+  // chạy một lần cho tất cả rồi chặn cả job: một nhánh chưa migrate là nhánh còn lại cũng
+  // không bao giờ nhận được tính năng mới, dù nó hoàn toàn sạch.
+  const history = createHubHistoryProbe(HUB_ROOT);
+  if (!history.available) {
+    console.log(`${colors.yellow}⚠️  Không tra được lịch sử Hub: ${history.reason}${colors.reset}`);
+    console.log(`${colors.dim}   Mọi khác biệt sẽ bị coi là nội dung riêng, nên sync có thể dừng ở mọi vệ tinh.${colors.reset}`);
+  }
+
   for (const sat of SATELLITES) {
     console.log(`\n-----------------------------------------------------`);
     console.log(`🚀 Đồng bộ vệ tinh: ${colors.green}${sat.name}${colors.reset} (${sat.repo})`);
@@ -144,8 +161,44 @@ async function run() {
     }
 
     console.log(`📂 Thư mục làm việc: ${workingDir}`);
+
+    const { blocked } = auditSatellite({ ...sat, localPath: workingDir }, history);
+    if (blocked.length) {
+      console.error(`${colors.red}${colors.bright}⛔ ${sat.name}: ${blocked.length} file có nội dung riêng sẽ bị xoá — KHÔNG ghi gì cả.${colors.reset}`);
+      for (const f of blocked) {
+        console.error(`${colors.red}   ${f.file} (${f.ownedLines.length} dòng)${colors.reset}`);
+        for (const l of f.ownedLines.slice(0, 3)) {
+          console.error(`${colors.dim}      | ${l.length > 110 ? `${l.slice(0, 107)}...` : l}${colors.reset}`);
+        }
+        if (f.ownedLines.length > 3) console.error(`${colors.dim}      | ... còn ${f.ownedLines.length - 3} dòng${colors.reset}`);
+      }
+      console.error(`${colors.yellow}   → Xem ai/shared/SATELLITE_CORE_MIGRATION.md để chuyển phần riêng sang core/local/.${colors.reset}`);
+      failedSatellites.push(sat.name);
+      if (isTempDir) {
+        try { fs.rmSync(workingDir, { recursive: true, force: true }); } catch (_) {}
+      }
+      continue;
+    }
+
     const updatedFiles = syncToDirectory(workingDir);
     console.log(`📦 Số lượng tệp cập nhật: ${colors.yellow}${updatedFiles}${colors.reset}`);
+
+    // Số tệp đã copy KHÔNG chứng minh tính năng chạy được. Một view chỉ sống khi đủ cả
+    // slice + section + template + stylesheet + route; thiếu một mảnh thì view hiện ra
+    // trắng mà không có lỗi nào. Kiểm ngay tại ĐÍCH, trước khi commit bất cứ thứ gì.
+    const featureCheck = verifyDashboardFeatures(workingDir);
+    if (featureCheck.errors.length) {
+      console.error(`${colors.red}${colors.bright}❌ ${sat.name}: dashboard thiếu mảnh sau khi sync — KHÔNG commit.${colors.reset}`);
+      for (const e of featureCheck.errors) {
+        console.error(`${colors.red}   [${e.view}] ${e.part}: ${e.detail}${colors.reset}`);
+      }
+      failedSatellites.push(sat.name);
+      if (isTempDir) {
+        try { fs.rmSync(workingDir, { recursive: true, force: true }); } catch (_) {}
+      }
+      continue;
+    }
+    console.log(`${colors.green}✅ ${featureCheck.views.length} view dashboard đủ mảnh tại vệ tinh.${colors.reset}`);
 
     // Kiểm tra Quality Gate nếu có script
     const checkScript = path.join(workingDir, 'scripts', 'check-framework-structure.js');
@@ -194,6 +247,13 @@ async function run() {
         fs.rmSync(workingDir, { recursive: true, force: true });
       } catch (_) {}
     }
+  }
+
+  if (failedSatellites.length) {
+    console.error(`\n${colors.red}${colors.bright}=====================================================${colors.reset}`);
+    console.error(`${colors.red}${colors.bright}  ĐỒNG BỘ THẤT BẠI: ${failedSatellites.join(', ')}${colors.reset}`);
+    console.error(`${colors.red}${colors.bright}=====================================================${colors.reset}\n`);
+    throw new Error(`Vệ tinh chưa nhận được bản mới: ${failedSatellites.join(', ')}`);
   }
 
   console.log(`\n${colors.green}${colors.bright}=====================================================${colors.reset}`);

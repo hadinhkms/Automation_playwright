@@ -12,6 +12,11 @@ import { apiClient } from '../../core/apiClient.js';
 import { eventBus } from '../../core/eventBus.js';
 
 const PRIORITY_ORDER = { P0: 0, P1: 1, P2: 2, P3: 3 };
+// Chỉ 4 lớp ưu tiên này có rule trong qa.css. Ghép chuỗi tự do sẽ sinh ra lớp chết
+// (vd. qa-prio-none) khiến ô 'chưa có ưu tiên' hiện đậm hơn cả P3 thật.
+const KNOWN_PRIORITY = new Set(['p0', 'p1', 'p2', 'p3']);
+// severity đến thẳng từ decisions.json của từng dự án, nên phải lọc trước khi làm class.
+const KNOWN_SEVERITY = new Set(['blocking', 'urgent']);
 const SEVERITY_LABEL = { major: 'Nghiêm trọng', minor: 'Cần xử lý', info: 'Ghi nhận' };
 const AUTOMATION_LABEL = {
   yes: 'Khai: có automation',
@@ -22,6 +27,10 @@ const AUTOMATION_LABEL = {
 export class QaSlice {
   constructor() {
     this._disposers = [];
+    // Listener gắn vào node do render sinh ra: phải xả mỗi lượt render, không phải mỗi lượt
+    // unmount. Dồn hết vào _disposers thì mỗi lần Làm mới lại chồng thêm một bộ remover
+    // trỏ vào node đã bị thay thế.
+    this._renderDisposers = [];
     this._mounted = false;
     this.trace = null;
     this.candidates = [];
@@ -38,8 +47,14 @@ export class QaSlice {
 
   unmount() {
     this._mounted = false;
+    this._flushRenderDisposers();
     this._disposers.forEach((d) => { try { d(); } catch (_) {} });
     this._disposers = [];
+  }
+
+  _flushRenderDisposers() {
+    this._renderDisposers.forEach((d) => { try { d(); } catch (_) {} });
+    this._renderDisposers = [];
   }
 
   _root() {
@@ -104,7 +119,7 @@ export class QaSlice {
       this.candidates = Array.isArray(candidates.candidates) ? candidates.candidates : [];
       this.decisions = decisions;
     } catch (error) {
-      this._showAlert(`Không tải được dữ liệu QA: ${error.message}`);
+      this._showAlert(`Không tải được dữ liệu QA: ${error.message}`, 'danger');
       return;
     }
     this.renderAll();
@@ -112,6 +127,7 @@ export class QaSlice {
   }
 
   renderAll() {
+    this._flushRenderDisposers();
     this._renderSourceBar();
     this._renderStats();
     this.renderDocs();
@@ -139,12 +155,19 @@ export class QaSlice {
     return this._el('td', text, className);
   }
 
-  _showAlert(text) {
+  /**
+   * @param {string} text
+   * @param {'warn'|'danger'} severity Hỏng thật (danger) phải khác lời nhắc mềm (warn):
+   *   cùng một dải vàng thì người dùng không phân biệt được màn hình chết với lời khuyên.
+   */
+  _showAlert(text, severity = 'warn') {
     const root = this._root();
     const box = root && root.querySelector('#qa-alert');
     const span = root && root.querySelector('#qa-alert-text');
     if (!box || !span) return;
     span.textContent = text;
+    box.classList.toggle('qa-alert-danger', severity === 'danger');
+    box.classList.toggle('qa-alert-warn', severity !== 'danger');
     box.hidden = false;
   }
 
@@ -188,7 +211,10 @@ export class QaSlice {
 
     this._hideAlert();
     if (this.trace.available === false) {
-      this._showAlert((this.trace.analyzer && this.trace.analyzer.error) || 'Analyzer chưa sẵn sàng.');
+      this._showAlert(
+        (this.trace.analyzer && this.trace.analyzer.error) || 'Analyzer chưa sẵn sàng.',
+        'danger',
+      );
     } else if (this.trace.specsDirEmpty) {
       this._showAlert(
         `Không đọc được spec nào trong "${dirs.specs}/". Nếu repo này để spec ở chỗ khác, `
@@ -255,7 +281,7 @@ export class QaSlice {
       btn.type = 'button';
       const handler = () => this._showDetail(r);
       btn.addEventListener('click', handler);
-      this._disposers.push(() => btn.removeEventListener('click', handler));
+      this._renderDisposers.push(() => btn.removeEventListener('click', handler));
       const action = this._el('td');
       action.appendChild(btn);
 
@@ -322,7 +348,9 @@ export class QaSlice {
 
     this._setEmpty('qa-candidates-empty', null);
     list.forEach((c) => {
-      const prio = this._cell(c.priority || '—', `qa-prio qa-prio-${(c.priority || 'none').toLowerCase()}`);
+      const prioKey = String(c.priority || '').toLowerCase();
+      const prioClass = KNOWN_PRIORITY.has(prioKey) ? ` qa-prio-${prioKey}` : '';
+      const prio = this._cell(c.priority || '—', `qa-prio${prioClass}`);
       tbody.appendChild(this._row([
         this._cell(c.id, 'qa-mono'),
         this._cell(c.req || '—', 'qa-mono'),
@@ -403,9 +431,12 @@ export class QaSlice {
     const card = this._el('article', null, `qa-decision ${d.answered ? 'is-answered' : 'is-pending'}`);
 
     const head = this._el('div', null, 'qa-decision-head');
-    head.appendChild(this._el('span', d.id, 'qa-mono qa-decision-id'));
+    head.appendChild(this._el('span', d.id, 'qa-mono'));
     head.appendChild(this._el('strong', d.title || '(không có tiêu đề)', 'qa-decision-title'));
-    if (d.severity) head.appendChild(this._el('span', d.severity, `qa-badge qa-badge-${d.severity}`));
+    if (d.severity) {
+      const sevClass = KNOWN_SEVERITY.has(d.severity) ? ` qa-badge-${d.severity}` : '';
+      head.appendChild(this._el('span', d.severity, `qa-badge${sevClass}`));
+    }
     head.appendChild(this._el('span', d.answered ? 'Đã chốt' : 'Đang chờ', 'qa-decision-state'));
     card.appendChild(head);
 
@@ -437,7 +468,7 @@ export class QaSlice {
     const noteWrap = this._el('div', null, 'qa-field');
     noteWrap.appendChild(this._el('label', d.answered ? 'Lý do đã ghi' : 'Lý do chọn', 'qa-field-label'));
     const note = document.createElement('textarea');
-    note.className = 'qa-input qa-textarea';
+    note.className = 'qa-textarea';
     note.rows = 2;
     note.value = d.answered ? (d.answer.note || '') : '';
     if (!d.answered && d.answer.note) note.placeholder = d.answer.note;
@@ -448,13 +479,13 @@ export class QaSlice {
     byWrap.appendChild(this._el('label', 'Người chốt (bắt buộc)', 'qa-field-label'));
     const by = document.createElement('input');
     by.type = 'text';
-    by.className = 'qa-input';
+    // input đã được ui-primitives tạo kiểu sẵn; không cần lớp riêng.
     by.value = d.answer.confirmedBy || '';
     byWrap.appendChild(by);
     form.appendChild(byWrap);
 
     const actions = this._el('div', null, 'qa-decision-actions');
-    const save = this._el('button', 'Lưu quyết định', 'btn-secondary-sm');
+    const save = this._el('button', 'Lưu quyết định', 'btn-primary-sm');
     save.type = 'button';
     const status = this._el('span', d.answer.confirmedAt ? `Chốt lúc ${d.answer.confirmedAt}` : '', 'qa-decision-stamp');
     const handler = async () => {

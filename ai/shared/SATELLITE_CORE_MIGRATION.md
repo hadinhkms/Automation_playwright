@@ -130,8 +130,15 @@ node -e "const c=require('./core/config/dashboardConfig').getDashboardConfig(); 
 node --test core/
 npm run check:framework
 cd D:/_Automation-Project && node scripts/pre-sync-drift.js --satellite=CarThings
-# core/utils/commonUtils.js, commonUtils.test.js, dashboardConfig.js phải về SAT-ONLY = 0
+# 3 file trên phải về cột RIENG = 0. Cột SAT-ONLY/BAN-CU khác 0 là bình thường:
+# đó chỉ là dấu hiệu vệ tinh đang giữ bản cũ của Hub, và sync sinh ra để sửa đúng việc đó.
 ```
+
+> Trạng thái đo được trên `origin/main` của CarThings (2026-09-20): đúng 3 file này còn
+> chặn, tổng **140 dòng** — `commonUtils.js` 129, `commonUtils.test.js` 8,
+> `dashboardConfig.js` 3. Chừng nào chưa làm xong A1–A4, sync sẽ **bỏ qua CarThings**
+> (không ghi gì, không commit) và job CI kết thúc bằng lỗi, trong khi các vệ tinh sạch
+> vẫn nhận được bản mới bình thường.
 
 Còn lại `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QA_AI_RULES.md`: đây là file gốc do Hub
 sở hữu (mới được thêm vào `ROOT_FILES_TO_SYNC`). Bài học/ghi chú riêng của dự án phải
@@ -140,6 +147,10 @@ nằm ở `.ai/` — thư mục này không bao giờ được sync. Rà và chu
 ---
 
 ## B. Vieclam24h-Automation_JS
+
+> **ĐÃ HOÀN TẤT** (commit `be584a4`, "tach auth rieng sang core/local"). Đo trên
+> `origin/main` ngày 2026-09-20: **0 file chặn**. Phần dưới giữ lại làm tham chiếu cho
+> vệ tinh khác gặp tình huống tương tự.
 
 ### B1. `core/utils/authSetup.js` — 147 dòng riêng, SẼ BỊ XOÁ
 
@@ -246,5 +257,12 @@ git config --local --get user.name     # phải rỗng, để git dùng identity
 - Cần sửa `core/`? Hỏi: sửa này có giá trị cho **mọi** dự án không?
   - Có → PR ngược lên Hub.
   - Không → `core/local/`.
-- Trước mỗi lần sync thủ công: `node scripts/pre-sync-drift.js --strict` (đã được
-  gắn vào `npm run sync:satellites` và vào job CI `sync-satellites.yml`).
+- Trước mỗi lần sync thủ công: `node scripts/pre-sync-drift.js --strict`.
+- Cổng chặn nằm ngay trong `scripts/sync-satellites.js` và chạy **theo từng vệ tinh**
+  trước khi ghi: vệ tinh có nội dung riêng bị bỏ qua nguyên vẹn, vệ tinh sạch vẫn nhận
+  bản mới. Job CI kết thúc bằng lỗi nếu có vệ tinh bị bỏ qua.
+- Cổng phân biệt "vệ tinh giữ bản cũ của Hub" với "vệ tinh tự viết thêm" bằng lịch sử
+  git của Hub (`scripts/lib/hubHistory.js`). Chỉ trường hợp thứ hai mới bị chặn.
+- Sau khi ghi, `scripts/verify-dashboard-features.js` kiểm tại đích rằng mọi view đều đủ
+  slice + section + template + stylesheet, và mọi route đều được `server.js` gọi thật.
+  Thiếu một mảnh thì không commit. Chạy tay: `npm run check:dashboard-features`.
