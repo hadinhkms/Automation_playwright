@@ -64,6 +64,25 @@ const DEFAULT_DIRS = {
   specs: 'tests',
 };
 
+/**
+ * Nhãn tiếng Việt cho từng loại finding. Đặt ở lõi để CLI và dashboard dùng CHUNG một bản —
+ * hai nơi tự đặt nhãn riêng thì sớm muộn cũng nói khác nhau về cùng một finding.
+ */
+const KIND_LABEL = {
+  'ac-khong-co-tc': 'Nghiệp vụ chưa có test case',
+  'tc-chua-automation': 'Test case chưa có script',
+  'spec-khong-truy-vet': 'Spec không truy vết được về nghiệp vụ',
+  'spec-vua-sua-khong-truy-vet': 'Spec vừa sửa nhưng không truy vết được',
+  'sua-script-ma-khong-dong-tai-lieu': 'Sửa script mà tài liệu không đổi theo',
+  'tai-lieu-khong-doc-duoc': 'Tài liệu công cụ KHÔNG đọc được (nguy cơ báo sạch giả)',
+  'dinh-danh-sai-quy-uoc': 'Định danh sai quy ước',
+  'req-thieu-ac': 'Requirement chưa có acceptance criterion',
+  'test-khong-co-assertion': 'Test khai phủ AC nhưng không có assertion',
+  'ac-lech-giua-tai-lieu-va-spec': 'Tài liệu và spec nói khác nhau',
+  'tc-co-y-thu-cong': 'Test case cố ý giữ thủ công (không phải nợ)',
+  'dinh-danh-khong-ton-tai': 'Tham chiếu tới định danh không tồn tại',
+};
+
 function listFiles(root, relativeDir, filter) {
   const absolute = path.join(root, relativeDir);
   if (!fs.existsSync(absolute)) return [];
@@ -442,6 +461,7 @@ function rankAutomationCandidates(report, limit = 7) {
 
 module.exports = {
   DEFAULT_DIRS,
+  KIND_LABEL,
   buildTraceReport,
   assessChangeSet,
   rankAutomationCandidates,

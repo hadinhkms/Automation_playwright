@@ -78,6 +78,11 @@ const MODULES_TO_SYNC = [
   { src: 'tools', dest: 'tools' },
 ];
 
+// File ở gốc repo thuộc về TỪNG dự án: Hub không bao giờ được đẩy chúng đi.
+// decisions.json là sổ quyết định do dashboard ghi (PUT /api/qa/decision) — đưa nó vào
+// ROOT_FILES_TO_SYNC sẽ khiến quyết định của dự án này ghi đè lên dự án khác.
+const PROJECT_OWNED_ROOT_FILES = ['decisions.json', 'qa.config.json', '.env'];
+
 const ROOT_FILES_TO_SYNC = [
   'Start_Dashboard.bat',
   'Stop_Dashboard.bat',
@@ -95,6 +100,15 @@ const containsForbidden = (p) =>
   String(p || '')
     .split(/[\\/]+/)
     .some((seg) => FORBIDDEN_SYNC_MODULES.includes(seg));
+
+function assertNoProjectOwnedRootFiles(files = ROOT_FILES_TO_SYNC) {
+  const leaked = files.filter((f) => PROJECT_OWNED_ROOT_FILES.includes(f));
+  if (leaked.length) {
+    throw new Error(
+      `VI PHẠM NGUYÊN TẮC: ${leaked.join(', ')} thuộc về từng dự án, không được đồng bộ từ Hub!`,
+    );
+  }
+}
 
 function assertNoForbiddenModules(modules = MODULES_TO_SYNC) {
   if (modules.some((m) => containsForbidden(m.src) || containsForbidden(m.dest))) {
@@ -126,6 +140,8 @@ module.exports = {
   ROOT_FILES_TO_SYNC,
   containsForbidden,
   assertNoForbiddenModules,
+  assertNoProjectOwnedRootFiles,
+  PROJECT_OWNED_ROOT_FILES,
   resolveExcludes,
   isExcluded,
 };

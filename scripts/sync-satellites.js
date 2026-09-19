@@ -28,6 +28,7 @@ const {
   MODULES_TO_SYNC,
   ROOT_FILES_TO_SYNC,
   assertNoForbiddenModules,
+  assertNoProjectOwnedRootFiles,
   resolveExcludes,
   isExcluded,
 } = require('./lib/sync-manifest');
@@ -35,6 +36,7 @@ const {
 // Cấu hình sync (SATELLITES / MODULES_TO_SYNC / ROOT_FILES_TO_SYNC / excludes) nằm ở
 // scripts/lib/sync-manifest.js để scripts/pre-sync-drift.js mô phỏng đúng hành vi tại đây.
 assertNoForbiddenModules();
+assertNoProjectOwnedRootFiles();
 
 function copyDirRecursive(srcDir, destDir, excludes = []) {
   if (!fs.existsSync(srcDir)) return 0;

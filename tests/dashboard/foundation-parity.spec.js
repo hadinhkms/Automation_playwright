@@ -30,8 +30,9 @@ test.describe('Phase 3: Frontend Architecture & Foundation Verification', () => 
       'runner-view', 'builder-view', 'page-manager-view', 'resources-view',
       'docs-view', 'agent-view', 'suites-view', 'recorder-view',
       'data-view', 'git-view', 'fixtures-view', 'settings-view', 'compare-view',
+      'qa-view',
     ];
-    expect(views.length).toBe(13);
+    expect(views.length).toBe(14);
     for (const exp of expectedViews) expect(views).toContain(exp);
     expect(views).not.toContain('suites-quick');
   });

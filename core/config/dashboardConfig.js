@@ -54,6 +54,15 @@ const DEFAULT_CONFIG = Object.freeze({
   server: {
     port: 4180,
   },
+  // Vị trí tài liệu QA của TỪNG dự án. Thư mục spec khác nhau giữa các repo
+  // (tests/ ở đây, playwright/tests ở repo khác) nên phải khai được, không hard-code.
+  // dashboardConfig.json nằm trong excludes của sync nên mỗi repo tự giữ giá trị của mình.
+  qa: {
+    requirements: 'requirements',
+    testCases: 'test-cases',
+    specs: 'tests',
+    decisionsFile: 'decisions.json',
+  },
   branding: {
     projectName: "QA Automation Studio",
     projectSubtitle: "Playwright Automation Platform",
@@ -382,13 +391,30 @@ function normalizeDashboardConfig(input = {}, existingConfig = DEFAULT_CONFIG) {
     }
   }
 
+  // Đường dẫn QA phải là tương đối và nằm trong repo: chặn '..' và đường dẫn tuyệt đối,
+  // vì giá trị này được dùng để quét thư mục.
+  const qaInput = source.qa && typeof source.qa === 'object' ? source.qa : {};
+  const qaFallback = existing.qa || DEFAULT_CONFIG.qa;
+  const asRelPath = (value, fallback) => {
+    const text = asString(value, '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+    if (!text) return fallback;
+    if (/^[a-zA-Z]:/.test(text) || text.split('/').includes('..')) return fallback;
+    return text.slice(0, 200);
+  };
+  const qa = {
+    requirements: asRelPath(qaInput.requirements, qaFallback.requirements),
+    testCases: asRelPath(qaInput.testCases, qaFallback.testCases),
+    specs: asRelPath(qaInput.specs, qaFallback.specs),
+    decisionsFile: asRelPath(qaInput.decisionsFile, qaFallback.decisionsFile),
+  };
+
   const serverInput = source.server && typeof source.server === 'object' ? source.server : {};
   const serverFallback = existing.server || DEFAULT_CONFIG.server || { port: 4180 };
   const server = {
     port: normalizePort(serverInput.port, serverFallback.port),
   };
 
-  return { environments, runtime, server, api, artifacts, branding, suites, discord };
+  return { environments, runtime, server, api, artifacts, branding, suites, discord, qa };
 }
 
 function normalizePort(value, fallback = 4180) {

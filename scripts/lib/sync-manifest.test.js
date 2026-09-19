@@ -19,6 +19,8 @@ const {
   isExcluded,
   containsForbidden,
   assertNoForbiddenModules,
+  assertNoProjectOwnedRootFiles,
+  ROOT_FILES_TO_SYNC,
 } = require('./sync-manifest');
 
 // An toàn vì sync-satellites.js đã có guard require.main === module; require không chạy sync.
@@ -159,4 +161,14 @@ test('Hub VẪN cập nhật được phần còn lại của core/ (không đó
 test('require(sync-satellites.js) không tự chạy sync', () => {
   const src = fs.readFileSync(path.join(HUB_ROOT, 'scripts', 'sync-satellites.js'), 'utf8');
   assert.ok(src.includes('require.main === module'));
+});
+
+test('file gốc thuộc về dự án không bao giờ được Hub đồng bộ', () => {
+  assert.doesNotThrow(() => assertNoProjectOwnedRootFiles());
+  assert.equal(ROOT_FILES_TO_SYNC.includes('decisions.json'), false);
+  // Guard phải nổ nếu sau này có ai vô tình thêm vào.
+  assert.throws(
+    () => assertNoProjectOwnedRootFiles([...ROOT_FILES_TO_SYNC, 'decisions.json']),
+    /decisions\.json/,
+  );
 });

@@ -22,7 +22,9 @@
  *   node scripts/qa-trace.js --root=D:/_Script_automation --specs=playwright/tests
  */
 
-const { buildTraceReport, rankAutomationCandidates, assessChangeSet } = require('./lib/qaTrace');
+const {
+  buildTraceReport, rankAutomationCandidates, assessChangeSet, KIND_LABEL,
+} = require('./lib/qaTrace');
 
 const { changedFilesSince } = require('./lib/gitChanges');
 
@@ -37,20 +39,6 @@ const colors = {
 };
 
 const SEVERITY_ORDER = { major: 0, minor: 1, info: 2 };
-const KIND_LABEL = {
-  'ac-khong-co-tc': 'Nghiệp vụ chưa có test case',
-  'tc-chua-automation': 'Test case chưa có script',
-  'spec-khong-truy-vet': 'Spec không truy vết được về nghiệp vụ',
-  'spec-vua-sua-khong-truy-vet': 'Spec vừa sửa nhưng không truy vết được',
-  'sua-script-ma-khong-dong-tai-lieu': 'Sửa script mà tài liệu không đổi theo',
-  'tai-lieu-khong-doc-duoc': 'Tài liệu công cụ KHÔNG đọc được (nguy cơ báo sạch giả)',
-  'dinh-danh-sai-quy-uoc': 'Định danh sai quy ước',
-  'req-thieu-ac': 'Requirement chưa có acceptance criterion',
-  'test-khong-co-assertion': 'Test khai phủ AC nhưng không có assertion',
-  'ac-lech-giua-tai-lieu-va-spec': 'Tài liệu và spec nói khác nhau',
-  'tc-co-y-thu-cong': 'Test case cố ý giữ thủ công (không phải nợ)',
-  'dinh-danh-khong-ton-tai': 'Tham chiếu tới định danh không tồn tại',
-};
 
 function printSummary(report) {
   const c = report.counts;

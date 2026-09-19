@@ -1,0 +1,210 @@
+/* QA Docs & Automation view.
+   Chỉ định nghĩa những gì chưa có. Khung studio (.view-subnav, .view-subtab, .btn-secondary-sm)
+   và pill lọc (.pm-filter-pill) tái sử dụng từ bdd.css / pages.css. */
+
+.qa-view {
+  padding: 18px 20px 28px;
+  overflow-y: auto;
+}
+
+/* Thanh nguồn dữ liệu: luôn cho biết đang đọc thư mục nào — trỏ sai thư mục là
+   lỗi im lặng nguy hiểm nhất của mục này. */
+.qa-source-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.qa-source-label { color: var(--text-secondary, #64748b); }
+.qa-source-chip {
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: var(--surface-2, #f1f5f9);
+  border: 1px solid var(--border-color, #e2e8f0);
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.qa-source-config { color: var(--text-secondary, #64748b); font-style: italic; }
+
+.qa-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.qa-alert-warn {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #b45309;
+}
+
+.qa-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.qa-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-1, #fff);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+.qa-stat-value { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.qa-stat-label { font-size: 11.5px; color: var(--text-secondary, #64748b); }
+.qa-stat-danger .qa-stat-value { color: #dc2626; }
+
+.qa-panel { padding-top: 14px; }
+.qa-panel-hint {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--text-secondary, #64748b);
+  line-height: 1.5;
+}
+.qa-filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+
+.qa-table-wrap {
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  overflow: auto;
+}
+.qa-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.qa-table th,
+.qa-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  vertical-align: top;
+}
+.qa-table th {
+  background: var(--surface-2, #f8fafc);
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.qa-table tbody tr:last-child td { border-bottom: none; }
+.qa-mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; }
+.qa-dim { color: var(--text-secondary, #64748b); }
+
+.qa-prio { font-weight: 600; }
+.qa-prio-p0 { color: #dc2626; }
+.qa-prio-p1 { color: #ea580c; }
+.qa-prio-p2 { color: #ca8a04; }
+.qa-prio-p3 { color: var(--text-secondary, #64748b); }
+
+.qa-empty {
+  padding: 22px;
+  border: 1px dashed var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface-2, #f8fafc);
+}
+.qa-empty-title { margin: 0 0 8px; font-weight: 600; font-size: 14px; }
+.qa-empty-line {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-secondary, #64748b);
+  max-width: 78ch;
+}
+
+.qa-detail {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface-1, #fff);
+}
+.qa-detail-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.qa-detail-label { margin: 12px 0 4px; font-size: 12px; font-weight: 600; }
+.qa-detail-list { margin: 0; padding-left: 20px; font-size: 12.5px; line-height: 1.6; }
+
+.qa-finding-group { margin-bottom: 18px; }
+.qa-finding-head { margin: 0 0 8px; font-size: 13px; font-weight: 700; }
+.qa-finding-major .qa-finding-head { color: #dc2626; }
+.qa-finding-minor .qa-finding-head { color: #ca8a04; }
+.qa-finding-info .qa-finding-head { color: var(--text-secondary, #64748b); }
+.qa-finding-kind { margin: 8px 0 4px; font-size: 12.5px; font-weight: 600; }
+.qa-finding-list {
+  margin: 0 0 6px;
+  padding-left: 20px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.qa-decision {
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-left-width: 3px;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+  background: var(--surface-1, #fff);
+}
+.qa-decision.is-pending { border-left-color: #f59e0b; }
+.qa-decision.is-answered { border-left-color: #16a34a; }
+.qa-decision-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.qa-decision-title { font-size: 14px; }
+.qa-decision-state { margin-left: auto; font-size: 11.5px; color: var(--text-secondary, #64748b); }
+.qa-decision-blocks { margin: 0 0 6px; font-size: 12.5px; color: #b45309; }
+.qa-decision-context,
+.qa-decision-reason {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-secondary, #64748b);
+  max-width: 88ch;
+}
+.qa-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--surface-2, #f1f5f9);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+.qa-badge-blocking { background: rgba(220, 38, 38, 0.12); border-color: rgba(220, 38, 38, 0.35); color: #b91c1c; }
+.qa-badge-urgent { background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.4); color: #b45309; }
+.qa-badge-rec { background: rgba(22, 163, 74, 0.12); border-color: rgba(22, 163, 74, 0.35); color: #15803d; margin-left: 6px; }
+
+.qa-option {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.qa-option:hover { background: var(--surface-2, #f8fafc); }
+.qa-option-text { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.qa-option-conseq { font-size: 11.5px; color: var(--text-secondary, #64748b); line-height: 1.5; }
+
+.qa-field { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.qa-field-label { font-size: 11.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
+.qa-input {
+  padding: 7px 10px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--surface-1, #fff);
+  color: inherit;
+}
+.qa-textarea { resize: vertical; min-height: 44px; }
+.qa-decision-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.qa-decision-stamp { font-size: 11.5px; color: var(--text-secondary, #64748b); }
+
+@media (max-width: 900px) {
+  .qa-view { padding: 14px; }
+  .qa-decision-state { margin-left: 0; }
+}
