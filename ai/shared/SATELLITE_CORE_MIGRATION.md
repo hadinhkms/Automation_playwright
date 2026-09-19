@@ -181,29 +181,65 @@ cd D:/_Automation-Project && node scripts/pre-sync-drift.js --satellite=Vieclam2
 
 ---
 
----
+## C. Áp dụng cho MỌI vệ tinh — bản đồ quyền sở hữu
 
-## C. Áp dụng cho MỌI vệ tinh — xoá file mẫu của Hub còn sót
+| Thứ | Chủ sở hữu | Sync? |
+|---|---|---|
+| `dashboard/`, `core/`, `bin/`, `tools/`, công cụ Hub trong `scripts/` | **Hub** | Có — vệ tinh nhận cập nhật |
+| `ai/shared/AI_PROMPTS.md` (prompt viết test case) | **Hub** | Có |
+| `ai/dashboard/DASHBOARD_AI_PROMPT.md` | **Hub** | Có |
+| `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `QA_AI_RULES.md` | **Hub** | Có |
+| `ai/shared/TEST_AUTOMATION_LESSONS.md` | **Dự án** | Không |
+| `ai/dashboard/AI_LESSONS.md` | **Dự án** | Không |
+| `core/local/`, `core/config/dashboardConfig.json`, `core/fixtures/custom/` | **Dự án** | Không |
+| `data/`, `tests/`, `pages/`, `requirements/`, `test-cases/`, `.ai/` | **Dự án** | Không bao giờ |
+| `.env`, `playwright.config.js`, `package.json`, `.github/`, `.vscode/` | **Dự án** | Không bao giờ |
 
-Hub từng đặt nhầm một fixture **chỉ để làm ví dụ** vào vùng được sync:
-`core/fixtures/mockSampleTest.js`. Nó đọc `data/mock/sample.html` và chỉ được dùng bởi
-`tests/e2e/**/sample_container_mock.spec.js` — cả `data/` lẫn `tests/` đều nằm trong
-`FORBIDDEN_SYNC_MODULES`, nên ở vệ tinh file này là **code chết và sẽ lỗi nếu ai đó gọi tới**.
+### C1. File lesson nay thuộc về dự án
 
-Hub đã chuyển nó sang `tests/fixtures/mockSampleTest.js` (vùng không bao giờ sync).
-Nhưng **sync chỉ ghi đè và thêm, không bao giờ xoá**, nên bản cũ vẫn nằm lại ở vệ tinh.
-Mỗi repo tự dọn một lần:
+Hai file lesson đã được đưa vào `excludes`, Hub không còn ghi đè. Mỗi repo tự giữ bài học
+của mình ngay tại chỗ. Bài học đúng cho **mọi** dự án thì gửi PR lên Hub để đưa vào
+`AI_PROMPTS.md` / `DASHBOARD_AI_PROMPT.md`.
 
-```bash
-# Xác nhận không có gì trong repo này dùng tới nó
-grep -rn "mockSampleTest" --include=*.js . | grep -v node_modules
+**Việc cần làm một lần:** bản hiện có ở repo bạn vẫn mang banner cũ *"Hub owns this file.
+It is overwritten on every sync."* — nay đã sai, và vì file không còn được sync nên Hub
+không sửa hộ được. Hãy thay banner đó bằng:
 
-# Nếu kết quả rỗng thì xoá
-git rm core/fixtures/mockSampleTest.js
+```markdown
+> **This file belongs to THIS project. The Hub never overwrites it.**
+> A lesson that applies to EVERY project belongs in `AI_PROMPTS.md` via a PR to the Hub.
 ```
 
-Nếu `grep` có kết quả, dừng lại và báo — nghĩa là dự án đã tự dùng nó, khi đó hãy chuyển
-file sang `core/local/` thay vì xoá.
+### C2. Fixture dùng chung vs dữ liệu mẫu
+
+`core/fixtures/` là **lớp năng lực do Hub cấp**, mỗi dự án dùng theo đặc thù riêng. Đừng
+fork một fixture của Hub chỉ vì cần đổi dữ liệu đầu vào — hãy truyền tham số. Cần đổi
+*hành vi* thì đặt bản riêng ở `core/local/`.
+
+```js
+const { withMockSample } = require('../../../core/fixtures/mockSampleTest');
+
+const test = withMockSample(base);                                        // tự tìm <gốc>/data/mock/sample.html, không có thì dùng HTML mặc định
+const test = withMockSample(base, { htmlPath: 'data/mock/checkout.html' }); // bản mock riêng của dự án
+const test = withMockSample(base, { html: '<h1>Trang nội bộ</h1>' });      // truyền thẳng
+```
+
+`data/` không bao giờ được sync, nên fixture của Hub không được hard-code đường dẫn tới
+file dữ liệu của bất kỳ dự án nào. Dữ liệu mẫu là của dự án; fixture là của Hub.
+
+### C3. Danh tính git trong repo của bạn có thể đang sai
+
+Phiên bản cũ của `sync-satellites.js` chạy `git config user.name "github-actions[bot]"`
+**ghi thẳng vào `.git/config`** của repo vệ tinh, nên nó tồn tại vĩnh viễn: mọi commit sau
+đó của con người cũng bị gán cho bot. Hub đã sửa (dùng `git -c` cho từng lệnh), nhưng
+`.git/config` ở máy bạn thì Hub không với tới được. Kiểm tra và dọn:
+
+```bash
+git config --local --get user.name     # nếu in ra github-actions[bot] thì:
+git config --local --unset user.name
+git config --local --unset user.email
+git config --local --get user.name     # phải rỗng, để git dùng identity toàn cục của bạn
+```
 
 ## Quy tắc từ nay
 

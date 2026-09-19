@@ -2,6 +2,11 @@
 
 This file is the version-controlled memory for agents maintaining the Dashboard. Read it before modifying anything under `dashboard/`.
 
+> **This file belongs to THIS project. The Hub never overwrites it.**
+> `ai/dashboard/AI_LESSONS.md` is excluded from Hub-to-Spoke sync. The Hub still owns and
+> updates `ai/dashboard/DASHBOARD_AI_PROMPT.md` and everything under `dashboard/`.
+> A lesson that applies to EVERY project belongs in `DASHBOARD_AI_PROMPT.md` via a PR to the Hub.
+
 Only record a lesson after the defect is confirmed and its root cause is understood. Do not store chat transcripts, guesses, credentials, personal data, or duplicate lessons. Consolidate an existing entry when the same cause appears again.
 
 ## Required entry format

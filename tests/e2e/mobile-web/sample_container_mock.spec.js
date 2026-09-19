@@ -1,5 +1,5 @@
 const { test: base, expect } = require('../../../core/fixtures/mobileWebTest');
-const { withMockSample } = require('../../fixtures/mockSampleTest');
+const { withMockSample } = require('../../../core/fixtures/mockSampleTest');
 const SampleMobilePage = require('../../../pages/mobile/SampleMobilePage');
 const test = withMockSample(base);
 

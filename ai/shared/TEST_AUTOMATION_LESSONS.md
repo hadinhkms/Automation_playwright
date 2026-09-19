@@ -2,14 +2,18 @@
 
 This file is the version-controlled memory for confirmed Playwright test automation failures. It complements `AI_PROMPTS.md`; it does not replace the stable rules there.
 
-> **Hub owns this file. It is overwritten on every sync.**
-> Only record lessons that apply to EVERY project here.
-> Lessons specific to one project go to that project's local store instead:
-> `.ai/knowledge/qa/test-automation-lessons.md` (new observations: `.ai/learning/candidates.md`).
-> `.ai/` is never synced, so project lessons survive and stay on that project's own branch.
-> The same rule applies to CODE: `core/` is Hub-owned and overwritten too — put project-specific
-> helpers in `core/local/` (see `core/local/README.md`) and run `node scripts/pre-sync-drift.js`
-> before a sync to catch anything still sitting in the overwrite zone.
+> **This file belongs to THIS project. The Hub never overwrites it.**
+> `ai/shared/TEST_AUTOMATION_LESSONS.md` is excluded from Hub-to-Spoke sync, so every
+> repository keeps its own lessons here and they survive every sync.
+>
+> What the Hub DOES own and will keep updating: `ai/shared/AI_PROMPTS.md` (how to write
+> test cases) and everything under `dashboard/`, `core/`, `bin/`, `tools/`.
+> A lesson that applies to EVERY project belongs in `AI_PROMPTS.md` via a PR to the Hub,
+> not here.
+>
+> The same ownership split applies to CODE: `core/` is Hub-owned and overwritten — put
+> project-specific helpers in `core/local/` (see `core/local/README.md`) and run
+> `node scripts/pre-sync-drift.js` before a sync to catch anything left in the overwrite zone.
 
 Only record a lesson after the issue is reproducible and its root cause is known. Do not store credentials, personal data, chat transcripts, guesses, or duplicate entries.
 

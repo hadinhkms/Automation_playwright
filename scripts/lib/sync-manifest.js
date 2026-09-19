@@ -64,7 +64,17 @@ const MODULES_TO_SYNC = [
       'scripts/lib/sync-manifest.test.js',
     ],
   },
-  { src: 'ai', dest: 'ai' },
+  {
+    src: 'ai',
+    dest: 'ai',
+    // Hub sở hữu PROMPT (AI_PROMPTS.md, DASHBOARD_AI_PROMPT.md) — sửa ở Hub thì vệ tinh nhận.
+    // Nhưng BÀI HỌC là nhật ký riêng của từng dự án: mỗi repo tự giữ bản của mình,
+    // Hub không bao giờ ghi đè. Bài học áp dụng cho mọi dự án thì đưa vào file prompt.
+    excludes: [
+      'ai/shared/TEST_AUTOMATION_LESSONS.md',
+      'ai/dashboard/AI_LESSONS.md',
+    ],
+  },
   { src: 'tools', dest: 'tools' },
 ];
 

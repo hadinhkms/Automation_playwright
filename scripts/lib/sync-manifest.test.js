@@ -65,6 +65,28 @@ test('công cụ vận hành riêng của Hub không bị đẩy sang vệ tinh'
   assert.equal(isExcluded(dest('scripts', 'check-framework-structure.js'), ex), false);
 });
 
+test('ai: Hub giữ prompt, dự án giữ lesson', () => {
+  const ex = resolveExcludes(TARGET, MODULES_TO_SYNC.find((m) => m.src === 'ai'));
+
+  // Bài học là nhật ký riêng của từng dự án -> không bao giờ ghi đè.
+  assert.equal(isExcluded(dest('ai', 'shared', 'TEST_AUTOMATION_LESSONS.md'), ex), true);
+  assert.equal(isExcluded(dest('ai', 'dashboard', 'AI_LESSONS.md'), ex), true);
+
+  // Prompt là của Hub -> sửa ở Hub thì vệ tinh phải nhận được.
+  assert.equal(isExcluded(dest('ai', 'shared', 'AI_PROMPTS.md'), ex), false);
+  assert.equal(isExcluded(dest('ai', 'dashboard', 'DASHBOARD_AI_PROMPT.md'), ex), false);
+  assert.equal(isExcluded(dest('ai', 'shared', 'SATELLITE_CORE_MIGRATION.md'), ex), false);
+  assert.equal(isExcluded(dest('ai', 'README.md'), ex), false);
+});
+
+test('sync KHÔNG ghi đè vĩnh viễn git identity của repo vệ tinh', () => {
+  const src = fs.readFileSync(path.join(HUB_ROOT, 'scripts', 'sync-satellites.js'), 'utf8');
+  // `git config user.name ...` ghi thẳng vào .git/config của vệ tinh và tồn tại mãi,
+  // khiến mọi commit sau đó của con người cũng bị gán cho bot.
+  assert.equal(/execSync\('git config user\.(name|email)/.test(src), false);
+  assert.ok(src.includes('-c user.name='), 'phải dùng `git -c` cho từng lệnh');
+});
+
 test('guard FORBIDDEN bắt cả path lồng nhau và dấu phân cách Windows', () => {
   assert.equal(containsForbidden('docs/requirements'), true);
   assert.equal(containsForbidden('docs\\tests'), true);

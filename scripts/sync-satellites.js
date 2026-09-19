@@ -163,10 +163,16 @@ async function run() {
         console.log(`${colors.green}✅ Không có thay đổi mới nào cần commit.${colors.reset}`);
       } else {
         console.log(`📝 Phát hiện thay đổi, đang commit và push...`);
-        execSync('git config user.name "github-actions[bot]"', { cwd: workingDir, windowsHide: true });
-        execSync('git config user.email "github-actions[bot]@users.noreply.github.com"', { cwd: workingDir, windowsHide: true });
+        // Danh tính bot chỉ áp cho ĐÚNG commit này qua `git -c`, KHÔNG ghi vào .git/config.
+        // Trước đây dùng `git config` nên identity bị ghi đè vĩnh viễn trong repo vệ tinh:
+        // mọi commit sau đó của con người cũng bị gán cho github-actions[bot].
+        const botIdentity = '-c user.name="github-actions[bot]" '
+          + '-c user.email="github-actions[bot]@users.noreply.github.com"';
         execSync('git add -A', { cwd: workingDir, windowsHide: true });
-        execSync('git commit -m "chore(framework): sync latest dashboard and core engine from hub [skip ci]"', { cwd: workingDir, windowsHide: true });
+        execSync(
+          `git ${botIdentity} commit -m "chore(framework): sync latest dashboard and core engine from hub [skip ci]"`,
+          { cwd: workingDir, windowsHide: true },
+        );
 
         if (isCI) {
           execSync(`git push origin ${sat.branch}`, { cwd: workingDir, stdio: 'inherit', windowsHide: true });
