@@ -15,6 +15,15 @@ const {
   getTrace, getCandidates, getDecisions, saveDecisionAnswer, readQaConfig, isAnswered,
 } = require('./qaService');
 
+// scripts/lib/sync-manifest.js là công cụ vận hành RIÊNG CỦA HUB nên nằm trong excludes,
+// trong khi file test này thì được sync. Soft-require để bài test mô phỏng sync tự bỏ qua
+// khi chạy ở vệ tinh, thay vì ném MODULE_NOT_FOUND.
+let syncManifest = null;
+try {
+  // eslint-disable-next-line global-require
+  syncManifest = require('../../scripts/lib/sync-manifest');
+} catch (_) { /* Chỉ tồn tại ở Hub */ }
+
 const REQ_DOC = `# REQ-001 Đăng nhập
 
 - AC-001: Given hợp lệ, Then vào được.
@@ -222,7 +231,9 @@ test('mục QA không ghi gì vào requirements/ và test-cases/', () => {
   });
 });
 
-test('cấu hình riêng trong core/config/dashboardConfig.json sống sót qua một lượt sync mô phỏng', () => {
+test('cấu hình riêng trong core/config/dashboardConfig.json sống sót qua một lượt sync mô phỏng', {
+  skip: syncManifest ? false : 'scripts/lib/sync-manifest.js chỉ tồn tại ở Hub (nằm trong excludes)',
+}, () => {
   withRepo({
     ...FULL,
     'core/config/dashboardConfig.json': JSON.stringify({
@@ -231,7 +242,7 @@ test('cấu hình riêng trong core/config/dashboardConfig.json sống sót qua 
       qa: { specs: 'tests/e2e' },
     }, null, 2),
   }, (root) => {
-    const { MODULES_TO_SYNC, resolveExcludes, isExcluded } = require('../../scripts/lib/sync-manifest');
+    const { MODULES_TO_SYNC, resolveExcludes, isExcluded } = syncManifest;
     const coreModule = MODULES_TO_SYNC.find((m) => m.src === 'core');
     const excludes = resolveExcludes(root, coreModule);
     const target = path.join(root, 'core', 'config', 'dashboardConfig.json');
