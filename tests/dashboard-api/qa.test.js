@@ -5,7 +5,8 @@
  * - GET  /api/qa/candidates
  * - GET  /api/qa/decisions
  * - PUT  /api/qa/decision
- * - GET  /api/qa/documents
+ * - GET  /api/qa/document
+ * - GET  /api/qa/bdd-drafts
  * - GET  /api/qa/document
  *
  * Chạy: npm run test:dashboard:api
@@ -289,6 +290,39 @@ describe('API Contract: QA Docs & Automation', () => {
   test('GET /api/qa/document thiếu path trả 400', async () => {
     const res = await fetch(`${harness.url}/api/qa/document`);
     assert.equal(res.status, 400);
+  });
+
+  test('GET /api/qa/bdd-draft dựng bản thảo từ tài liệu, không ghi gì ra đĩa', async () => {
+    const tcDir = path.join(fixture.rootPath, 'test-cases');
+    const snap = (dir) => fs.readdirSync(dir)
+      .map((f) => `${f}:${fs.readFileSync(path.join(dir, f), 'utf8').length}`).sort();
+    const snapBefore = snap(tcDir);
+
+    const res = await fetch(`${harness.url}/api/qa/bdd-draft?ids=TC-001,TC-002`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+
+    assert.deepEqual(body.ids, ['TC-001', 'TC-002']);
+    assert.ok(body.text.includes('# TC-001'), 'phải có nội dung của TC-001');
+    assert.ok(body.text.includes('Given Tiền điều kiện'), 'phải theo khuôn BDD');
+    assert.ok(body.text.includes('KHÔNG được lưu lại'), 'phải nói rõ bản thảo là nhất thời');
+
+    // Không được ghi bất cứ thứ gì vào test-cases/.
+    assert.deepEqual(snap(tcDir), snapBefore);
+  });
+
+  test('GET /api/qa/bdd-draft từ chối đầu vào không hợp lệ', async () => {
+    for (const q of ['', '?ids=', '?ids=khong-phai-ma', '?ids=REQ-001']) {
+      const res = await fetch(`${harness.url}/api/qa/bdd-draft${q}`);
+      assert.equal(res.status, 400, `"${q}" phải bị từ chối`);
+    }
+  });
+
+  test('GET /api/qa/bdd-draft báo rõ mã không có trong tài liệu', async () => {
+    const res = await fetch(`${harness.url}/api/qa/bdd-draft?ids=TC-999`);
+    assert.equal(res.status, 404);
+    const body = await res.json();
+    assert.ok(body.error.includes('TC-999'));
   });
 
   test('cấu hình QA riêng của repo được tôn trọng và KHÔNG bị mục QA ghi đè', async () => {

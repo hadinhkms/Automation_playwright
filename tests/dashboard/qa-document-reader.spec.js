@@ -60,6 +60,17 @@ const TC_DOC = [
   '| REQ-001 | AC-001 | TC-001 | Yes | x | P0 |',
   '| REQ-001 | AC-002 | TC-002 | Candidate | - | P1 |',
   '',
+  '### TC-002: Báo lỗi chung khi sai mật khẩu',
+  '',
+  '- Priority: P1',
+  '- Tags: `@p1`',
+  '- Preconditions: Đang ở trang đăng nhập, chưa đăng nhập',
+  '',
+  '| Step | Action | Expected result |',
+  '|---|---|---|',
+  '| 1 | Nhập email đúng, mật khẩu sai | Form nhận được dữ liệu |',
+  '| 2 | Bấm Đăng nhập | Hiện lỗi chung, không tiết lộ email có tồn tại hay không |',
+  '',
 ].join(NL);
 
 // Mọi cách nhét mã thực thi mà một tài liệu Markdown có thể mang theo.
@@ -457,6 +468,56 @@ test.describe('QA: đọc tài liệu requirement/test-case', () => {
       // cả mảng bên phải. Con số chính xác phụ thuộc độ dài tài liệu (có thanh cuộn hay không).
       expect(box.rightMargin, `viền phải quá rộng ở ${width}px`).toBeLessThan(200);
     }
+  });
+
+  test('chọn ứng viên rồi sinh bản thảo BDD', async ({ page }) => {
+    await openQa(page, harness.url);
+    await page.click('[data-qa-tab="candidates"]');
+    await page.waitForSelector('#qa-candidates-tbody tr');
+
+    // Chưa chọn gì thì không cho bấm — tránh gọi API vô nghĩa.
+    await expect(page.locator('#qa-btn-draft')).toBeDisabled();
+
+    await page.locator('#qa-candidates-tbody .qa-pick-col input').first().check();
+    await expect(page.locator('#qa-btn-draft')).toBeEnabled();
+    await expect(page.locator('#qa-btn-draft-label')).toHaveText('Sinh bản thảo BDD (1)');
+
+    await page.click('#qa-btn-draft');
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#qa-draft-body');
+      return b && b.textContent.includes('Kịch bản BDD');
+    });
+
+    const draft = await page.evaluate(() => document.querySelector('#qa-draft-body').textContent);
+    expect(draft).toContain('Given Tiền điều kiện');
+    expect(draft).toContain('When  [1]');
+    expect(draft).toContain('Then  [1]');
+    expect(draft, 'phải nhắc bản thảo không được lưu').toContain('KHÔNG được lưu lại');
+    expect(draft, 'không được bịa locator').not.toContain('getByRole');
+
+    // Bỏ chọn thì đóng bản thảo và về trạng thái ban đầu.
+    await page.click('#qa-btn-draft-clear');
+    await expect(page.locator('#qa-draft')).toBeHidden();
+    await expect(page.locator('#qa-btn-draft')).toBeDisabled();
+  });
+
+  test('sinh bản thảo KHÔNG ghi gì vào test-cases/', async ({ page }) => {
+    const tcDir = path.join(fixture.rootPath, 'test-cases');
+    const snap = () => fs.readdirSync(tcDir)
+      .map((f) => `${f}:${fs.readFileSync(path.join(tcDir, f), 'utf8').length}`).sort();
+    const before = snap();
+
+    await openQa(page, harness.url);
+    await page.click('[data-qa-tab="candidates"]');
+    await page.waitForSelector('#qa-candidates-tbody tr');
+    await page.locator('#qa-candidates-tbody .qa-pick-col input').first().check();
+    await page.click('#qa-btn-draft');
+    await page.waitForFunction(() => {
+      const b = document.querySelector('#qa-draft-body');
+      return b && b.textContent.includes('Kịch bản BDD');
+    });
+
+    expect(snap(), 'bản thảo là chỉ đọc').toEqual(before);
   });
 
   test('ô lọc thu hẹp danh sách theo mã lẫn tên file', async ({ page }) => {
