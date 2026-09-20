@@ -32,6 +32,11 @@ const REQ_DOC = [
   '- AC-001: Given hợp lệ, Then vào được.',
   '- AC-002: Given sai mật khẩu, Then báo lỗi chung.',
   '',
+  '## Open questions',
+  '',
+  '1. Số điện thoại có bắt buộc không? — cần PO xác nhận',
+  '2. Quy tắc mật khẩu? — cần PO xác nhận',
+  '',
   '| Mã | Mô tả | Ưu tiên |',
   '| --- | --- | --- |',
   '| AC-001 | đăng nhập đúng | P0 |',
@@ -287,6 +292,105 @@ test.describe('QA: đọc tài liệu requirement/test-case', () => {
     await page.locator('#qa-docs-tbody .qa-file-link').first().click();
     await page.waitForFunction(() => !document.querySelector('#qa-reader-doc').hidden);
     await expect(page.locator('#qa-reader-title')).toHaveText('Đăng nhập hệ thống');
+  });
+
+  test('trả lời câu hỏi treo: ghi thật vào tài liệu, chỉ đụng đúng dòng đó', async ({ page }) => {
+    const docPath = path.join(fixture.rootPath, 'requirements', 'REQ-001-dang-nhap.md');
+    const before = fs.readFileSync(docPath, 'utf8').split(NL);
+
+    await openQa(page, harness.url);
+    await openDoc(page, 'REQ-001-dang-nhap.md');
+
+    await expect(page.locator('#qa-reader-answer-label')).toHaveText('Trả lời câu hỏi (2)');
+    await page.click('#qa-reader-answer');
+    await page.waitForSelector('#qa-reader-form .qa-question');
+
+    await page.locator('#qa-reader-form textarea').first().fill('Bắt buộc.');
+    await page.locator('#qa-reader-form .qa-form-by input').fill('Hà');
+    await page.click('#qa-reader-form .btn-primary-sm');
+    await page.waitForSelector('#qa-reader-form', { state: 'hidden' });
+
+    const after = fs.readFileSync(docPath, 'utf8').split(NL);
+    const changed = after.map((l, i) => (l === before[i] ? null : i)).filter((i) => i !== null);
+    expect(changed.length, 'chỉ được sửa đúng một dòng').toBe(1);
+    expect(after[changed[0]]).toContain('**Đã chốt (Hà');
+    expect(after[changed[0]]).toContain('Bắt buộc.');
+    expect(after[changed[0]], 'đuôi "cần PO xác nhận" phải được THAY, không phải nối thêm')
+      .not.toContain('cần PO xác nhận');
+    expect(after.length).toBe(before.length);
+
+    // Đã tạo bản sao lưu trước khi ghi.
+    const backups = fs.existsSync(path.join(fixture.rootPath, '.dashboard-backups'));
+    expect(backups, 'phải sao lưu trước khi ghi đè').toBe(true);
+
+    // Sau khi lưu, số câu hỏi treo giảm còn 1.
+    await openDoc(page, 'REQ-001-dang-nhap.md');
+    await expect(page.locator('#qa-reader-answer-label')).toHaveText('Trả lời câu hỏi (1)');
+  });
+
+  test('tài liệu test-case KHÔNG cho sửa — nút ẩn và API từ chối', async ({ page }) => {
+    await openQa(page, harness.url);
+    await page.locator('#qa-docs-list .qa-doc-item', { hasText: 'REQ-001.md' }).last().click();
+    await page.waitForFunction(() => document.querySelector('#qa-reader-body').children.length > 0);
+
+    await expect(page.locator('#qa-reader-edit')).toBeHidden();
+    await expect(page.locator('#qa-reader-answer')).toBeHidden();
+
+    const res = await page.evaluate(async () => {
+      const r = await fetch('/api/qa/document', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: 'test-cases/REQ-001.md', content: '# bị ghi đè' }),
+      });
+      return { status: r.status, body: await r.json() };
+    });
+    expect(res.status, 'test-cases/ phải là chỉ đọc').toBe(403);
+    expect(res.body.error).toContain('chỉ đọc');
+  });
+
+  test('tài liệu đã đổi trên đĩa thì từ chối ghi đè', async ({ page }) => {
+    await page.goto(harness.url);
+    const res = await page.evaluate(async () => {
+      const r = await fetch('/api/qa/document', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: 'requirements/REQ-999-doc-hai.md',
+          content: '# nội dung mới',
+          expectedBytes: 999999,
+        }),
+      });
+      return { status: r.status, body: await r.json() };
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain('đã thay đổi');
+  });
+
+  test('mục lục dựng từ tiêu đề thật và nhảy được', async ({ page }) => {
+    // Mục lục chỉ hiện từ 1400px trở lên; hẹp hơn thì bề ngang dành cho thân bài.
+    await page.setViewportSize({ width: 1600, height: 1000 });
+    await openQa(page, harness.url);
+    await openDoc(page, 'REQ-001-dang-nhap.md');
+
+    const links = page.locator('#qa-reader-outline .qa-outline-link');
+    const count = await links.count();
+    expect(count, 'phải có mục lục khi tài liệu đủ dài').toBeGreaterThanOrEqual(3);
+
+    const headings = await page.evaluate(() => [...document.querySelectorAll('#qa-reader-body .qa-md-h')].map((h) => h.textContent));
+    const outline = await links.allTextContents();
+    expect(outline, 'mục lục phải trùng khớp tiêu đề đang hiển thị').toEqual(headings);
+
+    await links.last().click();
+    const jump = await page.evaluate(() => {
+      const b = document.querySelector('#qa-reader-body');
+      return { scrollTop: b.scrollTop, scrollable: b.scrollHeight > b.clientHeight + 1 };
+    });
+    // Tài liệu ngắn thì không có gì để cuộn — không phải lỗi.
+    if (jump.scrollable) expect(jump.scrollTop, 'bấm mục lục phải cuộn tới nơi').toBeGreaterThan(0);
+
+    // Dưới 1400px mục lục phải nhường chỗ cho nội dung.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expect(page.locator('#qa-reader-outline')).toBeHidden();
   });
 
   test('ô lọc thu hẹp danh sách theo mã lẫn tên file', async ({ page }) => {
