@@ -44,6 +44,8 @@ const {
   assertNoForbiddenModules,
   resolveExcludes,
   isExcluded,
+  moduleOf,
+  ALWAYS_DELIVERED_MODULES,
 } = require('./lib/sync-manifest');
 const { createHubHistoryProbe, classifyLostLines } = require('./lib/hubHistory');
 
@@ -287,7 +289,14 @@ function main() {
     }
     // "Có nguy cơ" giờ chỉ tính file có dòng Hub CHƯA TỪNG có. File chỉ tụt hậu không còn
     // chặn sync — chính nó là thứ sync sinh ra để sửa.
-    const risky = files.filter((f) => f.ownedLines.length > 0);
+    // Tách hai nhóm: nội dung riêng nằm trong module Hub sở hữu hoàn toàn (dashboard/) thì
+    // vẫn bị ghi đè — đó là thiết kế, không phải sự cố — nhưng vẫn phải liệt kê ra.
+    const alwaysOverwritten = files.filter(
+      (f) => f.ownedLines.length > 0 && ALWAYS_DELIVERED_MODULES.includes(moduleOf(f.file)),
+    );
+    const risky = files.filter(
+      (f) => f.ownedLines.length > 0 && !ALWAYS_DELIVERED_MODULES.includes(moduleOf(f.file)),
+    );
     const behind = files.filter((f) => f.ownedLines.length === 0 && f.satelliteOnly > 0);
     atRisk += risky.length;
     behindTotal += behind.length;
@@ -321,6 +330,13 @@ function main() {
     console.log('');
     if (behind.length) {
       console.log(`${colors.yellow}↻ ${behind.length} file chỉ là BẢN CŨ của Hub — ghi đè là đúng mục đích sync.${colors.reset}`);
+    }
+    if (alwaysOverwritten.length) {
+      console.log(`${colors.yellow}⚠️  ${alwaysOverwritten.length} file trong ${ALWAYS_DELIVERED_MODULES.join(', ')}/ sẽ bị GHI ĐÈ (vùng Hub sở hữu hoàn toàn):${colors.reset}`);
+      for (const f of alwaysOverwritten) {
+        console.log(`${colors.yellow}   ${f.file} (${f.ownedLines.length} dòng riêng)${colors.reset}`);
+      }
+      console.log(`${colors.dim}   Sync KHÔNG dừng vì việc này: giữ lại dashboard/ sẽ chặn luôn mọi tính năng mới.${colors.reset}`);
     }
     if (risky.length) {
       console.log(`${colors.red}${colors.bright}❌ ${risky.length} file có nội dung Hub CHƯA TỪNG CÓ và sẽ bị sync xoá:${colors.reset}`);

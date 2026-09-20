@@ -25,6 +25,8 @@ const {
   FORBIDDEN_SYNC_MODULES,
   moduleOf,
   modulesToSkip,
+  filesOverwrittenAnyway,
+  ALWAYS_DELIVERED_MODULES,
   ROOT_MODULE,
 } = require('./sync-manifest');
 
@@ -299,6 +301,33 @@ test('modulesToSkip gộp trùng và giữ đúng tập', () => {
     modulesToSkip(['core/a.js', 'core/b.js', 'ai/shared/x.md']),
     ['core', 'ai'],
   );
+});
+
+test('dashboard/ KHÔNG BAO GIỜ bị giữ lại, dù vệ tinh có nội dung riêng trong đó', () => {
+  // dashboard/ không có exclude nào, tức mọi thứ trong đó được thiết kế để bị ghi đè.
+  // Giữ nó lại vì drift là tự mâu thuẫn, và hậu quả là chặn vĩnh viễn mọi tính năng
+  // dashboard mới tới vệ tinh — đúng thứ họ cần nhất.
+  assert.deepEqual(ALWAYS_DELIVERED_MODULES, ['dashboard']);
+
+  const blocked = [
+    'dashboard/public/app.js',
+    'dashboard/services/resourceService.js',
+    'core/utils/commonUtils.js',
+  ];
+  const skip = modulesToSkip(blocked);
+  assert.ok(!skip.includes('dashboard'), 'dashboard phải luôn được giao');
+  assert.deepEqual(skip, ['core'], 'chỉ core bị giữ lại');
+
+  // Chỉ một mình drift trong dashboard/ thì không giữ lại gì cả.
+  assert.deepEqual(modulesToSkip(['dashboard/public/index.html']), []);
+});
+
+test('những gì sẽ bị ghi đè phải liệt kê được, không được mất trong im lặng', () => {
+  // Đây chính là cái bẫy 7ad6984: ghi đè thì được, nhưng phải nói ra.
+  const blocked = ['dashboard/public/app.js', 'core/utils/commonUtils.js', 'CLAUDE.md'];
+  assert.deepEqual(filesOverwrittenAnyway(blocked), ['dashboard/public/app.js']);
+  assert.deepEqual(filesOverwrittenAnyway([]), []);
+  assert.deepEqual(filesOverwrittenAnyway(['core/x.js']), []);
 });
 
 test('nội dung riêng trong core/ KHÔNG được chặn dashboard/', () => {

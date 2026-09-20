@@ -40,6 +40,17 @@ const ROOT_MODULE = '(root)';
 
 const FORBIDDEN_SYNC_MODULES = ['data', 'tests', 'pages', 'requirements', 'test-cases'];
 
+/**
+ * Module Hub sở hữu HOÀN TOÀN: luôn được giao, không bao giờ bị giữ lại vì drift.
+ *
+ * Giữ lại dashboard/ là tự mâu thuẫn với chính kiến trúc: thư mục này không có exclude nào
+ * ngoài điểm nối local, tức mọi thứ trong đó được thiết kế để bị ghi đè. Một vệ tinh tự
+ * sửa dashboard/ sẽ chặn vĩnh viễn mọi tính năng dashboard mới — đúng thứ họ cần nhất.
+ *
+ * Cổng vẫn BÁO ra những dòng sắp mất, nhưng không dừng việc giao hàng.
+ */
+const ALWAYS_DELIVERED_MODULES = ['dashboard'];
+
 const MODULES_TO_SYNC = [
   { src: 'dashboard', dest: 'dashboard' },
   {
@@ -165,8 +176,15 @@ function moduleOf(relPath) {
 
 /** Tập module phải giữ lại, suy ra từ danh sách file có nội dung riêng. */
 function modulesToSkip(blockedFiles = []) {
-  return [...new Set(blockedFiles.map(moduleOf))];
+  return [...new Set(blockedFiles.map(moduleOf))]
+    .filter((m) => !ALWAYS_DELIVERED_MODULES.includes(m));
 }
+
+/** Nội dung riêng nằm trong module Hub sở hữu hoàn toàn: sẽ bị ghi đè, phải báo rõ. */
+function filesOverwrittenAnyway(blockedFiles = []) {
+  return blockedFiles.filter((f) => ALWAYS_DELIVERED_MODULES.includes(moduleOf(f)));
+}
+
 
 module.exports = {
   HUB_ROOT,
@@ -182,5 +200,7 @@ module.exports = {
   isExcluded,
   moduleOf,
   modulesToSkip,
+  filesOverwrittenAnyway,
+  ALWAYS_DELIVERED_MODULES,
   ROOT_MODULE,
 };

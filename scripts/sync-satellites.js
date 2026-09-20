@@ -33,6 +33,9 @@ const {
   resolveExcludes,
   isExcluded,
   modulesToSkip,
+  moduleOf,
+  filesOverwrittenAnyway,
+  ALWAYS_DELIVERED_MODULES,
 } = require('./lib/sync-manifest');
 const { verify: verifyDashboardFeatures } = require('./verify-dashboard-features');
 const { auditSatellite } = require('./pre-sync-drift');
@@ -181,11 +184,27 @@ async function run() {
     // nên 129 dòng helper trong core/ đủ sức chặn vĩnh viễn mọi tính năng dashboard mới.
     // Nay chỉ module chứa nội dung riêng bị giữ lại; phần còn lại vẫn được giao.
     const { blocked } = auditSatellite({ ...sat, localPath: workingDir }, history);
-    const skipModules = modulesToSkip(blocked.map((f) => f.file));
+    const blockedPaths = blocked.map((f) => f.file);
+    const skipModules = modulesToSkip(blockedPaths);
 
-    if (blocked.length) {
+    // Module Hub sở hữu hoàn toàn vẫn được giao. Nhưng ghi đè trong im lặng thì đúng là
+    // cái bẫy 7ad6984, nên phải liệt kê ra đúng những gì sắp mất.
+    const overwritten = filesOverwrittenAnyway(blockedPaths);
+    if (overwritten.length) {
+      console.warn(`${colors.yellow}⚠️  ${sat.name}: ghi đè ${overwritten.length} file trong ${ALWAYS_DELIVERED_MODULES.join(', ')}/ — vùng Hub sở hữu hoàn toàn.${colors.reset}`);
+      for (const f of blocked.filter((x) => overwritten.includes(x.file))) {
+        console.warn(`${colors.yellow}   ${f.file} (${f.ownedLines.length} dòng riêng sẽ mất)${colors.reset}`);
+        for (const l of f.ownedLines.slice(0, 3)) {
+          console.warn(`${colors.dim}      | ${l.length > 110 ? `${l.slice(0, 107)}...` : l}${colors.reset}`);
+        }
+      }
+      console.warn(`${colors.dim}   Dữ liệu riêng của dự án không được đặt trong dashboard/; xem ai/shared/SATELLITE_CORE_MIGRATION.md.${colors.reset}`);
+    }
+
+    const heldBack = blocked.filter((f) => skipModules.includes(moduleOf(f.file)));
+    if (heldBack.length) {
       console.error(`${colors.yellow}${colors.bright}⛔ ${sat.name}: giữ lại module ${skipModules.join(', ')} — có nội dung riêng sẽ bị xoá.${colors.reset}`);
-      for (const f of blocked) {
+      for (const f of heldBack) {
         console.error(`${colors.red}   ${f.file} (${f.ownedLines.length} dòng)${colors.reset}`);
         for (const l of f.ownedLines.slice(0, 3)) {
           console.error(`${colors.dim}      | ${l.length > 110 ? `${l.slice(0, 107)}...` : l}${colors.reset}`);
