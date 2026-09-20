@@ -25,6 +25,7 @@ const SATELLITES = [
     repo: 'hadinhkms/Automation_Carthings',
     branch: 'main',
     localPath: 'D:\\_CarThings\\Automation_Carthings',
+    autoSync: false, // Tự quyết định cập nhật: không tự động push/pull từ Hub. Vệ tinh chủ động dùng nút "Tải cập nhật Framework" hoặc "npm run update:framework" khi muốn.
   },
 ];
 

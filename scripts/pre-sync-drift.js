@@ -249,7 +249,7 @@ function main() {
   const satelliteRoot = rootArg ? rootArg.slice('--satellite-root='.length) : null;
 
   const targets = SATELLITES
-    .filter((s) => !filter || s.name.toLowerCase().includes(filter))
+    .filter((s) => (!filter ? s.autoSync !== false : s.name.toLowerCase().includes(filter)))
     .map((s) => (satelliteRoot ? { ...s, localPath: path.join(satelliteRoot, s.name) } : s));
   const report = [];
   let atRisk = 0;

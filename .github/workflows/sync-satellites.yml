@@ -54,9 +54,6 @@ jobs:
           git clone --depth 1 --branch main \
             "https://x-access-token:${TOKEN}@github.com/hadtv-ctrl/Vieclam24h-Automation_JS.git" \
             "$RUNNER_TEMP/drift/Vieclam24h-Automation_JS"
-          git clone --depth 1 --branch main \
-            "https://x-access-token:${TOKEN}@github.com/hadinhkms/Automation_Carthings.git" \
-            "$RUNNER_TEMP/drift/Automation_Carthings"
           node scripts/pre-sync-drift.js --satellite-root="$RUNNER_TEMP/drift"
 
       # Bước này chặn theo TỪNG MODULE của từng vệ tinh: module nào đang chứa nội dung riêng

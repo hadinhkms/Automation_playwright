@@ -150,6 +150,11 @@ async function run() {
   }
 
   for (const sat of SATELLITES) {
+    if (sat.autoSync === false) {
+      console.log(`\n-----------------------------------------------------`);
+      console.log(`⏩ Bỏ qua vệ tinh: ${colors.yellow}${sat.name}${colors.reset} (Cấu hình tự quyết định cập nhật: autoSync = false - không tự động push/pull từ Hub)`);
+      continue;
+    }
     console.log(`\n-----------------------------------------------------`);
     console.log(`🚀 Đồng bộ vệ tinh: ${colors.green}${sat.name}${colors.reset} (${sat.repo})`);
 
