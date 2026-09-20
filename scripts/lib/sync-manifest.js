@@ -19,6 +19,7 @@ const SATELLITES = [
     repo: 'hadtv-ctrl/Vieclam24h-Automation_JS',
     branch: 'main',
     localPath: 'D:\\_SieuVietGroup',
+    autoSync: false, // Chế độ Manual: Vệ tinh chủ động cập nhật qua "npm run update:framework" hoặc nút trên Dashboard khi muốn
   },
   {
     name: 'Automation_Carthings',

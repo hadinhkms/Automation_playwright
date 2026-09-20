@@ -149,8 +149,10 @@ async function run() {
     console.log(`${colors.dim}   Mọi khác biệt sẽ bị coi là nội dung riêng, nên sync có thể dừng ở mọi vệ tinh.${colors.reset}`);
   }
 
+  const isForce = process.argv.includes('--force');
+
   for (const sat of SATELLITES) {
-    if (sat.autoSync === false) {
+    if (sat.autoSync === false && !isForce) {
       console.log(`\n-----------------------------------------------------`);
       console.log(`⏩ Bỏ qua vệ tinh: ${colors.yellow}${sat.name}${colors.reset} (Cấu hình tự quyết định cập nhật: autoSync = false - không tự động push/pull từ Hub)`);
       continue;

@@ -43,7 +43,7 @@
                     "presync:drift":  "node scripts/pre-sync-drift.js",
                     "presync:drift:strict":  "node scripts/pre-sync-drift.js --strict",
                     "sync:satellites":  "node scripts/pre-sync-drift.js --strict && node scripts/sync-satellites.js",
-                    "sync:satellites:force":  "node scripts/sync-satellites.js",
+                    "sync:satellites:force":  "node scripts/sync-satellites.js --force",
                     "update:framework": "node scripts/update-framework.js",
                     "test:dashboard:api": "node scripts/run-dashboard-api-tests.js",
                     "test:dashboard:regression": "npm run test:dashboard:api && npx playwright test --config=playwright.dashboard.config.js"
