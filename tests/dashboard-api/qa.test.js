@@ -363,4 +363,55 @@ describe('API Contract: QA Docs & Automation', () => {
     assert.deepEqual(snapshot(reqDir), beforeReq);
     assert.deepEqual(snapshot(tcDir), beforeTc);
   });
+
+  test('GET /api/qa/summary trả về 200 với đầy đủ schema 1.0.0, metrics và health', async () => {
+    const res = await fetch(`${harness.url}/api/qa/summary`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.schemaVersion, '1.0.0');
+    assert.ok(body.metrics && typeof body.metrics === 'object');
+    assert.ok(body.health && typeof body.health === 'object');
+    assert.ok(body.boundary && typeof body.boundary === 'object');
+    assert.ok(Array.isArray(body.findings));
+  });
+
+  test('POST /api/qa/fix hỗ trợ dryRun preview và trả về danh sách thay đổi', async () => {
+    const res = await fetch(`${harness.url}/api/qa/fix`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dryRun: true }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.dryRun, true);
+    assert.equal(typeof body.reconciledLinks, 'number');
+    assert.equal(typeof body.registeredCandidates, 'number');
+    assert.ok(Array.isArray(body.changes));
+  });
+
+  test('GET /api/qa/scaffold/meta trả về nextReqId và danh mục domain', async () => {
+    const res = await fetch(`${harness.url}/api/qa/scaffold/meta`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(/^REQ-\d{3}$/.test(body.nextReqId));
+    assert.ok(Array.isArray(body.existingDomains));
+  });
+
+  test('POST /api/qa/scaffold khởi tạo đồng bộ 3 files', async () => {
+    const res = await fetch(`${harness.url}/api/qa/scaffold`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reqId: 'REQ-099',
+        title: 'Tính năng kiểm thử scaffold API',
+        domain: 'auth',
+        acCount: 2,
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.mode, 'scaffold');
+    assert.equal(body.created.length, 3);
+  });
 });
