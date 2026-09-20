@@ -393,6 +393,72 @@ test.describe('QA: đọc tài liệu requirement/test-case', () => {
     await expect(page.locator('#qa-reader-outline')).toBeHidden();
   });
 
+  test('server cũ thiếu /api/qa/documents: vẫn hiển thị, và chỉ đúng cách sửa', async ({ page }) => {
+    // Tình huống thật: tiến trình dashboard khởi động trước khi endpoint ra đời vẫn phục vụ
+    // file JS MỚI đọc thẳng từ đĩa, trong khi bảng route của nó là bảng CŨ. Một endpoint
+    // thiếu không được làm trắng cả màn hình.
+    await page.route('**/api/qa/documents', (route) => route.fulfill({
+      status: 404, contentType: 'application/json', body: '{"error":"Endpoint không tồn tại."}',
+    }));
+    // KHÔNG dùng openQa(): nó chờ danh sách tài liệu, thứ chắc chắn không xuất hiện ở ca này.
+    await page.goto(harness.url);
+    await page.waitForSelector('.shell');
+    await page.waitForFunction(() => Boolean(window.__STUDIO_CORE__));
+    await page.evaluate(() => window.__STUDIO_CORE__.featureRegistry.switchView('qa-view'));
+    await page.waitForFunction(() => !document.querySelector('#qa-alert').hidden, null, { timeout: 8000 });
+
+    const state = await page.evaluate(() => ({
+      alertShown: !document.querySelector('#qa-alert').hidden,
+      alertText: (document.querySelector('#qa-alert-text') || {}).textContent,
+      isDanger: document.querySelector('#qa-alert').classList.contains('qa-alert-danger'),
+      statsShown: !document.querySelector('#qa-stats').hidden,
+      overviewRows: document.querySelectorAll('#qa-docs-tbody tr').length,
+    }));
+
+    expect(state.alertShown).toBe(true);
+    expect(state.isDanger, 'thiếu API là hỏng thật, không phải nhắc mềm').toBe(true);
+    expect(state.alertText, 'phải nói rõ cách sửa chứ không chỉ báo lỗi').toContain('khởi động lại dashboard');
+    expect(state.statsShown, 'phần lấy được vẫn phải hiển thị').toBe(true);
+    expect(state.overviewRows, 'bảng tổng quan vẫn dựng từ /api/qa/trace').toBeGreaterThan(0);
+  });
+
+  test('server đủ endpoint thì không hề có cảnh báo suy giảm', async ({ page }) => {
+    await openQa(page, harness.url);
+    const shown = await page.evaluate(() => ({
+      alertShown: !document.querySelector('#qa-alert').hidden,
+      text: (document.querySelector('#qa-alert-text') || {}).textContent,
+    }));
+    expect(shown.text || '').not.toContain('bản cũ hơn giao diện');
+  });
+
+  test('không để hố trống giữa thân bài và mục lục ở mọi bề rộng', async ({ page }) => {
+    // Cạm bẫy: cho cột là 1fr rồi chặn chữ bằng max-width bên trong. Khi đó phần thừa nằm
+    // GIỮA hai cột — từng lên tới 382px — kèm thanh cuộn trôi lơ lửng trong khoảng trống.
+    for (const width of [1440, 1900, 2400]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await openQa(page, harness.url);
+      await openDoc(page, 'REQ-001-dang-nhap.md');
+      await page.waitForSelector('#qa-reader-body .qa-md-h');
+
+      const box = await page.evaluate(() => {
+        const outline = document.querySelector('.qa-reader-outline');
+        const heading = document.querySelector('#qa-reader-body .qa-md-h');
+        if (!outline || getComputedStyle(outline).display === 'none') return null;
+        const main = document.querySelector('.qa-reader-main').getBoundingClientRect();
+        return {
+          gap: Math.round(outline.getBoundingClientRect().left - heading.getBoundingClientRect().right),
+          rightMargin: Math.round(main.right - outline.getBoundingClientRect().right),
+        };
+      });
+
+      if (!box) continue; // dưới 1400px mục lục ẩn — không có gì để đo
+      expect(box.gap, `hố giữa quá rộng ở ${width}px`).toBeLessThan(80);
+      // Chốt phụ, ngưỡng thô: chỉ để bắt trường hợp cột bị đặt sai hẳn khiến panel hở
+      // cả mảng bên phải. Con số chính xác phụ thuộc độ dài tài liệu (có thanh cuộn hay không).
+      expect(box.rightMargin, `viền phải quá rộng ở ${width}px`).toBeLessThan(200);
+    }
+  });
+
   test('ô lọc thu hẹp danh sách theo mã lẫn tên file', async ({ page }) => {
     await openQa(page, harness.url);
     const count = () => page.locator('#qa-docs-list .qa-doc-item').count();
