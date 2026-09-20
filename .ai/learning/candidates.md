@@ -58,4 +58,7 @@
 - Source: User operational guideline, 2026-09-20.
 - Confirmed: Prior to writing test cases, always read requirements/test-cases and check for conflicts or discrepancies against real UI/code to resolve early. After script passes verification, any changes or newly discovered business rules must be synchronized back into requirements/REQ-xxx.md immediately.
 - Scope: PROJECT. Owner: Automation QA Lead. Status: CONFIRMED.
-
+### [LEARN-GIT-001] Do not auto-commit or auto-push before user verification
+- Source: User directive, 2026-09-20.
+- Confirmed: Never automatically git commit or git push changes after code edits. Changes must remain in the local working directory for the user to test and verify first. Premature commits pollute Git history with redundant, unverified, or incomplete iterations. Only commit/push when the user explicitly instructs or approves.
+- Scope: WORKSPACE. Owner: Agent Assistant / Developer. Status: CONFIRMED.
