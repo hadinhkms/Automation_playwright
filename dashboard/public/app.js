@@ -5194,15 +5194,15 @@ function renderSiteRow(envKey, siteKey, url, siteMeta) {
   const typeClass = siteMeta.type === 'base' ? 'site-type-base' : (siteMeta.type === 'api' ? 'site-type-api' : 'site-type-portal');
   return `
     <div class="site-row" data-env="${escapeHtml(envKey)}" data-site-key="${escapeHtml(siteKey)}">
-      <div class="site-info-col">
-        <div class="site-info-meta">
-          <span class="site-type-badge ${typeClass}">${siteMeta.typeLabel}</span>
-          <span class="site-code-chip" title="Bấm để sao chép biến: env.${escapeHtml(siteKey)}" data-copy="env.${escapeHtml(siteKey)}">
-            <code>env.${escapeHtml(siteKey)}</code>
-            <i class="ph ph-copy"></i>
-          </span>
-        </div>
-        <input class="site-label-input" value="${escapeHtml(siteMeta.label)}" placeholder="Tên hiển thị (vd: Cổng Doanh Nghiệp)" title="Tên hiển thị thân thiện trong dashboard">
+      <div class="site-meta-col">
+        <span class="site-type-badge ${typeClass}">${siteMeta.typeLabel}</span>
+        <span class="site-code-chip" title="Bấm để sao chép biến: env.${escapeHtml(siteKey)}" data-copy="env.${escapeHtml(siteKey)}">
+          <code>env.${escapeHtml(siteKey)}</code>
+          <i class="ph ph-copy"></i>
+        </span>
+      </div>
+      <div class="site-label-col">
+        <input class="site-label-input" value="${escapeHtml(siteMeta.label)}" placeholder="Tên hiển thị (vd: Cổng Quản Trị)" title="Tên hiển thị thân thiện trong dashboard">
       </div>
       <div class="site-url-col">
         <span class="site-url-prefix"><i class="ph ph-link"></i></span>
@@ -5276,6 +5276,12 @@ function renderEnvironmentCard(envKey, envData, defaultEnvKey) {
         </div>
       </div>
       <div class="env-card-body">
+        <div class="site-registry-header">
+          <span class="site-th-meta">Cổng & Biến Script</span>
+          <span class="site-th-label">Tên hiển thị</span>
+          <span class="site-th-url">Địa chỉ URL / Endpoint</span>
+          <span class="site-th-actions">Thao tác</span>
+        </div>
         <div class="site-registry-list">
           ${siteRowsHtml}
         </div>
