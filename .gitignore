@@ -32,11 +32,27 @@ debug.log
 /presentation/demo/results/
 /presentation/demo/reports/
 
-# Scratchpad, debug scripts & runtime failure alerts (không commit lên Git)
+# ==============================================================================
+# AI Scratchpad, Debug Scripts & Test Drafts (Tuyệt đối không commit lên Git)
+# ==============================================================================
+/scratch/
 /scratch/*
 !/scratch/.gitkeep
-*.tmp
+/tests/scratch/
+/tests/temp/
+/tests/draft/
+/tests/ai/
+tests/**/draft_*
+tests/**/temp_*
+tests/**/scratch_*
+tests/**/ai_*
+*.scratch.js
+*.draft.js
+*.tmp.js
+temp_*.js
+draft_*.js
 test_rec.js
+*.tmp
 
 # Local environment variants (keep shareable templates)
 .env.*

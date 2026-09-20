@@ -14,3 +14,5 @@ Trước khi tạo, sửa hoặc review Playwright test, phải đọc và tuân
    - Chạy test kiểm chứng và đảm bảo pass 100%.
 3. **Cập nhật ngược tài liệu sau khi chạy thành công (Post-execution Sync):**
    - Sau khi script chạy thành công, nếu phát hiện bất kỳ thay đổi, rule mới hoặc hành vi thực tế khác biệt so với tài liệu ban đầu, **BẮT BUỘC phải cập nhật ngược lại ngay vào file `requirements/REQ-xxx.md` (và `test-cases/`) tương ứng** để tài liệu và automation luôn đồng bộ 100%.
+4. **Khu vực cách ly file test tạm & nháp của AI (Scratchpad Isolation):**
+   - Mọi script kiểm tra nhanh, thăm dò selector hoặc test nháp do AI tạo ra **BẮT BUỘC** phải đặt trong thư mục `scratch/` (ví dụ: `scratch/check_xxx.js`) hoặc `tests/scratch/` hoặc đặt tên có tiền tố `draft_*`, `temp_*`. Các file này đã được cấu hình trong `.gitignore` và Git Shield để tuyệt đối không bị commit/push lên Git.
