@@ -54,3 +54,8 @@
 ### [LEARN-SUITE-001] Suites view: delegate creation/selection & dynamically populate child suites
 - Confirmed: Avoid browser `prompt()` on suite creation; delegate to `createNewSuite` inline editor. Toggling to Suite Cha (`composite`) must immediately invoke `renderCompositeChildrenList` and update type badge. Scope: PROJECT. Owner: Technical Lead / QA.
 
+### [LEARN-QA-001] Pre-check document conflict and post-run requirement synchronization loop
+- Source: User operational guideline, 2026-09-20.
+- Confirmed: Prior to writing test cases, always read requirements/test-cases and check for conflicts or discrepancies against real UI/code to resolve early. After script passes verification, any changes or newly discovered business rules must be synchronized back into requirements/REQ-xxx.md immediately.
+- Scope: PROJECT. Owner: Automation QA Lead. Status: CONFIRMED.
+
