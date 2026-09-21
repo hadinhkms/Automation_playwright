@@ -22,6 +22,16 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 ## Confirmed lessons
 
+### 2026-09-22 — Test All Endpoints of New Pages and Features to Avoid False-Positive HTTP 400s
+
+- Area: Dashboard REST APIs, CLI Diagnostic Wrappers & Settings/QA Views.
+- Symptom: Clicking Doctor or Probes ALL button displayed `HTTP 400: Bad Request` in the terminal output even though the diagnostic tool ran and returned report details.
+- Root cause: Backend route logic conflated CLI exit code 1 (which diagnostic and linting tools return when findings/violations are present) with client request error (`res.ok ? 200 : 400`), while frontend helper didn't extract the stdout payload on non-200 responses.
+- Correct pattern: Diagnostic and scanner commands that execute to completion must always return HTTP 200 with the execution payload `{ ok, code, stdout, stderr }` (409 only when a mutex is locked; 400/403 strictly reserved for invalid request bodies, malformed targets, or security violations). Frontend helpers must also safely extract `payload.stdout` or `payload.output` on error recovery.
+- Preventive rule: Always test 100% of API endpoints and UI action buttons on any newly created page or feature via both HTTP requests and live browser clicks before closing acceptance gates; verify all valid actions return HTTP 200.
+- Regression check: Run `npm run test:dashboard:api` and verify `POST /api/mp/doctor` and `POST /api/mp/probes` return status 200 with stdout output.
+- Related files: `dashboard/routes/masterProcessRoutes.js`, `dashboard/services/masterProcessService.js`, `dashboard/public/js/views/settings/masterProcessHelper.js`, `dashboard/public/js/views/qa/processStudioHelper.js`.
+
 ### 2026-09-22 — Prevent Happy-Path Blindspots and Single-Target Bias in Hub-to-Spoke Integrations
 
 - Area: Master Process Integration & Multi-Project Dashboard.

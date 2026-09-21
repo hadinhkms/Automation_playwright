@@ -17,3 +17,15 @@
 - **Phạm vi đề xuất:** PROJECT
 - **Đề xuất Owner duyệt:** Technical Lead / Principal QA
 - **Trạng thái:** PENDING
+
+### [LEARN-API-002] Mandatory End-to-End API Verification for New Pages & Features
+- **Nguồn trích xuất:** Plan 13 Settings & Doctor/Probes HTTP 400 Incident
+- **Role quan sát:** Senior QA Engineer & Backend Web Developer
+- **Quan sát (Observation):** Nút Doctor/Probes bấm trả về HTTP 400 vì backend nhầm exit code 1 của công cụ chẩn đoán (có cảnh báo) thành Bad Request (400); thiếu test click thực tế cho toàn bộ API endpoints của tính năng mới.
+- **Bằng chứng (Evidence):** masterProcessRoutes.js line 72 (res.ok ? 200 : 400), masterProcessHelper.js
+- **DO:** Luôn test 100% API endpoints của page/tính năng mới (cả API trực tiếp lẫn click UI trên browser); lệnh chẩn đoán/quét hoàn thành phải trả về HTTP 200 kèm payload kết quả, không trả về 400 khi tool có exit code 1 do phát hiện lỗi.
+- **DON'T:** Không nghiệm thu tính năng mới khi chưa click thử và assert 200 cho toàn bộ nút bấm/endpoint trên giao diện thực tế.
+- **Đề xuất phân loại:** APPROVED STANDARD
+- **Phạm vi đề xuất:** PROJECT & DASHBOARD
+- **Đề xuất Owner duyệt:** Lead QA / Framework Architect
+- **Trạng thái:** PENDING
