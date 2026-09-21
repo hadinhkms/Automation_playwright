@@ -99,6 +99,12 @@ export class QaSlice {
     on(root.querySelector('#qa-draft-close'), 'click', () => this._closeDraft());
     on(root.querySelector('#qa-pick-all'), 'change', (event) => this.toggleAllPicks(event.target.checked));
 
+    // Executive Scorecard Direct Navigation
+    on(root.querySelector('.qa-score-health'), 'click', () => this.switchTab('findings'));
+    on(root.querySelector('.qa-score-coverage'), 'click', () => this.switchTab('docs'));
+    on(root.querySelector('.qa-score-ratio'), 'click', () => this.switchTab('candidates'));
+    on(root.querySelector('.qa-score-boundary'), 'click', () => this.switchTab('findings'));
+
     // Smart Action Bar
     on(root.querySelector('#qa-btn-autofix'), 'click', () => this.openAutoFixModal());
     on(root.querySelector('#qa-btn-scaffold'), 'click', () => this.openScaffoldModal());
@@ -869,19 +875,54 @@ export class QaSlice {
   }
 
   _closeReaderForm() {
-    const box = this._root() && this._root().querySelector('#qa-reader-form');
-    if (!box) return;
-    box.textContent = '';
-    box.hidden = true;
+    const root = this._root();
+    if (!root) return;
+    const box = root.querySelector('#qa-reader-form');
+    if (box) {
+      box.textContent = '';
+      box.hidden = true;
+    }
+    const readerMain = root.querySelector('#qa-reader-main');
+    if (readerMain) {
+      readerMain.classList.remove('has-open-form');
+    }
+    const outline = root.querySelector('#qa-reader-outline');
+    if (outline) {
+      outline.hidden = false;
+    }
   }
 
   /** Khung chung cho hai biểu mẫu: tiêu đề, vùng thân, ô người chốt, nút lưu/huỷ. */
   _formShell(title, hint) {
-    const box = this._root().querySelector('#qa-reader-form');
+    const root = this._root();
+    const box = root.querySelector('#qa-reader-form');
     box.textContent = '';
     box.hidden = false;
-    box.appendChild(this._el('p', title, 'qa-form-title'));
-    if (hint) box.appendChild(this._el('p', hint, 'qa-form-hint'));
+
+    const readerMain = root.querySelector('#qa-reader-main');
+    if (readerMain) {
+      readerMain.classList.add('has-open-form');
+    }
+    const outline = root.querySelector('#qa-reader-outline');
+    if (outline) {
+      outline.hidden = true;
+    }
+
+    const head = this._el('div', null, 'qa-form-head');
+    head.appendChild(this._el('p', title, 'qa-form-title'));
+
+    const closeBtn = this._el('button', null, 'qa-form-close-btn');
+    closeBtn.type = 'button';
+    closeBtn.title = 'Đóng';
+    closeBtn.innerHTML = '<i class="ph-bold ph-x"></i>';
+    head.appendChild(closeBtn);
+    box.appendChild(head);
+
+    if (hint) {
+      const hintEl = this._el('p', hint, 'qa-form-hint');
+      hintEl.style.maxWidth = 'none';
+      box.appendChild(hintEl);
+    }
 
     const body = this._el('div', null, 'qa-form-body');
     box.appendChild(body);
@@ -908,7 +949,11 @@ export class QaSlice {
 
     const onCancel = () => this._closeReaderForm();
     cancel.addEventListener('click', onCancel);
-    this._renderDisposers.push(() => cancel.removeEventListener('click', onCancel));
+    closeBtn.addEventListener('click', onCancel);
+    this._renderDisposers.push(() => {
+      cancel.removeEventListener('click', onCancel);
+      closeBtn.removeEventListener('click', onCancel);
+    });
 
     return { box, body, by, save, status };
   }
@@ -962,6 +1007,8 @@ export class QaSlice {
       } else {
         const area = document.createElement('textarea');
         area.className = 'qa-textarea';
+        area.style.width = '100%';
+        area.style.boxSizing = 'border-box';
         area.rows = 2;
         area.placeholder = 'Kết luận của bạn…';
         card.appendChild(area);
@@ -1004,6 +1051,8 @@ export class QaSlice {
 
     const area = document.createElement('textarea');
     area.className = 'qa-textarea qa-edit-area';
+    area.style.width = '100%';
+    area.style.boxSizing = 'border-box';
     area.rows = 22;
     area.value = this._activeDoc.content;
     area.spellcheck = false;
@@ -1344,14 +1393,7 @@ export class QaSlice {
       ? this.summary.findings
       : [];
 
-    const staticGaps = allFindings.filter((f) =>
-      f.kind === 'assertion-thieu-await' ||
-      f.kind === 'rule-thieu-boundary-test' ||
-      f.kind === 'thieu-kiem-tra-bien' ||
-      f.kind === 'doc-duoc-0-spec' ||
-      f.kind === 'drift' ||
-      f.kind === 'chuan-hoa-duong-dan-spec'
-    );
+    const staticGaps = allFindings;
 
     if (staticGapsCard && staticGapsList) {
       staticGapsList.textContent = '';
@@ -1359,7 +1401,15 @@ export class QaSlice {
         staticGapsCard.hidden = true;
       } else {
         staticGapsCard.hidden = false;
-        if (staticGapsBadge) staticGapsBadge.textContent = `${staticGaps.length} cảnh báo kỹ thuật`;
+        const blockers = staticGaps.filter((f) => f.severity === 'blocker').length;
+        if (staticGapsBadge) {
+          staticGapsBadge.textContent = `${staticGaps.length} phát hiện (${blockers > 0 ? `${blockers} blocker` : 'cảnh báo'})`;
+          if (blockers > 0) {
+            staticGapsBadge.className = 'qa-badge qa-badge-danger';
+          } else {
+            staticGapsBadge.className = 'qa-badge qa-badge-warn';
+          }
+        }
 
         for (const gap of staticGaps) {
           const row = document.createElement('div');
@@ -1368,7 +1418,7 @@ export class QaSlice {
           const iconCol = document.createElement('div');
           iconCol.className = 'qa-gap-icon-col';
           const icon = document.createElement('i');
-          if (gap.kind === 'assertion-thieu-await') {
+          if (gap.severity === 'blocker' || gap.kind === 'assertion-thieu-await') {
             icon.className = 'ph-bold ph-warning-circle';
             icon.style.color = 'var(--danger)';
           } else if (gap.kind === 'rule-thieu-boundary-test' || gap.kind === 'thieu-kiem-tra-bien') {
@@ -1389,6 +1439,14 @@ export class QaSlice {
           const labelSpan = document.createElement('span');
           labelSpan.textContent = gap.label || gap.kind;
           title.appendChild(labelSpan);
+
+          if (gap.severity) {
+            const sev = document.createElement('span');
+            sev.className = `qa-badge qa-badge-${gap.severity === 'blocker' ? 'danger' : 'warn'}`;
+            sev.style.marginLeft = '8px';
+            sev.textContent = gap.severity.toUpperCase();
+            title.appendChild(sev);
+          }
 
           if (gap.where || gap.id) {
             const loc = document.createElement('span');
