@@ -94,6 +94,7 @@ const MODULES_TO_SYNC = [
     ],
   },
   { src: 'tools', dest: 'tools' },
+  { src: 'audit', dest: 'audit' },
 ];
 
 /**

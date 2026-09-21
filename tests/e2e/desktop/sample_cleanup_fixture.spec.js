@@ -1,5 +1,5 @@
 const { test, expect } = require('../../../core/fixtures/baseTest');
-const searchCriteria = require('../../../data/searchCriteria.json');
+const sampleData = require('../../../data/sampleData.json');
 
 
 test.describe('Kịch bản kiểm thử vòng đời Fixture & Tự động dọn dẹp (Setup/Teardown)', () => {

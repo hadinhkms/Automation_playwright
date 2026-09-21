@@ -1,23 +1,23 @@
-# Kế Hoạch Hiện Thực Hóa: Tích Hợp Master Process Hub Vào Dashboard Dùng Chung Cho Mọi Dự Án
+# Káº¿ Hoáº¡ch Hiá»‡n Thá»±c HÃ³a: TÃ­ch Há»£p Master Process Hub VÃ o Dashboard DÃ¹ng Chung Cho Má»i Dá»± Ãn
 
-## 1. Bối Cảnh & Mục Tiêu
+## 1. Bá»‘i Cáº£nh & Má»¥c TiÃªu
 
-### 1.1. Bối Cảnh
-Hiện tại, dự án Automation Hub (`D:\_Automation-Project`) và các dự án vệ tinh (`D:\_SieuVietGroup`, `D:\_CarThings\Automation_Carthings`) kết nối với **Master Process Hub** (`D:\_Master_Process`) chủ yếu qua dòng lệnh thủ công (`master.py`, PowerShell scripts). Việc ghim phiên bản (Process Lock), kiểm tra độ lệch (Drift Detection), quét chất lượng module & secret (Modularity & Secret Audit), cũng như quản trị Git Hooks đang phụ thuộc vào thao tác gõ terminal của từng kỹ sư, chưa có giao diện trực quan và cơ chế kiểm soát tập trung trên Dashboard.
+### 1.1. Bá»‘i Cáº£nh
+Hiá»‡n táº¡i, dá»± Ã¡n Automation Hub (`D:\_Automation-Project`) vÃ  cÃ¡c dá»± Ã¡n vá»‡ tinh (`D:\_SieuVietGroup`, `D:\_CarThings\Automation_Carthings`) káº¿t ná»‘i vá»›i **Master Process Hub** (`D:\_Master_Process`) chá»§ yáº¿u qua dÃ²ng lá»‡nh thá»§ cÃ´ng (`master.py`, PowerShell scripts). Viá»‡c ghim phiÃªn báº£n (Process Lock), kiá»ƒm tra Ä‘á»™ lá»‡ch (Drift Detection), quÃ©t cháº¥t lÆ°á»£ng module & secret (Modularity & Secret Audit), cÅ©ng nhÆ° quáº£n trá»‹ Git Hooks Ä‘ang phá»¥ thuá»™c vÃ o thao tÃ¡c gÃµ terminal cá»§a tá»«ng ká»¹ sÆ°, chÆ°a cÃ³ giao diá»‡n trá»±c quan vÃ  cÆ¡ cháº¿ kiá»ƒm soÃ¡t táº­p trung trÃªn Dashboard.
 
-### 1.2. Mục Tiêu
-Xây dựng module **Master Process Integration** trực tiếp vào **Dashboard Core** (`dashboard/`):
-1. **Dùng chung cho toàn bộ dự án**: Khi cập nhật tại Hub, cơ chế `sync-satellites.js` sẽ tự động phân phối tính năng này sang tất cả các dự án con (`_SieuVietGroup`, `_CarThings`, v.v.).
-2. **Quản trị 1-Click trên Web UI**: 
-   - Giám sát trạng thái Anti-Drift: hiển thị commit SHA, phiên bản Hub, trạng thái `IN_SYNC` vs `DRIFT_DETECTED` vs `UNPINNED`.
-   - Nút hành động 1-click: Ghim phiên bản (`Init`), Đồng bộ template (`Sync`), Cài đặt / Bảo trì Git Hook (`Install Hooks`), Quét mã nguồn & bí mật (`Audit`).
-   - Bảng hiển thị kết quả kiểm định trực tiếp (Logs, Violations, Exemptions).
-3. **Chuẩn hóa CLI trong `package.json`**: Cung cấp đầy đủ bộ phím tắt `mp:*` đồng bộ giữa Dashboard UI và CLI terminal.
-4. **Bảo vệ toàn diện (Fail-Safe)**: Pre-commit hook chặn đứng mọi hành vi commit file vượt giới hạn số dòng hoặc chứa Secret (API Key / AWS Token).
+### 1.2. Má»¥c TiÃªu
+XÃ¢y dá»±ng module **Master Process Integration** trá»±c tiáº¿p vÃ o **Dashboard Core** (`dashboard/`):
+1. **DÃ¹ng chung cho toÃ n bá»™ dá»± Ã¡n**: Khi cáº­p nháº­t táº¡i Hub, cÆ¡ cháº¿ `sync-satellites.js` sáº½ tá»± Ä‘á»™ng phÃ¢n phá»‘i tÃ­nh nÄƒng nÃ y sang táº¥t cáº£ cÃ¡c dá»± Ã¡n con (`_SieuVietGroup`, `_CarThings`, v.v.).
+2. **Quáº£n trá»‹ 1-Click trÃªn Web UI**: 
+   - GiÃ¡m sÃ¡t tráº¡ng thÃ¡i Anti-Drift: hiá»ƒn thá»‹ commit SHA, phiÃªn báº£n Hub, tráº¡ng thÃ¡i `IN_SYNC` vs `DRIFT_DETECTED` vs `UNPINNED`.
+   - NÃºt hÃ nh Ä‘á»™ng 1-click: Ghim phiÃªn báº£n (`Init`), Äá»“ng bá»™ template (`Sync`), CÃ i Ä‘áº·t / Báº£o trÃ¬ Git Hook (`Install Hooks`), QuÃ©t mÃ£ nguá»“n & bÃ­ máº­t (`Audit`).
+   - Báº£ng hiá»ƒn thá»‹ káº¿t quáº£ kiá»ƒm Ä‘á»‹nh trá»±c tiáº¿p (Logs, Violations, Exemptions).
+3. **Chuáº©n hÃ³a CLI trong `package.json`**: Cung cáº¥p Ä‘áº§y Ä‘á»§ bá»™ phÃ­m táº¯t `mp:*` Ä‘á»“ng bá»™ giá»¯a Dashboard UI vÃ  CLI terminal.
+4. **Báº£o vá»‡ toÃ n diá»‡n (Fail-Safe)**: Pre-commit hook cháº·n Ä‘á»©ng má»i hÃ nh vi commit file vÆ°á»£t giá»›i háº¡n sá»‘ dÃ²ng hoáº·c chá»©a Secret (API Key / AWS Token).
 
 ---
 
-## 2. Kiến Trúc Giải Pháp
+## 2. Kiáº¿n TrÃºc Giáº£i PhÃ¡p
 
 ```mermaid
 graph TD
@@ -34,7 +34,7 @@ graph TD
         MP_Slice[public/js/views/settings/settingsSlice.js]
     end
 
-    subgraph Satellites [Các Dự Án Con]
+    subgraph Satellites [CÃ¡c Dá»± Ãn Con]
         SVG[D:/_SieuVietGroup]
         CT[D:/_CarThings/Automation_Carthings]
     end
@@ -49,76 +49,85 @@ graph TD
 
 ---
 
-## 3. Thiết Kế Chi Tiết
+## 3. Thiáº¿t Káº¿ Chi Tiáº¿t
 
 ### 3.1. Backend API & Services
 
-#### File Mới: `dashboard/services/masterProcessService.js`
-Đảm nhiệm giao tiếp với Master Process Engine qua Python subprocess an toàn:
-- `detectMasterProcessPath(projectRoot)`: Tìm đường dẫn Master Process Hub (qua biến môi trường `MASTER_PROCESS_ROOT`, cấu hình `.ai/process-lock.json`, hoặc đường dẫn mặc định chuẩn `D:/_Master_Process`).
+#### File Má»›i: `dashboard/services/masterProcessService.js`
+Äáº£m nhiá»‡m giao tiáº¿p vá»›i Master Process Engine qua Python subprocess an toÃ n:
+- **NguyÃªn táº¯c an toÃ n (Security & Reliability):**
+  - **Chá»‘ng Command Injection:** Báº¯t buá»™c sá»­ dá»¥ng `child_process.execFile` hoáº·c `child_process.spawn` vá»›i máº£ng tham sá»‘ rá»i (`args`), tuyá»‡t Ä‘á»‘i khÃ´ng dÃ¹ng `exec(string)`. Há»— trá»£ Ä‘Æ°á»ng dáº«n Windows cÃ³ khoáº£ng tráº¯ng.
+  - **Kiá»ƒm soÃ¡t Path Traversal:** HÃ m `validateProjectPath(projectRoot)` chá»‰ cho phÃ©p thá»±c thi trÃªn cÃ¡c thÆ° má»¥c thuá»™c danh sÃ¡ch dá»± Ã¡n há»£p lá»‡ (nhÆ° `D:\_Automation-Project`, `D:\_SieuVietGroup`, `D:\_CarThings...`), tá»« chá»‘i cÃ¡c Ä‘Æ°á»ng dáº«n ngoÃ i pháº¡m vi.
+  - **Timeout chá»‘ng treo:** Cáº¥u hÃ¬nh `timeout: 60000` (60 giÃ¢y) cho cÃ¡c lá»‡nh quÃ©t sÃ¢u (`doctor`, `audit`, `probes`).
+- `detectMasterProcessPath(projectRoot)`: TÃ¬m Ä‘Æ°á»ng dáº«n Master Process Hub (qua biáº¿n mÃ´i trÆ°á»ng `MASTER_PROCESS_ROOT`, cáº¥u hÃ¬nh `.ai/process-lock.json`, hoáº·c Ä‘Æ°á»ng dáº«n máº·c Ä‘á»‹nh chuáº©n `D:/_Master_Process`).
 - `getProjectStatus(projectRoot)`:
-  - Đọc `.ai/process-lock.json` -> Trích xuất `version`, `hub_commit`, `installed_at`.
-  - Gọi `python master.py check-drift <target>` -> Lấy trạng thái đồng bộ (`IN_SYNC` / `DRIFT_DETECTED` / `UNPINNED`).
-  - Kiểm tra trạng thái Git Hook tại `.git/hooks/pre-commit` (Đã cài Managed V2 hay chưa).
-  - Trả về tổng quan JSON cho Dashboard.
-- `initProject(projectRoot)`: Chạy `python master.py init <target>`.
-- `syncProject(projectRoot, options)`: Chạy `python master.py sync <target>` (hỗ trợ `--dry-run`, `--update-templates`).
-- `installHooks(projectRoot)`: Chạy `python master.py install-hooks <target>`.
-- `runAudit(projectRoot, staged)`: Chạy `python master.py audit <target>` (phân tích số file quét, violations, exemptions, secret leaks).
-- `runDoctor(projectRoot)`: Chạy `python master.py doctor <target>`.
-- `runProbes(projectRoot, probeId)`: Chạy PowerShell audit-probes nếu cần.
+  - Äá»c `.ai/process-lock.json` -> TrÃ­ch xuáº¥t `version`, `hub_commit`, `installed_at`.
+  - Gá»i `python master.py check-drift <target>` -> Láº¥y tráº¡ng thÃ¡i Ä‘á»“ng bá»™ (`IN_SYNC` / `DRIFT_DETECTED` / `UNPINNED`).
+  - Kiá»ƒm tra tráº¡ng thÃ¡i Git Hook táº¡i `.git/hooks/pre-commit` (ÄÃ£ cÃ i Managed V2 hay chÆ°a).
+  - Tráº£ vá» tá»•ng quan JSON cho Dashboard.
+- `initProject(projectRoot)`: Cháº¡y `python master.py init <target>`.
+- `syncProject(projectRoot, options)`: Cháº¡y `python master.py sync <target>` (há»— trá»£ cá» `--dry-run` xem trÆ°á»›c vÃ  `--update-templates` Ä‘á»ƒ ghi Ä‘Ã¨ an toÃ n cÃ³ sao lÆ°u `.bak`).
+- `installHooks(projectRoot)`: Cháº¡y `python master.py install-hooks <target>`.
+- `runAudit(projectRoot, staged)`: Cháº¡y `python master.py audit <target>` (phÃ¢n tÃ­ch sá»‘ file quÃ©t, violations, exemptions, secret leaks).
+- `runDoctor(projectRoot)`: Cháº¡y `python master.py doctor <target>`.
+- `runProbes(projectRoot, probeId)`: Cháº¡y PowerShell audit-probes náº¿u cáº§n.
 
-#### File Mới: `dashboard/routes/masterProcessRoutes.js`
-Đăng ký các RESTful endpoints:
-- `GET  /api/mp/status`: Trả về thông tin kết nối, lock info, drift status, hook status.
-- `POST /api/mp/init`: Thực hiện ghim phiên bản.
-- `POST /api/mp/sync`: Đồng bộ templates và refresh lock.
-- `POST /api/mp/install-hooks`: Cài đặt / cập nhật Git pre-commit hook.
-- `POST /api/mp/audit`: Chạy quét modularity và secret scanning.
-- `POST /api/mp/doctor`: Kiểm tra sức khỏe toàn diện dự án.
-- `POST /api/mp/probes`: Chạy kiểm tra các probes P1-P6.
+#### File Má»›i: `dashboard/routes/masterProcessRoutes.js`
+ÄÄƒng kÃ½ cÃ¡c RESTful endpoints:
+- `GET  /api/mp/status`: Tráº£ vá» thÃ´ng tin káº¿t ná»‘i, lock info, drift status, hook status.
+- `POST /api/mp/init`: Thá»±c hiá»‡n ghim phiÃªn báº£n.
+- `POST /api/mp/sync`: Äá»“ng bá»™ templates vÃ  refresh lock.
+- `POST /api/mp/install-hooks`: CÃ i Ä‘áº·t / cáº­p nháº­t Git pre-commit hook.
+- `POST /api/mp/audit`: Cháº¡y quÃ©t modularity vÃ  secret scanning.
+- `POST /api/mp/doctor`: Kiá»ƒm tra sá»©c khá»e toÃ n diá»‡n dá»± Ã¡n.
+- `POST /api/mp/probes`: Cháº¡y kiá»ƒm tra cÃ¡c probes P1-P6.
 
-#### Cập nhật: `dashboard/routes.js`
-Đăng ký `handleMasterProcessRoutes(request, response, url, root)` vào router chính của Dashboard.
+#### Cáº­p nháº­t: `dashboard/routes.js`
+ÄÄƒng kÃ½ `handleMasterProcessRoutes(request, response, url, root)` vÃ o router chÃ­nh cá»§a Dashboard.
 
 ---
 
 ### 3.2. Frontend Dashboard UI/UX
 
-#### Cập nhật Template: `dashboard/public/templates/settings.html`
-Thêm subtab mới vào thanh điều hướng Settings:
+#### Cáº­p nháº­t Template: `dashboard/public/templates/settings.html`
+ThÃªm subtab má»›i vÃ o thanh Ä‘iá»u hÆ°á»›ng Settings:
 ```html
 <button class="settings-subtab" type="button" role="tab" data-subtab="master-process">
-  <i class="ph-bold ph-shield-check"></i> Quy trình Master Process
+  <i class="ph-bold ph-shield-check"></i> Quy trÃ¬nh Master Process
 </button>
 ```
-Thêm panel nội dung `#settings-master-process`:
-1. **Thẻ Anti-Drift & Process Lock**:
-   - Hiển thị: Master Path, Hub Version, Hub Commit SHA, Trạng thái (`IN_SYNC` 🟢 / `DRIFT_DETECTED` 🔴 / `UNPINNED` ⚪).
-   - Nút bấm: `[ 📌 Ghim phiên bản (Init) ]`, `[ 🔄 Đồng bộ Hub (Sync) ]`, `[ 🔍 Kiểm tra Drift ]`.
-2. **Thẻ Git Pre-commit Hook**:
-   - Hiển thị: Trạng thái cài đặt (`Đã kích hoạt Managed V2` 🟢 / `Chưa cài đặt` 🔴 / `Trỏ Hub hợp lệ`).
-   - Nút bấm: `[ 🛡️ Cài đặt / Khắc phục Hook ]`.
-3. **Thẻ Kiểm Định Modularity & Secret Audit**:
-   - Hiển thị chỉ số: Tổng số file mã nguồn, Số lỗi vi phạm kích thước (Violations), Số file miễn trừ (Exemptions).
-   - Nút bấm: `[ ⚡ Quét toàn bộ mã nguồn ]`, `[ ⚡ Quét Staged Git Files ]`.
-4. **Bảng Điều Khiển Console / Output**:
-   - Vùng terminal hiển thị log chi tiết khi chạy Audit / Probes / Sync với font `JetBrains Mono`.
+ThÃªm panel ná»™i dung `#settings-master-process`:
+1. **Tháº» Anti-Drift & Process Lock**:
+   - Hiá»ƒn thá»‹: Master Path, Hub Version, Hub Commit SHA, Tráº¡ng thÃ¡i (`IN_SYNC` ðŸŸ¢ / `DRIFT_DETECTED` ðŸ”´ / `UNPINNED` âšª).
+   - NÃºt báº¥m: `[ ðŸ“Œ Ghim phiÃªn báº£n (Init) ]`, `[ ðŸ” Kiá»ƒm tra Drift ]`.
+   - **Luá»“ng Äá»“ng Bá»™ An ToÃ n (Sync 2 Náº¥c):**
+     - Máº·c Ä‘á»‹nh báº¥m `[ ðŸ”„ Xem trÆ°á»›c Äá»“ng bá»™ (--dry-run) ]`: Cháº¡y cháº¿ Ä‘á»™ xem trÆ°á»›c, in danh sÃ¡ch file sáº½ thay Ä‘á»•i mÃ  khÃ´ng ghi Ä‘Ã¨.
+     - Checkbox xÃ¡c nháº­n: `[ ] Cho phÃ©p ghi Ä‘Ã¨ templates cÃ³ sao lÆ°u (.bak) (--update-templates)`. Khi tÃ­ch chá»n, nÃºt Ä‘á»•i sang mÃ u cam `[ âš ï¸ XÃ¡c nháº­n Äá»“ng bá»™ & Ghi Ä‘Ã¨ ]`.
+2. **Tháº» Git Pre-commit Hook**:
+   - Hiá»ƒn thá»‹: Tráº¡ng thÃ¡i cÃ i Ä‘áº·t (`ÄÃ£ kÃ­ch hoáº¡t Managed V2` ðŸŸ¢ / `ChÆ°a cÃ i Ä‘áº·t` ðŸ”´ / `Trá» Hub há»£p lá»‡`).
+   - NÃºt báº¥m: `[ ðŸ›¡ï¸ CÃ i Ä‘áº·t / Kháº¯c phá»¥c Hook ]`.
+3. **Tháº» Kiá»ƒm Äá»‹nh Modularity & Secret Audit**:
+   - Hiá»ƒn thá»‹ chá»‰ sá»‘: Tá»•ng sá»‘ file mÃ£ nguá»“n, Sá»‘ lá»—i vi pháº¡m kÃ­ch thÆ°á»›c (Violations), Sá»‘ file miá»…n trá»« (Exemptions).
+   - NÃºt báº¥m: `[ âš¡ QuÃ©t toÃ n bá»™ mÃ£ nguá»“n ]`, `[ âš¡ QuÃ©t Staged Git Files ]`, `[ ðŸ©º Doctor Kiá»ƒm tra ToÃ n diá»‡n ]`.
+4. **Báº£ng Äiá»u Khiá»ƒn Console / Output**:
+   - VÃ¹ng terminal hiá»ƒn thá»‹ log chi tiáº¿t khi cháº¡y Audit / Probes / Sync vá»›i font `JetBrains Mono`.
 
-#### Cập nhật Logic: `dashboard/public/js/views/settings/settingsSlice.js`
-- Xử lý nạp dữ liệu trạng thái `/api/mp/status` khi chuyển sang tab `master-process`.
-- Bắt sự kiện click cho các nút hành động, hiển thị spinner và gọi API tương ứng.
-- Cập nhật badge trạng thái và in output ra console panel trực quan.
-- Tuân thủ quy tắc bất biến: **100% DOM APIs, không dùng `innerHTML` cho dữ liệu server**.
+#### Cáº­p nháº­t Logic: `dashboard/public/js/views/settings/settingsSlice.js`
+- Xá»­ lÃ½ náº¡p dá»¯ liá»‡u tráº¡ng thÃ¡i `/api/mp/status` khi chuyá»ƒn sang tab `master-process`.
+- **Quáº£n lÃ½ tráº¡ng thÃ¡i thá»±c thi (Execution Lock & Loading State):**
+  - Khi má»™t tiáº¿n trÃ¬nh Ä‘ang cháº¡y: VÃ´ hiá»‡u hÃ³a (disable) toÃ n bá»™ cÃ¡c nÃºt báº¥m trong panel, hiá»ƒn thá»‹ spinner xoay vÃ  nhÃ£n tráº¡ng thÃ¡i "Äang thá»±c thi...".
+  - NgÄƒn cháº·n ngÆ°á»i dÃ¹ng báº¥m nhiá»u láº§n gÃ¢y ngháº½n tiáº¿n trÃ¬nh ná»n.
+- Cáº­p nháº­t badge tráº¡ng thÃ¡i vÃ  in output ra console panel trá»±c quan.
+- TuÃ¢n thá»§ quy táº¯c báº¥t biáº¿n: **100% DOM APIs, khÃ´ng dÃ¹ng `innerHTML` cho dá»¯ liá»‡u server**.
 
-#### Cập nhật CSS: `dashboard/public/styles/views/settings.css`
-- Thiết kế badge trạng thái đồng bộ, card hiển thị thông số và output viewer chuẩn Dark/Light mode.
+#### Cáº­p nháº­t CSS: `dashboard/public/styles/views/settings.css`
+- Thiáº¿t káº¿ badge tráº¡ng thÃ¡i Ä‘á»“ng bá»™, card hiá»ƒn thá»‹ thÃ´ng sá»‘ vÃ  output viewer chuáº©n Dark/Light mode.
 
 ---
 
-### 3.3. Tích Hợp CLI Vào `package.json`
+### 3.3. TÃ­ch Há»£p CLI VÃ o `package.json`
 
-Cập nhật `package.json` của Hub (`D:\_Automation-Project`) để khi chạy `sync-satellites.js`, mọi vệ tinh đều có sẵn bộ lệnh:
+Cáº­p nháº­t `package.json` cá»§a Hub (`D:\_Automation-Project`) Ä‘á»ƒ khi cháº¡y `sync-satellites.js`, má»i vá»‡ tinh Ä‘á»u cÃ³ sáºµn bá»™ lá»‡nh:
 ```json
 "scripts": {
   "mp:doctor": "python D:/_Master_Process/master.py doctor .",
@@ -136,28 +145,32 @@ Cập nhật `package.json` của Hub (`D:\_Automation-Project`) để khi chạ
 
 ---
 
-## 4. Kế Hoạch Thực Hiện (Phases)
+## 4. Káº¿ Hoáº¡ch Thá»±c Hiá»‡n (Phases)
 
-| Phase | Nội dung thực hiện | Bằng chứng / Deliverables |
+| Phase | Ná»™i dung thá»±c hiá»‡n | Báº±ng chá»©ng / Deliverables |
 |---|---|---|
-| **Phase 1** | Xây dựng Backend Service & API Routes (`masterProcessService.js`, `masterProcessRoutes.js`, unit test). | Chạy unit test backend passed 100%, API trả về JSON đúng chuẩn. |
-| **Phase 2** | Xây dựng Giao diện Dashboard (Template `settings.html`, Subtab Master Process, `settingsSlice.js`, CSS). | UI render mượt mà, bấm nút gọi API và hiển thị kết quả đúng chuẩn. |
-| **Phase 3** | Cập nhật CLI `package.json` & Đồng bộ sang vệ tinh `_SieuVietGroup` qua `sync-satellites.js`. | Vệ tinh nhận đủ module Dashboard và scripts `mp:*`. |
-| **Phase 4** | Nghiệm thu toàn diện trên trình duyệt và CLI vệ tinh: Kiểm tra Drift, Audit 0 violations, Hook chặn Secret. | Chụp ảnh UI Dashboard, log terminal `IN_SYNC` và test leak chặn thành công. |
+| **Phase 1** | XÃ¢y dá»±ng Backend Service & API Routes (`masterProcessService.js`, `masterProcessRoutes.js`, unit test). TÃ­ch há»£p Path Whitelist Validation & Timeout 60s. | Cháº¡y unit test backend passed 100%, API tráº£ vá» JSON Ä‘Ãºng chuáº©n, cháº·n an toÃ n path láº¡. |
+| **Phase 2** | XÃ¢y dá»±ng Giao diá»‡n Dashboard (Template `settings.html`, Subtab Master Process, Sync 2 náº¥c, `settingsSlice.js`, CSS). | UI render mÆ°á»£t mÃ , báº¥m nÃºt gá»i API, hiá»ƒn thá»‹ loading state vÃ  káº¿t quáº£ Ä‘Ãºng chuáº©n. |
+| **Phase 3** | Cáº­p nháº­t Whitelist trong `sync-satellites.js`, cáº­p nháº­t `package.json` & Äá»“ng bá»™ sang vá»‡ tinh `_SieuVietGroup`. | Vá»‡ tinh nháº­n Ä‘á»§ module Dashboard vÃ  scripts `mp:*` mÃ  khÃ´ng bá»‹ sÃ³t file. |
+| **Phase 4** | Nghiá»‡m thu toÃ n diá»‡n trÃªn trÃ¬nh duyá»‡t vÃ  CLI vá»‡ tinh: Kiá»ƒm tra Drift, Audit 0 violations, Hook cháº·n Secret, Test Sync 2 náº¥c an toÃ n. | Chá»¥p áº£nh UI Dashboard, log terminal `IN_SYNC`, test leak cháº·n thÃ nh cÃ´ng. |
 
 ---
 
-## 5. Tiêu Chí Nghiệm Thu (Acceptance Criteria)
+## 5. TiÃªu ChÃ­ Nghiá»‡m Thu (Acceptance Criteria)
 
 1. **Dashboard UI:**
-   - Mở `http://127.0.0.1:4180/#/settings` -> Chuyển sang subtab **Quy trình Master Process**.
-   - Thẻ Anti-Drift hiển thị trạng thái `IN_SYNC` (màu xanh lục).
-   - Thẻ Git Hook hiển thị `Đã kích hoạt (Managed V2)`.
-   - Bấm nút **Quét Modularity & Secret**: Quét 200+ file, trả về `violations=0`, hiển thị danh sách file miễn trừ rõ ràng.
-2. **CLI Terminal tại `D:\_SieuVietGroup`:**
+   - Má»Ÿ `http://127.0.0.1:4180/#/settings` -> Chuyá»ƒn sang subtab **Quy trÃ¬nh Master Process**.
+   - Tháº» Anti-Drift hiá»ƒn thá»‹ tráº¡ng thÃ¡i `IN_SYNC` (mÃ u xanh lá»¥c).
+   - Tháº» Git Hook hiá»ƒn thá»‹ `ÄÃ£ kÃ­ch hoáº¡t (Managed V2)`.
+   - Báº¥m nÃºt **QuÃ©t Modularity & Secret**: QuÃ©t 200+ file, tráº£ vá» `violations=0`, hiá»ƒn thá»‹ danh sÃ¡ch file miá»…n trá»« rÃµ rÃ ng.
+   - Thá»­ báº¥m **Xem trÆ°á»›c Äá»“ng bá»™ (--dry-run)** khi chÆ°a tÃ­ch checkbox: Hiá»ƒn thá»‹ preview cÃ¡c thay Ä‘á»•i trÃªn console mÃ  khÃ´ng Ä‘á»¥ng cháº¡m Ä‘áº¿n file nguá»“n cá»§a dá»± Ã¡n con.
+   - Khi API Ä‘ang thá»±c thi: ToÃ n bá»™ nÃºt hÃ nh Ä‘á»™ng bá»‹ disable vÃ  hiá»ƒn thá»‹ spinner tráº¡ng thÃ¡i.
+2. **CLI Terminal táº¡i `D:\_SieuVietGroup`:**
    - `npm run mp:drift` -> `Hub Sync Status: IN_SYNC` (exit code 0).
    - `npm run mp:audit` -> `violations=0` (exit code 0).
-3. **Pre-commit Hook chặn rò rỉ bí mật:**
-   - Tạo file `test_leak.py` chứa `AWS_KEY = "AKIA1234567890ABCDEF"`.
-   - Thử `git add test_leak.py` và `git commit` -> Hook lập tức huỷ commit và in thông điệp `SECRET VIOLATION: test_leak.py:1 contains possible secret (AWS Access Key)`.
-   - Dọn dẹp sạch file test sau khi xác minh.
+3. **Báº£o máº­t & PhÃ²ng vá»‡ An ToÃ n:**
+   - Thá»­ gá»­i request API vá»›i Ä‘Æ°á»ng dáº«n má»¥c tiÃªu ngoÃ i whitelist (vÃ­ dá»¥ `C:\Windows`) -> API tráº£ vá» lá»—i 400/403 Bad Request, khÃ´ng thá»±c thi command.
+   - **Pre-commit Hook cháº·n rÃ² rá»‰ bÃ­ máº­t:**
+     - Táº¡o file `test_leak.py` chá»©a `AWS_KEY = "AKIA1234567890ABCDEF"`.
+     - Thá»­ `git add test_leak.py` vÃ  `git commit` -> Hook láº­p tá»©c huá»· commit vÃ  in thÃ´ng Ä‘iá»‡p `SECRET VIOLATION: test_leak.py:1 contains possible secret (AWS Access Key)`.
+     - Dá»n dáº¹p sáº¡ch file test sau khi xÃ¡c minh.
