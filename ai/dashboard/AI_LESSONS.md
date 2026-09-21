@@ -22,6 +22,16 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 ## Confirmed lessons
 
+### 2026-09-22 — Prevent Happy-Path Blindspots and Single-Target Bias in Hub-to-Spoke Integrations
+
+- Area: Master Process Integration & Multi-Project Dashboard.
+- Symptom: Direct mutation endpoints (/audit, /doctor...) were unmutexed, CarThings satellite was left unpinned without hooks, and a hardcoded string ('201 Scanned...') remained in QA View.
+- Root cause: Happy-path testing bias (verifying only that button clicks run commands), focusing on one satellite while neglecting the second, and avoiding UI expansion due to modularity line-budget anxiety instead of proactive refactoring.
+- Correct pattern: Enforce mutex execution lock at the service layer for all mutation actions; provide target selector UI for all whitelisted projects; proactively refactor event bindings and helpers before hitting the 250-line limit; never leave placeholder strings in production code.
+- Preventive rule: Multi-satellite verification must validate all N satellites before closing acceptance gates; all endpoints must have native API contract tests covering 200, 400, 403, and 409 status codes.
+- Regression check: Run `npm run test:dashboard:api`, `node dashboard/services/masterProcessService.test.js`, and verify all satellites via `python master.py check-drift <target>`.
+- Related files: `dashboard/services/masterProcessService.js`, `dashboard/routes/masterProcessRoutes.js`, `dashboard/public/js/views/settings/masterProcessHelper.js`, `dashboard/public/js/views/qa/processStudioHelper.js`.
+
 ### 2026-09-05 — Base fixtures must be parsed as DI capabilities, not UI Page Objects
 
 - Area: Object Repository & Page Manager / BDD Inspector.

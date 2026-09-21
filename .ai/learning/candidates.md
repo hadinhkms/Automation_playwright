@@ -6,16 +6,14 @@
 > - Sau khi được duyệt (`PROMOTED`) hoặc từ chối (`REJECTED`), script `optimize-knowledge.ps1` sẽ tự động chuyển mục này sang `.ai/learning/archive/` để tiết kiệm Token Context.
 > - Quy tắc viết: Tối đa 15 dòng/candidate, súc tích theo chuẩn DO/DON'T.
 
-<!-- Hướng dẫn mẫu thêm candidate mới:
-### [LEARN-001] Tiêu đề quan sát / bài học
-- **Nguồn trích xuất:** [FEATURE-X / BUG-Y / CODE-REVIEW]
-- **Role quan sát:** [Developer / QA / Tech Lead / BA]
-- **Quan sát (Observation):** Mô tả cụ thể hiện tượng hoặc cạm bẫy kỹ thuật
-- **Bằng chứng (Evidence):** Link file hoặc mã lỗi thực tế
-- **DO:** Hành vi chuẩn nên làm
-- **DON'T:** Hành vi cấm / lỗi cần tránh
-- **Đề xuất phân loại:** [CURRENT PRACTICE / APPROVED STANDARD / KNOWN PITFALL]
-- **Phạm vi đề xuất:** [FEATURE-LOCAL / MODULE / PROJECT]
-- **Đề xuất Owner duyệt:** [Technical Lead / Principal QA / BA]
+### [LEARN-MP-001] Anti-Happy-Path & Multi-Target Verification in Hub-Spoke
+- **Nguồn trích xuất:** Plan 12 Master Process Dashboard Integration Audit
+- **Role quan sát:** Senior QA Engineer & Tooling Lead
+- **Quan sát (Observation):** Mutex bị hở ở direct endpoints; bỏ quên vệ tinh CarThings; sợ trần dòng 250 nên bỏ tính năng thay vì refactor; để sót mock string cứng.
+- **Bằng chứng (Evidence):** Plan 12 Re-audit findings (masterProcessHelper.js, masterProcessService.js)
+- **DO:** Bọc Mutex ở service logic cho 100% mutation actions; kiểm tra toàn bộ N vệ tinh; refactor trước khi file > 90% trần dòng; viết API Contract tests (403, 409, 400).
+- **DON'T:** Không để mock string trong code chính thức; không nghiệm thu đại diện 1 vệ tinh rồi suy diễn cho toàn bộ.
+- **Đề xuất phân loại:** APPROVED STANDARD
+- **Phạm vi đề xuất:** PROJECT
+- **Đề xuất Owner duyệt:** Technical Lead / Principal QA
 - **Trạng thái:** PENDING
--->
