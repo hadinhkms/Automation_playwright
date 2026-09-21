@@ -1,42 +1,24 @@
-# Tiêu Chuẩn Viết Mã (Coding Conventions)
+# Coding Conventions & Project Standards
 
-> [!IMPORTANT]
-> Toàn bộ mã nguồn kiểm thử và tiện ích trong dự án phải tuân thủ nghiêm ngặt các quy tắc dưới đây. Kiểm tra tự động bằng lệnh: `npm run check:framework`.
+> [!NOTE]
+> Các quy tắc viết code đã được duyệt (Approved Standards) trong dự án.
+> Giúp mã nguồn nhất quán, sạch sẽ và tránh technical debt.
 
-## 1. Quy Tắc Bắt Buộc Trong Test Specs (`tests/e2e/**/*.spec.js`)
-1. **Tuân thủ mô hình Page Object Model (POM)**:
-   - Nghiêm cấm gọi trực tiếp `page.locator()`, `page.getByRole()`, `page.getByLabel()`, `page.getByPlaceholder()`, `page.getByTestId()`, `page.getByText()`, `page.screenshot()`, `page.evaluate()` trong file spec.
-   - Toàn bộ locator và UI interaction phải nằm trong Page Object (`pages/`). File spec chỉ điều phối action cấp cao và assertion hành vi.
-2. **Không import `fs` trong spec**:
-   - Mọi thao tác I/O, chụp ảnh evidence hoặc đọc file phải thông qua helper trong `core/utils/`.
-3. **Cấu trúc BDD rõ ràng**:
-   - Mỗi scenario độc lập trong 1 `test()`.
-   - Các bước kịch bản phải đặt trong `await test.step('Given ...' | 'When ...' | 'Then ...', async () => {})`.
-   - Bắt buộc khai báo Precondition metadata bằng `testInfo.annotations.push({ type: 'Precondition', description: '...' })`.
-   - Bước `Given` phải kiểm tra trạng thái khởi điểm và chụp bằng chứng ban đầu (evidence capture).
+## 1. Naming Conventions
+- File names: `kebab-case` cho modules/services; `PascalCase` cho React Components.
+- Biến và hàm: `camelCase`.
+- Constants / Enums: `UPPER_SNAKE_CASE` hoặc `PascalCase` cho enum types.
 
-## 2. Quy Tắc Page Object & Framework Core
-1. **Tuyệt đối cấm `page.waitForTimeout()`**:
-   - Không được dùng hard wait (`waitForTimeout`). Phải sử dụng smart wait của Playwright: `waitFor({ state: 'visible' })`, `waitForURL()`, hoặc web assertions `await expect(locator).toBeVisible()`.
-2. **Cấm nuốt lỗi âm thầm**:
-   - Tuyệt đối không viết `.catch(() => {})` làm mất dấu vết lỗi kiểm thử.
-3. **Không dùng API Private**:
-   - Cấm truy cập `page.context()._options` hoặc các thuộc tính nội bộ bắt đầu bằng dấu gạch dưới `_`.
-4. **Resilient Locators**:
-   - Sử dụng locator bền vững theo vai trò: `getByRole`, `getByLabel`. Tránh phụ thuộc cứng vào cấu trúc thẻ HTML nếu có thể thay đổi (ví dụ: dùng union selector `img, svg` cho logo thương hiệu).
-   - Base locator cho nút tài khoản phải tránh overbroad regex để không xung đột strict mode (`getByRole('button', { name: /avt_invalid|tài khoản/i }).first()`).
+## 2. Code Organization & Patterns
+- Khuyến khích Pure Functions cho logic tính toán.
+- Tránh mutate trực tiếp state; dùng immutable patterns.
+- Export tường minh, hạn chế `export default` tùy tiện cho các shared modules.
 
-## 3. Dashboard Web Studio (`dashboard/`)
-1. **Giữ nguyên kiến trúc Vanilla**:
-   - Sử dụng Vanilla HTML5, CSS3, JavaScript. Tránh đưa các framework như React/Vue/Tailwind vào nếu không có yêu cầu rõ ràng.
-2. **Tái sử dụng Design Primitives**:
-   - Tái sử dụng design tokens, layout, panels, và code editor có sẵn trong `dashboard/`.
-3. **Scoped DOM Queries & Namespace**:
-   - Luôn query kèm container ID (ví dụ: `#script-files-list .script-card-item`). Cấm dùng `querySelectorAll` toàn cục cho class card/pill để tránh reset nhầm tab khác.
-4. **Draft-First Pattern (Soạn thảo nháp)**:
-   - Các thao tác thêm bước từ modal chỉ chèn vào in-memory draft (`editableSteps`), cập nhật live preview và giữ màn hình edit; chỉ ghi đĩa khi người dùng bấm "Lưu".
-5. **Git Sync Asset Whitelist**:
-   - Chỉ cho phép commit các đường dẫn whitelist (`tests/**`, `pages/**`, `data/**`); bắt buộc chạy `npm run check:framework` trước khi commit/push.
-6. **Căn hàng Grid Form**:
-   - Thẻ `<label>` trong grid item phải có `min-height` cố định và `align-items: flex-end`; chiều cao `<input>` và `<select>` đồng nhất 40px để tránh lệch bậc thang.
+## 3. Approved vs Legacy Patterns
+| Pattern Loại bỏ (Legacy) | Pattern Thay Thế (Approved Standard) | Lý do |
+|---|---|---|
+| Direct API call inside Component | Custom Hook + Service layer | Tái sử dụng & dễ test |
+| Inline hardcoded colors | Design Tokens / CSS Variables | Đồng bộ theme & dark mode |
+| Monolithic God Component (>250 lines) | Feature Sub-components (<150 lines) + Hooks | Giảm trách nhiệm trộn lẫn; hiệu năng cần đo |
+| Trộn lẫn State, API và UI vào 1 file | Isolated Hooks + Pure Presentational UI | Tối ưu memoization & bảo trì độc lập |
 

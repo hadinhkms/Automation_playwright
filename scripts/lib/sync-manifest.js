@@ -19,14 +19,14 @@ const SATELLITES = [
     repo: 'hadtv-ctrl/Vieclam24h-Automation_JS',
     branch: 'main',
     localPath: 'D:\\_SieuVietGroup',
-    autoSync: false, // Chế độ Manual: Vệ tinh chủ động cập nhật qua "npm run update:framework" hoặc nút trên Dashboard khi muốn
+    autoSync: true, // Tự động đồng bộ khi chạy sync-satellites từ Hub
   },
   {
     name: 'Automation_Carthings',
     repo: 'hadinhkms/Automation_Carthings',
     branch: 'main',
     localPath: 'D:\\_CarThings\\Automation_Carthings',
-    autoSync: false, // Chế độ Manual: Vệ tinh chủ động cập nhật qua "npm run update:framework" hoặc nút trên Dashboard khi muốn
+    autoSync: true, // Tự động đồng bộ khi chạy sync-satellites từ Hub
   },
 ];
 

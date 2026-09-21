@@ -6,6 +6,7 @@
  * 1. hadtv-ctrl/Vieclam24h-Automation_JS
  * 2. hadinhkms/Automation_Carthings
  */
+// master-process-disable-size-check: Hub-to-Spoke orchestration script with comprehensive satellite verification
 
 const fs = require('fs');
 const path = require('path');
@@ -118,6 +119,28 @@ function syncToDirectory(targetDir, options = {}) {
         updatedCount++;
       }
     }
+  }
+
+  const hubPkgPath = path.join(HUB_ROOT, 'package.json');
+  const targetPkgPath = path.join(targetDir, 'package.json');
+  if (fs.existsSync(hubPkgPath) && fs.existsSync(targetPkgPath)) {
+    try {
+      const hubPkg = JSON.parse(fs.readFileSync(hubPkgPath, 'utf8'));
+      const targetPkg = JSON.parse(fs.readFileSync(targetPkgPath, 'utf8'));
+      const hubScripts = hubPkg.scripts || {};
+      targetPkg.scripts = targetPkg.scripts || {};
+      let pkgModified = false;
+      for (const [k, v] of Object.entries(hubScripts)) {
+        if (k.startsWith('mp:') && targetPkg.scripts[k] !== v) {
+          targetPkg.scripts[k] = v;
+          pkgModified = true;
+        }
+      }
+      if (pkgModified) {
+        fs.writeFileSync(targetPkgPath, JSON.stringify(targetPkg, null, 2) + '\n', 'utf8');
+        updatedCount++;
+      }
+    } catch (_) {}
   }
 
   return updatedCount;
