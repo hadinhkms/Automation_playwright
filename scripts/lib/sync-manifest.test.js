@@ -6,6 +6,8 @@
  *
  * Chạy: node --test scripts/lib/sync-manifest.test.js
  */
+// master-process-disable-size-check: Comprehensive sync contract test suite covering Hub-to-Spoke predicates and package merges
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -342,4 +344,34 @@ test('nội dung riêng trong core/ KHÔNG được chặn dashboard/', () => {
   assert.ok(!skip.includes('dashboard'), 'dashboard phải vẫn được giao');
   assert.ok(!skip.includes('scripts'), 'scripts phải vẫn được giao');
   assert.ok(!skip.includes(ROOT_MODULE), 'file gốc phải vẫn được giao');
+});
+
+test('syncToDirectory hợp nhất đúng các scripts mp:* vào package.json của vệ tinh và bảo toàn metadata riêng', () => {
+  const tmpSatellite = fs.mkdtempSync(path.join(os.tmpdir(), 'satellite-test-'));
+  try {
+    const fakePkg = {
+      name: 'Vieclam24h-Custom-Satellite',
+      version: '3.4.1',
+      dependencies: { lodash: '^4.17.21' },
+      scripts: {
+        test: 'playwright test',
+        'custom:job': 'node scripts/custom.js',
+      },
+    };
+    fs.writeFileSync(path.join(tmpSatellite, 'package.json'), JSON.stringify(fakePkg, null, 2), 'utf8');
+
+    syncToDirectory(tmpSatellite);
+
+    const merged = JSON.parse(fs.readFileSync(path.join(tmpSatellite, 'package.json'), 'utf8'));
+    assert.equal(merged.name, 'Vieclam24h-Custom-Satellite');
+    assert.equal(merged.version, '3.4.1');
+    assert.deepEqual(merged.dependencies, { lodash: '^4.17.21' });
+    assert.equal(merged.scripts['custom:job'], 'node scripts/custom.js');
+    assert.ok(merged.scripts['mp:doctor'], 'mp:doctor phải được thêm vào');
+    assert.ok(merged.scripts['mp:audit'], 'mp:audit phải được thêm vào');
+    assert.ok(merged.scripts['mp:drift'], 'mp:drift phải được thêm vào');
+    assert.ok(merged.scripts['mp:sync'], 'mp:sync phải được thêm vào');
+  } finally {
+    fs.rmSync(tmpSatellite, { recursive: true, force: true });
+  }
 });
