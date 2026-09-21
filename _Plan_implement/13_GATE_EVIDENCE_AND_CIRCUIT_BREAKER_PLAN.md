@@ -1,7 +1,7 @@
 # Kế Hoạch Hiện Thực Hóa: Cầu Nối Acceptance Gate 4 & Circuit Breaker Đóng Băng Tính Năng
 
 > **Mã kế hoạch:** `PLAN-13`  
-> **Trạng thái:** `PROPOSED (Chờ Duyệt)`  
+> **Trạng thái:** `COMPLETED (Đã Hoàn Tất & Kiểm Định Nghiệm Thu)`  
 > **Tài liệu tham chiếu:** [03_ACCEPTANCE_GATES.md](file:///D:/_Master_Process/03_ACCEPTANCE_GATES.md), [04_PROJECT_AUDIT_STANDARD.md](file:///D:/_Master_Process/04_PROJECT_AUDIT_STANDARD.md), [12_MASTER_PROCESS_DASHBOARD_INTEGRATION_PLAN.md](file:///d:/_Automation-Project/_Plan_implement/12_MASTER_PROCESS_DASHBOARD_INTEGRATION_PLAN.md)  
 > **Phạm vi áp dụng:** Framework Nền tảng Hub (`D:\_Automation-Project`), Dashboard Core, và các dự án vệ tinh (`D:\_SieuVietGroup`, `D:\_CarThings\Automation_Carthings`).
 
@@ -219,12 +219,12 @@ graph TD
 ## 5. Kế Hoạch Kiểm Thử & Tiêu Chí Nghiệm Thu (Verification Checklist)
 
 ### 5.1. Tiêu Chí Nghiệm Thu Bắt Buộc (Acceptance Criteria)
-- [ ] File `test-results/junit.xml` được sinh ra tự động sau mỗi lần chạy Playwright test.
-- [ ] Chạy `npm run test:gate4` tạo ra file `.gate-artifacts/evidence-gate4.json` với đầy đủ mã băm SHA256 và số assertion thực tế.
-- [ ] Nếu có test case bị `FAIL` hoặc `SKIP`, cờ `passed` trong evidence bắt buộc phải là `false`.
-- [ ] Chạy `npm run review:gate4` thực hiện ký duyệt thành công với QA Lead độc lập; cơ chế chặn Self-Review hoạt động chính xác.
-- [ ] Khi `audit/FREEZE.json` có `"active": true`:
+- [x] File `test-results/junit.xml` được sinh ra tự động sau mỗi lần chạy Playwright test.
+- [x] Chạy `npm run test:gate4` tạo ra file `.gate-artifacts/evidence-gate4.json` với đầy đủ mã băm SHA256 và số assertion thực tế.
+- [x] Nếu có test case bị `FAIL` hoặc `SKIP`, cờ `passed` trong evidence bắt buộc phải là `false`.
+- [x] Chạy `npm run review:gate4` thực hiện ký duyệt thành công với QA Lead độc lập; cơ chế chặn Self-Review hoạt động chính xác.
+- [x] Khi `audit/FREEZE.json` có `"active": true`:
   - Lệnh `scripts/run-suite.js` lập tức thoát với exit code 1 và in thông báo `[CIRCUIT BREAKER] Release & Regression suite is FROZEN...`.
   - Lệnh `npx playwright test` trực tiếp bị chặn ở cấp độ Fixture.
   - Dashboard Web UI chặn bấm chạy và hiển thị cảnh báo đỏ.
-- [ ] Tất cả các file mã nguồn mới tuân thủ nghiêm ngặt giới hạn dòng: `service <= 200`, `routes <= 100`, `utils <= 150`. Không sử dụng `innerHTML` không an toàn.
+- [x] Tất cả các file mã nguồn mới tuân thủ nghiêm ngặt giới hạn dòng: `service <= 200`, `routes <= 100`, `utils <= 150`. Không sử dụng `innerHTML` không an toàn.
