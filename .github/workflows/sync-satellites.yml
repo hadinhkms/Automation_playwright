@@ -1,24 +1,6 @@
-﻿name: Auto Sync Framework to Satellites
+﻿name: Sync Framework to Satellites (Manual)
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'dashboard/**'
-      - 'core/**'
-      - 'bin/**'
-      - 'scripts/**'
-      - 'ai/**'
-      - 'tools/**'
-      - 'Start_Dashboard.bat'
-      - 'Stop_Dashboard.bat'
-      # Các file gốc nằm trong ROOT_FILES_TO_SYNC cũng phải kích hoạt sync,
-      # nếu không thì sửa AGENTS.md/CLAUDE.md sẽ không bao giờ tới được vệ tinh.
-      - 'AGENTS.md'
-      - 'CLAUDE.md'
-      - 'GEMINI.md'
-      - 'QA_AI_RULES.md'
   workflow_dispatch:
 
 jobs:
