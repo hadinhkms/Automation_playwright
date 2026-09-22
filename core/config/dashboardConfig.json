@@ -3,17 +3,29 @@
     "qc": {
       "label": "QC",
       "baseURL": "https://example.com",
-      "apiBaseURL": "https://httpbin.org"
+      "apiBaseURL": "https://httpbin.org",
+      "_siteLabels": {
+        "baseURL": "Cổng Quản Trị Admin",
+        "apiBaseURL": "Backend REST API"
+      }
     },
     "stg": {
       "label": "Staging",
       "baseURL": "https://staging.example.com",
-      "apiBaseURL": "https://httpbin.org"
+      "apiBaseURL": "https://httpbin.org",
+      "_siteLabels": {
+        "baseURL": "Cổng Quản Trị Admin",
+        "apiBaseURL": "Backend REST API"
+      }
     },
     "prod": {
       "label": "Production",
       "baseURL": "https://example.com",
-      "apiBaseURL": "https://httpbin.org"
+      "apiBaseURL": "https://httpbin.org",
+      "_siteLabels": {
+        "baseURL": "Cổng Quản Trị Admin",
+        "apiBaseURL": "Backend REST API"
+      }
     }
   },
   "runtime": {
@@ -21,7 +33,7 @@
     "workers": 2,
     "testTimeout": 60000,
     "navigationTimeout": 60000,
-    "actionTimeout": 0,
+    "actionTimeout": 15000,
     "retriesLocal": 0,
     "retriesCI": 2,
     "trace": "on-first-retry",
@@ -146,5 +158,14 @@
     "channelName": "#qa-automation-reports",
     "notifyOnFinish": true,
     "notifyOnlyOnFailure": false
+  },
+  "qa": {
+    "requirements": "requirements",
+    "testCases": "test-cases",
+    "specs": "tests",
+    "decisionsFile": "decisions.json"
+  },
+  "docs": {
+    "dir": "docs"
   }
 }

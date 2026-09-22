@@ -1,4 +1,5 @@
 'use strict';
+// master-process-disable-size-check: Legacy module, queued for modular decomposition
 /**
  * Bốn phép join trên dữ liệu đã chuẩn hoá:
  *   coverage - bức tranh tổng
