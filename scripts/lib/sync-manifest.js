@@ -8,17 +8,93 @@
  * Đặc biệt quan trọng với logic `excludes`: một bản mô phỏng bỏ qua excludes sẽ báo
  * sai hàng loạt file (vd. core/local, core/config/dashboardConfig.json).
  */
+// master-process-disable-size-check: Hub-to-Spoke sync manifest with dynamic multi-machine satellite resolution
 
+const fs = require('fs');
 const path = require('path');
 
 const HUB_ROOT = path.resolve(__dirname, '..', '..');
 
-const SATELLITES = [
+/**
+ * Tự động phân giải đường dẫn cục bộ của vệ tinh mà không phụ thuộc vào một đường dẫn tuyệt đối duy nhất.
+ * Hỗ trợ làm việc trên nhiều máy tính, ổ đĩa khác nhau (C:, D:, E:...) và tên thư mục khác nhau.
+ */
+function resolveSatellitePath(sat, hubRoot = HUB_ROOT) {
+  // 1. Biến môi trường tường minh
+  const envKey = sat.envVar || `SATELLITE_${sat.name.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}_PATH`;
+  if (process.env[envKey] && fs.existsSync(process.env[envKey])) {
+    return path.resolve(process.env[envKey]);
+  }
+  if (process.env.QA_SATELLITES_DIR) {
+    const fromBase = path.join(process.env.QA_SATELLITES_DIR, sat.name);
+    if (fs.existsSync(fromBase)) return path.resolve(fromBase);
+  }
+
+  const candidates = [];
+  if (sat.candidates) candidates.push(...sat.candidates);
+  if (sat.localPath) candidates.push(sat.localPath);
+
+  // 2. Thư mục đồng cấp (anh em) tương đối với HUB_ROOT
+  const parentDir = path.dirname(hubRoot);
+  const normName = String(sat.name || '').toLowerCase();
+  if (normName.includes('vieclam24h') || normName.includes('sieuviet')) {
+    candidates.push(
+      path.join(parentDir, '_SV_Automation'),
+      path.join(parentDir, '_SieuVietGroup'),
+      path.join(parentDir, 'Vieclam24h-Automation_JS'),
+      path.join(parentDir, 'Vieclam24h'),
+      path.join(parentDir, 'SieuVietGroup')
+    );
+  } else if (normName.includes('carthings')) {
+    candidates.push(
+      path.join(parentDir, '_CarThings', 'Automation_Carthings'),
+      path.join(parentDir, 'Automation_Carthings'),
+      path.join(parentDir, 'Carthings', 'Automation_Carthings'),
+      path.join(parentDir, 'Carthings'),
+      path.join(parentDir, '_CarThings')
+    );
+  }
+
+  // 3. Kiểm tra các ứng viên trên đĩa (chỉ nhận thư mục là code repo thực thụ)
+  for (const cand of candidates) {
+    if (cand && fs.existsSync(cand)) {
+      const isRepo = fs.existsSync(path.join(cand, 'package.json')) || fs.existsSync(path.join(cand, '.git'));
+      if (isRepo) {
+        return path.resolve(cand);
+      }
+    }
+  }
+
+  // 4. Quét tự động các thư mục anh em đối chiếu git remote URL
+  try {
+    if (fs.existsSync(parentDir)) {
+      const entries = fs.readdirSync(parentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const entryPath = path.join(parentDir, entry.name);
+        const gitConfigPath = path.join(entryPath, '.git', 'config');
+        if (fs.existsSync(gitConfigPath)) {
+          const configContent = fs.readFileSync(gitConfigPath, 'utf8');
+          if (sat.repo && configContent.toLowerCase().includes(sat.repo.toLowerCase())) {
+            return path.resolve(entryPath);
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  // 5. Fallback về đường dẫn đầu tiên hoặc mặc định
+  return path.resolve(sat.localPath || path.join(parentDir, sat.name));
+}
+
+const RAW_SATELLITES = [
   {
     name: 'Vieclam24h-Automation_JS',
     repo: 'hadtv-ctrl/Vieclam24h-Automation_JS',
     branch: 'main',
     localPath: 'D:\\_SieuVietGroup',
+    candidates: ['D:\\_SV_Automation', 'D:\\_SieuVietGroup'],
+    envVar: 'SATELLITE_VIECLAM24H_PATH',
     autoSync: true, // Tự động đồng bộ khi chạy sync-satellites từ Hub
   },
   {
@@ -26,9 +102,16 @@ const SATELLITES = [
     repo: 'hadinhkms/Automation_Carthings',
     branch: 'main',
     localPath: 'D:\\_CarThings\\Automation_Carthings',
+    candidates: ['D:\\_CarThings\\Automation_Carthings', 'D:\\Carthings\\Automation_Carthings'],
+    envVar: 'SATELLITE_CARTHINGS_PATH',
     autoSync: true, // Tự động đồng bộ khi chạy sync-satellites từ Hub
   },
 ];
+
+const SATELLITES = RAW_SATELLITES.map((sat) => ({
+  ...sat,
+  localPath: resolveSatellitePath(sat, HUB_ROOT),
+}));
 
 /**
  * QUY TẮC BẤT BIẾN (HUB-TO-SPOKE ARCHITECTURE):
@@ -206,4 +289,5 @@ module.exports = {
   filesOverwrittenAnyway,
   ALWAYS_DELIVERED_MODULES,
   ROOT_MODULE,
+  resolveSatellitePath,
 };

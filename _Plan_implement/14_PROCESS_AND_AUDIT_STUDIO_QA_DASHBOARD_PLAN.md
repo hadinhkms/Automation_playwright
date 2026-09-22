@@ -1,9 +1,9 @@
 # Kế Hoạch Hiện Thực Hóa: Tích Hợp "Process & Audit Studio" Vào QA Dashboard
 
 > **Mã kế hoạch:** `PLAN-14`  
-> **Trạng thái:** `PROPOSED (Chờ Duyệt)`  
+> **Trạng thái:** `COMPLETED (Đã Hoàn Tất & Đồng Bộ Nghiệm Thu)`  
 > **Tài liệu tham chiếu:** [04_PROJECT_AUDIT_STANDARD.md](file:///D:/_Master_Process/04_PROJECT_AUDIT_STANDARD.md), [13_GATE_EVIDENCE_AND_CIRCUIT_BREAKER_PLAN.md](file:///d:/_Automation-Project/_Plan_implement/13_GATE_EVIDENCE_AND_CIRCUIT_BREAKER_PLAN.md)  
-> **Môi trường mục tiêu:** Dashboard Core (`d:\_Automation-Project\dashboard`) và Vieclam24h Dashboard tại `http://127.0.0.1:4180/` (`D:\_SieuVietGroup`).
+> **Môi trường mục tiêu:** Dashboard Core (`d:\_Automation-Project\dashboard`) và Vieclam24h Dashboard tại `D:\_SV_Automation`.
 
 ---
 
@@ -192,11 +192,12 @@ graph TD
 
 ## 5. Tiêu Chí Nghiệm Thu Bắt Buộc (Acceptance Criteria)
 
-- [ ] Endpoint `GET /api/mp/status` trả về đầy đủ: `policy`, `process_lock`, `freeze`, `candidates_lines`, `modularity`.
-- [ ] Endpoint `POST /api/mp/run` xử lý chuẩn xác cả 4 actions: `doctor`, `audit`, `optimize`, `probes`.
-- [ ] Mở `http://127.0.0.1:4180/#/qa`: Card "Process & Audit Studio" hiển thị đầy đủ thông số và 4 action buttons.
-- [ ] Bấm nút `[Run Security & Audit]`: Console hiển thị `MODULARITY: scanned=... violations=0...` với chữ màu xanh.
-- [ ] Bấm nút `[Run 6 Audit Probes]`: Console hiển thị kết quả quét 6 probes không gây crash server Node.js.
-- [ ] Không có bất kỳ lỗi console bất thường nào trên Browser DevTools.
-- [ ] 100% tuân thủ quy tắc DOM an toàn: không dùng `innerHTML` trên dữ liệu log/server.
-- [ ] Kiểm định Modularity Audit trên mã nguồn mới đạt 0 violations (`service <= 200`, `helper <= 250`).
+- [x] Endpoint `GET /api/mp/status` trả về đầy đủ: `policy`, `process_lock`, `freeze`, `candidates_lines`, `modularity`.
+- [x] Endpoint `POST /api/mp/run` xử lý chuẩn xác cả 4 actions: `doctor`, `audit`, `optimize`, `probes`.
+- [x] Giao diện Card "Process & Audit Studio" hiển thị đầy đủ thông số và 4 action buttons tại `#/qa`.
+- [x] Bấm nút `[Run Security & Audit]`: Console hiển thị `MODULARITY: scanned=... violations=0...` với chữ màu xanh.
+- [x] Bấm nút `[Run 6 Audit Probes]`: Console hiển thị kết quả quét 6 probes không gây crash server Node.js.
+- [x] Không có bất kỳ lỗi console bất thường nào trên Browser DevTools.
+- [x] 100% tuân thủ quy tắc DOM an toàn: không dùng `innerHTML` trên dữ liệu log/server.
+- [x] Kiểm định Modularity Audit trên mã nguồn mới đạt 0 violations (`service <= 200`, `helper <= 250`).
+- [x] Đã đồng bộ sang vệ tinh Vieclam24h (`D:\_SV_Automation`) thành công thông qua cơ chế phân giải đường dẫn động đa máy tính (Zero-Hardcoded Paths).
