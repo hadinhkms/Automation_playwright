@@ -22,6 +22,16 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 ## Confirmed lessons
 
+### 2026-09-22 — Ensure Standalone Controllers Re-bind Dynamically Loaded View Templates
+
+- Area: AI Agent View & On-Demand Template Lifecycle (`agent.js`, `agentSlice.js`).
+- Symptom: Opening the AI Agent tab showed "Mất kết nối Dashboard. Kiểm tra máy chủ rồi thử lại.", model select stuck on "Đang kiểm tra mô hình...", and controls disabled despite API test connection being successful in Settings.
+- Root cause: In Phase 5 on-demand template loading, view HTML is fetched and injected asynchronously when navigating to the tab. Standalone script `agent.js` was evaluated on initial page load when `#agent-form` and view DOM elements did not exist yet, causing module element references (`model`, `history`, `form`, etc.) to remain null. Calling `loadHistory()` threw a TypeError on `null.replaceChildren()`, which was caught and misinterpreted as a dashboard connection loss. Concurrently, `agentSlice.js` had stub event listeners on `#agent-start` calling non-existent endpoint `/api/agent/session`.
+- Correct pattern: Standalone feature scripts must re-query elements dynamically (`ensureElements()`), ensure safe DOM manipulation (`if (history)`), bind on-demand buttons idempotently, and export lifecycle hooks (e.g. `window.initAgentView`). View slices must delegate lifecycle mounting directly to the canonical view initialization hook rather than maintaining competing or broken API stubs.
+- Preventive rule: Whenever moving inline HTML into on-demand templates (`/templates/*.html`), verify that all associated controllers properly re-bind DOM nodes upon template insertion and run end-to-end browser click tests for tab transitions.
+- Regression check: Run `node --test dashboard/agent-ui-lifecycle.test.js dashboard/agent-ui-session.test.js` and verify browser navigation to AI Agent tab populates models and displays "Sẵn sàng".
+- Related files: `dashboard/public/agent.js`, `dashboard/public/js/views/agent/agentSlice.js`.
+
 ### 2026-09-22 — Test All Endpoints of New Pages and Features to Avoid False-Positive HTTP 400s
 
 - Area: Dashboard REST APIs, CLI Diagnostic Wrappers & Settings/QA Views.
