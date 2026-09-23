@@ -1,3 +1,4 @@
+// master-process-disable-size-check: QA Docs & Automation comprehensive contract test suite
 /**
  * tests/dashboard-api/qa.test.js
  * API Contract tests cho QA Docs & Automation:
@@ -413,5 +414,66 @@ describe('API Contract: QA Docs & Automation', () => {
     assert.equal(body.ok, true);
     assert.equal(body.mode, 'scaffold');
     assert.equal(body.created.length, 3);
+  });
+
+  test('POST /api/qa/analyze-requirement phân tích yêu cầu thô ở chế độ heuristic', async () => {
+    const rawText = `Tính năng thêm trung tâm sát hạch:
+Trường "Trung tâm sát hạch" bắt buộc cả khi tạo mới và khi cập nhật.
+Khu vực đào tạo (phường/xã) tối đa 10 mục. Bỏ trống trung tâm sát hạch sẽ bị chặn lưu.`;
+
+    const res = await fetch(`${harness.url}/api/qa/analyze-requirement`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        rawText,
+        mode: 'heuristic',
+        scanExisting: true,
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.engine, 'heuristic');
+    assert.ok(body.testCaseEstimation.totalCount > 0);
+    assert.ok(Array.isArray(body.testCaseEstimation.testCases));
+    assert.ok(body.systemImpact && body.systemImpact.riskLevel);
+    assert.ok(Array.isArray(body.logicClarifications));
+    assert.ok(Array.isArray(body.qaTeamInquiries));
+  });
+
+  test('POST /api/qa/scaffold-from-analysis tạo file REQ và TC từ kết quả phân tích', async () => {
+    const analysisResult = {
+      summary: 'Yêu cầu kiểm thử scaffold tự động',
+      testCaseEstimation: {
+        testCases: [
+          {
+            suggestedId: 'TC-001',
+            title: 'Kiểm tra lưu thành công',
+            type: 'Positive',
+            priority: 'P0',
+            precondition: 'Hệ thống sẵn sàng',
+            testData: 'Dữ liệu chuẩn',
+            steps: [{ step: 1, action: 'Bấm Lưu', expected: 'Thành công' }],
+          },
+        ],
+      },
+      systemImpact: { riskLevel: 'Thấp', summary: 'Không rủi ro' },
+      logicClarifications: [
+        { topic: 'Data', question: 'Dữ liệu có xóa được không?', whyItMatters: 'Test cleanup', proposedDefault: 'Có' },
+      ],
+    };
+
+    const res = await fetch(`${harness.url}/api/qa/scaffold-from-analysis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        reqId: 'REQ-088',
+        title: 'Tính năng scaffold từ phân tích',
+        analysisResult,
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.files.length, 2);
   });
 });

@@ -1,4 +1,4 @@
-// master-process-disable-size-check: Legacy module, queued for modular decomposition
+// master-process-disable-size-check: QA Docs & Automation route handlers including requirement analyzer
 /**
  * dashboard/routes/qaRoutes.js
  * QA Docs & Automation APIs: ma trận truy vết, ứng viên automation, sổ quyết định.
@@ -26,6 +26,10 @@ const {
   appendTestCasesToDocument,
   extractScaffoldFromRaw,
 } = require('../services/qaInferenceService');
+const {
+  analyzeRequirement,
+  scaffoldFromAnalysis,
+} = require('../services/qaRequirementAnalyzerService');
 const { sendJson, parseBody } = require('./routeUtils');
 
 const MAX_BODY_BYTES = 1_048_576;
@@ -241,6 +245,49 @@ async function handleQaRoutes(request, response, url, context = {}) {
     try {
       const body = await parseBody(request);
       sendJson(response, 200, deleteRequirement(root, body || {}));
+    } catch (error) {
+      const status = Number.isInteger(error.status) ? error.status : 400;
+      sendJson(response, status, {
+        error: error instanceof SyntaxError ? 'JSON không hợp lệ.' : error.message,
+      });
+    }
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/qa/analyze-requirement') {
+    try {
+      const body = await parseBody(request, 256 * 1024);
+      let clientConfig = body.clientConfig || null;
+      if (!clientConfig && request.headers['x-ai-config']) {
+        try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
+      }
+      const result = await analyzeRequirement({
+        root,
+        rawText: body.rawText,
+        mode: body.mode || 'ai',
+        scanExisting: body.scanExisting !== false,
+        clientConfig,
+      });
+      sendJson(response, 200, result);
+    } catch (error) {
+      const status = Number.isInteger(error.status) ? error.status : 400;
+      sendJson(response, status, {
+        error: error instanceof SyntaxError ? 'JSON không hợp lệ.' : error.message,
+      });
+    }
+    return true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/qa/scaffold-from-analysis') {
+    try {
+      const body = await parseBody(request, 512 * 1024);
+      const result = scaffoldFromAnalysis(root, {
+        reqId: body.reqId,
+        title: body.title,
+        domain: body.domain || 'general',
+        analysisResult: body.analysisResult,
+      });
+      sendJson(response, 200, result);
     } catch (error) {
       const status = Number.isInteger(error.status) ? error.status : 400;
       sendJson(response, status, {

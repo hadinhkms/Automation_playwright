@@ -14,6 +14,7 @@ import { eventBus } from '../../core/eventBus.js';
 import { renderMarkdown, parseFrontMatter } from './markdownView.js';
 import { parseOpenQuestions, applyAnswers } from './openQuestions.js';
 import { ProcessStudioHelper } from './processStudioHelper.js';
+import { ReqAnalyzerHelper } from './reqAnalyzerHelper.js';
 
 const PRIORITY_ORDER = { P0: 0, P1: 1, P2: 2, P3: 3 };
 // Chỉ 4 lớp ưu tiên này có rule trong qa.css. Ghép chuỗi tự do sẽ sinh ra lớp chết
@@ -56,6 +57,7 @@ export class QaSlice {
     this.pickedIds = new Set();
     this.draftText = '';
     this._lastAuthor = '';
+    this.reqAnalyzer = new ReqAnalyzerHelper(this);
   }
 
   async mount() {
@@ -67,6 +69,9 @@ export class QaSlice {
   unmount() {
     this._mounted = false;
     this._flushRenderDisposers();
+    if (this.reqAnalyzer) {
+      this.reqAnalyzer.destroy();
+    }
     this._disposers.forEach((d) => { try { d(); } catch (_) {} });
     this._disposers = [];
   }
@@ -227,6 +232,11 @@ export class QaSlice {
 
     this.processStudio = new ProcessStudioHelper(this);
     this.processStudio.bindEvents(root, this._disposers);
+
+    if (this.reqAnalyzer) {
+      this.reqAnalyzer.init(root);
+      this._disposers.push(() => this.reqAnalyzer.destroy());
+    }
   }
 
   switchTab(tab) {

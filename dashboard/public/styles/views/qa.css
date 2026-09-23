@@ -1399,3 +1399,55 @@ dialog.qa-infer-modal {
   font-weight: 600;
 }
 
+/* --- Requirement QA Impact & Test Analyzer --- */
+.qa-btn-analyze-req {
+  background: color-mix(in srgb, var(--accent) 85%, #8b5cf6) !important;
+  border-color: color-mix(in srgb, var(--accent) 70%, #7c3aed) !important;
+  color: #fff !important;
+  font-weight: 600;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 25%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.qa-btn-analyze-req:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.qa-btn-analyze-req:active {
+  transform: translateY(0);
+}
+
+dialog.qa-req-analyzer-modal::backdrop {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+}
+dialog.qa-req-analyzer-modal {
+  margin: auto;
+  border: 1px solid var(--line);
+}
+.qa-req-tab {
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  border-radius: 6px 6px 0 0;
+}
+.qa-req-tab:hover {
+  color: var(--text) !important;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.qa-req-tab.active {
+  color: var(--text) !important;
+}
+
+@media (max-width: 768px) {
+  dialog.qa-req-analyzer-modal {
+    width: 98vw !important;
+    max-height: 96vh !important;
+  }
+  .qa-req-scorecard-row {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .qa-req-tabs {
+    flex-wrap: wrap !important;
+  }
+}
+
+
