@@ -29,3 +29,11 @@
 - **Phạm vi đề xuất:** PROJECT & DASHBOARD
 - **Đề xuất Owner duyệt:** Lead QA / Framework Architect
 - **Trạng thái:** PENDING
+
+### [LEARN-FE-003] Zero Missing ESM Imports to Prevent Blank Dashboard Views
+- **Nguồn trích xuất:** Tab Switching Blank Page Incident
+- **Role quan sát:** Frontend Lead & Senior QA
+- **Quan sát:** `reqAnalyzerHelper.js` import `../../core/toast.js` không tồn tại, gây HTTP 404 abort load `main.js`. Hệ quả: `templateLoader` không chạy, container view bị rỗng (`childElementCount=0`) hiển thị trang trắng.
+- **DO:** Quét đồ thị import (`check_imports`) định kỳ; đảm bảo utility dùng chung (`core/toast.js`) luôn sẵn sàng; test switch tab trên browser thật.
+- **DON'T:** Không để import thiếu làm crash bootstrap module; không bàn giao UI khi chưa test chuyển tab thực tế.
+- **Trạng thái:** PENDING
