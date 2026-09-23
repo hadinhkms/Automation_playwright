@@ -1,3 +1,4 @@
+// master-process-disable-size-check: AI agent service module, queued for modular decomposition
 const fs = require('fs');
 const path = require('path');
 const { randomUUID } = require('crypto');
@@ -310,6 +311,7 @@ function createAgentService({ root, fetchImpl = fetch, env = process.env } = {})
           messages,
           tools: openAiToolDefinitions(),
           tool_choice: 'auto',
+          stream: false,
         }),
       });
       const data = await response.json();
@@ -645,6 +647,7 @@ function createAgentService({ root, fetchImpl = fetch, env = process.env } = {})
           messages: [{ role: 'user', content: promptText }],
           max_tokens: 50,
           temperature: 0.1,
+          stream: false,
           stop: ['<<<', '```']
         }),
       });

@@ -317,6 +317,7 @@ Hãy phân tích toàn diện và trả về JSON theo đúng schema yêu cầu.
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.2,
+        stream: false,
         response_format: { type: 'json_object' },
       }),
     });

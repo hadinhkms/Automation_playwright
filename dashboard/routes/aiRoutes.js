@@ -44,6 +44,10 @@ async function handleAiRoutes(request, response, url, context = {}) {
   if ((request.method === 'PUT' || request.method === 'POST') && url.pathname === '/api/ai/config') {
     try {
       const body = await parseBody(request);
+      const env = parseEnvFile(path.join(root, '.env'));
+      const provider = body.provider || env.AI_PROVIDER || 'gemini';
+      const baseURL = body.baseURL !== undefined && body.baseURL !== '' ? body.baseURL : (env.AI_BASE_URL || '');
+      const model = body.model || env.AI_MODEL || '';
       const envPath = path.join(root, '.env');
       const current = parseEnvFile(envPath);
       if (body.provider) current.AI_PROVIDER = body.provider;
@@ -70,13 +74,17 @@ async function handleAiRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/ai/test-connection') {
     try {
       const body = await parseBody(request);
+      const env = parseEnvFile(path.join(root, '.env'));
+      const provider = body.provider || env.AI_PROVIDER || 'gemini';
+      const baseURL = body.baseURL !== undefined && body.baseURL !== '' ? body.baseURL : (env.AI_BASE_URL || '');
+      const model = body.model || env.AI_MODEL || '';
       let keyToTest = body.apiKey;
       if (!keyToTest || keyToTest.includes('...')) {
         const env = parseEnvFile(path.join(root, '.env'));
         keyToTest = env.AI_API_KEY || (body.provider === 'gemini' ? env.GEMINI_API_KEY : body.provider === 'openai' ? env.OPENAI_API_KEY : body.provider === 'deepseek' ? env.DEEPSEEK_API_KEY : env.GEMINI_API_KEY);
       }
       const result = await agentService.testConnection({
-        provider: body.provider, apiKey: keyToTest, baseURL: body.baseURL, model: body.model,
+        provider, apiKey: keyToTest, baseURL, model,
       });
       sendJson(response, 200, result);
     } catch (e) { sendJson(response, 400, { error: e.message || 'Kiểm tra kết nối thất bại.' }); }
