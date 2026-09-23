@@ -44,3 +44,6 @@
 - **Quan sát:** Dùng `split(':')` trên Windows làm tách nhầm ổ đĩa `C:\` thành số dòng, gây lọt path traversal.
 - **DO/DON'T:** Dùng regex `/(.*?)(?::(\d+))?$/` bóc tách số dòng; chặn triệt để `^[a-zA-Z]:` và `..`.
 - **Trạng thái:** PENDING
+
+### [LEARN-QA-006] Mutation từ finding: tính lại từ file thật, đồng bộ cả tập, kiểm chứng rồi mới giữ
+- **Quan sát/DO:** Conflict Studio từng tin AC client gửi + chỉ lấy AC đầu → sync "thành công" mà xung đột vẫn còn. Server phải tự tính lại bằng chính analyzer, sửa cả TẬP AC, chạy lại analyzer sau khi ghi và hoàn tác nếu còn lệch; token CSS mới phải thêm vào tokens.css (parity test chặn biến cục bộ). **Trạng thái:** PENDING
