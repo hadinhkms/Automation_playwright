@@ -37,3 +37,10 @@
 - **DO:** Quét đồ thị import (`check_imports`) định kỳ; đảm bảo utility dùng chung (`core/toast.js`) luôn sẵn sàng; test switch tab trên browser thật.
 - **DON'T:** Không để import thiếu làm crash bootstrap module; không bàn giao UI khi chưa test chuyển tab thực tế.
 - **Trạng thái:** PENDING
+
+### [LEARN-AI-004] 9Router Gateway Integration & Multi-Satellite Sync
+- **Nguồn:** AI Settings 9Router Integration
+- **Quan sát:** AI Gateway cục bộ (9Router) dùng chuẩn OpenAI (`/v1`). Cần proxy backend `/api/ai/models` tránh CORS và đồng bộ cả `AI_API_KEY`, `OPENAI_API_KEY` sang các vệ tinh.
+- **DO:** Thêm preset 9router riêng; auto-detect & live model fetch; đồng bộ `.env` đa dự án.
+- **DON'T:** Không bắt nhập URL thủ công khi có gateway cục bộ; không để lệch model giữa các vệ tinh.
+- **Trạng thái:** PENDING
