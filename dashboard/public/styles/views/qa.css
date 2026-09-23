@@ -1257,6 +1257,40 @@
   color: var(--muted);
   margin-top: 2px;
 }
+.qa-gap-actions-col {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+.qa-gap-ai-fix-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: var(--font-caption);
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  border: 1px solid #7c3aed;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  box-shadow: 0 1px 3px rgba(139, 92, 246, 0.25);
+  white-space: nowrap;
+}
+.qa-gap-ai-fix-btn:hover {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(139, 92, 246, 0.4);
+}
+.qa-gap-ai-fix-btn:active {
+  transform: translateY(0);
+}
+.qa-gap-ai-fix-btn i {
+  font-size: 13px;
+}
 
 /* Modals Dialog Styling */
 dialog.qa-modal::backdrop {
@@ -1438,7 +1472,8 @@ dialog.qa-req-analyzer-modal {
 }
 
 @media (max-width: 768px) {
-  dialog.qa-req-analyzer-modal {
+  dialog.qa-req-analyzer-modal,
+  dialog.qa-finding-fix-modal {
     width: 98vw !important;
     max-height: 96vh !important;
   }
@@ -1448,6 +1483,16 @@ dialog.qa-req-analyzer-modal {
   .qa-req-tabs {
     flex-wrap: wrap !important;
   }
+}
+
+dialog.qa-finding-fix-modal::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+}
+dialog.qa-finding-fix-modal {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
 }
 
 

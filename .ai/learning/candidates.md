@@ -31,16 +31,16 @@
 - **Trạng thái:** PENDING
 
 ### [LEARN-FE-003] Zero Missing ESM Imports to Prevent Blank Dashboard Views
-- **Nguồn trích xuất:** Tab Switching Blank Page Incident
-- **Role quan sát:** Frontend Lead & Senior QA
-- **Quan sát:** `reqAnalyzerHelper.js` import `../../core/toast.js` không tồn tại, gây HTTP 404 abort load `main.js`. Hệ quả: `templateLoader` không chạy, container view bị rỗng (`childElementCount=0`) hiển thị trang trắng.
-- **DO:** Quét đồ thị import (`check_imports`) định kỳ; đảm bảo utility dùng chung (`core/toast.js`) luôn sẵn sàng; test switch tab trên browser thật.
-- **DON'T:** Không để import thiếu làm crash bootstrap module; không bàn giao UI khi chưa test chuyển tab thực tế.
+- **Quan sát:** `reqAnalyzerHelper.js` import thiếu module gây crash bootstrap view.
+- **DO/DON'T:** Quét đồ thị import; đảm bảo core utility (`toast.js`) luôn sẵn sàng; test switch tab thực tế.
 - **Trạng thái:** PENDING
 
 ### [LEARN-AI-004] 9Router Gateway Integration & Multi-Satellite Sync
-- **Nguồn:** AI Settings 9Router Integration
-- **Quan sát:** AI Gateway cục bộ (9Router) dùng chuẩn OpenAI (`/v1`). Cần proxy backend `/api/ai/models` tránh CORS và đồng bộ cả `AI_API_KEY`, `OPENAI_API_KEY` sang các vệ tinh.
-- **DO:** Thêm preset 9router riêng; auto-detect & live model fetch; đồng bộ `.env` đa dự án.
-- **DON'T:** Không bắt nhập URL thủ công khi có gateway cục bộ; không để lệch model giữa các vệ tinh.
+- **Quan sát:** AI Gateway cục bộ (9Router) dùng chuẩn OpenAI (`/v1`). Cần proxy backend `/api/ai/models`.
+- **DO/DON'T:** Thêm preset 9router riêng; auto-detect & live model fetch; đồng bộ `.env` đa dự án.
+- **Trạng thái:** PENDING
+
+### [LEARN-FIX-005] Windows Drive Letter & Safe Line Regex in Finding Fixers
+- **Quan sát:** Dùng `split(':')` trên Windows làm tách nhầm ổ đĩa `C:\` thành số dòng, gây lọt path traversal.
+- **DO/DON'T:** Dùng regex `/(.*?)(?::(\d+))?$/` bóc tách số dòng; chặn triệt để `^[a-zA-Z]:` và `..`.
 - **Trạng thái:** PENDING
