@@ -22,6 +22,16 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 ## Confirmed lessons
 
+### 2026-09-24 — Prevent UI Freeze on Large Catalogs via O(1) Metadata Maps and Event Delegation
+
+- Area: Resources & Artifacts Explorer (`app.js`, `resourcesSlice.js`, `resources.css`).
+- Symptom: Switching to the Evidence tab experienced a 3-4s UI lockup or felt unresponsive/difficult when evidence directories contained large file counts (> 3,500 images).
+- Root cause: (1) Quadratic O(N²) array search (`.find()`) inside `renderEvidenceTree` for every item against `evidenceDetails` (over 6.1 million comparisons), combined with `new Intl.DateTimeFormat` instantiated 3,500+ times; (2) looping over 3,500+ DOM nodes with `querySelectorAll` to attach per-item event listeners; (3) un-guarded duplicate click handlers on `.resource-seg-btn` (delegated on `document` + slice listener) executing full synchronous re-renders twice in a row.
+- Correct pattern: (1) Index metadata into a `Map` for O(1) lookups and reuse a single cached `Intl.DateTimeFormat` instance; (2) precalculate folder child counts `__total` in a single tree-building pass; (3) delegate all folder and item click/toggle events to the `#resource-list` container; (4) guard tab switching (`if (!category || category === activeResourceCategory) return;`) and wrap tree rendering in `requestAnimationFrame` for instant visual tab feedback.
+- Preventive rule: Never use quadratic array lookups (`.find()` inside loop/map) or instantiate `Intl` formatters per item when rendering large file/test catalogs (> 1,000 items). Always use Event Delegation on parent containers instead of per-node event listeners.
+- Regression check: Switch to Evidence tab on a repository with 3,500+ artifacts; verify tab switches in < 100ms with zero UI lockup, and search input is debounced.
+- Related files: `dashboard/public/app.js`, `dashboard/public/js/views/resources/resourcesSlice.js`, `dashboard/public/styles/views/resources.css`.
+
 ### 2026-09-22 — Ensure Standalone Controllers Re-bind Dynamically Loaded View Templates
 
 - Area: AI Agent View & On-Demand Template Lifecycle (`agent.js`, `agentSlice.js`).
