@@ -16,6 +16,7 @@ import { parseOpenQuestions, applyAnswers } from './openQuestions.js';
 import { ProcessStudioHelper } from './processStudioHelper.js';
 import { ReqAnalyzerHelper } from './reqAnalyzerHelper.js';
 import { FindingFixerHelper } from './findingFixerHelper.js';
+import { ConflictStudioHelper } from './conflictStudioHelper.js';
 
 const PRIORITY_ORDER = { P0: 0, P1: 1, P2: 2, P3: 3 };
 // Chỉ 4 lớp ưu tiên này có rule trong qa.css. Ghép chuỗi tự do sẽ sinh ra lớp chết
@@ -60,6 +61,7 @@ export class QaSlice {
     this._lastAuthor = '';
     this.reqAnalyzer = new ReqAnalyzerHelper(this);
     this.findingFixer = new FindingFixerHelper(this);
+    this.conflictStudio = new ConflictStudioHelper(this);
   }
 
   async mount() {
@@ -76,6 +78,9 @@ export class QaSlice {
     }
     if (this.findingFixer) {
       this.findingFixer.destroy();
+    }
+    if (this.conflictStudio) {
+      this.conflictStudio.destroy();
     }
     this._disposers.forEach((d) => { try { d(); } catch (_) {} });
     this._disposers = [];
@@ -2258,7 +2263,11 @@ export class QaSlice {
         if (!byKind.has(f.kind)) byKind.set(f.kind, { label: f.label, rows: [] });
         byKind.get(f.kind).rows.push(f);
       });
-      byKind.forEach(({ label, rows }) => {
+      byKind.forEach(({ label, rows }, kind) => {
+        if (kind === 'ac-lech-giua-tai-lieu-va-spec' && this.conflictStudio) {
+          this.conflictStudio.render(section, rows);
+          return;
+        }
         section.appendChild(this._el('p', `${label} — ${rows.length}`, 'qa-finding-kind'));
         const ul = this._el('ul', null, 'qa-finding-list');
         rows.slice(0, 50).forEach((f) => ul.appendChild(this._el('li', f.detail)));

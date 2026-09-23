@@ -521,4 +521,103 @@ Khu vực đào tạo (phường/xã) tối đa 10 mục. Bỏ trống trung tâ
     const updated = fs.readFileSync(sampleAbs, 'utf8');
     assert.ok(updated.includes('TC-099:'));
   });
+
+  test('POST /api/qa/conflict/resolve sync_doc_to_spec cập nhật bảng markdown và tạo backup', async () => {
+    const docRel = 'test-cases/conflict-doc.md';
+    const docAbs = path.join(fixture.rootPath, docRel);
+    fs.mkdirSync(path.dirname(docAbs), { recursive: true });
+    const content = `# Test Cases
+| Requirement | Acceptance criterion | Test case | Automation | Spec | Priority |
+|---|---|---|---|---|---|
+| REQ-001 | AC-001 | TC-888 | Yes | x | P0 |
+`;
+    fs.writeFileSync(docAbs, content, 'utf8');
+
+    const res = await fetch(`${harness.url}/api/qa/conflict/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        resolutionType: 'sync_doc_to_spec',
+        tcId: 'TC-888',
+        docFile: docRel,
+        targetAc: 'AC-005',
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.ok(body.backup);
+
+    const updated = fs.readFileSync(docAbs, 'utf8');
+    assert.ok(updated.includes('AC-005'));
+  });
+
+  test('POST /api/qa/conflict/resolve sync_spec_to_doc cập nhật tag test spec và tạo backup', async () => {
+    const specRel = 'tests/conflict-spec.spec.js';
+    const specAbs = path.join(fixture.rootPath, specRel);
+    fs.mkdirSync(path.dirname(specAbs), { recursive: true });
+    fs.writeFileSync(specAbs, "test('TC-888: @AC-001 test title', async () => {});", 'utf8');
+
+    const res = await fetch(`${harness.url}/api/qa/conflict/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        resolutionType: 'sync_spec_to_doc',
+        tcId: 'TC-888',
+        specFile: specRel,
+        targetAc: 'AC-005',
+        docAc: 'AC-005',
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.ok(body.backup);
+
+    const updated = fs.readFileSync(specAbs, 'utf8');
+    assert.ok(updated.includes('AC-005'));
+  });
+
+  test('POST /api/qa/conflict/arbitrate phân giải xung đột qua Heuristic fallback', async () => {
+    const res = await fetch(`${harness.url}/api/qa/conflict/arbitrate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tcId: 'TC-888',
+        specFile: 'tests/conflict-spec.spec.js',
+        specAc: 'AC-001',
+        docAc: 'AC-005',
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.ok(body.recommendation);
+    assert.ok(body.reason);
+  });
+
+  test('POST /api/qa/conflict/escalate ghi nhận xung đột vào decisions.json', async () => {
+    const res = await fetch(`${harness.url}/api/qa/conflict/escalate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tcId: 'TC-888',
+        specFile: 'tests/conflict-spec.spec.js',
+        specAcs: ['AC-001'],
+        docFile: 'test-cases/conflict-doc.md',
+        docAcs: ['AC-005'],
+        reason: 'Dev và BA tranh luận về tiêu chí đăng nhập',
+      }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.ok(body.decisionId);
+
+    const decPath = path.join(fixture.rootPath, 'decisions.json');
+    const dec = JSON.parse(fs.readFileSync(decPath, 'utf8'));
+    const found = dec.decisions.find((d) => d.id === body.decisionId);
+    assert.ok(found);
+    assert.ok(found.context.includes('TC-888'));
+  });
 });
+
