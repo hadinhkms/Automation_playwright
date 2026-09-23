@@ -31,8 +31,8 @@ const { resolveSafePath } = require('./qaFindingFixerService');
 function parseConflictDetail(detailStr) {
   if (!detailStr || typeof detailStr !== 'string') return null;
 
-  // Regex nhận diện cú pháp chuẩn của qaTrace
-  const m = detailStr.match(/^(.*?):\s*(TC-\d+)\s+ghi\s+([A-Za-z0-9_,-]+)\s+nhưng tài liệu khai\s+([A-Za-z0-9_,-]+)$/);
+  // Regex nhận diện cú pháp chuẩn của qaTrace (linh hoạt với nhiều định dạng TC)
+  const m = detailStr.match(/^(.*?):\s*([A-Za-z0-9_.-]+)\s+ghi\s+([A-Za-z0-9_,-]+)\s+nhưng tài liệu khai\s+([A-Za-z0-9_,-]+)$/);
   if (!m) return null;
 
   const specFile = m[1].trim().replace(/\\/g, '/');
@@ -51,24 +51,52 @@ function parseConflictDetail(detailStr) {
 }
 
 /**
- * Tìm file tài liệu test-case tương ứng với mã TC
+ * Tìm file tài liệu test-case tương ứng với mã TC (quét đệ quy toàn bộ thư mục con)
  */
 function findDocFileForTc(root, tcId) {
-  const tcDir = path.join(root, 'test-cases');
-  if (!fs.existsSync(tcDir)) return null;
-
+  let testCasesDir = 'test-cases';
   try {
-    const files = fs.readdirSync(tcDir).filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md' && f.toLowerCase() !== 'traceability.md');
-    for (const f of files) {
-      const p = path.join(tcDir, f);
-      const content = fs.readFileSync(p, 'utf8');
-      if (content.includes(tcId)) {
-        return path.posix.join('test-cases', f);
-      }
+    const cfgPath = path.join(root, 'qa.config.json');
+    if (fs.existsSync(cfgPath)) {
+      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+      if (cfg.testCases) testCasesDir = cfg.testCases;
     }
   } catch (_) {}
 
-  return null;
+  const absDir = path.join(root, testCasesDir);
+  if (!fs.existsSync(absDir)) return null;
+
+  const walk = (dir) => {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch (_) {
+      return null;
+    }
+
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        const found = walk(full);
+        if (found) return found;
+      } else if (
+        entry.isFile() &&
+        entry.name.endsWith('.md') &&
+        entry.name.toLowerCase() !== 'readme.md' &&
+        entry.name.toLowerCase() !== 'traceability.md'
+      ) {
+        try {
+          const content = fs.readFileSync(full, 'utf8');
+          if (content.includes(tcId)) {
+            return path.relative(root, full).split(path.sep).join('/');
+          }
+        } catch (_) {}
+      }
+    }
+    return null;
+  };
+
+  return walk(absDir);
 }
 
 /**
@@ -263,18 +291,27 @@ function resolveConflict(root = process.cwd(), { resolutionType, tcId, specFile,
 
     const backup = createBackup(docSafe.relPath, docSafe.absPath, root);
     const content = fs.readFileSync(docSafe.absPath, 'utf8');
+    const eol = content.includes('\r\n') ? '\r\n' : '\n';
     const lines = content.split(/\r?\n/);
     let modified = false;
 
     const newLines = lines.map((line) => {
-      if (!line.trim().startsWith('|') || !line.includes(tcId)) return line;
-      const parts = line.split('|');
-      const tcIdx = parts.findIndex((p) => p.trim() === tcId);
-      if (tcIdx > 1) {
-        // Cột AC thường nằm ngay trước cột TC trong bảng Traceability
-        parts[tcIdx - 1] = ` ${newAc} `;
+      if (!line.includes(tcId)) return line;
+      // 1. Nếu dòng chứa trực tiếp mã docAc thì thay thế chính xác từ đó
+      if (docAc && line.includes(docAc)) {
         modified = true;
-        return parts.join('|');
+        return line.replace(new RegExp(`\\b${docAc}\\b`, 'g'), newAc);
+      }
+      // 2. Nếu là dòng bảng Markdown
+      if (line.trim().startsWith('|')) {
+        const parts = line.split('|');
+        const tcIdx = parts.findIndex((p) => p.trim() === tcId);
+        if (tcIdx > 1) {
+          // Cột AC thường nằm ngay trước cột TC trong bảng Traceability
+          parts[tcIdx - 1] = ` ${newAc} `;
+          modified = true;
+          return parts.join('|');
+        }
       }
       return line;
     });
@@ -283,7 +320,7 @@ function resolveConflict(root = process.cwd(), { resolutionType, tcId, specFile,
       throw Object.assign(new Error(`Không tìm thấy dòng bảng chứa ${tcId} trong ${actualDocFile}.`), { status: 409 });
     }
 
-    fs.writeFileSync(docSafe.absPath, newLines.join('\n'), 'utf8');
+    fs.writeFileSync(docSafe.absPath, newLines.join(eol), 'utf8');
 
     return {
       ok: true,
@@ -313,6 +350,7 @@ function resolveConflict(root = process.cwd(), { resolutionType, tcId, specFile,
 
     const backup = createBackup(specSafe.relPath, specSafe.absPath, root);
     const content = fs.readFileSync(specSafe.absPath, 'utf8');
+    const eol = content.includes('\r\n') ? '\r\n' : '\n';
     const lines = content.split(/\r?\n/);
     let modified = false;
 
@@ -320,7 +358,7 @@ function resolveConflict(root = process.cwd(), { resolutionType, tcId, specFile,
       if (!line.includes(tcId)) return line;
       let updatedLine = line;
       if (oldAc && updatedLine.includes(oldAc)) {
-        updatedLine = updatedLine.replace(new RegExp(`\\b${oldAc}\\b`, 'g'), newAc);
+        updatedLine = updatedLine.replace(new RegExp(`\\b${oldAc}\\b`, 'gi'), newAc);
         modified = true;
       } else if (!updatedLine.includes(newAc)) {
         // Nếu không tìm thấy oldAc, thêm newAc vào cạnh tcId
@@ -334,7 +372,7 @@ function resolveConflict(root = process.cwd(), { resolutionType, tcId, specFile,
       throw Object.assign(new Error(`Không tìm thấy đoạn mã chứa ${tcId} trong ${specFile}.`), { status: 409 });
     }
 
-    fs.writeFileSync(specSafe.absPath, newLines.join('\n'), 'utf8');
+    fs.writeFileSync(specSafe.absPath, newLines.join(eol), 'utf8');
 
     return {
       ok: true,
@@ -370,6 +408,20 @@ function escalateConflictToDecision(root = process.cwd(), { tcId, specFile, spec
       data = JSON.parse(fs.readFileSync(decPath, 'utf8').replace(/^﻿/, ''));
       if (!Array.isArray(data.decisions)) data.decisions = [];
     } catch (_) {}
+  }
+
+  // Kiểm tra nếu đã có quyết định pending cho TC này thì tái sử dụng, tránh tạo trùng lặp
+  const existingPending = (data.decisions || []).find((d) =>
+    d.status === 'pending' && ((d.title && d.title.includes(tcId)) || (d.context && d.context.includes(tcId)))
+  );
+  if (existingPending) {
+    return {
+      ok: true,
+      decisionId: existingPending.id,
+      decision: existingPending,
+      message: `Quyết định ${existingPending.id} cho ${tcId} đã tồn tại trong sổ quyết định.`,
+      isDuplicate: true,
+    };
   }
 
   // Tạo ID tiếp theo D-01, D-02...

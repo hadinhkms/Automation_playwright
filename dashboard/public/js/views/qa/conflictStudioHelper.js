@@ -228,7 +228,7 @@ export class ConflictStudioHelper {
             specFile: parsed.specFile,
             specAc: parsed.specAc,
             docAc: parsed.docAc,
-          });
+          }, btnSyncDoc);
         });
         actionsBar.appendChild(btnSyncDoc);
 
@@ -251,7 +251,7 @@ export class ConflictStudioHelper {
             specFile: parsed.specFile,
             specAc: parsed.specAc,
             docAc: parsed.docAc,
-          });
+          }, btnSyncSpec);
         });
         actionsBar.appendChild(btnSyncSpec);
 
@@ -297,7 +297,7 @@ export class ConflictStudioHelper {
             specFile: parsed.specFile,
             specAcs: parsed.specAcs,
             docAcs: parsed.docAcs,
-          });
+          }, btnEscalate);
         });
         actionsBar.appendChild(btnEscalate);
 
@@ -314,9 +314,10 @@ export class ConflictStudioHelper {
   }
 
   /**
-   * Gọi API giải quyết xung đột
+   * Gọi API giải quyết xung đột (với rào chắn chống double-click)
    */
-  async executeResolve(payload) {
+  async executeResolve(payload, btn = null) {
+    if (btn) btn.disabled = true;
     try {
       const res = await apiClient.post('/api/qa/conflict/resolve', payload);
       toast.success(res.message || 'Đã hòa giải xung đột thành công!');
@@ -325,6 +326,8 @@ export class ConflictStudioHelper {
       }
     } catch (err) {
       toast.error(`Lỗi hòa giải: ${err.message || 'Không thể cập nhật file'}`);
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -400,7 +403,7 @@ export class ConflictStudioHelper {
           specAc,
           docAc,
           targetAc: res.recommendedAc,
-        });
+        }, applyBtn);
       });
       aiResultBox.appendChild(applyBtn);
 
@@ -420,7 +423,8 @@ export class ConflictStudioHelper {
   /**
    * Đẩy xung đột thành quyết định treo trong decisions.json
    */
-  async escalateDecision(payload) {
+  async escalateDecision(payload, btn = null) {
+    if (btn) btn.disabled = true;
     try {
       const res = await apiClient.post('/api/qa/conflict/escalate', payload);
       toast.success(res.message || 'Đã tạo quyết định trong sổ quyết định!');
@@ -429,6 +433,8 @@ export class ConflictStudioHelper {
       }
     } catch (err) {
       toast.error(`Không thể tạo quyết định: ${err.message || 'Lỗi hệ thống'}`);
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 }

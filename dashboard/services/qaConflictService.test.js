@@ -1,3 +1,4 @@
+// master-process-disable-size-check: QA Traceability Conflict resolution comprehensive test suite
 'use strict';
 
 const test = require('node:test');
@@ -155,7 +156,61 @@ test('escalateConflictToDecision: tự động tạo quyết định D-xx vào d
     assert.equal(content.decisions.length, 1);
     assert.equal(content.decisions[0].id, res.decisionId);
     assert.ok(content.decisions[0].title.includes('TC-011'));
+
+    // Gọi lần 2: phải tái sử dụng và không sinh thêm D-02
+    const res2 = escalateConflictToDecision(tmpRoot, {
+      tcId: 'TC-011',
+      specFile: 'tests/e2e/admin-add-company.spec.js',
+      specAcs: ['AC-002'],
+      docFile: 'test-cases/REQ-002.md',
+      docAcs: ['AC-003'],
+      reason: 'Cần PO chốt',
+    });
+    assert.equal(res2.decisionId, res.decisionId);
+    assert.equal(res2.isDuplicate, true);
+    const content2 = JSON.parse(fs.readFileSync(decPath, 'utf8'));
+    assert.equal(content2.decisions.length, 1);
   } finally {
     fs.rmSync(tmpRoot, { recursive: true, force: true });
   }
 });
+
+test('findDocFileForTc: tìm chính xác file khi nằm sâu trong thư mục con', () => {
+  const tmpRoot = path.join(os.tmpdir(), 'qa-find-nested-' + Date.now());
+  const nestedDir = path.join(tmpRoot, 'test-cases', 'desktop', 'admin');
+  fs.mkdirSync(nestedDir, { recursive: true });
+  fs.writeFileSync(path.join(nestedDir, 'company.md'), '# TC-777 in nested folder', 'utf8');
+
+  try {
+    const found = findDocFileForTc(tmpRoot, 'TC-777');
+    assert.equal(found, 'test-cases/desktop/admin/company.md');
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
+});
+
+test('resolveConflict: bảo tồn chính xác ký tự xuống dòng CRLF', () => {
+  const tmpRoot = path.join(os.tmpdir(), 'qa-crlf-' + Date.now());
+  const docDir = path.join(tmpRoot, 'test-cases');
+  fs.mkdirSync(docDir, { recursive: true });
+  const docAbs = path.join(docDir, 'doc.md');
+  const crlfContent = '# Title\r\n| REQ-01 | AC-01 | TC-01 |\r\n';
+  fs.writeFileSync(docAbs, crlfContent, 'utf8');
+
+  try {
+    resolveConflict(tmpRoot, {
+      resolutionType: 'sync_doc_to_spec',
+      tcId: 'TC-01',
+      docFile: 'test-cases/doc.md',
+      targetAc: 'AC-09',
+      docAc: 'AC-01',
+    });
+
+    const updated = fs.readFileSync(docAbs, 'utf8');
+    assert.ok(updated.includes('AC-09'));
+    assert.ok(updated.includes('\r\n'));
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
+});
+
