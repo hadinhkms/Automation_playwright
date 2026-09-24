@@ -744,9 +744,12 @@ function matrix(root, rawOptions) {
 
 function summary(root, rawOptions) {
   const options = mergeOptions(root, rawOptions);
-  const cov = coverage(root, options);
-  const gapsList = gaps(root, options);
-  const driftList = drift(root, options);
+  const loadAutomated = (options && options.loadAutomated) || loadAutomatedTests;
+  const sharedAutomated = loadAutomated(root, options);
+  const sharedOpts = { ...options, loadAutomated: () => sharedAutomated };
+  const cov = coverage(root, sharedOpts);
+  const gapsList = gaps(root, sharedOpts);
+  const driftList = drift(root, sharedOpts);
 
   const allFindings = [...gapsList, ...driftList];
   const blockerCount = allFindings.filter((f) => f.severity === 'blocker').length;
