@@ -114,15 +114,19 @@
         <div class="script-subnav-tabs">
           <button type="button" class="view-subtab script-subtab active" data-qa-tab="docs" role="tab" aria-selected="true">
             <i class="ph-bold ph-files"></i> Tài liệu
-          </button>
-          <button type="button" class="view-subtab script-subtab" data-qa-tab="candidates" role="tab" aria-selected="false">
-            <i class="ph-bold ph-robot"></i> Ứng viên automation
+            <span class="qa-tab-badge qa-tab-badge-neutral" id="qa-tab-badge-docs" hidden></span>
           </button>
           <button type="button" class="view-subtab script-subtab" data-qa-tab="findings" role="tab" aria-selected="false">
             <i class="ph-bold ph-warning-octagon"></i> Vấn đề
+            <span class="qa-tab-badge qa-tab-badge-danger" id="qa-tab-badge-findings" hidden></span>
+          </button>
+          <button type="button" class="view-subtab script-subtab" data-qa-tab="candidates" role="tab" aria-selected="false">
+            <i class="ph-bold ph-robot"></i> Ứng viên automation
+            <span class="qa-tab-badge qa-tab-badge-neutral" id="qa-tab-badge-candidates" hidden></span>
           </button>
           <button type="button" class="view-subtab script-subtab" data-qa-tab="decisions" role="tab" aria-selected="false">
             <i class="ph-bold ph-gavel"></i> Quyết định
+            <span class="qa-tab-badge qa-tab-badge-neutral" id="qa-tab-badge-decisions" hidden></span>
           </button>
           <button type="button" class="view-subtab script-subtab" data-qa-tab="process-studio" role="tab" aria-selected="false">
             <i class="ph-bold ph-shield-check"></i> Master Process Studio
@@ -222,6 +226,27 @@
         </div>
       </section>
 
+      <!-- VẤN ĐỀ -->
+      <section class="panel qa-panel" id="qa-panel-findings" role="tabpanel" hidden>
+        <!-- Card Cảnh báo Lỗ hổng Sớm (Static Findings & Gaps Card) -->
+        <div class="qa-static-gaps-card" id="qa-static-gaps-card" hidden>
+          <div class="qa-static-gaps-head">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="ph-bold ph-shield-warning" style="color: var(--warning); font-size: 20px;"></i>
+              <strong>Cảnh Báo Lỗ Hổng Kỹ Thuật Sớm (Static Findings &amp; Gaps)</strong>
+            </div>
+            <span class="qa-badge qa-badge-warn" id="qa-static-gaps-badge">0 cảnh báo</span>
+          </div>
+          <p class="qa-static-gaps-desc">
+            Phát hiện sớm các lỗi tĩnh nguy hiểm: thiếu <code>await</code> trên locator matcher Playwright, thiếu test giá trị biên BVA, hoặc liên kết spec bị lệch.
+          </p>
+          <div class="qa-static-gaps-list" id="qa-static-gaps-list"></div>
+        </div>
+
+        <div class="qa-empty" id="qa-findings-empty" hidden></div>
+        <div class="qa-findings-groups" id="qa-findings-groups"></div>
+      </section>
+
       <!-- ỨNG VIÊN AUTOMATION -->
       <section class="panel qa-panel" id="qa-panel-candidates" role="tabpanel" hidden>
         <p class="subtitle qa-panel-hint">
@@ -289,27 +314,6 @@
             <tbody id="qa-candidates-tbody"></tbody>
           </table>
         </div>
-      </section>
-
-      <!-- VẤN ĐỀ -->
-      <section class="panel qa-panel" id="qa-panel-findings" role="tabpanel" hidden>
-        <!-- Card Cảnh báo Lỗ hổng Sớm (Static Findings & Gaps Card) -->
-        <div class="qa-static-gaps-card" id="qa-static-gaps-card" hidden>
-          <div class="qa-static-gaps-head">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i class="ph-bold ph-shield-warning" style="color: var(--warning); font-size: 20px;"></i>
-              <strong>Cảnh Báo Lỗ Hổng Kỹ Thuật Sớm (Static Findings &amp; Gaps)</strong>
-            </div>
-            <span class="qa-badge qa-badge-warn" id="qa-static-gaps-badge">0 cảnh báo</span>
-          </div>
-          <p class="qa-static-gaps-desc">
-            Phát hiện sớm các lỗi tĩnh nguy hiểm: thiếu <code>await</code> trên locator matcher Playwright, thiếu test giá trị biên BVA, hoặc liên kết spec bị lệch.
-          </p>
-          <div class="qa-static-gaps-list" id="qa-static-gaps-list"></div>
-        </div>
-
-        <div class="qa-empty" id="qa-findings-empty" hidden></div>
-        <div class="qa-findings-groups" id="qa-findings-groups"></div>
       </section>
 
       <!-- QUYẾT ĐỊNH -->
