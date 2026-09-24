@@ -85,6 +85,28 @@ export class ConflictStudioHelper {
   // Render
   // -------------------------------------------------------------------------
 
+  _parseConflictDetail(detailStr) {
+    if (!detailStr || typeof detailStr !== 'string') return null;
+    const m = detailStr.match(/^(.*?):\s*([A-Za-z0-9_.-]+)\s+ghi\s+([A-Za-z0-9_,-]+)\s+nhưng tài liệu khai\s+([A-Za-z0-9_,-]+)$/);
+    if (!m) return null;
+
+    const split = (s) => [...new Set(s.split(',').map((x) => x.trim()).filter(Boolean))];
+    const specAcs = split(m[3]);
+    const docAcs = split(m[4]);
+    if (!specAcs.length || !docAcs.length) return null;
+
+    return {
+      specFile: m[1].trim().replace(/\\/g, '/'),
+      tcId: m[2].trim(),
+      specAcs,
+      docAcs,
+      specOnly: specAcs.filter((ac) => !docAcs.includes(ac)),
+      docOnly: docAcs.filter((ac) => !specAcs.includes(ac)),
+      specAc: specAcs[0],
+      docAc: docAcs[0],
+    };
+  }
+
   render(container, conflictItems) {
     this.destroy();
     if (!container || !Array.isArray(conflictItems) || !conflictItems.length) return;
@@ -92,10 +114,11 @@ export class ConflictStudioHelper {
     const bySpec = new Map();
     const unparsed = [];
     conflictItems.forEach((item) => {
-      if (!item.conflict) { unparsed.push(item); return; }
-      const file = item.conflict.specFile;
+      const conflict = item.conflict || this._parseConflictDetail(item.detail);
+      if (!conflict) { unparsed.push(item); return; }
+      const file = conflict.specFile;
       if (!bySpec.has(file)) bySpec.set(file, []);
-      bySpec.get(file).push(item.conflict);
+      bySpec.get(file).push(conflict);
     });
 
     const studio = this._el('section', 'qa-conflict-studio');
@@ -130,17 +153,19 @@ export class ConflictStudioHelper {
     titleRow.appendChild(this._el('h3', null, 'Traceability Conflict Studio'));
     titleRow.appendChild(this._el('span', 'qa-conflict-count', `${total} xung đột · ${bySpec.size} spec`));
 
-    const toggleAll = this._el('button', 'btn-secondary-sm qa-conflict-toggle-all');
-    toggleAll.type = 'button';
-    const allOpen = [...bySpec.keys()].every((k) => this._openGroups && this._openGroups.has(k));
-    toggleAll.textContent = allOpen ? 'Thu gọn tất cả' : 'Mở tất cả';
-    this._on(toggleAll, 'click', () => {
-      const all = [...this._root.querySelectorAll('details.qa-conflict-group')];
-      const open = !all.every((d) => d.open);
-      all.forEach((d) => { d.open = open; });
-      toggleAll.textContent = open ? 'Thu gọn tất cả' : 'Mở tất cả';
-    });
-    titleRow.appendChild(toggleAll);
+    if (bySpec.size > 0) {
+      const toggleAll = this._el('button', 'btn-secondary-sm qa-conflict-toggle-all');
+      toggleAll.type = 'button';
+      const allOpen = [...bySpec.keys()].every((k) => this._openGroups && this._openGroups.has(k));
+      toggleAll.textContent = allOpen ? 'Thu gọn tất cả' : 'Mở tất cả';
+      this._on(toggleAll, 'click', () => {
+        const all = [...this._root.querySelectorAll('details.qa-conflict-group')];
+        const open = !all.every((d) => d.open);
+        all.forEach((d) => { d.open = open; });
+        toggleAll.textContent = open ? 'Thu gọn tất cả' : 'Mở tất cả';
+      });
+      titleRow.appendChild(toggleAll);
+    }
     head.appendChild(titleRow);
 
     head.appendChild(this._el('p', 'qa-conflict-studio-desc',
