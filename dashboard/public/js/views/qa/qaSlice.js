@@ -332,6 +332,7 @@ export class QaSlice {
     apiClient.get(summaryUrl).then((summaryRes) => {
       if (!this._mounted) return;
       this.summary = summaryRes;
+      this._renderStats();
       this._renderExecutiveScorecard();
       this._renderTabBadges();
       this.renderFindings();
@@ -491,7 +492,10 @@ export class QaSlice {
     set('qa-stat-ac', c.acceptanceCriteria);
     set('qa-stat-tc', c.testCases);
     set('qa-stat-auto', this.trace.automatedCount);
-    set('qa-stat-major', this.trace.majorCount);
+    const summaryMajor = (this.summary && Array.isArray(this.summary.findings))
+      ? this.summary.findings.filter((f) => f.severity === 'blocker' || f.severity === 'major').length
+      : 0;
+    set('qa-stat-major', (this.trace.majorCount || 0) + summaryMajor);
     box.hidden = false;
   }
 
@@ -521,7 +525,11 @@ export class QaSlice {
     if (!summary) return;
 
     // 1. Health Badge
-    const healthStatus = summary.systemHealth || summary.health?.status || 'HEALTHY';
+    let healthStatus = summary.systemHealth || summary.health?.status || 'HEALTHY';
+    const traceMajors = (this.trace?.findings?.major || []).length || (this.trace?.majorCount || 0);
+    if (healthStatus === 'HEALTHY' && traceMajors > 0) {
+      healthStatus = 'WARNING';
+    }
     const badge = root.querySelector('#qa-health-badge');
     const icon = root.querySelector('#qa-health-icon');
     const statusText = root.querySelector('#qa-health-status');
@@ -540,7 +548,11 @@ export class QaSlice {
     }
     if (statusText) statusText.textContent = healthStatus;
     if (findingsText) {
-      const count = summary.health?.totalFindings ?? (summary.findings || []).length;
+      const summaryCount = summary.health?.totalFindings ?? (summary.findings || []).length;
+      const traceCount = this.trace && this.trace.findings
+        ? ((this.trace.findings.major || []).length + (this.trace.findings.minor || []).length + (this.trace.findings.info || []).length)
+        : (this.trace?.majorCount || 0);
+      const count = summaryCount + traceCount;
       findingsText.textContent = `${count} phát hiện`;
     }
 
@@ -607,23 +619,28 @@ export class QaSlice {
       }
     }
 
-    // 2. Badge Vấn đề: số lỗi/cảnh báo, nổi bật màu đỏ khi có blocker/major
+    // 2. Badge Vấn đề: số lỗi/cảnh báo từ cả static analysis (summary) lẫn ma trận truy vết (trace)
     const findingsBadge = root.querySelector('#qa-tab-badge-findings');
     if (findingsBadge) {
       let blockerCount = 0;
       let majorCount = 0;
       let totalCount = 0;
 
+      // Nguồn 1: Static findings từ tools/qa summary (nếu đã nạp xong)
       if (this.summary && Array.isArray(this.summary.findings)) {
-        totalCount = this.summary.findings.length;
-        blockerCount = this.summary.findings.filter((f) => f.severity === 'blocker').length;
-        majorCount = this.summary.findings.filter((f) => f.severity === 'major').length;
-      } else if (this.trace && this.trace.findings) {
+        totalCount += this.summary.findings.length;
+        blockerCount += this.summary.findings.filter((f) => f.severity === 'blocker').length;
+        majorCount += this.summary.findings.filter((f) => f.severity === 'major').length;
+      }
+
+      // Nguồn 2: Traceability findings từ ma trận truy vết (trace report)
+      if (this.trace && this.trace.findings) {
         const tf = this.trace.findings;
-        majorCount = (tf.major || []).length;
-        const minorCount = (tf.minor || []).length;
-        const infoCount = (tf.info || []).length;
-        totalCount = majorCount + minorCount + infoCount;
+        const traceMajor = (tf.major || []).length;
+        const traceMinor = (tf.minor || []).length;
+        const traceInfo = (tf.info || []).length;
+        majorCount += traceMajor;
+        totalCount += traceMajor + traceMinor + traceInfo;
       }
 
       if (totalCount > 0) {
