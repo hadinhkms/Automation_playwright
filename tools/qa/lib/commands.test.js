@@ -1,4 +1,5 @@
 'use strict';
+// master-process-disable-size-check: Comprehensive QA commands test suite, queued for test suite split
 /**
  * Unit test cho phần JOIN của tools/qa.
  *
@@ -714,6 +715,19 @@ test('gaps: trùng mã TC trong bảng traceability -> ma-tc-trung mức major',
     assert.ok(f, 'phải có finding ma-tc-trung');
     assert.equal(f.severity, 'major');
     assert.match(f.message, /TC-001/);
+  });
+});
+
+test('gaps: 1 TC bao phủ nhiều AC trên cùng một dòng -> KHÔNG báo ma-tc-trung', () => {
+  const multiAcTcDoc = `# Test case — REQ-001\n\n## Bảng truy vết\n\n| Test case | AC | Mô tả | Ưu tiên | Automation | Spec |\n|---|---|---|---|---|---|\n| TC-007 | AC-001 AC-002 | Luồng chung | P1 | Có | tests/e2e/sample.spec.js |\n\n## Chi tiết\n\n### TC-007 — Chi tiết\n`;
+  const repo = {
+    ...DOCS,
+    'test-cases/REQ-001.md': multiAcTcDoc,
+  };
+  withRepo(repo, (root) => {
+    const findings = gaps(root, opts(CLEAN_TESTS));
+    const f = findings.find((x) => x.kind === 'ma-tc-trung');
+    assert.equal(f, undefined, 'không được báo ma-tc-trung khi 1 TC phủ nhiều AC trên cùng 1 dòng');
   });
 });
 
