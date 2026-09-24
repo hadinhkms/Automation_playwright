@@ -1159,9 +1159,9 @@
   font-weight: 700;
 }
 .qa-health-pill.is-healthy, .qa-shield-pill.is-aligned {
-  background: color-mix(in srgb, var(--success, #10b981) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--success, #10b981) 40%, transparent);
-  color: var(--success, #10b981);
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 40%, transparent);
+  color: var(--success);
 }
 .qa-health-pill.is-warning, .qa-shield-pill.is-drifted {
   background: color-mix(in srgb, var(--warning) 15%, transparent);
@@ -1181,7 +1181,7 @@
   font-size: var(--font-control);
 }
 .qa-tag-auto {
-  color: var(--success, #10b981);
+  color: var(--success);
   display: flex;
   align-items: center;
   gap: 4px;

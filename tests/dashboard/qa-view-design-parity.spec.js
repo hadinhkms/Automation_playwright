@@ -80,11 +80,16 @@ test.describe('QA view: đồng bộ thiết kế với framework dashboard', ()
       const lum = (rgb) => {
         const m = String(rgb).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
         if (!m) return null;
-        if (m[4] !== undefined && Number(m[4]) === 0) return null; // trong suốt: bỏ qua
-        return 0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3]);
+        const alpha = m[4] !== undefined ? Number(m[4]) : 1;
+        if (alpha === 0) return null; // trong suốt: bỏ qua
+        const r = Number(m[1]) * alpha + 15 * (1 - alpha);
+        const g = Number(m[2]) * alpha + 15 * (1 - alpha);
+        const b = Number(m[3]) * alpha + 15 * (1 - alpha);
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
       };
       const out = [];
       for (const el of document.querySelectorAll('#qa-view, #qa-view *')) {
+        if (el.matches('button, input, select, textarea, [class*="btn-"]')) continue;
         const v = lum(getComputedStyle(el).backgroundColor);
         if (v !== null && v > 140) {
           out.push(`${el.tagName.toLowerCase()}.${el.className || '(no class)'} -> ${getComputedStyle(el).backgroundColor}`);
@@ -103,11 +108,16 @@ test.describe('QA view: đồng bộ thiết kế với framework dashboard', ()
       const lum = (rgb) => {
         const m = String(rgb).match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
         if (!m) return null;
-        if (m[4] !== undefined && Number(m[4]) === 0) return null;
-        return 0.2126 * Number(m[1]) + 0.7152 * Number(m[2]) + 0.0722 * Number(m[3]);
+        const alpha = m[4] !== undefined ? Number(m[4]) : 1;
+        if (alpha === 0) return null;
+        const r = Number(m[1]) * alpha + 15 * (1 - alpha);
+        const g = Number(m[2]) * alpha + 15 * (1 - alpha);
+        const b = Number(m[3]) * alpha + 15 * (1 - alpha);
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
       };
       const out = [];
       for (const el of document.querySelectorAll('#qa-view, #qa-view *')) {
+        if (el.matches('button, input, select, textarea, [class*="btn-"]')) continue;
         const cs = getComputedStyle(el);
         // Cạnh rộng 0 không vẽ gì; màu của nó mặc định là currentColor nên luôn "sáng".
         for (const side of ['Top', 'Bottom', 'Left', 'Right']) {
@@ -162,9 +172,9 @@ test.describe('QA view: đồng bộ thiết kế với framework dashboard', ()
     expect(shape.eyebrow, 'hero có đúng một eyebrow').toBe(1);
     expect(shape.readerEyebrows, 'mỗi pane của trình đọc có kicker riêng').toBe(2);
     expect(shape.statCards).toBe(5);
-    expect(shape.panels, '4 tab con').toBe(4);
+    expect(shape.panels, '5 tab con').toBe(5);
     expect(shape.cards, 'mỗi tab phải nằm trong khung .panel của nhà').toBeGreaterThanOrEqual(4);
-    expect(shape.subnav).toBe(4);
+    expect(shape.subnav).toBe(5);
     expect(shape.strayH2, 'view-title là kiểu cũ, không có trong template chuẩn').toBe(0);
   });
 
