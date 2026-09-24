@@ -1,11 +1,14 @@
-# Thư mục báo cáo của Playwright
-/playwright-report/
+# Thư mục báo cáo của Playwright (toàn bộ cấp độ)
+playwright-report/
+**/playwright-report/
 
-# Kết quả test (chứa video, trace,...)
-/test-results/
+# Kết quả test (chứa video, trace,...) mọi cấp độ (root và tests/dashboard/...)
+test-results/
+**/test-results/
 
 # Thư mục chứa ảnh chụp màn hình làm bằng chứng
-/evidence/
+evidence/
+**/evidence/
 
 # Thư viện và các file môi trường
 /node_modules/
@@ -14,9 +17,13 @@
 .env.*.local
 .DS_Store
 
-# Các file log
+# Các file log và output chạy lệnh của AI Agent
 *.log
 debug.log
+test_output.txt
+*_output.txt
+test-output.txt
+*.output.txt
 /.dashboard-backups/
 /.dashboard-drafts/
 /tmp/
@@ -29,30 +36,43 @@ debug.log
 
 # Playwright run state and locally generated demo output
 .last-run.json
+**/.last-run.json
 /presentation/demo/results/
 /presentation/demo/reports/
 
 # ==============================================================================
 # AI Scratchpad, Debug Scripts & Test Drafts (Tuyệt đối không commit lên Git)
 # ==============================================================================
-/scratch/
-/scratch/*
+scratch/
+**/scratch/
 !/scratch/.gitkeep
-/tests/scratch/
-/tests/temp/
-/tests/draft/
-/tests/ai/
+tests/scratch/
+**/tests/scratch/
+tests/temp/
+**/tests/temp/
+tests/draft/
+tests/drafts/
+**/tests/draft/
+**/tests/drafts/
+tests/ai/
+**/tests/ai/
 tests/**/draft_*
 tests/**/temp_*
 tests/**/scratch_*
 tests/**/ai_*
-*.scratch.js
-*.draft.js
-*.tmp.js
-temp_*.js
-draft_*.js
+tests/**/ai-*
+tests/**/*-ai.*
+tests/**/*_ai.*
+*.scratch.*
+*.draft.*
+*.tmp.*
+temp_*
+draft_*
 test_rec.js
 *.tmp
+*.ai.spec.*
+*.ai.test.*
+*ai[-_]test*.*
 
 # Local environment variants (keep shareable templates)
 .env.*

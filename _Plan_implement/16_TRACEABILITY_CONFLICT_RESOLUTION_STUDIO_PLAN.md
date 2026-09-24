@@ -1,7 +1,7 @@
 # Kế Hoạch Hiện Thực Hóa: Traceability Conflict Resolution Studio (Hòa Giải Xung Đột Truy Vết "Tài Liệu và Spec Nói Khác Nhau")
 
 > **Mã kế hoạch:** `PLAN-16`  
-> **Trạng thái:** `COMPLETED (Đã Hiện Thực Hóa & Vượt Qua Toàn Bộ Quality Gates)`  
+> **Trạng thái:** `IMPLEMENTED — đã qua test tự động + E2E UI; CHỜ Gate 4 chính thức (contract PLAN-16 được BA duyệt hash + review độc lập)`  
 > **Phân hệ mục tiêu:** Dashboard Core (`d:\_Automation-Project\dashboard`) — View **QA Docs & Automation** (`#/qa`)  
 > **Tài liệu tham chiếu:** [AGENTS.md](file:///d:/_Automation-Project/AGENTS.md), [03_ACCEPTANCE_GATES.md](file:///D:/_Master_Process/03_ACCEPTANCE_GATES.md), [00_CORE_PROCESS_GUIDE.md](file:///D:/_Master_Process/00_CORE_PROCESS_GUIDE.md)
 
@@ -50,6 +50,24 @@ Chuyển đổi triệt để danh sách 21 bullet points thô sơ thành **Trac
 
 ---
 
+### 3.1. Rà Soát Lại Sau Hiện Thực Hóa (2026-09-24) — 8 Lỗ Hổng Bổ Sung Đã Sửa
+
+Lần kiểm tra lại cho thấy bản đầu tiên chưa đạt dù test xanh. Các lỗ hổng dưới đây đã được sửa và có test chặn hồi quy:
+
+| STT | Lỗ Hổng | Mức Độ | Hậu Quả | Cách Sửa |
+|:---:|---|:---:|---|---|
+| **07** | UI tự bóc `detail` bằng regex cứng `(TC-\d+)`; không khớp thì gán `specAc='Spec'`, `docAc='Doc'` | **P0** | Bấm sync ghi chữ `Spec` vào file tài liệu | Server bóc sẵn `finding.conflict` (một regex duy nhất); thẻ không bóc được chỉ hiện text, không có nút ghi |
+| **08** | Chỉ dùng AC **đầu tiên** của mỗi phía | **P0** | TC nhiều AC: sync báo thành công nhưng xung đột vẫn còn | Đồng bộ cả **tập** AC; giữ kiểu viết (`@AC-001 @AC-002` / `AC-001, AC-002`) |
+| **09** | Tin AC do client gửi (`targetAc`, `specAc`, `docAc`) | **P0** | Payload cũ/giả ghi AC tùy ý vào repo | Client chỉ gửi `tcId + specFile + resolutionType`; server tính lại từ file bằng chính analyzer |
+| **10** | Không kiểm chứng sau khi ghi | **P1** | Repo bị sửa dở | Ghi xong chạy lại analyzer; còn lệch → hoàn tác toàn bộ, trả 409 kèm dòng cần sửa tay |
+| **11** | Đọc `qa.config.json` với khóa sai `testCases` và ghi cứng `decisions.json` | **P1** | Cấu hình thư mục/sổ quyết định bị bỏ qua | Dùng `qaService.readQaConfig()` (`dirs.testCases`, `dirs.specs`, `decisionsFile`) |
+| **12** | Sổ quyết định hỏng JSON bị ghi đè bằng sổ rỗng; kiểm trùng bằng `includes` (`TC-01` ⊂ `TC-011`) | **P1** | Mất toàn bộ quyết định cũ; quyết định bị nhận nhầm là trùng | Sổ hỏng → 409, không ghi; kiểm trùng qua `source {kind,tcId,specFile}` và so theo ranh giới từ |
+| **13** | Dòng tài liệu khai chung nhiều TC (`TC-031, TC-032`) bị sửa luôn | **P1** | Đổi AC của TC khác | Bỏ qua dòng mơ hồ, báo rõ lý do trên thẻ |
+| **14** | Listener nút "Áp dụng đề xuất AI" không vào `disposers`; studio không được xả khi số xung đột về 0; badge dùng class không tồn tại | **P2** | Rò listener; badge không có style | Mọi listener qua `_on()`; `renderFindings()` luôn `destroy()` studio trước khi vẽ; chip dùng token thật |
+
+
+---
+
 ## 4. Rào Chắn An Toàn & Đảm Bảo Kiến Trúc (Safety & Architectural Guardrails)
 
 1. **Cơ chế An toàn Dữ liệu (Safe Mutations & Automatic Backups)**:
@@ -88,56 +106,58 @@ Chuyển đổi triệt để danh sách 21 bullet points thô sơ thành **Trac
 └───────────────────────────────────┴────────────────────────────────────┘
 ```
 
-### 5.1. Chi Tiết Backend API
-- **`POST /api/qa/conflict/resolve`**:
-  - Request body: `{ resolutionType: 'sync_doc_to_spec' | 'sync_spec_to_doc', tcId, specFile, docFile, targetAc, specAc, docAc }`
-  - Response: `{ ok: true, targetFile, tcId, newAc, backup, message }`
-- **`POST /api/qa/conflict/arbitrate`**:
-  - Request body: `{ specFile, tcId, docFile, specAc, docAc, clientConfig? }`
-  - Response: `{ ok: true, recommendation: 'sync_doc_to_spec' | 'sync_spec_to_doc', recommendedAc, confidence, reason, engine }`
-- **`POST /api/qa/conflict/escalate`**:
-  - Request body: `{ tcId, specFile, specAcs, docFile, docAcs, reason }`
-  - Response: `{ ok: true, decisionId: 'D-xx', decision, message }`
+### 5.1. Chi Tiết Backend API (hợp đồng hiện hành)
+Client **không** gửi AC nào; server tự tính trạng thái từ file bằng `scripts/lib/qaTrace.js`.
+- **`GET /api/qa/conflict/context?tcId&specFile`** → `{ specAcs, docAcs, specOnly, docOnly, inSync, blocks[{line,title,snippet,hasAssertion}], docFiles, docLocations[{file,line,text}], acDefinitions{AC:{file,line,text}}, docDetails }`
+- **`POST /api/qa/conflict/resolve`** `{ resolutionType: 'sync_doc_to_spec' | 'sync_spec_to_doc', tcId, specFile }` → `{ ok, newAcs, targetFiles, changes[], skipped[], backups[], message }`; đã khớp → `{ ok, noop: true }`; không sửa được / còn lệch sau khi ghi → **409** (đã hoàn tác) kèm `skipped[]`.
+- **`POST /api/qa/conflict/arbitrate`** `{ tcId, specFile }` → `{ recommendation, confidence (0-100), reason, engine: 'ai' | 'heuristic', engineNote }`; đầu ra AI được kiểm theo enum, lỗi/timeout 45s → luật suy luận tĩnh; đã khớp → 409.
+- **`POST /api/qa/conflict/escalate`** `{ tcId, specFile, reason? }` → `{ ok, decisionId, decision, backup, isDuplicate? }`; ghi vào `decisionsFile` theo cấu hình, gắn `source`.
+- `GET /api/qa/trace`: mỗi finding `ac-lech-giua-tai-lieu-va-spec` có thêm `conflict {specFile, tcId, specAcs, docAcs, specOnly, docOnly}`. `GET /api/qa/decisions` trả thêm `source`.
 
 ---
 
 ## 6. Danh Mục Thay Đổi Mã Nguồn (Detailed File Inventory)
 
-| File | Loại | Mô Tả Trách Nhiệm Kỹ Thuật |
+| File | Loại | Trách Nhiệm |
 |---|:---:|---|
-| [dashboard/services/qaConflictService.js](file:///d:/_Automation-Project/dashboard/services/qaConflictService.js) | **[NEW]** | Service xử lý phân tích xung đột regex, tìm file markdown theo TC, cập nhật spec/doc an toàn kèm backup, AI/Heuristic arbitrator, và tạo quyết định trong `decisions.json`. |
-| [dashboard/services/qaConflictService.test.js](file:///d:/_Automation-Project/dashboard/services/qaConflictService.test.js) | **[NEW]** | Bộ 8 unit tests độc lập kiểm chứng toàn bộ các hàm nghiệp vụ, quét đệ quy thư mục con, bảo tồn CRLF và chống duplicate decision. |
-| [dashboard/routes/qaRoutes.js](file:///d:/_Automation-Project/dashboard/routes/qaRoutes.js) | **[MODIFY]** | Đăng ký 3 REST endpoints (`/api/qa/conflict/resolve`, `/arbitrate`, `/escalate`). |
-| [dashboard/public/js/views/qa/conflictStudioHelper.js](file:///d:/_Automation-Project/dashboard/public/js/views/qa/conflictStudioHelper.js) | **[NEW]** | Module UI Controller độc lập quản lý render gom nhóm, thẻ so sánh đối xứng 2 cột, xử lý event click, rào chắn chống double-click và popup phân giải AI. |
-| [dashboard/public/js/views/qa/qaSlice.js](file:///d:/_Automation-Project/dashboard/public/js/views/qa/qaSlice.js) | **[MODIFY]** | Khởi tạo `ConflictStudioHelper`, dọn dẹp khi unmount, và định tuyến render chuyên biệt cho nhóm `ac-lech-giua-tai-lieu-va-spec`. |
-| [dashboard/public/styles/views/qa.css](file:///d:/_Automation-Project/dashboard/public/styles/views/qa.css) | **[MODIFY]** | Bổ sung styling CSS hiện đại cho Studio, card so sánh đối xứng và các nút bấm hành động mini. |
-| [tests/dashboard-api/qa.test.js](file:///d:/_Automation-Project/tests/dashboard-api/qa.test.js) | **[MODIFY]** | Bổ sung 4 test cases kiểm thử API contract toàn diện cho các endpoint conflict mới. |
+| `dashboard/services/qaConflictService.js` | NEW | Tính trạng thái từ file, viết lại tập AC, kiểm chứng + hoàn tác, ngữ cảnh BA, trọng tài AI/heuristic, sổ quyết định |
+| `dashboard/services/qaConflictService.test.js` | NEW | 17 unit test (nhiều AC, tag, CRLF/EOL trộn, hoàn tác, dòng mơ hồ, cấu hình thư mục, path traversal, sổ hỏng, trùng TC) |
+| `dashboard/services/qaService.js` | MODIFY | Gắn `finding.conflict`; trả `source` của quyết định |
+| `dashboard/routes/qaRoutes.js` | MODIFY | 4 endpoint conflict (thêm `GET /context`) |
+| `dashboard/public/js/views/qa/conflictStudioHelper.js` | NEW | Accordion `<details>`, thẻ so sánh, ngữ cảnh, phán quyết, khóa toàn studio khi đang ghi, dọn listener |
+| `dashboard/public/js/views/qa/qaSlice.js` | MODIFY | Khởi tạo/xả studio; luôn `destroy()` trước khi vẽ lại Findings |
+| `dashboard/public/styles/views/qa.css` | MODIFY | Style studio, responsive 390px, disabled/busy |
+| `dashboard/public/styles/tokens.css` | MODIFY | Thêm token chung `--success`, `--info` (dark + light) |
+| `tests/dashboard-api/qa.test.js` | MODIFY | 7 API contract test cho conflict |
+| `tests/dashboard/qa-conflict-studio.spec.js` | NEW | 16 E2E UI (LIFE-01, ASYNC-01, OWN, 4 viewport × 2 theme) |
 
 ---
 
 ## 7. Kế Hoạch Kiểm Thử & Kết Quả Nghiệm Thu (Verification Matrix)
 
-### 7.1. Kiểm Thử Tự Động (Automated Test Evidence)
-1. **Unit Test Service**:
-   - Lệnh: `node --test dashboard/services/qaConflictService.test.js`
-   - Kết quả: **8/8 PASS** (190ms).
-2. **API Contract Tests**:
-   - Lệnh: `node --test tests/dashboard-api/qa.test.js`
-   - Kết quả: **33/33 PASS** (3.1s).
-3. **Toàn Bộ Dashboard API Suite**:
-   - Lệnh: `npm run test:dashboard:api`
-   - Kết quả: **59/59 PASS** (5.4s).
-4. **Kiểm Tra Cấu Trúc Framework & View**:
-   - Lệnh: `npm run check:framework` ➔ **PASS** (8 specs, 4 page objects).
-   - Lệnh: `npm run check:dashboard-features` ➔ **PASS** (14 views đủ mảnh, 12 nhóm routes).
-5. **Pre-commit Audit Master Process**:
-   - Lệnh: `python D:/_Master_Process/master.py audit . --staged`
-   - Kết quả: **0 Violations (PASS)**.
+### 7.1. Bằng Chứng Tự Động (chạy ngày 2026-09-24)
+| Lệnh | Kết quả |
+|---|---|
+| `node --test dashboard/services/qaConflictService.test.js` | 17/17 PASS |
+| `node --test dashboard/services/*.test.js` | 48/48 PASS |
+| `npm run test:dashboard:api` | 62/62 PASS |
+| `npx playwright test -c playwright.dashboard.config.js tests/dashboard/qa-conflict-studio.spec.js` | 16/16 PASS |
+| `npx playwright test -c playwright.dashboard.config.js` (toàn bộ) | 60 PASS / 5 FAIL — cả 5 đều fail sẵn trên HEAD trước thay đổi (HEAD: 6 FAIL; xem 7.3) |
+| `npm run check:framework`, `npm run check:dashboard-features` | PASS |
+| `python D:/_Master_Process/master.py audit .` | Không vi phạm mới từ file PLAN-16 |
 
-### 6.2. Kiểm Thử Giao Diện Thực Tế (Manual Verification)
-1. Khởi động Dashboard bằng lệnh: `npm run dashboard`.
-2. Mở trình duyệt tại `http://localhost:3000/#/qa` -> bấm subtab **Vấn đề** (Findings).
-3. Quan sát nhóm **"Tài liệu và spec nói khác nhau"**:
-   - Đã được thay thế hoàn toàn bằng **Traceability Conflict Studio**.
-   - Các xung đột được phân cụm trực quan theo từng file `.spec.js`.
-   - Các nút `[⇄ Cập nhật Doc theo Spec]`, `[⇄ Sửa Spec theo Doc]`, `[✨ Trọng tài AI]`, `[📋 Đẩy vào Sổ Quyết Định]` hoạt động chính xác, tạo backup an toàn và tự động giảm số lượng xung đột ngay sau khi đồng bộ.
+### 7.2. Ma Trận Scenario
+| Scenario | Bằng chứng |
+|---|---|
+| ASYNC-01 double-click / chờ mạng chậm | E2E: toàn bộ nút hành động bị khóa, đúng 1 request; API: gọi lần 2 trả `noop` |
+| ASYNC late response | Phản hồi tìm lại thẻ theo khóa + chữ ký AC; thẻ đã đổi thì bỏ qua |
+| ASYNC save failure | E2E: 409 hiện lỗi trên thẻ, file giữ nguyên, nút mở lại |
+| OWN-01..05 | E2E: 20 lượt reload giữ nguyên số disposer; hết xung đột → 0 disposer |
+| UI (accordion, focus, 4 viewport × 2 theme) | E2E: không tràn ngang; ảnh chụp đã soát bằng mắt |
+| LIFE-01 | E2E chạy qua UI → server → file thật → analyzer |
+
+### 7.3. Rủi Ro Còn Lại / Chưa Làm
+- **Gate 4 chính thức chưa chạy**: cần `.delivery/contract.json` cho PLAN-16 được BA duyệt hash và reviewer độc lập; không tự duyệt.
+- 5 test UI fail sẵn từ trước, không thuộc PLAN-16: `qa-view-design-parity` (fallback `var(--success, #10b981)`, badge nền sáng, viền vàng, primitive hero) và `templates-performance-a11y` TC-13. Bổ sung token `--success` đã sửa được 1 test cũ.
+- Nhánh gọi AI thật (Gemini/OpenAI/9Router) chưa chạy với key thật; đã test kiểm tra đầu ra và nhánh fallback.
+- Dòng AC nằm rải rác trong câu hoặc khai chung nhiều TC vẫn phải sửa tay (có báo rõ trên thẻ).
