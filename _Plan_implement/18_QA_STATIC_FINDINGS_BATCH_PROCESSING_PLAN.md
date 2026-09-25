@@ -2,7 +2,7 @@
 
 > **Mã kế hoạch:** `PLAN-18`  
 > **Phiên bản:** `v6.2` — thay thế v5 (mục 0); bỏ AI khỏi toàn bộ luồng sửa finding (mục 0.1)  
-> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0 XONG, CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · SẴN SÀNG PHASE 1`  
+> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0–1 XONG · CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · TIẾP THEO: PHASE 2`  
 > **Phạm vi:** View **QA Docs & Automation** (`#/qa`, tab "Vấn đề") — `dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`, `tools/qa/lib/sources.js` (thay đổi nhỏ, tương thích ngược).  
 > **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json).  
 > **Nhánh:** trunk-based trên `main`. Mỗi phase chỉ đóng khi toàn bộ exit criteria của phase có bằng chứng chạy thật (mục 9, 10).
@@ -88,7 +88,7 @@ v6.1 bỏ AI khỏi batch; v6.2 bỏ luôn AI khỏi nút sửa từng dòng.
 
 - Dùng AI trong luồng sửa finding (mục 0.1).
 - Sửa tự động `spec-thieu-assertion`, `ma-tc-trung`, `rule-thieu-boundary-test` và mọi kind không có route `quick`/`guided` ở mục 4 (chỉ hướng dẫn/điều hướng).
-- Title test/describe viết trên nhiều dòng; test dùng `{ tag: [...] }` → skip có lý do.
+- Title test/describe viết trên nhiều dòng → skip có lý do (`TITLE_NOT_ON_LINE`).
 - Điều phối với các trình ghi file khác của Dashboard (spec editor, Page Manager) ngoài việc phát hiện qua hash.
 - Chuyển `getQaSummary` sang bất đồng bộ (ghi nhận ở mục 12).
 - Sửa lỗi `playwright --list` (commit riêng, là điều kiện tiên quyết ở Phase 0).
@@ -131,9 +131,9 @@ Nguồn sự thật duy nhất: `dashboard/services/qaFindingCatalog.js`. Server
 
 | Kind | Route | Transform | Skip khi (`reasonCode`) | Tick mặc định |
 | --- | --- | --- | --- | --- |
-| `assertion-thieu-await` | `quick` | Chèn từ khoá `await` đúng cột của `expect` mà `findMissingAwaits` trả về tại dòng finding | `ALREADY_FIXED` (không còn occurrence), `IN_EXPRESSION` (ký tự khác trắng liền trước là `[`, `(`, `,`), `SYNTAX_INVALID` | Có |
-| `test-bi-skip-am-tham` | `quick` | Mặc định **thêm `@wip`** vào cuối title. Lựa chọn từng mục "Kích hoạt lại": `test.skip(`/`test.fixme(` → `test(` (chỉ dạng khai báo `test.skip('…'`) | `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE`, `TAG_OPTION_OBJECT`, `CONDITIONAL_SKIP` | Có (`@wip`) |
-| `test-thieu-tag-req` | `quick` | Thêm `@REQ-xxx` vào cuối title của `test.describe` bao quanh test ([AI_PROMPTS.md](../ai/shared/AI_PROMPTS.md) 3.3); test không nằm trong describe thì thêm vào title test. REQ lấy từ (1) bảng traceability theo `tcId` của test, (2) tên file chứa `REQ-\d{3}`; REQ phải tồn tại trong `loadRequirements`. Mọi test trong describe phải chưa có REQ hoặc cùng REQ đó | `REQ_UNKNOWN`, `REQ_AMBIGUOUS` (2 nguồn khác nhau), `REQ_NOT_FOUND`, `DESCRIBE_MIXED_REQ`, `DESCRIBE_NOT_RESOLVED`, `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE`, `TAG_OPTION_OBJECT` | Có |
+| `assertion-thieu-await` | `quick` | Chèn từ khoá `await` đúng cột của `expect` mà `findMissingAwaits` trả về tại dòng finding | `ALREADY_FIXED` (không còn occurrence), `IN_EXPRESSION` (ký tự khác trắng liền trước là `[`, `(`, `,`), `SYNTAX_INVALID`, `SCANNER_UNAVAILABLE` (satellite chưa có `tools/qa` bản có `column`) | Có |
+| `test-bi-skip-am-tham` | `quick` | Mặc định **thêm `@wip`** vào cuối title. Lựa chọn từng mục "Kích hoạt lại": `test.skip(`/`test.fixme(` → `test(` (chỉ dạng khai báo `test.skip('…'`) | `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE`, `CONDITIONAL_SKIP` | Có (`@wip`) |
+| `test-thieu-tag-req` | `quick` | Thêm `@REQ-xxx` vào cuối title của `test.describe` bao quanh test ([AI_PROMPTS.md](../ai/shared/AI_PROMPTS.md) 3.3); test không nằm trong describe thì thêm vào title test. REQ lấy từ (1) bảng traceability theo `tcId` của test, (2) tên file chứa `REQ-\d{3}`; REQ phải tồn tại trong `loadRequirements`. Mọi test trong describe phải chưa có REQ hoặc cùng REQ đó | `REQ_UNKNOWN`, `REQ_AMBIGUOUS` (2 nguồn khác nhau), `REQ_NOT_FOUND`, `DESCRIBE_MIXED_REQ`, `DESCRIBE_NOT_RESOLVED`, `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE` | Có |
 | `test-khong-co-ma-tc` | `guided` (Phase 4; trước đó là `manual`) | Người dùng chọn AC → title `TC-NNN - AC-NNN <mô tả>` (AI_PROMPTS 3.3) + `@REQ` lên describe nếu thiếu (cùng quy tắc trên) + dòng traceability trong file test-cases của REQ | `REQ_UNKNOWN`, `NO_TRACEABILITY_TABLE`, `TC_OVERFLOW` (> 999), `TITLE_NOT_ON_LINE` | **Không** (cần chọn AC) |
 | `spec-thieu-assertion` | `manual` | "Xem hướng dẫn": đoạn mã quanh test + hướng dẫn của scanner; người dùng tự viết assertion | — | Không có checkbox |
 | `khong-doc-duoc-requirement` | `scaffold` | Nút "Tạo requirement" mở `#qa-scaffold-modal` sẵn có | — | Không có checkbox |
@@ -189,8 +189,9 @@ sequenceDiagram
 | `tools/qa/lib/sources.js` | sửa (Hub) | `findMissingAwaits` trả thêm `column` (vị trí `expect` trong dòng). Tương thích ngược |
 | `dashboard/services/qaFindingCatalog.js` | mới, utils ≤150 | `createFindingKey`, `createMatchKey`, `routeFor`, `enrichFindings` (gộp trùng, `occurrences`, `fixRoute`) |
 | `dashboard/services/qaService.js` | sửa | `getQaSummary` trả finding đã enrich + `scanId`; giữ `findingsIndex` (Map theo root, không phụ thuộc TTL cache) |
-| `dashboard/services/qaFixText.js` | mới, utils ≤150 | `detectFormat` (eol, bom, finalNewline), `toLines`, `fromLines`, `hashNormalized`, `locateTitle`, `locateEnclosingDescribe`, `appendTitleTag`, `unskipDeclaration`, `insertAtColumn` |
-| `dashboard/services/qaFixValidate.js` | mới, utils ≤150 | `validateSyntax`, `predicates` theo kind |
+| `dashboard/services/qaFixText.js` | mới, utils ≤150 | `parseDocument` / `serializeDocument` (BOM, EOL từng dòng, newline cuối), `replaceLine`, `insertLines`, `hashNormalized`, `insertAtColumn`, `indentOf` |
+| `dashboard/services/qaFixTitle.js` | mới, utils ≤150 | `locateTitle`, `titleTags`, `appendTitleTag`, `unskipDeclaration`, `locateEnclosingDescribe`, `reqTagsInRange` |
+| `dashboard/services/qaFixValidate.js` | mới, utils ≤150 | `validateSyntax`, `findMissingAwaitAt`, `isResolved` theo kind, `scannerAvailable` (nạp mềm `tools/qa`; thiếu → tuyến await tự tắt) |
 | `dashboard/services/qaBatchSessionStore.js` | mới, utils ≤150 | Session Map, TTL, state machine, `withWriteLock(root, fn)` |
 | `dashboard/services/qaBatchPlanService.js` | mới, service ≤200 | `buildPlan`, `applyInput`, `renderCards` (hunk + 2 dòng ngữ cảnh) |
 | `dashboard/services/qaBatchCommitService.js` | mới, service ≤200 | `commit`, `writeAtomic`, manifest |
@@ -438,7 +439,8 @@ sequenceDiagram
 
 | Cấp | File | Nội dung |
 | --- | --- | --- |
-| Unit | `tools/qa/lib/sources.test.js`, `dashboard/services/qaFindingCatalog.test.js`, `qaFixText.test.js`, `qaFixValidate.test.js`, `qaFindingFixerService.test.js` (viết lại cho `resolveSafePath` + `getFindingContext`) | `column`, key/gộp trùng/route, transform, EOL/BOM, cú pháp, predicate, đường dẫn an toàn, trích đoạn mã |
+| Unit | `tools/qa/lib/sources.test.js`, `dashboard/services/qaFindingCatalog.test.js`, `qaFixText.test.js`, `qaFixTitle.test.js`, `qaFixValidate.test.js`, `qaFindingFixerService.test.js` (viết lại cho `resolveSafePath` + `getFindingContext`) | `column`, key/gộp trùng/route, transform, EOL/BOM, cú pháp, predicate, đường dẫn an toàn, trích đoạn mã |
+| Integration (scanner thật) | `dashboard/services/qaBatchFixture.test.js`, `qaSummaryFindings.test.js` | Fixture sinh đúng finding; `getQaSummary` gộp trùng, `scanId`, `findingsIndex` |
 | Service integration | `dashboard/services/qaBatchService.test.js` | Plan/commit/rollback/phục hồi/lock trên file thật trong fixture workspace tạm |
 | API contract | `tests/dashboard-api/qa-batch.test.js`; `tests/dashboard-api/qa.test.js` (thay test `ai-analyze-fix`) | 6 endpoint × {200, 400, 403, 404, 409, 500 `restored`}; route cũ trả 404 |
 | E2E UI | `tests/dashboard/qa-batch-fixer.spec.js` (`playwright.dashboard.config.js`) | Toolbar, hành động từng dòng, selection, modal, hoàn tác, vòng đời, viewport × theme; `selectionModel` được kiểm qua `page.evaluate(() => import('/js/views/qa/batch/selectionModel.js'))` |
@@ -460,7 +462,7 @@ sequenceDiagram
 | BATCH-08 | Service | expect trong `items.forEach(x => expect(…))` (callback không async) | `SYNTAX_INVALID`, file không đổi |
 | BATCH-09 | Service | File CRLF + BOM; file không có newline cuối | Định dạng giữ nguyên; không 409 giả |
 | BATCH-10 | Service | `test.skip(` và `test.fixme(`; chọn unskip; `test.skip(cond, 'lý do')` trong thân test | Mặc định `@wip`; unskip → `test(`; `CONDITIONAL_SKIP` |
-| BATCH-11 | Service | REQ từ traceability; 2 nguồn mâu thuẫn; REQ không tồn tại; describe chứa test đã có REQ khác; test ngoài describe; quote lồng/escape; template literal; tag option | Tag gắn vào title describe; `REQ_AMBIGUOUS`; `REQ_NOT_FOUND`; `DESCRIBE_MIXED_REQ`; tag gắn vào title test; title đúng; `TEMPLATE_TITLE`; `TAG_OPTION_OBJECT` |
+| BATCH-11 | Service | REQ từ traceability; 2 nguồn mâu thuẫn; REQ không tồn tại; describe chứa test đã có REQ khác; test ngoài describe; khối bao quanh không phải describe; quote lồng/escape; template literal | Tag gắn vào title describe; `REQ_AMBIGUOUS`; `REQ_NOT_FOUND`; `DESCRIBE_MIXED_REQ`; tag gắn vào title test; `DESCRIBE_NOT_RESOLVED`; title đúng; `TEMPLATE_TITLE` |
 | BATCH-12 | Unit | Cùng finding lặp qua 4 project | 1 key, `occurrences = 4`, 1 bản vá |
 | BATCH-13 | API | Gửi key có route `manual`/`scaffold`/`autofix` | `skipped` với `nextAction` đúng |
 | BATCH-14 | API | Key không còn trong lần quét mới nhất | `skipped` `NOT_IN_LATEST_SCAN` |
@@ -525,10 +527,10 @@ sequenceDiagram
 
 ### Phase 1 — Nền tảng dùng chung (1.5 ngày)
 
-- [ ] 1.1 `findMissingAwaits` trả `column` + test.
-- [ ] 1.2 `qaFindingCatalog.js`; `getQaSummary` enrich + `findingsIndex` + `scanId` + test.
-- [ ] 1.3 `qaFixText.js`, `qaFixValidate.js` + test.
-- **Exit:** unit test PASS; `tests/dashboard-api/qa.test.js` PASS; modularity audit không có vi phạm mới. Luồng từng dòng cũ chưa bị động tới (giữ `main` luôn chạy được).
+- [x] 1.1 `findMissingAwaits` trả `column` + test.
+- [x] 1.2 `qaFindingCatalog.js`; `getQaSummary` enrich + `findingsIndex` + `scanId` + tính lại `health` theo danh sách đã gộp + test.
+- [x] 1.3 `qaFixText.js`, `qaFixTitle.js` (tách khỏi qaFixText để giữ ≤150 dòng), `qaFixValidate.js` + test.
+- **Exit (2026-09-25):** `node --test dashboard/services/*.test.js tools/qa/lib/*.test.js core/fixtures/*.test.js core/generator/*.test.js` 264/264; `npm run test:dashboard:api` 62/62; `npx playwright test -c playwright.dashboard.config.js tests/dashboard/qa-*.spec.js` 48/48; `npm run check:framework` pass; module mới 90–108 dòng, không exemption. Luồng từng dòng cũ chưa bị động tới.
 
 ### Phase 2 — Batch engine (2.5 ngày)
 
