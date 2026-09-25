@@ -34,7 +34,7 @@ export async function changeInput(ctrl, key, input) {
     });
     if (!ctrl.alive || modal.plan !== plan) return;
     modal.setBusy(false);
-    if (res.card) modal.updateCard(res.card, res.revision);
+    if (res.cards || res.card) modal.updateCards(res.cards || [res.card], res.revision, input.acId ? key : null);
     else {
       modal.render();
       if (res.skipped) modal.showError({ message: res.skipped.reason });

@@ -18,7 +18,7 @@ const FIX_ROUTES = Object.freeze({
   'assertion-thieu-await': 'quick',
   'test-bi-skip-am-tham': 'quick',
   'test-thieu-tag-req': 'quick',
-  'test-khong-co-ma-tc': 'manual',
+  'test-khong-co-ma-tc': 'guided',
   'spec-thieu-assertion': 'manual',
   'khong-doc-duoc-requirement': 'scaffold',
   'script-khong-co-trong-test-case': 'autofix',
@@ -50,6 +50,11 @@ const REASON_TEXT = Object.freeze({
   DESCRIBE_MIXED_REQ: 'test.describe đang chứa test thuộc REQ khác, cần tách hoặc sửa tay.',
   DESCRIBE_NOT_RESOLVED: 'Không xác định được test.describe bao quanh, cần sửa tay.',
   UNSUPPORTED_FILE: 'Không kiểm tra cú pháp được loại file này nên không sửa tự động.',
+  AC_REQUIRED: 'Chưa chọn AC cho test này.',
+  REQ_NO_AC: 'Requirement của test chưa có AC nào để gán.',
+  NO_TRACEABILITY_TABLE: 'Chưa có file test-cases chứa bảng Traceability cho REQ này.',
+  TC_OVERFLOW: 'Đã dùng hết mã TC-001..TC-999; cần tách REQ hoặc đánh số lại.',
+  TC_TAKEN: 'Mã TC đã giữ chỗ vừa bị dùng ở nơi khác; hãy lập lại kế hoạch.',
 });
 
 function reasonText(code) {

@@ -12,10 +12,10 @@ const {
   locateTitle,
   appendTitleTag,
   unskipDeclaration,
-  locateEnclosingDescribe,
-  reqTagsInRange,
+  placeReqTag,
 } = require('./qaFixTitle');
 const { scannerAvailable, findMissingAwaitAt } = require('./qaFixValidate');
+const { planGuidedTitle, planTraceabilityRow } = require('./qaGuidedFixes');
 
 let qaSources = null;
 let qaConfig = null;
@@ -71,33 +71,19 @@ function resolveReq(title, ctx) {
 
 /** Tag REQ đi lên title của describe bao quanh (AI_PROMPTS.md 3.3); không có describe thì lên title test. */
 function planReqTag(lines, line, ctx) {
-  const index = line - 1;
-  const loc = locateTitle(lines[index] || '');
+  const loc = locateTitle(lines[line - 1] || '');
   if (loc.error) return skip(loc.error);
   const resolved = resolveReq(loc.value, ctx);
   if (resolved.skip) return resolved;
-  const tag = `@${resolved.req}`;
-  const describe = locateEnclosingDescribe(lines, index);
-  if (describe.error) return skip(describe.error);
-  if (describe.none) {
-    const res = appendTitleTag(lines[index], tag);
-    if (res.error) return skip(res.error);
-    return { edits: [{ index, text: res.line }], target: { tag, tagLine: line, tagOnDescribe: false } };
-  }
-  const others = [...reqTagsInRange(lines, describe.line, describe.end)].filter((t) => t !== tag);
-  if (others.length) return skip('DESCRIBE_MIXED_REQ');
-  const res = appendTitleTag(lines[describe.line], tag, { describe: true });
-  if (res.error) return skip(res.error === 'TITLE_NOT_ON_LINE' ? 'DESCRIBE_NOT_RESOLVED' : res.error);
-  return {
-    edits: [{ index: describe.line, text: res.line }],
-    target: { tag, tagLine: describe.line + 1, tagOnDescribe: true },
-  };
+  return placeReqTag(lines, line - 1, `@${resolved.req}`);
 }
 
 function planFinding(kind, lines, line, ctx, choice = {}) {
   if (kind === 'assertion-thieu-await') return planMissingAwait(lines, line);
   if (kind === 'test-bi-skip-am-tham') return planSkipped(lines, line, choice.skipMode);
   if (kind === 'test-thieu-tag-req') return planReqTag(lines, line, ctx);
+  if (kind === 'test-khong-co-ma-tc') return planGuidedTitle(lines, line, choice);
+  if (kind === 'traceability-row') return planTraceabilityRow(lines, choice);
   return skip('MANUAL_ROUTE');
 }
 

@@ -75,14 +75,19 @@
           "intent": "Apply một phần, từ chối file stale và revision cũ, session khác cùng file bị 409 (BATCH-15, 16, 17, 19)",
           "level": "integration",
           "critical": true,
-          "scenarios": ["ASYNC-03", "ASYNC-05"]
+          "scenarios": [
+            "ASYNC-03",
+            "ASYNC-05"
+          ]
         },
         {
           "id": "P18-TC-06",
           "intent": "Lỗi ghi ở file thứ N khôi phục byte-identical và manifest FAILED; manifest APPLYING còn sót được phục hồi ở request đầu tiên (BATCH-20, 21)",
           "level": "integration",
           "critical": true,
-          "scenarios": ["ASYNC-04"]
+          "scenarios": [
+            "ASYNC-04"
+          ]
         },
         {
           "id": "P18-TC-07",
@@ -115,7 +120,11 @@
           "intent": "Tri-state với filter, hành động từng dòng khớp inventory route độc lập, selection sống qua filter/làm mới và chuyển chip A-B-A nhanh chỉ áp dụng lần cuối (BATCH-29, 30, 31)",
           "level": "e2e",
           "critical": true,
-          "scenarios": ["UI-01", "UI-04", "ASYNC-02"]
+          "scenarios": [
+            "UI-01",
+            "UI-04",
+            "ASYNC-02"
+          ]
         }
       ]
     },
@@ -128,7 +137,12 @@
           "intent": "Bỏ tick một bản vá rồi áp dụng, đổi lựa chọn khi batch-input đang chờ, double-click và Esc khi đang áp dụng, đóng modal có lựa chọn chưa lưu, 409 STALE_FILES và lập lại kế hoạch (BATCH-32, 33, 34)",
           "level": "e2e",
           "critical": true,
-          "scenarios": ["ASYNC-01", "ASYNC-04", "UI-02", "UI-05"]
+          "scenarios": [
+            "ASYNC-01",
+            "ASYNC-04",
+            "UI-02",
+            "UI-05"
+          ]
         }
       ]
     },
@@ -141,7 +155,11 @@
           "intent": "Apply qua UI tới file thật và scanner quét lại, đóng result bar rồi hoàn tác, Undo khi đang quét lại chỉ render kết quả mới nhất (BATCH-35, 36)",
           "level": "e2e",
           "critical": true,
-          "scenarios": ["ASYNC-03", "ASYNC-05", "LIFE-01"]
+          "scenarios": [
+            "ASYNC-03",
+            "ASYNC-05",
+            "LIFE-01"
+          ]
         }
       ]
     },
@@ -154,14 +172,22 @@
           "intent": "Đăng ký handler hai lần có identity riêng, disposer cũ không gỡ đăng ký mới, dispose hai lần an toàn, 20 vòng mount-unmount không tăng listener, rời view khi batch-plan đang chờ không cập nhật DOM (BATCH-37, 38)",
           "level": "e2e",
           "critical": false,
-          "scenarios": ["OWN-01", "OWN-02", "OWN-03", "OWN-04", "OWN-05"]
+          "scenarios": [
+            "OWN-01",
+            "OWN-02",
+            "OWN-03",
+            "OWN-04",
+            "OWN-05"
+          ]
         },
         {
           "id": "P18-TC-13",
           "intent": "4 viewport x 2 theme: không tràn ngang, không chữ bị cắt, focus và trạng thái ẩn/hiện nhất quán, không có text debug, 0 lỗi console (BATCH-39)",
           "level": "e2e",
           "critical": false,
-          "scenarios": ["UI-03"]
+          "scenarios": [
+            "UI-03"
+          ]
         }
       ]
     },
@@ -174,12 +200,43 @@
           "intent": "Sửa một finding quick qua nút từng dòng: modal có đúng một card, file đổi đúng một chỗ, hoàn tác byte-identical, không có request tới AI provider (BATCH-44)",
           "level": "e2e",
           "critical": true,
-          "scenarios": ["LIFE-01"]
+          "scenarios": [
+            "LIFE-01"
+          ]
         },
         {
           "id": "P18-TC-15",
           "intent": "GET /api/qa/finding/context trả đoạn mã, chặn đường dẫn ngoài project, xử lý finding không có file; route cũ trả 404 (BATCH-45)",
           "level": "integration",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-11",
+      "text": "Gán mã TC có hướng dẫn: người dùng chọn AC trong danh sách AC của REQ; bản vá gồm title `TC-NNN - AC-NNN`, tag REQ khi test chưa mang REQ đó và một dòng trong bảng Traceability, áp dụng cùng một giao dịch; không cấp trùng TC giữa các session đang mở; từ chối khi TC đã giữ chỗ bị dùng nơi khác, khi vượt TC-999 hoặc khi REQ không có bảng Traceability; sau khi quét lại không phát sinh lỗi truy vết.",
+      "cases": [
+        {
+          "id": "P18-TC-16",
+          "intent": "Chọn AC trong modal rồi áp dụng: spec và bảng Traceability đổi đúng, quét lại không phát sinh finding truy vết (BATCH-40)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "P18-TC-17",
+          "intent": "Hai session mở cùng lúc giữ chỗ TC khác nhau; TC bị chiếm lúc apply trả 409 TC_TAKEN và không ghi file; REQ không có bảng Traceability bị bỏ qua có lý do (BATCH-41, 43)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-18",
+          "intent": "Cấp số TC bỏ qua số đã dùng hoặc đang giữ chỗ và dừng ở TC-999; dòng Traceability dựng theo tên cột và kiểu đường dẫn của bảng đang có (BATCH-42)",
+          "level": "unit",
           "critical": false,
           "scenarios": []
         }

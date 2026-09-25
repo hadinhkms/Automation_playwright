@@ -68,10 +68,19 @@ export class BatchPreviewModal {
     this.close();
   }
 
-  updateCard(card, revision) {
+  /** Cập nhật hoặc thêm thẻ file sau batch-input (chọn AC có thể thêm thẻ file test-cases). */
+  updateCards(cards, revision, tickKey) {
     if (!this.plan) return;
     this.plan.session.revision = revision;
-    this.plan.cards = this.plan.cards.map((c) => (c.relPath === card.relPath ? card : c));
+    cards.forEach((card) => {
+      const i = this.plan.cards.findIndex((c) => c.relPath === card.relPath);
+      if (i >= 0) this.plan.cards[i] = card;
+      else this.plan.cards.push(card);
+    });
+    const keys = new Set(this.plan.cards.flatMap((c) => c.patches.map((p) => p.findingKey)));
+    this.plan.totals = { ...this.plan.totals, patches: keys.size, files: this.plan.cards.length };
+    // Chọn AC là một quyết định tường minh của người dùng: tick luôn bản vá đó.
+    if (tickKey) this.ticked.add(tickKey);
     this.render();
   }
 
@@ -80,7 +89,7 @@ export class BatchPreviewModal {
     if (!this.dialog) return;
     this.dialog.classList.toggle('is-busy', busy);
     this.dialog.setAttribute('aria-busy', String(busy));
-    this.dialog.querySelectorAll('input, #qa-batch-modal-cancel, #qa-batch-modal-close').forEach((node) => { node.disabled = busy; });
+    this.dialog.querySelectorAll('input, select, #qa-batch-modal-cancel, #qa-batch-modal-close').forEach((node) => { node.disabled = busy; });
     this._syncApply(label);
   }
 
@@ -142,10 +151,15 @@ export class BatchPreviewModal {
     if (target.dataset.patchKeys) set(target.dataset.patchKeys.split(','), target.checked);
     else if (target.dataset.batchFile) {
       const card = this.plan.cards.find((c) => c.relPath === target.dataset.batchFile);
-      set(card.patches.map((p) => p.findingKey), target.checked);
+      set(card.patches.filter((p) => !p.needsInput).map((p) => p.findingKey), target.checked);
     } else if (target.dataset.skipKey) {
       this.dirty = true;
       this.callbacks.onInput(target.dataset.skipKey, { skipMode: target.value });
+      return;
+    } else if (target.dataset.acKey) {
+      if (!target.value) return;
+      this.dirty = true;
+      this.callbacks.onInput(target.dataset.acKey, { acId: target.value });
       return;
     } else return;
     this.dirty = true;

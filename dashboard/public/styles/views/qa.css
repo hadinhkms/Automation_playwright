@@ -366,6 +366,22 @@
   color: #10b981;
   margin-left: 6px;
 }
+/* Biến thể theo mức độ: các class này đã được dùng ở danh sách finding nhưng trước đây chưa có màu. */
+.qa-badge-danger {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+  color: var(--danger);
+}
+.qa-badge-warn {
+  background: color-mix(in srgb, var(--warning) 14%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--line));
+  color: var(--warning);
+}
+.qa-badge-info {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  color: var(--accent);
+}
 
 /* .qa-option là một <label> thật. ui-primitives đặt label mặc định thành caption IN HOA,
    letter-spacing rộng, font-weight 800 — không reset thì cả tiêu đề lẫn dòng hệ quả của
@@ -2140,3 +2156,25 @@ dialog.qa-batch-modal.is-busy .qa-batch-cards { opacity: 0.6; pointer-events: no
   .qa-gap-actions-col { flex: 1 1 100%; margin-left: 0; padding-left: 28px; box-sizing: border-box; flex-wrap: wrap; }
   .qa-batch-result { flex-wrap: wrap; position: sticky; bottom: 0; z-index: 2; }
 }
+.qa-batch-ac {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: var(--font-caption);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text);
+  font-weight: 500;
+}
+.qa-batch-ac-select {
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--input, var(--surface));
+  color: var(--text);
+  font: inherit;
+}
+.qa-batch-ac-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

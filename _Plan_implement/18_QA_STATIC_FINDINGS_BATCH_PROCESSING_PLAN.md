@@ -2,7 +2,7 @@
 
 > **Mã kế hoạch:** `PLAN-18`  
 > **Phiên bản:** `v6.2` — thay thế v5 (mục 0); bỏ AI khỏi toàn bộ luồng sửa finding (mục 0.1)  
-> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0–3 XONG · CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · TIẾP THEO: PHASE 4`  
+> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0–4 XONG · CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · TIẾP THEO: PHASE 5`  
 > **Phạm vi:** View **QA Docs & Automation** (`#/qa`, tab "Vấn đề") — `dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`, `tools/qa/lib/sources.js` (thay đổi nhỏ, tương thích ngược).  
 > **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json).  
 > **Nhánh:** trunk-based trên `main`. Mỗi phase chỉ đóng khi toàn bộ exit criteria của phase có bằng chứng chạy thật (mục 9, 10).
@@ -195,7 +195,10 @@ sequenceDiagram
 | `dashboard/services/qaBatchSessionStore.js` | mới, utils ≤150 | Session Map, TTL, state machine, `withWriteLock(root, fn)` |
 | `dashboard/services/qaQuickFixes.js` | mới, utils ≤150 | 3 planner quick (`planFinding`) + `loadReqContext` (REQ hợp lệ, map TC → REQ) |
 | `dashboard/services/qaBatchManifest.js` | mới, utils ≤150 | Đường dẫn snapshot/pre-rollback, đọc/ghi manifest, `writeAtomic` (tạm + rename, retry EPERM/EBUSY) |
-| `dashboard/services/qaBatchPlanService.js` | mới, service ≤200 | `buildPlan`, `applyInput`, `composeForCommit` (hunk + 2 dòng ngữ cảnh) |
+| `dashboard/services/qaBatchPlanService.js` | mới, service ≤200 | `buildPlan`, `applyInput`, `composeForCommit` (bản vá nhiều file hỏng một nửa thì bỏ cả) |
+| `dashboard/services/qaBatchPlanParts.js` | mới, service ≤200 | `skipEntry`, `readTarget`, `fileEntry`, `tryPatch`, `describePatch`, hunk thay/chèn dòng, `cardOf` |
+| `dashboard/services/qaGuidedFixes.js` | mới, service ≤200 | Phase 4: suy REQ, vá title `TC-NNN - AC-NNN`, dòng Traceability theo tên cột bảng, cấp/kiểm số TC (`collect()`) |
+| `dashboard/services/qaGuidedPlan.js` | mới, service ≤200 | Phase 4: giữ chỗ TC giữa các session, `batch-input { acId }` dựng cùng lúc 2 thẻ file |
 | `dashboard/services/qaBatchCommitService.js` | mới, service ≤200 | `commit`, `writeAtomic`, manifest |
 | `dashboard/services/qaBatchRollbackService.js` | mới, service ≤200 | `rollback`, `getLatestCommitted`, `recoverInterrupted`, `pruneBackups` |
 | `dashboard/services/qaFindingFixerService.js` | rút gọn, utils ≤150 | Chỉ còn `resolveSafePath` + `getFindingContext` (đoạn mã ±15 dòng). Xoá `analyzeFindingFix`, `analyzeWithAiFix`, `analyzeWithHeuristicFix`, `applyFindingFix`, import `parseEnvFile` và header exemption |
@@ -522,7 +525,7 @@ sequenceDiagram
 - [x] 0.0 **Điều kiện tiên quyết (commit `3d36afe`, ngoài PLAN-18):** tách `RESERVED_FIXTURE_NAMES` ra `core/fixtures/reservedFixtureNames.js` để bỏ vòng `require`; loader custom fixture thôi quét file `.js` ở gốc dự án; thêm `core/fixtures/fixtureLoadOrder.test.js`. Bằng chứng: `node --test core/fixtures/*.test.js` 31/31; `playwright test --list` 12 test, không cảnh báo fixture; `sample_cleanup_fixture.spec.js` pass; `npm run check:framework` pass; `node tools/qa/index.js summary --json` liệt kê finding cấp test.
 - [x] 0.0b `core/generator/objectRepository.js` dùng chung `reservedFixtureNames.js` (bản riêng thiếu `circuitBreakerGuard`); thêm exemption size-check có lý do cho file 1240 dòng có từ trước (commit `648f8a9`).
 - [x] 0.1 D1–D5 đã chốt (2026-09-25).
-- [x] 0.2 Soạn contract `.delivery/phases/plan-18.json` cho Phase 1–3 (10 AC, 15 TC, 9 critical, phủ đủ 16 gate scenario; qua `gates/contract.py`). **Chờ BA duyệt hash** — sha256 bản LF lúc soạn: `6ae16afcb1eb9a68805d461b58444822d2060531ea7b086b8a17c9d2e090c10a` (repo bật `core.autocrlf`, BA cần tính lại trên bản checkout). Không tự duyệt. Tuyến guided (Phase 4) sẽ có contract riêng.
+- [x] 0.2 Soạn contract `.delivery/phases/plan-18.json` cho Phase 1–3 (10 AC, 15 TC, 9 critical, phủ đủ 16 gate scenario; qua `gates/contract.py`). **Chờ BA duyệt hash** — sha256 bản LF lúc soạn: `6ae16afcb1eb9a68805d461b58444822d2060531ea7b086b8a17c9d2e090c10a` (repo bật `core.autocrlf`, BA cần tính lại trên bản checkout). Không tự duyệt. Cập nhật 2026-09-26: Phase 4 giao cùng đợt nên tiêu chí guided được gộp vào contract này (`P18-AC-11`, TC-16..18) — nay 11 AC, 18 TC, 11 critical; sha256 bản LF mới: `1ad17a068c73359b2e120748d482d26d22d2182c745083711cfa7440686a3fcd`.
 - [x] 0.3 Baseline 2026-09-25 (HEAD `648f8a9`): `node --test core/fixtures/*.test.js core/generator/*.test.js` 63/63; `npm run test:dashboard:api` 62/62; `npm run check:framework` pass; `npx playwright test -c playwright.dashboard.config.js` 67 pass / **1 fail sẵn**: `templates-performance-a11y.spec.js` TC-13 (DOM ban đầu 4432 > ngưỡng 1500) — đã ghi nhận từ PLAN-16, không thuộc PLAN-18.
 - [x] 0.4 `tests/dashboard/support/batchFixtureSeed.js` + `dashboard/services/qaBatchFixture.test.js`: scanner thật trên fixture sinh `assertion-thieu-await` 6, `test-bi-skip-am-tham` 2, `spec-thieu-assertion` 2, `test-khong-co-ma-tc` 2, `test-thieu-tag-req` 2 (mỗi finding ×2 project).
 - **Exit:** scanner đọc được test ✓; contract đã nộp duyệt ✓ (chờ BA ký); baseline được ghi ✓.
@@ -553,13 +556,13 @@ sequenceDiagram
 - [x] 3.5 E2E `tests/dashboard/qa-batch-fixer.spec.js` (BATCH-29–36, 44, modal chi tiết) và `qa-batch-fixer-layout.spec.js` (SelectionModel, BATCH-37, 38, 39 ở 4 viewport × 2 theme); API: route cũ trả 404 trong `qa.test.js`.
 - **Exit (2026-09-26):** services/tools/core 272/272; `test:dashboard:api` 66/66; dashboard E2E 84 pass / 1 fail có sẵn từ baseline (`templates-performance-a11y` TC-13); ảnh 4 viewport × 2 theme đã soát (sửa: chữ chip xuống dòng ở 390px, nhãn modal bị viết hoa); 0 lỗi console; modularity không có vi phạm mới (3 vi phạm có sẵn: `dataSlice.js`, `markdownView.js`, `resourceService.js`); `dashboard/` không còn `ai-analyze-fix`, `analyzeWithAiFix`, `apply-fix`.
 
-### Phase 4 — Tuyến `guided` gán TC (2 ngày, có thể phát hành sau)
+### Phase 4 — Tuyến `guided` gán TC (giao cùng đợt với Phase 1–3)
 
-- [ ] 4.1 Catalog: `test-khong-co-ma-tc` → `guided`; chip "Cần chọn AC".
-- [ ] 4.2 Plan: gọi `collect()` khi có mục guided; danh sách AC của REQ; giữ chỗ TC; vá title + tag + dòng traceability (định dạng của [fixer.js:121](../tools/qa/lib/fixer.js#L121)); `batch-input { acId }`.
-- [ ] 4.3 Modal: dropdown AC từng mục, badge "Truy vết".
-- [ ] 4.4 BATCH-40..43.
-- **Exit:** PASS; trên fixture không phát sinh cascade sau khi quét lại.
+- [x] 4.1 Catalog: `test-khong-co-ma-tc` → `guided`; chip "Cần chọn AC" hiện khi có mục.
+- [x] 4.2 `qaGuidedFixes.js` + `qaGuidedPlan.js`: `collect()` chỉ khi có mục guided; REQ từ tag test/describe hoặc tên file; AC của REQ; giữ chỗ TC (không trùng session đang mở); title + tag REQ (khi test chưa mang) + dòng Traceability theo tên cột và kiểu đường dẫn của bảng đang có; kiểm lại TC trong lock lúc apply (409 `STALE_FILES` kèm `reason: TC_TAKEN`).
+- [x] 4.3 Modal: dropdown AC từng mục (checkbox khoá tới khi chọn AC; chọn xong thì tick), badge "Truy vết", hunk chèn dòng, thẻ file test-cases thêm động.
+- [x] 4.4 `dashboard/services/qaGuided.test.js` (BATCH-40 có quét lại thật, 41, 42, 43, dựng dòng bảng REQ-trước / tiếng Việt) và E2E BATCH-40 trong `qa-batch-fixer.spec.js`; contract bổ sung `P18-AC-11`.
+- **Exit (2026-09-26):** services/tools/core 277/277; `test:dashboard:api` 66/66; dashboard E2E 85 pass / 1 fail có sẵn (`templates-performance-a11y` TC-13); quét lại sau khi gán TC không còn `test-khong-co-ma-tc`, không phát sinh `script-khong-co-trong-test-case` / `test-thieu-tag-req` / `test-tro-toi-ac-khong-ton-tai`.
 
 ### Phase 5 — Gate 4 & bàn giao (1 ngày)
 
@@ -594,7 +597,7 @@ sequenceDiagram
 | D2 | `test-bi-skip-am-tham` mặc định gắn `@wip`; "Kích hoạt lại" là lựa chọn từng mục | **Đã chốt 2026-09-25** | — |
 | D3 | Bản vá guided (gán TC) mặc định không tick | **Đã chốt 2026-09-25** | — |
 | D4 | Chỉ hoàn tác được batch gần nhất; không đếm ngược | **Đã chốt 2026-09-25** | — |
-| D5 | Phase 4 (guided) có thể phát hành sau Phase 1–3 | **Đã chốt 2026-09-25** | — |
+| D5 | Phase 4 (guided) có thể phát hành sau Phase 1–3 | **Đã chốt 2026-09-25** — thực tế giao cùng đợt | — |
 
 ---
 

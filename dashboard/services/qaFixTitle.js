@@ -86,6 +86,25 @@ function locateEnclosingDescribe(lines, index) {
   return { none: true };
 }
 
+/**
+ * Gắn tag REQ lên title của describe bao quanh test ở dòng `index` (AI_PROMPTS.md 3.3); test
+ * không nằm trong describe thì gắn lên title test. Trả { edits, target } hoặc { skip }.
+ */
+function placeReqTag(lines, index, tag) {
+  const describe = locateEnclosingDescribe(lines, index);
+  if (describe.error) return { skip: describe.error };
+  if (describe.none) {
+    const res = appendTitleTag(lines[index], tag);
+    if (res.error) return { skip: res.error };
+    return { edits: [{ index, text: res.line }], target: { tag, tagLine: index + 1, tagOnDescribe: false } };
+  }
+  const others = [...reqTagsInRange(lines, describe.line, describe.end)].filter((t) => t !== tag);
+  if (others.length) return { skip: 'DESCRIBE_MIXED_REQ' };
+  const res = appendTitleTag(lines[describe.line], tag, { describe: true });
+  if (res.error) return { skip: res.error === 'TITLE_NOT_ON_LINE' ? 'DESCRIBE_NOT_RESOLVED' : res.error };
+  return { edits: [{ index: describe.line, text: res.line }], target: { tag, tagLine: describe.line + 1, tagOnDescribe: true } };
+}
+
 /** Các tag @REQ-xxx trong title của mọi test/describe từ dòng `from` tới `to` (0-based, gồm cả hai đầu). */
 function reqTagsInRange(lines, from, to) {
   const tags = new Set();
@@ -104,5 +123,6 @@ module.exports = {
   appendTitleTag,
   unskipDeclaration,
   locateEnclosingDescribe,
+  placeReqTag,
   reqTagsInRange,
 };

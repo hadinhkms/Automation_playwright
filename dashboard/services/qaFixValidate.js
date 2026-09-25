@@ -78,6 +78,8 @@ function findMissingAwaitAt(lines, line) {
  *  - assertion-thieu-await: { line }
  *  - test-bi-skip-am-tham: { line }
  *  - test-thieu-tag-req: { tag, tagLine, tagOnDescribe }
+ *  - test-khong-co-ma-tc: { line } (title khớp TC-NNN - AC-NNN)
+ *  - traceability-row: { row } (dòng đã nằm trong bảng)
  */
 function isResolved(kind, lines, target) {
   if (kind === 'assertion-thieu-await') {
@@ -93,6 +95,11 @@ function isResolved(kind, lines, target) {
     const loc = locateTitle(lines[target.tagLine - 1] || '', { describe: Boolean(target.tagOnDescribe) });
     return !loc.error && titleTags(loc.value).includes(target.tag);
   }
+  if (kind === 'test-khong-co-ma-tc') {
+    const loc = locateTitle(lines[target.line - 1] || '');
+    return !loc.error && /^TC-\d{3}\s*-\s*AC-\d{3}\b/.test(loc.value);
+  }
+  if (kind === 'traceability-row') return lines.includes(target.row);
   return false;
 }
 

@@ -23,10 +23,18 @@ function diffRow(lineNo, sign, text, modifier) {
   return row;
 }
 
-/** hunk = { startLine, changedLines: number[], before: string[], after: string[] } */
+/** hunk = { startLine, changedLines, insertedLines?, before, after } — hunk chèn dòng thì before rỗng. */
 export function renderHunk(hunk) {
   const box = document.createElement('div');
   box.className = 'qa-diff';
+  const inserted = new Set(hunk.insertedLines || []);
+  if (inserted.size) {
+    (hunk.after || []).forEach((line, i) => {
+      const lineNo = hunk.startLine + i;
+      box.append(inserted.has(lineNo) ? diffRow(lineNo, '+', line, 'is-add') : diffRow(lineNo, ' ', line, ''));
+    });
+    return box;
+  }
   const changed = new Set(hunk.changedLines || []);
   (hunk.before || []).forEach((line, i) => {
     const lineNo = hunk.startLine + i;

@@ -21,6 +21,7 @@ const {
 } = require('./qaBatchSessionStore');
 const { writeAtomic, writeManifest, snapshotPath } = require('./qaBatchManifest');
 const { pruneBackups } = require('./qaBatchRollbackService');
+const { findTakenTcs } = require('./qaGuidedFixes');
 
 function assertBody({ acceptedFindingKeys } = {}) {
   if (!Array.isArray(acceptedFindingKeys) || !acceptedFindingKeys.every((k) => typeof k === 'string')) {
@@ -49,12 +50,21 @@ async function commitPlan(root, body = {}, deps = {}) {
     if (stale.length) {
       throw httpError(409, 'STALE_FILES', 'File đã thay đổi sau khi lập kế hoạch. Hãy lập lại kế hoạch.', { files: stale });
     }
+    const tcIds = targets.flatMap((f) => [...f.patches.values()])
+      .filter((p) => p.kind === 'test-khong-co-ma-tc' && accepted.has(p.findingKey) && p.choice.acId)
+      .map((p) => p.choice.tcId);
+    const taken = findTakenTcs(root, tcIds, session.specPaths || []);
+    if (taken.length) {
+      throw httpError(409, 'STALE_FILES', 'Mã TC đã giữ chỗ vừa bị dùng ở nơi khác. Hãy lập lại kế hoạch.', {
+        files: [], tcs: taken, reason: 'TC_TAKEN',
+      });
+    }
     transition(session, 'PLANNED', 'APPLYING');
 
     const composed = composeForCommit(root, session, accepted);
-    const notApplied = composed.flatMap((c) => c.notApplied);
+    const notApplied = composed.flatMap((c) => c.notApplied).concat(composed.extraNotApplied || []);
     const writes = composed.filter((c) => c.content !== c.original);
-    const appliedFindingKeys = writes.flatMap((c) => c.applied);
+    const appliedFindingKeys = [...new Set(writes.flatMap((c) => c.applied))];
     if (!writes.length) {
       session.state = 'PLANNED';
       return { ok: true, sessionId, appliedFindingKeys: [], notApplied, files: [] };

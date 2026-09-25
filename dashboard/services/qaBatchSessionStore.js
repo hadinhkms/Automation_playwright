@@ -63,6 +63,13 @@ function requireSession(root, sessionId) {
   return session;
 }
 
+/** Session còn chờ áp dụng của một root — dùng để không cấp trùng số TC đang giữ chỗ. */
+function plannedSessions(root) {
+  sweep();
+  const key = path.resolve(root);
+  return [...sessions.values()].filter((s) => s.state === 'PLANNED' && s.root === key);
+}
+
 function transition(session, from, to) {
   if (session.state !== from) {
     throw httpError(409, 'INVALID_STATE', `Kế hoạch đang ở trạng thái ${session.state}, không thể chuyển sang ${to}.`);
@@ -105,6 +112,7 @@ module.exports = {
   isValidSessionId,
   createSession,
   requireSession,
+  plannedSessions,
   transition,
   requireRevision,
   withWriteLock,

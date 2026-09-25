@@ -11,7 +11,8 @@ const KIND_LABEL = {
   'assertion-thieu-await': 'Thiếu await',
   'test-bi-skip-am-tham': 'Test bị skip',
   'test-thieu-tag-req': 'Thiếu tag REQ',
-  'test-khong-co-ma-tc': 'Thiếu mã TC',
+  'test-khong-co-ma-tc': 'Gán mã TC',
+  'traceability-row': 'Thêm dòng traceability',
 };
 const NEXT_LABEL = {
   scaffold: 'Tạo requirement',
@@ -31,7 +32,7 @@ function el(tag, className, text) {
 function groupPatches(patches) {
   const groups = new Map();
   patches.forEach((patch) => {
-    const id = JSON.stringify(patch.hunk);
+    const id = patch.hunk ? JSON.stringify(patch.hunk) : patch.findingKey;
     if (!groups.has(id)) groups.set(id, []);
     groups.get(id).push(patch);
   });
@@ -73,6 +74,26 @@ function renderSkipChoice(patch) {
   return wrap;
 }
 
+/** Chọn AC cho bản vá gán mã TC: server giữ chỗ sẵn số TC, người dùng quyết định AC. */
+function renderAcChoice(patch) {
+  const wrap = el('label', 'qa-batch-ac');
+  wrap.append(el('span', null, `Sẽ gán ${patch.choice.tcId} · ${patch.choice.reqId} · AC:`));
+  const select = el('select', 'qa-batch-ac-select');
+  select.dataset.acKey = patch.findingKey;
+  select.setAttribute('aria-label', `Chọn AC cho ${patch.choice.tcId}`);
+  const placeholder = el('option', null, 'Chọn AC…');
+  placeholder.value = '';
+  select.append(placeholder);
+  (patch.choice.acs || []).forEach((ac) => {
+    const opt = el('option', null, `${ac.id} — ${ac.title}`);
+    opt.value = ac.id;
+    opt.selected = patch.choice.acId === ac.id;
+    select.append(opt);
+  });
+  wrap.append(select);
+  return wrap;
+}
+
 function renderGroup(group, ticked) {
   const first = group[0];
   const item = el('div', 'qa-batch-patch');
@@ -81,15 +102,19 @@ function renderGroup(group, ticked) {
   box.type = 'checkbox';
   box.dataset.patchKeys = group.map((p) => p.findingKey).join(',');
   box.checked = group.every((p) => ticked.has(p.findingKey));
+  box.disabled = group.some((p) => p.needsInput);
   const lines = group.map((p) => p.line).join(', ');
   const kind = KIND_LABEL[first.kind] || first.kind;
-  label.append(box, el('span', null, group.length > 1
-    ? `${kind} · áp dụng cho ${group.length} lỗi (dòng ${lines})`
-    : `${kind} · dòng ${lines}`));
+  let text = `${kind} · dòng ${lines}`;
+  if (first.kind === 'traceability-row') text = `${kind} ${first.choice.tcId} (${first.choice.reqId}/${first.choice.acId})`;
+  else if (group.length > 1) text = `${kind} · áp dụng cho ${group.length} lỗi (dòng ${lines})`;
+  label.append(box, el('span', null, text));
   if (first.risk === 'behavior') label.append(el('span', 'qa-badge qa-badge-warn', 'Đổi hành vi'));
+  if (first.risk === 'traceability') label.append(el('span', 'qa-badge qa-badge-info', 'Truy vết'));
   item.append(label);
   if (group.length === 1 && first.kind === 'test-bi-skip-am-tham') item.append(renderSkipChoice(first));
-  item.append(renderHunk(first.hunk));
+  if (first.kind === 'test-khong-co-ma-tc') item.append(renderAcChoice(first));
+  if (first.hunk) item.append(renderHunk(first.hunk));
   return item;
 }
 

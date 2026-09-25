@@ -44,7 +44,9 @@ test.describe('QA: sửa static finding hàng loạt (PLAN-18)', () => {
   test('dòng theo route, checkbox tổng tri-state, mục ẩn, chip A-B-A, selection qua làm mới (BATCH-29, 30, 31)', async ({ page }) => {
     await openFindings(page, harness.url);
     await expect(page.locator('.qa-static-gap-row')).toHaveCount(7);
-    await expect(page.locator('.qa-finding-checkbox')).toHaveCount(5);
+    await expect(page.locator('.qa-finding-checkbox')).toHaveCount(6);
+    await expect(rowAt(page, `${LOGIN}:15`).locator('.qa-finding-checkbox')).toHaveCount(1);
+    await expect(page.locator('[data-batch-filter="guided"] [data-count]')).toHaveText('1');
     const manual = rowAt(page, `${LOGIN}:21`, 'spec-thieu-assertion');
     await expect(manual.locator('.qa-finding-checkbox')).toHaveCount(0);
     await expect(manual.getByRole('button', { name: 'Xem hướng dẫn' })).toBeVisible();
@@ -54,18 +56,18 @@ test.describe('QA: sửa static finding hàng loạt (PLAN-18)', () => {
     const master = page.locator('#qa-batch-master');
     const count = page.locator('#qa-batch-count');
     await master.check();
-    await expect(count).toHaveText('5 đã chọn');
+    await expect(count).toHaveText('6 đã chọn');
     await check(page, `${LOGIN}:7`).uncheck();
     expect(await master.evaluate((el) => el.indeterminate)).toBe(true);
     await master.click();
-    await expect(count).toHaveText('5 đã chọn');
+    await expect(count).toHaveText('6 đã chọn');
     await master.click();
     await expect(count).toHaveText('0 đã chọn');
 
     await check(page, `${LOGIN}:6`).check();
     await check(page, `${LOGIN}:11`).check();
     await page.locator('[data-batch-filter="manual"]').click();
-    await expect(page.locator('.qa-static-gap-row')).toHaveCount(2);
+    await expect(page.locator('.qa-static-gap-row')).toHaveCount(1);
     await expect(master).toBeDisabled();
     await expect(page.locator('#qa-batch-hidden')).toHaveText('2 đang ẩn');
     await expect(page.locator('#qa-batch-preview span')).toHaveText('Xem trước & sửa (2)');
@@ -198,5 +200,28 @@ test.describe('QA: sửa static finding hàng loạt (PLAN-18)', () => {
     await expect(detail.locator('#qa-finding-detail-fix')).toBeVisible();
     await detail.locator('#qa-finding-detail-fix').click();
     await expect(page.locator('#qa-batch-modal .qa-batch-patch')).toHaveCount(1);
+  });
+
+  test('gán mã TC: chọn AC trong modal → áp dụng → spec + bảng traceability đổi, quét lại không phát sinh lỗi (BATCH-40)', async ({ page }) => {
+    await openFindings(page, harness.url);
+    await page.locator('[data-batch-filter="guided"]').click();
+    await expect(page.locator('.qa-static-gap-row')).toHaveCount(1);
+    await rowAt(page, `${LOGIN}:15`).getByRole('button', { name: 'Sửa lỗi' }).click();
+    const modal = page.locator('#qa-batch-modal');
+    const acChoice = modal.locator('.qa-batch-ac');
+    await expect(acChoice).toContainText('· REQ-001 · AC:');
+    const tc = (await acChoice.innerText()).match(/TC-\d{3}/)[0];
+    await expect(page.locator('#qa-batch-modal-apply')).toBeDisabled();
+    await expect(modal.locator('.qa-batch-patch input[type=checkbox]')).toBeDisabled();
+    await modal.getByRole('combobox', { name: `Chọn AC cho ${tc}` }).selectOption('AC-002');
+    await expect(modal.locator('.qa-batch-card')).toHaveCount(2);
+    await expect(modal.locator('.qa-badge', { hasText: 'Truy vết' }).first()).toBeVisible();
+    await expect(page.locator('#qa-batch-modal-apply')).toHaveText('Áp dụng 1 bản vá (2 file)');
+    await page.locator('#qa-batch-modal-apply').click();
+    await expect(modal).toBeHidden();
+    await expect(page.locator('#qa-batch-result-bar')).toContainText('Quét lại: đã xử lý 1 · còn 0 · phát sinh mới 0', { timeout: 20_000 });
+    expect(read(fixture.rootPath, LOGIN).split('\n')[14]).toBe(`  test('${tc} - AC-002 kiểm tra tiêu đề trang', async ({ page }) => {`);
+    expect(read(fixture.rootPath, 'test-cases/REQ-001.md')).toContain(`| REQ-001 | AC-002 | ${tc} | Yes | tests/e2e/login.spec.js | P2 |`);
+    await waitScanDone(page);
   });
 });
