@@ -79,3 +79,17 @@ Only record a lesson after the issue is reproducible and its root cause is known
 - Preventive rule: Never rely solely on optional environment variables for artifact and evidence partitioning when test execution context (`test.info()`) provides canonical spec paths. Keep desktop and mobile automation codebases strictly separated by directory and naming conventions.
 - Regression check: `npx playwright test tests/e2e/mobile-web/apply_job_noCV_flow.mobile.spec.js --project="Mobile Chrome Regression Tests"`.
 - Related files: `core/utils/commonUtils.js`, `playwright.config.js`, `dashboard/server.js`.
+
+### 2026-09-25 — Circular require between baseTest and the custom fixture loader drops every custom fixture
+
+- Date: 2026-09-25
+- Area: Core fixtures (`core/fixtures/baseTest.js`, `core/fixtures/custom/index.js`)
+- Symptom: `npx playwright test --list` fails with `Test has unknown parameter "ephemeralUser"` and logs `[CustomFixtures Warning] Không thể nạp custom fixture ... Cannot read properties of undefined (reading 'has')`. The QA scanner then reads 0 tests and reports only `khong-doc-duoc-playwright`.
+- Root cause:
+  1. `custom/index.js` required `../baseTest` for `RESERVED_FIXTURE_NAMES`, while `baseTest.js` requires `./custom` before defining that set. Playwright loads `baseTest.js` first, so the loader ran against a partial export (`undefined`) and every custom fixture failed to register. Unit tests that require `./custom` first load in the opposite order and still passed.
+  2. With the cycle removed, the loader's default call also scanned the project root and required `playwright.config.js` as a fixture file, registering bogus fixtures such as `projects`.
+  3. `core/generator/objectRepository.js` kept its own copy of the reserved list without `circuitBreakerGuard`, so Fixtures Studio accepted a name the runner silently skips.
+- Correct pattern: Keep shared constants in a leaf module with no requires back into its consumers (`core/fixtures/reservedFixtureNames.js`), imported by `baseTest.js`, `custom/index.js` and `objectRepository.js`. For a project root the loader scans only `fixtures/custom` and `core/fixtures/custom`; it scans the given directory itself only when that directory is a standalone fixture folder.
+- Preventive rule: Never import a constant from a module that imports you, especially when either side does work at require time. Test module wiring in the production load order, in a fresh process.
+- Regression check: `node --test core/fixtures/*.test.js` (includes `fixtureLoadOrder.test.js`), then `npx playwright test --list` shows no `[CustomFixtures ...]` warnings.
+- Related files: `core/fixtures/reservedFixtureNames.js`, `core/fixtures/baseTest.js`, `core/fixtures/custom/index.js`, `core/generator/objectRepository.js`, `core/fixtures/fixtureLoadOrder.test.js`, `core/fixtures/comprehensiveDataLifecycle.test.js`.

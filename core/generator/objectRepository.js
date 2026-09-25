@@ -1,3 +1,4 @@
+// master-process-disable-size-check: Legacy Object Repository & Fixtures Studio engine (~1240 dòng, có từ trước); tách module là nợ kỹ thuật riêng
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -925,12 +926,8 @@ function scanAllFixtures(rootDir = process.cwd()) {
   return allFixtures;
 }
 
-const RESERVED_FIXTURE_NAMES = new Set([
-  'test', 'expect', 'page', 'request', 'browser', 'context',
-  'basePage', 'pages', 'workerUserData', 'authenticatedUser',
-  'cleanupQueue', 'featureName', 'pageObjectsRoot', 'pageObjectsPlatform',
-  'isMobile', 'viewport', 'browserName', 'storageState',
-]);
+// Dùng chung danh sách với baseTest.js để Fixtures Studio không cho tạo fixture mà runner sẽ bỏ qua.
+const { RESERVED_FIXTURE_NAMES } = require('../fixtures/reservedFixtureNames');
 
 /**
  * Tìm kiếm đường dẫn file fixture của một custom fixture
