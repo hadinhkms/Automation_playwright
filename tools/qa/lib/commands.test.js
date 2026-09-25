@@ -52,6 +52,8 @@ function spec(title, opts = {}) {
     title,
     tcId: m ? m[1] : null,
     acId: m ? m[2] : null,
+    allTcIds: [...new Set([...title.matchAll(/\bTC-(\d{3})\b/g)].map((match) => match[0]))],
+    allAcIds: [...new Set([...title.matchAll(/\bAC-(\d{3})\b/g)].map((match) => match[0]))],
     reqId,
     tags: 'tags' in opts ? opts.tags : (reqId ? [reqId] : []),
     file,
@@ -1006,4 +1008,77 @@ test('summary: thiếu sync-manifest.json -> MISSING, không phải ALIGNED', ()
       assert.equal(res.boundary.status, 'MISSING');
     },
   );
+});
+
+// ===========================================================================
+// Một test phủ nhiều TC: `TC-001 - AC-001 ... [TC-001 TC-002]` (quy ước của CarThings)
+// ===========================================================================
+
+/** Một test duy nhất phủ cả TC-001 lẫn TC-002 nhờ danh sách trong ngoặc vuông. */
+const MULTI_TC_TESTS = [spec('TC-001 - AC-001 đăng nhập rồi thử sai mật khẩu [TC-001 TC-002]', { line: 7 })];
+
+test('multi-TC: coverage tính TC phụ trong title là đã automation', () => {
+  withRepo(DOCS, (root) => {
+    const r = coverage(root, opts(MULTI_TC_TESTS));
+    const ac2 = r.rows.find((row) => row.acId === 'AC-002');
+    assert.deepEqual(ac2.automated, ['TC-002']);
+    assert.equal(r.automatedTests, 1, 'vẫn là 1 test, chỉ phủ 2 TC');
+  });
+});
+
+test('multi-TC: gaps không báo TC phụ là "khai Yes nhưng không có script"', () => {
+  withRepo(DOCS, (root) => {
+    const findings = gaps(root, opts(MULTI_TC_TESTS));
+    assert.deepEqual(only(findings, 'khai-automation-nhung-khong-co-script'), []);
+    assert.deepEqual(only(findings, 'ac-chua-co-script'), []);
+  });
+});
+
+test('multi-TC: không có ngoặc vuông thì TC-002 vẫn bị báo thiếu script (hành vi cũ)', () => {
+  withRepo(DOCS, (root) => {
+    const findings = gaps(root, opts([spec('TC-001 - AC-001 vào được dashboard', { line: 7 })]));
+    const missing = only(findings, 'khai-automation-nhung-khong-co-script');
+    assert.deepEqual(missing.map((f) => f.message.slice(0, 6)), ['TC-002']);
+  });
+});
+
+test('multi-TC: test mang @wip thì mọi TC nó phủ đều tính là wip', () => {
+  withRepo(DOCS, (root) => {
+    const tests = [{ ...MULTI_TC_TESTS[0], tags: ['@REQ-001', '@wip'] }];
+    const r = coverage(root, opts(tests));
+    assert.deepEqual(r.rows.map((row) => row.wip), [['TC-001'], ['TC-002']]);
+    assert.deepEqual(r.rows.map((row) => row.automated), [[], []]);
+  });
+});
+
+test('multi-TC: matrix và impact gắn spec cho cả TC phụ', () => {
+  withRepo(DOCS, (root) => {
+    matrix(root, opts(MULTI_TC_TESTS));
+    const content = fs.readFileSync(path.join(root, 'test-cases/traceability.md'), 'utf8');
+    assert.match(content, /\| TC-002 \| Yes \(Automated\) \| `playwright\/tests\/login\.spec\.js:7` \|/);
+
+    const r = impact(root, 'REQ-001', opts(MULTI_TC_TESTS));
+    const ac2 = r.acs.find((ac) => ac.acId === 'AC-002');
+    assert.deepEqual(ac2.testCases[0].specs, ['playwright/tests/login.spec.js:7']);
+  });
+});
+
+test('multi-TC: bộ lọc filterTag giữ dòng traceability của TC phụ', () => {
+  withRepo(DOCS, (root) => {
+    const tests = [{ ...MULTI_TC_TESTS[0], tags: ['@REQ-001', '@smoke'] }];
+    const r = coverage(root, { ...opts(tests), filterTag: 'smoke' });
+    assert.equal(r.testCases, 2);
+  });
+});
+
+test('matrix: ghi cảnh báo vào file khi không liệt kê được test Playwright', () => {
+  withRepo(DOCS, (root) => {
+    matrix(root, opts([], { error: 'npx không chạy được' }));
+    const content = fs.readFileSync(path.join(root, 'test-cases/traceability.md'), 'utf8');
+    assert.match(content, /Không liệt kê được test Playwright .*npx không chạy được/);
+
+    matrix(root, opts(CLEAN_TESTS));
+    const clean = fs.readFileSync(path.join(root, 'test-cases/traceability.md'), 'utf8');
+    assert.equal(clean.includes('Không liệt kê được'), false);
+  });
 });

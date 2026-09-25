@@ -451,6 +451,10 @@ function loadAutomatedTests(root, options = {}) {
   const walk = (suite) => {
     for (const spec of suite.specs || []) {
       const m = spec.title.match(RE_TC_AC_TITLE);
+      // Một test có thể phủ nhiều TC: `TC-010 - AC-002 Tạo công ty ... [TC-010 TC-011]`.
+      // tcId/acId vẫn là cặp đứng đầu title; allTcIds/allAcIds là mọi mã xuất hiện trong title.
+      const allTcIds = [...new Set([...spec.title.matchAll(/\bTC-(\d{3})\b/g)].map((match) => match[0]))];
+      const allAcIds = [...new Set([...spec.title.matchAll(/\bAC-(\d{3})\b/g)].map((match) => match[0]))];
       const tags = spec.tags || [];
       const testPath = toRepoPath(spec.file);
       let assertionCount = null;
@@ -491,6 +495,8 @@ function loadAutomatedTests(root, options = {}) {
         title: spec.title,
         tcId: m ? m[1] : null,
         acId: m ? m[2] : null,
+        allTcIds,
+        allAcIds,
         reqId,
         tags,
         file: (spec.file || '').replace(/\\/g, '/'),
