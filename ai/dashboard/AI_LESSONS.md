@@ -266,3 +266,22 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 
 
+### 2026-09-26 — A Disposer Must Capture the Instances It Owns (OWN-02)
+
+- Area: QA batch fixer lifecycle (`dashboard/public/js/views/qa/batch/batchController.js` and its modal/result-bar components).
+- Symptom: After re-initialising the QA view, replaying a disposer left over from the previous `init()` made the preview modal's "Huỷ" button dead. The 20-cycle mount test still passed because it only counted listeners.
+- Root cause: The disposer pushed in `init()` was `() => { this.modal.destroy(); ... }`. It read `this.modal` when it ran, so a stale disposer destroyed the components created by the newer `init()`. `destroy()` was also not idempotent.
+- Correct pattern: Capture the instances created by this registration (`const { modal, result, detail } = this; disposers.push(() => { modal.destroy(); ... })`) and make every `destroy()` return early after its first call.
+- Preventive rule: A disposer closure must never dereference mutable owner fields (`this.x`) at dispose time. Lifecycle tests must replay stale disposers after a re-init and then exercise the UI, not only count listeners.
+- Regression check: `tests/dashboard/qa-batch-fixer-layout.spec.js` — "20 vòng vào/ra view QA …". It fails on dfc6917 and passes after the fix.
+- Related files: `batchController.js`, `batchPreviewModal.js`, `batchResultBar.js`, `findingDetailModal.js`.
+
+### 2026-09-26 — Global `label` Styling Leaks Into Modal Form Controls; Badge Variants Must Exist
+
+- Area: QA batch fixer toolbar and preview modal styling (`dashboard/public/styles/views/qa.css`).
+- Symptom: Checkbox and radio labels in the batch toolbar and modal rendered as 10px bold uppercase. Some risk badges rendered unstyled.
+- Root cause: `components/ui-primitives.css` styles every `label` as a form caption (uppercase, letter-spacing, 10px/800). The new markup used `<label>` for inline checkboxes and radios. The markup also used `qa-badge-danger`/`-warn`/`-info` classes that were never defined.
+- Correct pattern: Reset casing on inline control labels in the view stylesheet (`text-transform: none; letter-spacing: normal;` on `.qa-batch-master`, `.qa-gap-check`, `.qa-batch-patch-head`, `.qa-batch-choice-opt`). Define every badge variant referenced from JS before using it.
+- Preventive rule: When using `<label>` for inline controls, check the computed style against the global `label` rule. Grep new class names used in JS against the CSS before shipping.
+- Regression check: `tests/dashboard/qa-batch-fixer-layout.spec.js` (8 viewport × theme layouts), plus a visual check with `BATCH_FIXER_SHOTS=<dir>`.
+- Related files: `dashboard/public/styles/views/qa.css`, `dashboard/public/styles/components/ui-primitives.css`, `dashboard/public/js/views/qa/batch/batchPreviewRender.js`.
