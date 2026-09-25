@@ -29,6 +29,33 @@ function routeFor(kind) {
   return FIX_ROUTES[kind] || 'manual';
 }
 
+/** Lý do một finding không được sửa tự động, hiển thị nguyên văn trên UI. */
+const REASON_TEXT = Object.freeze({
+  NOT_IN_LATEST_SCAN: 'Không còn trong lần quét mới nhất (có thể đã được sửa).',
+  MANUAL_ROUTE: 'Loại lỗi này không sửa tự động; xem hướng dẫn.',
+  PATH_REJECTED: 'Đường dẫn nằm ngoài dự án hoặc không hợp lệ.',
+  LINE_UNKNOWN: 'Không xác định được dòng lỗi.',
+  FILE_NOT_FOUND: 'Không đọc được file (không tồn tại, là thư mục hoặc quá lớn).',
+  ALREADY_FIXED: 'Đã được sửa.',
+  IN_EXPRESSION: 'expect nằm trong mảng hoặc đối số (vd. Promise.all); thêm await sẽ đổi ngữ nghĩa, cần sửa tay.',
+  SYNTAX_INVALID: 'Bản vá làm file không parse được (vd. await trong callback không async), cần sửa tay.',
+  SCANNER_UNAVAILABLE: 'Chưa có tools/qa bản mới để định vị chính xác; cần đồng bộ từ Hub.',
+  NOT_RESOLVED: 'Bản vá không làm lỗi biến mất, cần sửa tay.',
+  TITLE_NOT_ON_LINE: 'Title không nằm cùng dòng với lời gọi test, cần sửa tay.',
+  TEMPLATE_TITLE: 'Title là template literal có biến, cần sửa tay.',
+  CONDITIONAL_SKIP: 'test.skip có điều kiện, không kích hoạt lại tự động.',
+  REQ_UNKNOWN: 'Không suy ra được REQ từ bảng traceability hay tên file.',
+  REQ_AMBIGUOUS: 'Có nhiều REQ khả dĩ, cần chọn tay.',
+  REQ_NOT_FOUND: 'REQ suy ra được không có trong thư mục requirements.',
+  DESCRIBE_MIXED_REQ: 'test.describe đang chứa test thuộc REQ khác, cần tách hoặc sửa tay.',
+  DESCRIBE_NOT_RESOLVED: 'Không xác định được test.describe bao quanh, cần sửa tay.',
+  UNSUPPORTED_FILE: 'Không kiểm tra cú pháp được loại file này nên không sửa tự động.',
+});
+
+function reasonText(code) {
+  return REASON_TEXT[code] || code;
+}
+
 function normalizePath(value) {
   return String(value || '').replace(/\\/g, '/');
 }
@@ -85,7 +112,9 @@ function enrichFindings(findings) {
 
 module.exports = {
   FIX_ROUTES,
+  REASON_TEXT,
   routeFor,
+  reasonText,
   createFindingKey,
   createMatchKey,
   enrichFindings,

@@ -112,4 +112,4 @@ function seedBatchFixture(root) {
   return root;
 }
 
-module.exports = { seedBatchFixture };
+module.exports = { seedBatchFixture, REQ_DOC, TC_DOC };

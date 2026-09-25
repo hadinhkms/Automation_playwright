@@ -40,6 +40,7 @@ const {
   arbitrateWithAi,
   escalateConflictToDecision,
 } = require('../services/qaConflictService');
+const { withWriteLock } = require('../services/qaBatchSessionStore');
 const { sendJson, parseBody } = require('./routeUtils');
 
 const MAX_BODY_BYTES = 1_048_576;
@@ -59,8 +60,12 @@ async function handleQaRoutes(request, response, url, context = {}) {
 
   if (request.method === 'POST' && url.pathname === '/api/qa/fix') {
     try {
-      const body = await parseBody(request);
-      sendJson(response, 200, runQaFix(root, body || {}));
+      const body = (await parseBody(request)) || {};
+      // Chạy thật thì ghi test-cases/: chung write lock với batch fixer (PLAN-18, INV-7).
+      const result = body.dryRun
+        ? runQaFix(root, body)
+        : await withWriteLock(root, async () => runQaFix(root, body));
+      sendJson(response, 200, result);
     } catch (error) {
       const status = Number.isInteger(error.status) ? error.status : 400;
       sendJson(response, status, {

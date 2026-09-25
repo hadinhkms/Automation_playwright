@@ -2,7 +2,7 @@
 
 > **Mã kế hoạch:** `PLAN-18`  
 > **Phiên bản:** `v6.2` — thay thế v5 (mục 0); bỏ AI khỏi toàn bộ luồng sửa finding (mục 0.1)  
-> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0–1 XONG · CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · TIẾP THEO: PHASE 2`  
+> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0–2 XONG · CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · TIẾP THEO: PHASE 3`  
 > **Phạm vi:** View **QA Docs & Automation** (`#/qa`, tab "Vấn đề") — `dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`, `tools/qa/lib/sources.js` (thay đổi nhỏ, tương thích ngược).  
 > **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json).  
 > **Nhánh:** trunk-based trên `main`. Mỗi phase chỉ đóng khi toàn bộ exit criteria của phase có bằng chứng chạy thật (mục 9, 10).
@@ -193,7 +193,9 @@ sequenceDiagram
 | `dashboard/services/qaFixTitle.js` | mới, utils ≤150 | `locateTitle`, `titleTags`, `appendTitleTag`, `unskipDeclaration`, `locateEnclosingDescribe`, `reqTagsInRange` |
 | `dashboard/services/qaFixValidate.js` | mới, utils ≤150 | `validateSyntax`, `findMissingAwaitAt`, `isResolved` theo kind, `scannerAvailable` (nạp mềm `tools/qa`; thiếu → tuyến await tự tắt) |
 | `dashboard/services/qaBatchSessionStore.js` | mới, utils ≤150 | Session Map, TTL, state machine, `withWriteLock(root, fn)` |
-| `dashboard/services/qaBatchPlanService.js` | mới, service ≤200 | `buildPlan`, `applyInput`, `renderCards` (hunk + 2 dòng ngữ cảnh) |
+| `dashboard/services/qaQuickFixes.js` | mới, utils ≤150 | 3 planner quick (`planFinding`) + `loadReqContext` (REQ hợp lệ, map TC → REQ) |
+| `dashboard/services/qaBatchManifest.js` | mới, utils ≤150 | Đường dẫn snapshot/pre-rollback, đọc/ghi manifest, `writeAtomic` (tạm + rename, retry EPERM/EBUSY) |
+| `dashboard/services/qaBatchPlanService.js` | mới, service ≤200 | `buildPlan`, `applyInput`, `composeForCommit` (hunk + 2 dòng ngữ cảnh) |
 | `dashboard/services/qaBatchCommitService.js` | mới, service ≤200 | `commit`, `writeAtomic`, manifest |
 | `dashboard/services/qaBatchRollbackService.js` | mới, service ≤200 | `rollback`, `getLatestCommitted`, `recoverInterrupted`, `pruneBackups` |
 | `dashboard/services/qaFindingFixerService.js` | rút gọn, utils ≤150 | Chỉ còn `resolveSafePath` + `getFindingContext` (đoạn mã ±15 dòng). Xoá `analyzeFindingFix`, `analyzeWithAiFix`, `analyzeWithHeuristicFix`, `applyFindingFix`, import `parseEnvFile` và header exemption |
@@ -534,13 +536,13 @@ sequenceDiagram
 
 ### Phase 2 — Batch engine (2.5 ngày)
 
-- [ ] 2.1 `qaBatchSessionStore.js` (state machine, TTL, lock); `/api/qa/fix` đi qua `withWriteLock`.
-- [ ] 2.2 `qaBatchPlanService.js` (3 kind `quick`, skipped, cards, `batch-input` cho `skipMode`).
-- [ ] 2.3 `qaBatchCommitService.js` (stale check, snapshot, file tạm + rename, manifest, 500 `restored`).
-- [ ] 2.4 `qaBatchRollbackService.js` (`postHash`, `forceFiles`, `NOT_LATEST_BATCH`, phục hồi, retention, `batch-last`).
-- [ ] 2.5 `qaBatchRoutes.js` (gồm `GET /api/qa/finding/context`) + đăng ký trong `server.js`.
-- [ ] 2.6 Test service + API: BATCH-01..28.
-- **Exit:** BATCH-01..28 PASS; `npm run test:dashboard:api` PASS; sau rollback, fixture byte-identical với trạng thái trước apply.
+- [x] 2.1 `qaBatchSessionStore.js` (state machine, TTL, lock); `/api/qa/fix` chạy thật đi qua `withWriteLock`.
+- [x] 2.2 `qaQuickFixes.js` (3 planner quick + ngữ cảnh REQ) và `qaBatchPlanService.js` (`buildPlan`, `applyInput` cho `skipMode`, `composeForCommit`).
+- [x] 2.3 `qaBatchManifest.js` (snapshot, manifest, ghi tạm + rename có retry) và `qaBatchCommitService.js` (stale check, 500 `WRITE_FAILED` kèm `details.restored`).
+- [x] 2.4 `qaBatchRollbackService.js` (`postHash`, `forceFiles` + `pre-rollback/`, `NOT_LATEST_BATCH`, phục hồi manifest `APPLYING`, retention, `batch-last`).
+- [x] 2.5 `qaBatchRoutes.js` (6 endpoint, gồm `GET /api/qa/finding/context` do `getFindingContext` trong `qaFindingFixerService.js` phục vụ) + đăng ký trong `server.js` trước `handleQaRoutes`.
+- [x] 2.6 Test: `qaBatchPlan.test.js` (BATCH-02, 04–08, 10, 11, 13, 14, 26), `qaBatchCommit.test.js` (BATCH-01, 03, 09, 15–20, 27), `qaBatchRollback.test.js` (BATCH-21–25, 28), `qaFindingContext.test.js` (BATCH-45 phần service), `tests/dashboard-api/qa-batch.test.js` (luồng HTTP đầy đủ + 400/404/409). 500 `restored` chỉ kiểm ở mức service (BATCH-20) vì HTTP không tiêm được lỗi ghi.
+- **Exit (2026-09-25):** `node --test dashboard/services/*.test.js tools/qa/lib/*.test.js core/fixtures/*.test.js core/generator/*.test.js` 278/278; `npm run test:dashboard:api` 67/67; `check:framework` pass; rollback trả file byte-identical (BATCH-22, 23 và luồng API).
 
 ### Phase 3 — UI + thay luồng AI từng dòng (3.5 ngày)
 
