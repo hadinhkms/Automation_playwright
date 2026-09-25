@@ -1,4 +1,4 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect } = require('../../core/fixtures/apiTest');
 
 test.describe('Kịch bản API mẫu (Starter API Suite)', () => {
   test('Kiểm tra gọi API mẫu GET status @api', async ({ request }) => {

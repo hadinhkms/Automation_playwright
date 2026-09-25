@@ -61,7 +61,9 @@
                     "review:gate4": "node scripts/review-gate-evidence.js --actor qa-lead",
                     "freeze:status": "node scripts/freeze-cli.js status",
                     "freeze:set": "node scripts/freeze-cli.js set",
-                    "freeze:lift": "node scripts/freeze-cli.js lift"
+                    "freeze:lift": "node scripts/freeze-cli.js lift",
+                    "cleanup:reports": "node scripts/cleanup-reports.js",
+                    "cleanup:reports:dry": "node scripts/cleanup-reports.js --dry-run"
                 },
     "dependencies":  {
                          "dotenv":  "^16.3.1"

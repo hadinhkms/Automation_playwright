@@ -1,0 +1,44 @@
+/**
+ * core/local/authSetup.local.js — TEMPLATE
+ *
+ * Copy file này thành authSetup.local.js và implement luồng đăng ký/đăng nhập
+ * thực tế của dự án. Các hàm export sẽ tự động ghi đè bản stub của Hub
+ * thông qua cơ chế localExtensions.
+ *
+ * Xem chi tiết: core/local/README.md và core/utils/localExtensions.js
+ */
+
+// const { generateRandomVNPhone, generateRandomEmail } = require('../utils/commonUtils');
+
+/**
+ * Đăng ký user test thật qua API hoặc UI.
+ * Hàm này được gọi 1 lần per worker để tạo user riêng biệt.
+ */
+// async function createRegisteredUserForPrecondition() {
+//   // Ví dụ: Gọi API đăng ký
+//   // const response = await fetch('https://your-api.com/register', {
+//   //   method: 'POST',
+//   //   body: JSON.stringify({ phone: generateRandomVNPhone(), password: 'Test@1234' }),
+//   // });
+//   // return await response.json();
+//   throw new Error('Chưa implement createRegisteredUserForPrecondition');
+// }
+
+/**
+ * Đăng nhập user test qua UI Playwright.
+ * @param {import('@playwright/test').Page} page
+ * @param {object} user - Dữ liệu user từ createRegisteredUserForPrecondition
+ */
+// async function loginUserFromDataForPrecondition(page, user) {
+//   await page.goto('/login');
+//   await page.fill('input[name="phone"]', user.phone);
+//   await page.fill('input[name="password"]', user.password);
+//   await page.click('button[type="submit"]');
+//   await page.waitForURL('**/dashboard**');
+//   return user;
+// }
+
+// module.exports = {
+//   createRegisteredUserForPrecondition,
+//   loginUserFromDataForPrecondition,
+// };

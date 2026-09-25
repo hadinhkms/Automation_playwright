@@ -1,12 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const RESERVED_FIXTURE_NAMES = new Set([
-  'test', 'expect', 'page', 'request', 'browser', 'context',
-  'basePage', 'pages', 'workerUserData', 'authenticatedUser',
-  'cleanupQueue', 'featureName', 'pageObjectsRoot', 'pageObjectsPlatform',
-  'isMobile', 'viewport', 'browserName', 'storageState',
-]);
+// Import từ baseTest làm single source of truth — tránh duplicate và drift
+const { RESERVED_FIXTURE_NAMES } = require('../baseTest');
 
 /**
  * Dynamic Custom Fixtures Loader

@@ -5,6 +5,7 @@ const { defineQaConfig } = require('./core/config/defineConfig');
 const updater = require('./core/system/updater');
 const { test: baseTest } = require('./core/fixtures/baseTest');
 const { test: mobileWebTest } = require('./core/fixtures/mobileWebTest');
+const { test: apiTest } = require('./core/fixtures/apiTest');
 
 module.exports = {
   BasePage,
@@ -15,4 +16,5 @@ module.exports = {
   updater,
   baseTest,
   mobileWebTest,
+  apiTest,
 };

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "checkJs": false,
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "core/*": ["core/*"],
+      "pages/*": ["pages/*"],
+      "data/*": ["data/*"]
+    }
+  },
+  "include": [
+    "core/**/*.js",
+    "core/**/*.d.ts",
+    "pages/**/*.js",
+    "tests/**/*.js",
+    "scripts/**/*.js",
+    "index.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dashboard",
+    "playwright-report",
+    "test-results",
+    "evidence"
+  ]
+}
