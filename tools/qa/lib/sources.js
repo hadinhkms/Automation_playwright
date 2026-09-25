@@ -333,6 +333,9 @@ function findMissingAwaits(bodyLines, firstLineNo, asyncMatchers = ASYNC_MATCHER
     const lineOffset = text.slice(0, m.index).split('\n').length - 1;
     out.push({
       line: firstLineNo + lineOffset,
+      // Vị trí (0-based) của chữ `expect` trong dòng: bộ sửa tự động chèn `await` đúng tại đây
+      // thay vì dò lại bằng một regex thứ hai lệch với rule này.
+      column: m.index - (text.lastIndexOf('\n', m.index - 1) + 1),
       matcher: tail[1],
       text: (bodyLines[lineOffset] || '').trim(),
     });
