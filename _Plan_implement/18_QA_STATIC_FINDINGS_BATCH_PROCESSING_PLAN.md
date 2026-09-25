@@ -1,557 +1,601 @@
-# Kế Hoạch: Tính Năng Xử Lý Hàng Loạt Lỗ Hổng & Khoảng Hở Kỹ Thuật (QA Static Findings Batch Fixer)
+# Kế Hoạch: Xử Lý Hàng Loạt Static Findings (QA Static Findings Batch Fixer)
 
 > **Mã kế hoạch:** `PLAN-18`  
-> **Trạng thái:** `APPROVED SPEC v5 — 10/10 BULLETPROOF PRODUCTION-GRADE ARCHITECTURE & RESILIENCE`  
-> **Phạm vi áp dụng:** Phân hệ QA Docs & Automation (`dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`).  
-> **Nguyên tắc cốt tử:** Tuân thủ [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [03_ACCEPTANCE_GATES.md](file:///D:/_Master_Process/03_ACCEPTANCE_GATES.md) và bài học [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md).  
-> **Chiến lược nhánh:** Thực hiện trực tiếp trên nhánh `main` (Trunk-based development), đóng từng Phase bằng Quality Gate test pass 100%.
+> **Phiên bản:** `v6.2` — thay thế v5 (mục 0); bỏ AI khỏi toàn bộ luồng sửa finding (mục 0.1)  
+> **Trạng thái:** `DRAFT v6.2 — CHỜ PO/BA DUYỆT 4 QUYẾT ĐỊNH (mục 11) VÀ CONTRACT GATE · Lỗi chặn playwright --list đã sửa (task 0.0)`  
+> **Phạm vi:** View **QA Docs & Automation** (`#/qa`, tab "Vấn đề") — `dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`, `tools/qa/lib/sources.js` (thay đổi nhỏ, tương thích ngược).  
+> **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json).  
+> **Nhánh:** trunk-based trên `main`. Mỗi phase chỉ đóng khi toàn bộ exit criteria của phase có bằng chứng chạy thật (mục 9, 10).
 
 ---
 
-## 1. Bối Cảnh & Mục Tiêu Nghiệp Vụ (Context & Objective)
+## 0. Thay Đổi So Với v5 (Lý Do Viết Lại)
+
+v5 được đối chiếu với code thực tế ngày 2026-09-25. Các điểm dưới đây là lỗ hổng đã xác nhận bằng code, không phải giả định.
+
+| # | v5 | Vấn đề đã xác nhận | v6 |
+| --- | --- | --- | --- |
+| 1 | Fast-Fix `test-khong-co-ma-tc` tự gán `TC - AC` khi có REQ | `drift()` `continue` sau finding này ([commands.js:565-573](../tools/qa/lib/commands.js#L565-L573)) nên sửa TC xong mới lộ `test-thieu-tag-req`, `script-khong-co-trong-test-case`, `test-tro-toi-ac-khong-ton-tai`. Chọn AC là quyết định nghiệp vụ | Tuyến `guided`: người dùng chọn AC. Bản vá gồm title + tag REQ + dòng traceability trong **cùng giao dịch** (Phase 4, tách phát hành được) |
+| 2 | Regex riêng `(?<!await\s+)expect…/g` | Lệch scanner; thêm `await` vào cả expect đồng bộ cùng dòng (BATCH-26 v5 tự mâu thuẫn); bỏ sót `[expect(`, `(expect(` | Dùng lại `findMissingAwaits` đã export ([sources.js:317-341](../tools/qa/lib/sources.js#L317-L341)) để định vị đúng occurrence |
+| 3 | Không kiểm tra cú pháp sau vá | `await` trong callback không `async` làm `playwright --list` fail, cả gate thành blocker `khong-doc-duoc-playwright` | Parse lại nội dung + kiểm predicate "finding đã hết" **trước khi ghi** |
+| 4 | Tuyến AI trong batch; nút "AI Sửa Lỗi" từng dòng | AI ít giá trị, nhiều rủi ro (mục 0.1) | **Bỏ AI khỏi toàn bộ luồng sửa finding.** Batch và nút từng dòng chỉ dùng logic xác định |
+| 5 | Gỡ `test.skip` hàng loạt | Scanner bắt cả `test.fixme`; tự chấp nhận `@wip` ([commands.js:473-480](../tools/qa/lib/commands.js#L473-L480)); gỡ skip hàng loạt dễ làm CI đỏ | Mặc định gắn `@wip`; "Kích hoạt lại" là lựa chọn từng mục |
+| 6 | Scaffold `REQ-001-general.md` nội dung mẫu | Bịa requirement (AC đăng nhập giả), hardcode `requirements/` | Mở Scaffold modal sẵn có (`openScaffoldModal`) |
+| 7 | `ma-tc-trung` → Conflict Studio | Studio chỉ xử lý `ac-lech-giua-tai-lieu-va-spec` ([qaConflictService.js:37](../dashboard/services/qaConflictService.js#L37)) | Tuyến `manual`: mở tài liệu trong Document Reader |
+| 8 | Client gửi `findings`/`aiAnalyses`; `apply-fix` nhận snippet từ client | Server ghi nội dung do client cung cấp; trái nguyên tắc "service tính lại từ file thật" ([qaRoutes.js:353-354](../dashboard/routes/qaRoutes.js#L353-L354)) | Client chỉ gửi `findingKey`; server tự dựng bản vá; bỏ `apply-fix` |
+| 9 | 2 nút → 2 session (heuristic, AI) | Session áp dụng sau chắc chắn 409 nếu cùng file | 1 nút, 1 session; nút từng dòng dùng chung engine với 1 finding |
+| 10 | Mutex theo session; cấp TC lúc plan | Hai session khác nhau vẫn race; hai plan cấp trùng TC | Global write lock theo project root; giữ chỗ TC + kiểm lại trong lock |
+| 11 | Rollback không kiểm tra | Đè thay đổi của người dùng/batch khác sau commit | So `postHash`; lệch → 409 + xác nhận ghi đè có sao lưu |
+| 12 | Undo 10s, đếm ngược, pause-on-hover | Quá ngắn; không dùng được bằng bàn phím/cảm ứng; "bền qua restart" vô nghĩa trong 10s | Không đếm ngược; "Hoàn tác batch gần nhất" tồn tại tới batch kế tiếp, đọc từ manifest nên sống qua restart |
+| 13 | Không nói về EOL/BOM | Ghi `join('\n')` (như [fixer.js](../tools/qa/lib/fixer.js#L99)) đổi cả file CRLF | Giữ nguyên EOL, BOM, newline cuối file |
+| 14 | `writeFileSync` tuần tự; manifest ghi `COMMITTED` trước khi ghi file | Process chết giữa chừng không phục hồi được | Ghi file tạm + rename; manifest `APPLYING → COMMITTED`; phục hồi khi khởi động |
+| 15 | ID checkbox theo index | Spec desktop thuộc 2 project, mobile 4 project ([defineConfig.js:140-194](../core/config/defineConfig.js#L140-L194)) → cùng finding lặp tới 4 lần, cùng key | Server gộp theo key, badge `×N project`; không cần ID checkbox |
+| 16 | Không prune selection | Key chứa số dòng, đổi sau khi file đổi → mục chọn "ma" | Prune sau mỗi lần quét + thông báo |
+| 17 | Checkbox trên mọi dòng | Chọn mục không sửa được; mục bị filter ẩn vẫn bị sửa | Chỉ dòng sửa được có checkbox; hiện "M đang ẩn" |
+| 18 | Không chống response muộn | `reload()` không có sequence guard ([qaSlice.js:292-349](../dashboard/public/js/views/qa/qaSlice.js#L292-L349)); Apply → Undo nhanh bị kết quả cũ đè | Sequence guard + trạng thái "Đang quét lại" |
+| 19 | `AbortController` phía client cho hàng đợi AI | `fetch` tới provider phía server không có `signal` → vẫn tốn token | Không còn lời gọi AI |
+| 20 | Không có task test UI/API; thử trên repo thật | Không có bằng chứng; `requirements/`, `test-cases/` của repo đang rỗng | Fixture workspace + service/API/E2E tests + gate receipts |
+| 21 | File lớn dùng exemption size-check | Trái policy (service 200, module 250, utils 150 dòng) | Tách module đúng giới hạn, không exemption cho file mới |
+
+### 0.1. Vì sao không dùng AI (đã chốt 2026-09-25)
+
+v6.1 bỏ AI khỏi batch; v6.2 bỏ luôn AI khỏi nút sửa từng dòng.
+
+**Số liệu repo hiện tại** (đếm tĩnh trên `tests/e2e` + `tests/api`: 8 file spec, 10 test): 10 test thiếu `TC-xxx - AC-xxx`, 0 test bị skip, 0 test thiếu assertion, 0 chỗ thiếu `await`.
+
+| Loại finding | Cách sửa đúng | AI thêm được gì |
+| --- | --- | --- |
+| `assertion-thieu-await`, `test-bi-skip-am-tham` | Quy tắc cố định, cho kết quả chính xác | Không gì — quy tắc đã đúng, AI chỉ thêm rủi ro |
+| `test-thieu-tag-req`, `test-khong-co-ma-tc` | Tra dữ liệu có sẵn hoặc người dùng chọn AC | Không được đoán REQ (INV-2). Gợi ý AC tiết kiệm rất ít vì mỗi REQ thường có vài AC và người dùng vẫn phải xác nhận |
+| `spec-thieu-assertion` | Cần hiểu kỳ vọng nghiệp vụ của test | AI không biết kỳ vọng nghiệp vụ; bản nháp phải review từng dòng, công sức gần bằng tự viết. Repo hiện có 0 mục |
+| `khong-doc-duoc-requirement`, `ma-tc-trung`, các kind còn lại | Quyết định nghiệp vụ / tài liệu | Không nên để AI tự sửa |
+
+**Rủi ro của nút "AI Sửa Lỗi" hiện tại** (đã kiểm trong [qaFindingFixerService.js](../dashboard/services/qaFindingFixerService.js)):
+
+- AI được gọi **trước** cho mọi kind, kể cả các kind đã có quy tắc chính xác; kết quả AI thay thế kết quả quy tắc (dòng 516-524).
+- AI tự chọn `targetFile` và `patchType`; `replace_file` ghi đè **cả file** bằng `fullContent`; đường dẫn chỉ bị chặn khi ra ngoài project nên AI vẫn có thể nhắm tới file khác trong repo (dòng 474-483, 579-587).
+- Áp dụng bằng `string.replace` ở lần xuất hiện đầu tiên → sửa nhầm dòng khi có dòng trùng (dòng 593-594). Không kiểm tra cú pháp.
+- Gửi đoạn mã ±15 dòng ra provider bên ngoài; cần API key, tốn token; kết quả không lặp lại được nên khó kiểm thử (dòng 305-319).
+- AI lỗi → âm thầm chuyển sang heuristic sinh bản vá giả: `toHaveTitle(/.+/)`, `@REQ-001`, `TC-xxx:` (dòng 525-534).
+
+**Quyết định:** không dùng AI trong luồng sửa finding.
+
+- Nút từng dòng "Sửa lỗi" (kind `quick`/`guided`) dùng chung engine batch với đúng 1 finding: cùng xem trước, cùng kiểm tra, cùng hoàn tác.
+- Kind không sửa tự động được có modal "Chi tiết & hướng dẫn": thông tin finding, hướng dẫn của scanner, đoạn mã quanh dòng lỗi (chỉ đọc), sao chép vị trí.
+- Ai cần AI hỗ trợ vẫn dùng tab AI Agent của Dashboard hoặc trợ lý trong IDE — chủ động, ngoài luồng ghi file của QA.
+- Lợi ích phụ: bỏ phụ thuộc API key, không cần mock provider, mọi test đều xác định.
+
+---
+
+## 1. Bối Cảnh & Mục Tiêu
 
 ### 1.1. Hiện trạng
-Tại màn hình **QA Docs & Automation** (`#/qa`), tab **"Vấn đề"**, phần **"Cảnh Báo Lỗ Hổng Kỹ Thuật Sớm (Static Findings & Gaps)"** thường xuyên phát hiện các lỗi tĩnh từ bộ quét [tools/qa/lib/commands.js](file:///d:/_Automation-Project/tools/qa/lib/commands.js):
-- Thiếu `await` trong Playwright locator matcher (`assertion-thieu-await`).
-- Thiếu tag nghiệp vụ `@REQ-xxx` trong test spec (`test-thieu-tag-req`).
-- Thiếu mã định danh chuẩn `TC-xxx` (`test-khong-co-ma-tc`).
-- Test bị disable âm thầm bằng `test.skip` (`test-bi-skip-am-tham`).
-- Spec kiểm thử thiếu assertion (`spec-thieu-assertion`).
-- Thư mục requirements rỗng hoặc thiếu tài liệu đặc tả (`khong-doc-duoc-requirement`).
-- Trùng mã test case giữa các file tài liệu (`ma-tc-trung`).
 
-Hiện tại, người dùng phải bấm nút `[ ✨ AI Sửa Lỗi ]` **từng dòng một**, mở modal chẩn đoán, xem diff và bấm duyệt từng lỗi. Với hàng chục lỗi, thao tác này mất rất nhiều thời gian và gây gián đoạn luồng làm việc.
+- Tab "Vấn đề" render `summary.findings` (gộp `gaps()` + `drift()` của [commands.js](../tools/qa/lib/commands.js#L758)) trong `#qa-static-gaps-list`. Mỗi dòng có nút "AI Sửa Lỗi" mở modal sửa từng lỗi (`findingFixerHelper.js` → `/api/qa/finding/ai-analyze-fix` → `/api/qa/finding/apply-fix`).
+- Sửa từng lỗi chậm khi có hàng chục finding; luồng AI hiện tại có các rủi ro ở mục 0.1.
+- **Lỗi chặn đã sửa (2026-09-25, task 0.0):** `playwright --list` lỗi `Test has unknown parameter "ephemeralUser"` nên scanner đọc được 0 test. Nguyên nhân: vòng `require` giữa `core/fixtures/baseTest.js` và `core/fixtures/custom/index.js` (từ commit `7f01158`). Sau khi sửa, scanner đọc được 12 test và báo 13 finding (1 `khong-doc-duoc-requirement`, 12 `test-khong-co-ma-tc`).
 
-### 1.2. Mục tiêu giải pháp v5 (10/10 Bulletproof Production-Grade)
-Xây dựng tính năng **Xử Lý Hàng Loạt (Batch / Bulk Processing)** đạt chuẩn cao nhất về cả **Độ Tin Cậy QA** lẫn **Trải Nghiệm Người Dùng (UI/UX)**, triệt tiêu 100% các lỗ hổng kỹ thuật, bẫy hồi quy và ngoại lệ runtime:
-1. **Trải Nghiệm Lọc Thông Minh & Đồng Bộ DOM Tuyệt Đối:**
-   - Filter Chips hiển thị số lượng trực tiếp. Checkbox tổng hỗ trợ trạng thái bán phần **Indeterminate (`[-]`)**.
-   - Bấm vào trạng thái `[-]` sẽ chọn toàn bộ các mục đang hiển thị (Select All Filtered); bấm lần nữa sẽ bỏ chọn tất cả.
-   - Tự động đồng bộ `this.selectedFindingKeys` (Set) vào DOM checkbox khi view `reload()` hoặc đổi filter, không bị mất dấu checked.
-   - Nhãn nút bấm trên Action Toolbar hiển thị động theo đúng số lượng tập con được chọn (ví dụ: `[ ⚡ Sửa Nhanh (2) Cú Pháp ]`).
-   - Phòng chống trùng lặp ID DOM (`findingKey` collision) trên các test đa nền tảng bằng cách dùng class `qa-finding-checkbox`, thuộc tính `data-finding-key="${findingKey}"` và ID duy nhất theo chỉ mục `qa-finding-check-${index}`.
-2. **Tách Đôi Tuyến Xử Lý Kết Hợp Bộ Hòa Giải Kế Hoạch (Reconciler Engine):**
-   - **Tuyến 1 - Heuristic Fast-Fix (0-Token, < 500ms):** Sửa tức thì các lỗi cú pháp độc lập, đảm bảo tính **Idempotent 100%** qua regex toàn diện hỗ trợ cả `expect.soft(`: `/(^|[\s;]+)(?<!await\s+)(expect(?:\.soft)?\s*\()/g`. Chỉ áp dụng trên chính xác chỉ số dòng do bộ quét chỉ định (`finding.where:line`).
-   - **Tuyến 2 - Client-Driven Chunked AI Queue & Target Location Grouping:** Hàng đợi tuần tự do client điều phối theo chunk nhỏ (1-2 items/lần), ngắt tức thì qua `AbortController`. Nếu nhiều finding thuộc cùng 1 file và dòng $\rightarrow$ tự động gom nhóm gửi chung 1 prompt AI để tránh xung đột `originalSnippet`. Sau khi thu thập xong, gọi endpoint trung tâm `POST /api/qa/finding/batch-reconcile-plan` để backend tổng hợp thành Batch Preview Plan hoàn chỉnh.
-3. **Bảo Vệ Tính Toàn Vẹn Ma Trận Truy Vết (Traceability-Preserving Allocator):**
-   - `BatchSequenceAllocator` quét mã max trên **cả 3 thư mục**: `tests/`, `requirements/` và `test-cases/` (thông qua `options.testCasesDir`).
-   - Phạm vi quét thư mục test được **giới hạn nghiêm ngặt** trong các kịch bản kiểm thử nghiệp vụ (`tests/e2e/`, `tests/api/`), **loại trừ tuyệt đối** các test nội bộ của dashboard (`tests/dashboard*`) để chống nhảy cóc số thứ tự từ dữ liệu mock.
-   - Xử lý `test-khong-co-ma-tc` theo cơ chế **Context-Aware**: Chỉ Fast-Fix tự động gán cặp `TC-xxx - AC-xxx` khi trích xuất được `REQ-xxx` hợp lệ từ describe/file. Nếu không có context, hệ thống từ chối sửa bừa bãi và trả về lý do tường minh trong `skippedFindings` kèm cẩm nang hướng dẫn tạo requirement.
-4. **Thuật Toán Vá An Toàn Bằng Splice Dòng & Chuỗi Biến Đổi Chuẩn Hóa:**
-   - Thuật toán **Bottom-Up Line Replacement** thao tác trực tiếp trên mảng dòng bằng `lines.splice(lineIndex, 1, ...newLines)`, **tuyệt đối cấm dùng `string.replace()`** để triệt tiêu lỗi Duplicate Snippet Collision khi 2 dòng trong cùng file có nội dung giống nhau.
-   - Với nhiều lỗi trên cùng 1 dòng: Áp dụng **Compound Transform Pipeline** theo đúng thứ tự logic:
-     1. Khôi phục cú pháp runner (`test.skip` $\rightarrow$ `test`).
-     2. Chuẩn hóa TC Title (`test-khong-co-ma-tc` hỗ trợ cả modifier `.skip/.only`).
-     3. Bổ sung tag REQ (`test-thieu-tag-req`).
-5. **Giao Dịch Nguyên Tử Toàn Diện & Phục Hồi Bền Vững Độc Lập RAM:**
-   - Phân loại rõ patch `modified` vs `created`. Với file tạo mới (`create_file` như `REQ-001-general.md`), bỏ qua kiểm tra SHA-256 hash trên đĩa để chống lỗi `ENOENT`.
-   - Lưu trữ `manifest.json` trong thư mục snapshot `.dashboard-backups/qa-batch/<sessionId>/`. Khi Rollback, file `modified` được phục hồi từ snapshot, file `created` được xóa sạch bằng `fs.unlinkSync`.
-   - **Độ Bền Vững Độc Lập RAM (Disk-Backed Durability):** Nếu server khởi động lại (restart/nodemon) làm mất cache RAM, `rollbackBatchSession` tự động đọc `manifest.json` trên đĩa và cập nhật trạng thái `"status": "ROLLED_BACK"` xuống file. Hỗ trợ **Idempotent Rollback 100%**.
-   - **Session State Machine**: `PLANNED` $\rightarrow$ `APPLYING` $\rightarrow$ `COMMITTED` $\rightarrow$ `ROLLING_BACK` $\rightarrow$ `ROLLED_BACK`. Ngăn chặn triệt để double-apply và race condition.
-6. **Thanh Hoàn Tác Nội Bộ View (In-View Floating Undo Bar - Tuân Thủ OWN-01..05):**
-   - Thay thế việc can thiệp `#toast` toàn cục bằng Floating Action Bar `#qa-batch-undo-bar` nằm ngay trong QA View.
-   - Đếm ngược 10 giây có progress bar visual và pause-on-hover. Luôn hủy timer cũ trước khi kích hoạt session mới để chống đè timer. Tự động giải phóng toàn bộ timer trong `qaSlice.unmount()`, không gây rò rỉ bộ nhớ hay lỗi console.
-7. **Phản Hồi Chọn Lọc Từ Modal & Schema API Minh Bạch:**
-   - Trong schema của `plan.files`, mỗi item file bắt buộc lưu mảng `findingKeys: string[]`.
-   - Khi người dùng bỏ chọn file trong Modal Preview, backend trả về tường minh `{ appliedFindingKeys, skippedFindingKeys }` giúp frontend chỉ xóa đúng các key đã áp dụng thành công.
-   - API `batch-heuristic-plan` và `batch-reconcile-plan` luôn trả về mảng `skippedFindings: [{ findingKey, kind, where, reason }]` để giao diện hiển thị banner giải thích rõ ràng nếu có lỗi bị từ chối sửa.
+### 1.2. Mục tiêu đo được
+
+- **G1:** Chọn nhiều finding sửa được → 1 lần xem trước → 1 lần áp dụng → hoàn tác được toàn bộ. Sửa 1 finding đi cùng đường đó.
+- **G2:** Không bản vá nào làm hỏng cú pháp spec hoặc ghi REQ/AC/TC không suy ra được.
+- **G3:** Không ghi đè thay đổi của người khác, cả lúc apply lẫn rollback.
+- **G4:** Lập kế hoạch cho ≤ 100 finding `quick` trong ≤ 2s (chỉ đọc file, không chạy `playwright --list`); apply ≤ 2s cho ≤ 30 file.
+- **G5:** Sau apply, người dùng thấy "đã xử lý / còn lại / phát sinh mới" dựa trên lần quét lại thật.
+- **G6:** Luồng sửa finding không gọi bất kỳ AI provider nào.
+
+### 1.3. Ngoài phạm vi
+
+- Dùng AI trong luồng sửa finding (mục 0.1).
+- Sửa tự động `spec-thieu-assertion`, `ma-tc-trung`, `rule-thieu-boundary-test` và mọi kind không có route `quick`/`guided` ở mục 4 (chỉ hướng dẫn/điều hướng).
+- Chuẩn hoá tag REQ lên cấp `describe`; title test viết trên nhiều dòng; test dùng `{ tag: [...] }` → skip có lý do.
+- Điều phối với các trình ghi file khác của Dashboard (spec editor, Page Manager) ngoài việc phát hiện qua hash.
+- Chuyển `getQaSummary` sang bất đồng bộ (ghi nhận ở mục 12).
+- Sửa lỗi `playwright --list` (commit riêng, là điều kiện tiên quyết ở Phase 0).
 
 ---
 
-## 2. Bảng Phân Tích 28 Rủi Ro & Rào Chắn Bảo Vệ (QA & Architecture Matrix)
+## 2. Ràng Buộc Từ Code Hiện Tại (Ground Truth)
 
-Bản kế hoạch v5 bao hàm đầy đủ 28 rào chắn kiến trúc, giải thuật và tương tác người dùng, đạt tiêu chuẩn 10/10 không lỗ hổng:
-
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ STT │ Rủi Ro Kỹ Thuật & Tương Tác                 │ Hậu Quả Nếu Thiết Kế Ẩu                    │ Rào Chắn Bảo Vệ Chuẩn v5 (10/10)       │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 1   │ Thiếu định danh duy nhất                    │ Backend không tra cứu được finding từ ID.  │ Chuẩn hóa `findingKey` bằng hàm băm    │
-│     │ (Finding Identity Hole)                     │                                            │ SHA-1(kind|where|message), dedup tự động│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 2   │ Bịa mã TC/AC làm gãy Traceability           │ Gán bừa `TC-013 - AC-001` sinh ngay lỗi    │ `BatchSequenceAllocator` quét đủ 3     │
-│     │ (Traceability Cascading Breakdown)          │ Blocker trỏ AC ảo & script mồ côi tài liệu.│ thư mục; chỉ fix khi có context REQ;   │
-│     │                                             │                                            │ trả về `skippedFindings` kèm lý do.    │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 3   │ Lệch dòng & Thay thế nhầm                   │ `replace` chuỗi nhầm dòng khác nếu user bỏ │ Thuật toán Bottom-Up (dòng giảm dần)   │
-│     │ (Line Offset Collision)                     │ chọn bản vá trước đó trong cùng file.      │ độc lập với các dòng bên trên.         │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 4   │ Xung đột nhiều patch trên cùng một dòng     │ Dòng 17 vừa thiếu TC vừa thiếu REQ tag,    │ Compound Transform Pipeline: Chaining  │
-│     │ (Same-Line Multi-Patch Collision)           │ patch 2 không tìm thấy chuỗi cũ của patch 1│ các phép biến đổi theo thứ tự chuẩn hóa│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 5   │ Lỗi lũy kế Regex Idempotency                │ Chạy batch lần 2 biến `await expect` thành │ Negative Lookbehind hỗ trợ cả dấu `;`: │
-│     │ (Idempotent Vulnerability)                  │ `await await expect(...)` làm hỏng spec!   │ `/(^|[\s;]+)(?<!await\s+)(expect\s*\()/g`│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 6   │ Lệch Checksum SHA-256 do CRLF / LF          │ Git checkout CRLF trên Windows làm lệch    │ Chuẩn hóa `content.replace(/\r\n/g,'\n')`│
-│     │ (Windows False Stale Conflict)              │ hash dù nội dung không đổi (lỗi 409 giả).  │ trước khi băm SHA-256 và cắt dòng.     │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 7   │ Crash Stale/Snapshot khi gặp File Mới       │ `create_file` chưa có trên đĩa, đọc SHA    │ Nhánh riêng cho `isNew / create_file`: │
-│     │ (New File ENOENT Crash)                     │ hoặc snapshot quăng lỗi `ENOENT` crash 500!│ Bỏ qua hash check, ghi nhận manifest.  │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 8   │ Rollback không xóa file mới tạo             │ Hoàn tác chỉ chép đè từ snapshot; file     │ Rollback đọc `manifest.json`: file tạo │
-│     │ (Incomplete Rollback Leak)                  │ mới tạo vẫn trơ trên đĩa, không về nguyên bản│ mới sẽ được xóa bằng `fs.unlinkSync`. │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 9   │ Phá vỡ liên kết 2 chiều khi sửa ma-tc-trung │ Đổi mã ở Markdown nhưng bỏ quên Playwright │ LOẠI BỎ `ma-tc-trung` khỏi Fast-Fix.   │
-│     │ (Multi-File Traceability Breakage)          │ spec làm test case biến thành mồ côi.      │ Điều hướng sang Traceability Studio.   │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 10  │ Trạng thái dở dang khi lỗi ghi đĩa          │ Ghi được 6 file, file 7 lỗi làm repo bị gãy│ Two-Phase All-or-Nothing Commit:       │
-│     │ (Non-Atomic Partial Failure)                │ nửa vời, gãy test runner Playwright.       │ CATCH tự rollback 100% từ Snapshot.    │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 11  │ Double-Click & Double-Rollback Race         │ Bấm Apply hoặc Rollback 2 lần liên tiếp    │ Session State Machine: Chặn concurrent │
-│     │ (Concurrent Mutation & State Race)          │ gây lỗi ghi đè hoặc crash 500 ở lần 2.     │ bằng Mutex, Rollback lần 2 idempotent. │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 12  │ HTTP Timeout & Zombie Request khi gọi AI    │ POST 20 item chạy 60s bị timeout 504;      │ Client-Driven Chunk Queue (1-2 item),  │
-│     │ (HTTP 504 & Unbounded AI Token Leak)        │ client hủy nhưng server vẫn đốt token ngầm.│ ngắt qua AbortSignal, server stateless.│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 13  │ Tuyến 2 AI thiếu API gom nhóm diff          │ Client nhận từng snippet rời rạc, không ai │ Endpoint `POST batch-reconcile-plan`   │
-│     │ (Orphaned AI Chunk Reconciler Gap)          │ tính diff hợp nhất cho Modal Accordion.    │ nhận mảng analyses, sinh plan chuẩn.   │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 14  │ Crash khi gặp Blocker Thư Mục               │ `where: "requirements/"` là thư mục,       │ `resolveSafeBatchTarget` bắt nhánh     │
-│     │ (Directory EISDIR Crash)                    │ `readFileSync` ném ngoại lệ `EISDIR`.      │ thư mục -> chuyển sang `create_file`.  │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 15  │ Xung đột Toast toàn cục & Rò rỉ Timer       │ Can thiệp `#toast` phá vỡ 11 slice khác;   │ Floating Undo Bar `#qa-batch-undo-bar` │
-│     │ (Global Toast Conflict & Timer Leak)        │ rời trang QA timer 10s chạy mồ côi DOM.    │ nội bộ QA View, giải phóng qua unmount.│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 16  │ Mất dấu Checkbox khi View Re-render         │ Chuyển filter/reload làm mất trạng thái    │ Bind `selectedFindingKeys.has(key)`    │
-│     │ (DOM Re-render State Desync)                │ check của các hàng mới render.             │ ngay khi dựng row; cập nhật indeterminate│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 17  │ Mất đồng bộ key khi bỏ chọn file Preview    │ Bỏ chọn File B trong modal nhưng client    │ API trả về `appliedFindingKeys` và     │
-│     │ (Deselected File State Loss)                │ xóa nhầm tất cả các key khỏi `selectedKeys`│ `skippedFindingKeys` để client cập nhật│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 18  │ Nhãn Toolbar không khớp số chọn thực tế     │ Chọn 2 cú pháp nhưng nút ghi "Sửa 4 lỗi"   │ Nhãn nút cập nhật động theo giao của   │
-│     │ (Toolbar Action Count Mismatch)             │ do đếm theo tổng filter thay vì tập chọn.  │ `selectedKeys` và loại thao tác.       │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 19  │ Bỏ sót `expect.soft(` trong matcher        │ `expect.soft(...)` thiếu await nhưng regex  │ Regex mở rộng:                         │
-│     │ (Soft Expect Omission)                      │ cũ chỉ bắt `expect(`, bỏ lọt soft matcher! │ `/(^|[\s;]+)(?<!await\s+)(expect(?:\.soft)?\s*\()/g`│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 20  │ Nghịch đảo thứ tự bỏ skip & gán mã TC       │ Dòng có `test.skip` thì regex gán mã TC    │ Đảo bước: Gỡ `test.skip` lên đầu tiên, │
-│     │ (Pipeline De-skip Inversion)                │ không khớp, dẫn đến sót mã TC sau khi sửa! │ đồng thời regex gán TC hỗ trợ modifier.│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 21  │ Xung đột 2 patch AI trên cùng 1 dòng        │ Tuyến AI nhận 2 excerpt giống nhau, patch 1│ Grouping vị trí trước khi gọi AI, hoặc │
-│     │ (Same-Line AI Overwrite Clash)              │ áp dụng xong thì patch 2 báo lỗi lệch dòng!│ `batch-reconcile-plan` phát hiện lệch. │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 22  │ Modal trống trơn không giải thích lý do     │ 12 lỗi không có REQ context bị từ chối sửa │ API trả về `skippedFindings` chi tiết  │
-│     │ (Silent Plan Rejection Confusion)           │ làm modal preview hiện 0 patch không rõ cớ.│ kèm lý do nghiệp vụ và hướng dẫn xử lý.│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 23  │ Nhảy cóc mã TC do quét trúng test Dashboard │ Quét `tests/` nhặt chuỗi mock `TC-023` của │ Giới hạn quét trong `tests/e2e/`,      │
-│     │ (Dashboard Test Pollution)                  │ dashboard, làm mã TC nghiệp vụ nhảy vọt.   │ `tests/api/`, loại trừ `tests/dashboard`│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 24  │ Mất Snapshot khi server nodemon restart     │ Server restart làm trống `sessionCache` RAM│ `rollbackBatchSession` tự động đọc file│
-│     │ (RAM Cache Loss on Server Restart)          │ bấm Hoàn tác bị lỗi 404/500 mất snapshot.  │ `manifest.json` trên đĩa nếu RAM rỗng. │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 25  │ Thiếu liên kết `findingKeys` trong file card│ Backend không biết file nào ứng với key nào│ Bổ sung bắt buộc trường `findingKeys`  │
-│     │ (Missing FindingKeys in Plan Schema)        │ khi người dùng bỏ chọn file trong Modal.   │ vào từng item file của `plan.files`.   │
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 26  │ Trùng ID DOM trên test chạy đa nền tảng     │ 2 finding giống hệt nhau sinh 2 ID trùng lặp│ Dùng class `qa-finding-checkbox` và gán│
-│     │ (Duplicate HTML ID Collision)               │ trong DOM, làm click checkbox bị lỗi click.│ ID kèm index hàng: `qa-check-${index}`.│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 27  │ Xung đột Timer cũ khi bấm Batch liên tiếp   │ Batch 2 chạy khi Batch 1 chưa hết 10s làm  │ `showUndoBar()` luôn gọi clear timer cũ│
-│     │ (Undo Bar Timer Overwrite Leak)             │ timer cũ đóng thanh sớm của Batch 2.       │ trước khi kích hoạt đếm ngược phiên mới│
-├─────┼─────────────────────────────────────────────┼────────────────────────────────────────────┼────────────────────────────────────────┤
-│ 28  │ Thay nhầm dòng khi 2 dòng giống hệt nhau    │ `content.replace` luôn thay thế dòng đầu,   │ BẮT BUỘC thao tác mảng dòng:           │
-│     │ (Duplicate Line Snippet Collision)          │ dòng thứ 2 không được sửa, dòng 1 sửa 2 lần│ `lines.splice(idx, 1, ...newLines)`.   │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+1. `where` của finding cấp test là `path:line` của **dòng khai báo test** ([commands.js:38-40](../tools/qa/lib/commands.js#L38-L40)); `assertion-thieu-await` là `path:line` của dòng `expect`; `khong-doc-duoc-requirement` là `requirements/`; `ma-tc-trung` là danh sách nhiều file.
+2. Một test thiếu TC không bao giờ đồng thời bị báo thiếu REQ (`continue`); sau khi có TC mới lộ các finding truy vết ([commands.js:574-604](../tools/qa/lib/commands.js#L574-L604)).
+3. `isSkipped` = dòng khai báo chứa `test.skip`/`test.fixme` ([sources.js:462](../tools/qa/lib/sources.js#L462)); finding tắt khi test có tag `@wip`.
+4. `reqId` lấy từ `spec.tags` (gồm tag trong title và tag kế thừa từ describe), chỉ nhận đúng `@REQ-\d{3}` ([sources.js:484-485](../tools/qa/lib/sources.js#L484-L485)). `RE_TC_AC_TITLE = /^(TC-\d{3})\s*-\s*(AC-\d{3})\b/` ([sources.js:37](../tools/qa/lib/sources.js#L37)) → tối đa `TC-999`.
+5. `findMissingAwaits`, `ASYNC_MATCHERS`, `loadRequirements`, `loadTestCases` đã được export ([sources.js:534-541](../tools/qa/lib/sources.js#L534-L541)); `findMissingAwaits` đã xử lý `.not/.resolves/.rejects`, `return/yield`, expect nhiều dòng.
+6. `getQaSummary` chạy đồng bộ in-process, `playwright --list` qua `execFileSync` (~5s), cache 60s ([qaService.js:577-605](../dashboard/services/qaService.js#L577-L605)) → event loop bị chặn trong lúc quét.
+7. Đã có sẵn: Auto-Fix `/api/qa/fix` ([fixer.js](../tools/qa/lib/fixer.js) — thêm dòng traceability `them-test-case-chua-khai-bao`), Scaffold modal requirement, Conflict Studio, Document Reader, tab AI Agent.
+8. Luồng sửa từng dòng hiện tại gồm: `findingFixerHelper.js`, `#qa-finding-fix-modal` trong `qa.html`, route `ai-analyze-fix` + `apply-fix` trong `qaRoutes.js`, `qaFindingFixerService.js`; có test tại `qaFindingFixerService.test.js` và `tests/dashboard-api/qa.test.js` (dòng 481).
+9. Spec là CommonJS (`require`); `package.json` không khai `"type": "module"`.
+10. Test harness có sẵn: `tests/dashboard/support/dashboardHarness.js`, `fixtureWorkspace.js`; API test dùng `node:test` trong `tests/dashboard-api/`.
+11. Giới hạn modularity: service 200, module 250, utils/component 150 dòng ([modularity_audit.py:25](../.master_process/scripts/modularity_audit.py#L25)).
+12. Repo này có `requirements/` và `test-cases/` rỗng → mọi kiểm thử cần ngữ cảnh REQ phải chạy trên fixture workspace.
 
 ---
 
-## 3. Kiến Trúc Giải Pháp Toàn Diện (Solution Architecture v5)
+## 3. Nguyên Tắc Bất Biến (Invariants)
 
-### 3.1. Sơ Đồ Luồng Hoạt Động (End-to-End Workflow)
+- **INV-1 — Server là nguồn sự thật:** client chỉ gửi `findingKey`, `sessionId`, `revision` và lựa chọn của người dùng. Server không ghi nội dung do client cung cấp.
+- **INV-2 — Không bịa truy vết:** REQ/AC/TC chỉ được ghi khi suy ra **duy nhất** từ dữ liệu có sẵn hoặc do người dùng chọn. Nếu không → `skipped` kèm `reasonCode`.
+- **INV-3 — Không ghi nội dung hỏng:** mỗi file sau vá phải parse được và predicate "finding đã hết" phải đúng trên nội dung mới trước khi ghi đĩa.
+- **INV-4 — Không đè thay đổi của người khác:** apply kiểm `baseHash`, rollback kiểm `postHash`.
+- **INV-5 — Một implementation:** sửa 1 finding và sửa hàng loạt đi qua cùng một engine.
+- **INV-6 — Giữ nguyên định dạng file:** EOL (CRLF/LF), BOM, có/không newline cuối file.
+- **INV-7 — Một cửa ghi:** mọi thao tác ghi của batch và `/api/qa/fix` đi qua cùng một write lock theo project root.
+- **INV-8 — Xác định:** cùng input cho cùng bản vá; luồng sửa finding không gọi AI provider.
+
+---
+
+## 4. Phân Tuyến Theo Loại Finding (Routing Catalog)
+
+Nguồn sự thật duy nhất: `dashboard/services/qaFindingCatalog.js`. Server gắn `fixRoute` vào từng finding; UI không tự suy luận route.
+
+| Kind | Route | Transform | Skip khi (`reasonCode`) | Tick mặc định |
+| --- | --- | --- | --- | --- |
+| `assertion-thieu-await` | `quick` | Chèn từ khoá `await` đúng cột của `expect` mà `findMissingAwaits` trả về tại dòng finding | `ALREADY_FIXED` (không còn occurrence), `IN_EXPRESSION` (ký tự khác trắng liền trước là `[`, `(`, `,`), `SYNTAX_INVALID` | Có |
+| `test-bi-skip-am-tham` | `quick` | Mặc định **thêm `@wip`** vào cuối title. Lựa chọn từng mục "Kích hoạt lại": `test.skip(`/`test.fixme(` → `test(` (chỉ dạng khai báo `test.skip('…'`) | `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE`, `TAG_OPTION_OBJECT`, `CONDITIONAL_SKIP` | Có (`@wip`) |
+| `test-thieu-tag-req` | `quick` | Thêm `@REQ-xxx` vào cuối title. REQ lấy từ (1) bảng traceability theo `tcId` của test, (2) tên file chứa `REQ-\d{3}`; REQ phải tồn tại trong `loadRequirements` | `REQ_UNKNOWN`, `REQ_AMBIGUOUS` (2 nguồn khác nhau), `REQ_NOT_FOUND`, `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE`, `TAG_OPTION_OBJECT` | Có |
+| `test-khong-co-ma-tc` | `guided` (Phase 4; trước đó là `manual`) | Người dùng chọn AC → `TC-NNN - AC-NNN: <title>` + `@REQ` nếu thiếu + dòng traceability trong file test-cases của REQ | `REQ_UNKNOWN`, `NO_TRACEABILITY_TABLE`, `TC_OVERFLOW` (> 999), `TITLE_NOT_ON_LINE` | **Không** (cần chọn AC) |
+| `spec-thieu-assertion` | `manual` | "Xem hướng dẫn": đoạn mã quanh test + hướng dẫn của scanner; người dùng tự viết assertion | — | Không có checkbox |
+| `khong-doc-duoc-requirement` | `scaffold` | Nút "Tạo requirement" mở `#qa-scaffold-modal` sẵn có | — | Không có checkbox |
+| `script-khong-co-trong-test-case` | `autofix` | Nút "Chuẩn hoá traceability" mở Auto-Fix sẵn có (dry-run) | — | Không có checkbox |
+| `ma-tc-trung` | `manual` | Nút "Mở tài liệu" → Document Reader tại file đầu tiên trong `where` | — | Không có checkbox |
+| Mọi kind khác | `manual` | "Xem hướng dẫn": hiển thị `action` của scanner + đoạn mã liên quan | — | Không có checkbox |
+
+**Định vị title:** title phải là chuỗi literal đầu tiên của lời gọi `test` / `test.skip` / `test.fixme` / `test.only` trên dòng finding, hỗ trợ quote lồng và ký tự escape. Template literal chứa `${` → `TEMPLATE_TITLE`. Chèn tag có tính idempotent: tag đã có thì trả `ALREADY_FIXED`.
+
+---
+
+## 5. Kiến Trúc
+
+### 5.1. Luồng tổng
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as QA Engineer
-    participant UI as Dashboard QA View
-    participant Helper as BatchFixerHelper (Frontend)
-    participant API as qaRoutes / qaBatchFixerService
-    participant Mutex as Service Session & Mutex
-    participant FS as Local Filesystem & Backup
+    actor U as QA Engineer
+    participant UI as QA View (batchController)
+    participant API as qaBatchRoutes
+    participant S as Plan / Commit services
+    participant FS as Filesystem + .dashboard-backups
 
-    User->>UI: Bấm chọn Filter Chip [ ⚡ Cú pháp nhanh (4) ]
-    UI->>UI: Lọc danh sách, render lại hàng với `data-finding-key` & check state
-    User->>UI: Tick Checkbox tổng (Indeterminate [-] -> Checked [✓])
-    Note over Helper: Lưu 4 keys vào selectedFindingKeys (Set)<br/>Thanh Toolbar cập nhật: [ ⚡ Sửa Nhanh (4) Lỗi Cú Pháp ]
-
-    alt Tuyến 1: Heuristic Fast-Fix (0-Token, < 500ms)
-        User->>UI: Bấm [ ⚡ Sửa Nhanh (4) Lỗi Cú Pháp ]
-        UI->>Helper: Khởi chạy Heuristic Batch Plan
-        Helper->>API: POST /api/qa/finding/batch-heuristic-plan (selectedFindings)
-        API->>API: Chuẩn hóa path `/`, chuẩn hóa CRLF -> LF
-        API->>API: Quét max(TC-xxx) có phạm vi (chỉ tests/e2e, tests/api, reqs, test-cases)
-        API->>API: Gom nhóm theo file, chạy Compound Transform Pipeline (De-skip -> TC -> REQ)
-        API->>API: Sinh patch bottom-up với Regex mở rộng `expect(?:\.soft)?` và lines.splice
-        API-->>Helper: Trả về { ok, plan: { files, totalPatches, sessionId }, skippedFindings }
-        alt Có skippedFindings do thiếu context
-            Helper->>UI: Hiển thị Banner cảnh báo giải thích lý do skipped
-        end
-        Helper->>UI: Mở Modal Accordion "Batch Preview & Confirmation"
-    else Tuyến 2: AI Batch Worker (Client-Driven Chunk Queue & Target Grouping)
-        User->>UI: Bấm [ 🤖 Sửa Bằng AI (2)... ]
-        UI->>Helper: Khởi tạo hàng đợi chunk (kích thước = 1-2 items)
-        Note over Helper: Tự động gom nhóm finding trùng dòng vào 1 prompt duy nhất
-        loop Xử lý từng chunk tuần tự qua AbortSignal
-            Helper->>API: POST /api/qa/finding/ai-analyze-fix (Finding 1..2)
-            API-->>Helper: Trả về kết quả phân tích từng finding
-            Helper->>UI: Cập nhật tiến trình: "Đang phân tích 2/2 (100%)..."
-        end
-        Helper->>API: POST /api/qa/finding/batch-reconcile-plan (aiAnalyses)
-        API->>API: Gom nhóm analyses theo file, phát hiện lệch dòng, tính diff hợp nhất & SHA-256 hash
-        API-->>Helper: Trả về { ok, plan: { files, totalPatches, sessionId }, skippedFindings }
-        Helper->>UI: Mở Modal Accordion "Batch Preview & Confirmation"
+    U->>UI: Tick finding rồi bấm "Xem trước & sửa (N)", hoặc bấm "Sửa lỗi" trên 1 dòng
+    UI->>API: POST batch-plan { findingKeys }
+    API->>S: Tra finding trong findingsIndex, đọc file, dựng bản vá, kiểm cú pháp + predicate
+    S-->>UI: session rev 1, cards, skipped
+    UI->>U: Mở modal xem trước
+    U->>UI: Bỏ tick hoặc đổi lựa chọn (batch-input, rev + 1)
+    U->>UI: Bấm "Áp dụng"
+    UI->>API: POST batch-apply { sessionId, revision, acceptedFindingKeys }
+    API->>S: Global lock, kiểm state + revision, kiểm baseHash
+    S->>FS: Snapshot + manifest APPLYING, ghi file tạm + rename, manifest COMMITTED kèm postHash
+    alt Lỗi I/O giữa chừng
+        S->>FS: Khôi phục snapshot, xoá file tạo mới, manifest FAILED
+        S-->>UI: 500 { restored: true }
     end
-
-    User->>UI: Xem Diff trong Accordion, bỏ chọn File B, bấm [ Áp Dụng (Apply) ]
-    Note over UI: Vô hiệu hóa nút Apply, hiện spinner chống double-click
-    UI->>API: POST /api/qa/finding/batch-apply (sessionId, acceptedFiles)
-    API->>Mutex: Kiểm tra Session State = PLANNED -> Đổi sang APPLYING (Khóa Mutex)
-    API->>FS: Kiểm tra SHA-256 hash (Bỏ qua file mới isNew)
-    API->>FS: Tạo Snapshot thư mục kèm manifest.json (modified / created)
-    
-    rect rgb(240, 250, 240)
-        Note over API,FS: Giao Dịch Nguyên Tử (Atomic Two-Phase Commit)
-        API->>FS: Ghi file modified & khởi tạo file created xuống đĩa bằng lines.splice
-        alt Nếu có bất kỳ lỗi I/O hoặc ghi đĩa giữa chừng
-            API->>FS: CATCH: Đọc manifest.json -> Rollback modified & Unlink created
-            API->>Mutex: Giải phóng Mutex, đánh dấu FAILED
-            API-->>UI: HTTP 500: Lỗi ghi đĩa, đã tự hoàn tác nguyên trạng 100%
-        end
-    end
-
-    API->>Mutex: Đổi trạng thái Session sang COMMITTED, ghi trạng thái vào manifest.json
-    API-->>UI: HTTP 200: { ok: true, appliedFindingKeys: [...], skippedFindingKeys: [...] }
-    UI->>Helper: Chỉ xóa appliedFindingKeys khỏi selectedFindingKeys
-    UI->>UI: Tải lại QA Summary & Cập nhật danh sách Findings
-    UI->>Helper: Gọi showUndoBar(): Hủy timer cũ, khởi tạo thanh Undo 10s có pause-on-hover
+    S-->>UI: 200 { appliedFindingKeys, notApplied }
+    UI->>U: Result bar + Hoàn tác
+    UI->>API: GET /api/qa/summary?force=true (sequence guard)
+    UI->>U: "Quét lại: xử lý X · còn Y · phát sinh mới Z"
 ```
 
-### 3.2. Bảng Phân Tầng Xử Lý Theo Loại Lỗi (Classification & Routing Policy v5)
+### 5.2. Danh mục file
 
-| Loại Lỗi (Kind) | Mức Độ | Tuyến Xử Lý (Route) | Chiến Lược Bịt Lỗ Hổng & An Toàn 10/10 |
-|---|:---:|:---:|---|
-| `assertion-thieu-await` | Minor | **Heuristic Fast-Fix** | Regex `/(^\|[\s;]+)(?<!await\s+)(expect(?:\.soft)?\s*\()/g`. Thao tác mảng dòng bằng `lines.splice()`. Sắp xếp giảm dần theo số dòng. |
-| `test-thieu-tag-req` | Minor | **Heuristic Fast-Fix** | Trích xuất tag `@REQ-xxx` từ tên file hoặc describe block, chèn vào tiêu đề test. |
-| `test-khong-co-ma-tc` | Major | **Context-Aware Fix** | **Chỉ Fast-Fix khi xác định được context REQ hợp lệ**: `BatchSequenceAllocator` quét scoped 3 thư mục (`tests/e2e`, `tests/api`, `requirements`, `test-cases`), sinh chuẩn `TC-xxx - AC-xxx: <Title>` khớp `RE_TC_AC_TITLE`. Nếu không có context REQ $\rightarrow$ đưa vào `skippedFindings` kèm lý do. |
-| `test-bi-skip-am-tham` | Major | **Fast-Fix (Kèm Cảnh Báo)** | Đổi `test.skip(` về `test(`. Chạy ở bước đầu tiên của Compound Pipeline. Gắn badge cảnh báo trên Modal Preview. |
-| `khong-doc-duoc-requirement`| Blocker | **Scaffold Fast-Fix** | Bắt rẽ nhánh thư mục: Khởi tạo `requirements/REQ-001-general.md`, đánh dấu `isNew: true`. |
-| `spec-thieu-assertion` | Major | **AI Chunked Queue** | Gọi LLM theo chunk nhỏ (1-2 item/request), gom nhóm theo dòng, hòa giải qua `batch-reconcile-plan`. |
-| `ma-tc-trung` | Major | **Studio Redirect** | **Không sửa hàng loạt**. Bấm nút điều hướng sang Traceability Conflict Studio đối chiếu 2 chiều. |
-| `rule-thieu-boundary-test` | Major | **Manual Guidance** | Không sinh patch tự động; hiển thị cẩm nang hướng dẫn kiểm thử biên BVA/EP. |
+#### Backend
+
+| File | Loại | Nội dung |
+| --- | --- | --- |
+| `tools/qa/lib/sources.js` | sửa (Hub) | `findMissingAwaits` trả thêm `column` (vị trí `expect` trong dòng). Tương thích ngược |
+| `dashboard/services/qaFindingCatalog.js` | mới, utils ≤150 | `createFindingKey`, `createMatchKey`, `routeFor`, `enrichFindings` (gộp trùng, `occurrences`, `fixRoute`) |
+| `dashboard/services/qaService.js` | sửa | `getQaSummary` trả finding đã enrich + `scanId`; giữ `findingsIndex` (Map theo root, không phụ thuộc TTL cache) |
+| `dashboard/services/qaFixText.js` | mới, utils ≤150 | `detectFormat` (eol, bom, finalNewline), `toLines`, `fromLines`, `hashNormalized`, `locateTitle`, `appendTitleTag`, `unskipDeclaration`, `insertAtColumn` |
+| `dashboard/services/qaFixValidate.js` | mới, utils ≤150 | `validateSyntax`, `predicates` theo kind |
+| `dashboard/services/qaBatchSessionStore.js` | mới, utils ≤150 | Session Map, TTL, state machine, `withWriteLock(root, fn)` |
+| `dashboard/services/qaBatchPlanService.js` | mới, service ≤200 | `buildPlan`, `applyInput`, `renderCards` (hunk + 2 dòng ngữ cảnh) |
+| `dashboard/services/qaBatchCommitService.js` | mới, service ≤200 | `commit`, `writeAtomic`, manifest |
+| `dashboard/services/qaBatchRollbackService.js` | mới, service ≤200 | `rollback`, `getLatestCommitted`, `recoverInterrupted`, `pruneBackups` |
+| `dashboard/services/qaFindingFixerService.js` | rút gọn, utils ≤150 | Chỉ còn `resolveSafePath` + `getFindingContext` (đoạn mã ±15 dòng). Xoá `analyzeFindingFix`, `analyzeWithAiFix`, `analyzeWithHeuristicFix`, `applyFindingFix`, import `parseEnvFile` và header exemption |
+| `dashboard/routes/qaBatchRoutes.js` | mới, module ≤250 | 6 endpoint mục 5.4; đăng ký trong `dashboard/server.js` cạnh `handleQaRoutes` |
+| `dashboard/routes/qaRoutes.js` | sửa | Xoá route `ai-analyze-fix` và `apply-fix`; `/api/qa/fix` đi qua `withWriteLock` |
+
+#### Frontend (`dashboard/public/js/views/qa/`)
+
+| File | Loại | Nội dung |
+| --- | --- | --- |
+| `batch/selectionModel.js` | utils ≤150, thuần | Set key, `toggle`, `prune`, `visibleState`, `toggleVisible`, `counts`, `hiddenCount` |
+| `batch/batchController.js` | module ≤250 | Điều phối; trạng thái `idle / planning / reviewing / applying / rollingBack`; sở hữu disposers; `fixOne(findingKey)` cho nút từng dòng |
+| `batch/batchToolbar.js` | component ≤150 | Master checkbox, chip, bộ đếm, nút chính, "Hoàn tác batch gần nhất" |
+| `batch/batchPreviewModal.js` | module ≤250 | Modal, tick từng bản vá, lựa chọn, banner skipped, lỗi |
+| `batch/batchDiffView.js` | component ≤150 | Diff có số dòng, dựng bằng `textContent`, màu theo token |
+| `batch/batchResultBar.js` | component ≤150 | Kết quả, thống kê quét lại, hoàn tác, xác nhận khi rollback xung đột |
+| `findingDetailModal.js` | mới, component ≤150 | Thay `findingFixerHelper.js`: modal "Chi tiết & hướng dẫn" (thông tin finding, `action`, đoạn mã chỉ đọc, sao chép vị trí); không có nút áp dụng |
+| `findingFixerHelper.js` | xoá | Thay bằng `findingDetailModal.js` + `batchController.fixOne` |
+| `qaSlice.js` | sửa tối thiểu | Tạo/huỷ controller trong `mount`/`unmount`; `reload()` có sequence guard + `scanPending`; `renderFindings()` giao cột chọn/hành động cho controller; event delegation trên `#qa-static-gaps-list` |
+| `templates/qa.html`, `styles/views/qa.css` | sửa | Markup toolbar, `#qa-batch-modal`, `#qa-batch-result-bar`; thay `#qa-finding-fix-modal` (tiêu đề "AI Copilot…", badge AI) bằng `#qa-finding-detail-modal`; style dùng token, không inline style, không màu hex |
+
+### 5.3. Dữ liệu finding sau khi enrich
+
+```json
+{
+  "findingKey": "a1b2c3d4e5f60718",
+  "matchKey": "9f8e7d6c5b4a3921",
+  "kind": "assertion-thieu-await",
+  "severity": "major",
+  "where": "tests/e2e/desktop/login.spec.js:57",
+  "message": "…",
+  "action": "…",
+  "label": "…",
+  "fixRoute": "quick",
+  "occurrences": 2
+}
+```
+
+- `findingKey = sha1(kind | normalizePath(where || id) | (message || detail)).slice(0, 16)` — chỉ tính ở server (trình duyệt truy cập qua HTTP trong LAN không có `crypto.subtle`).
+- `matchKey = sha1(kind | path không kèm số dòng | message)` — dùng để so sánh trước/sau khi quét lại, không bị lệch khi số dòng dịch chuyển.
+- Gộp trùng theo `findingKey`, `occurrences` = số lần xuất hiện qua các Playwright project.
+- `summary.scanId` chỉ tăng khi quét thật (không tăng khi trả từ cache).
+
+### 5.4. API (`dashboard/routes/qaBatchRoutes.js`)
+
+**Quy ước mã trạng thái** (theo [test-conventions.md](../.ai/knowledge/qa/test-conventions.md)): 200 cho mọi xử lý hoàn tất, kể cả có `skipped`; 400 body sai; 403 đường dẫn vi phạm; 404 `SESSION_NOT_FOUND` | `FINDING_NOT_FOUND`; 409 `BATCH_LOCKED` | `INVALID_STATE` | `REVISION_STALE` | `STALE_FILES` | `ROLLBACK_CONFLICT` | `NOT_LATEST_BATCH`; 500 chỉ khi lỗi I/O, kèm `restored: true|false`. Body lỗi: `{ error, code, details? }`.
+
+| Endpoint | Body | Trả về |
+| --- | --- | --- |
+| `POST /api/qa/finding/batch-plan` | `{ findingKeys: string[] }` (1..200) | `{ ok, session: { sessionId, revision, expiresAt }, cards, skipped, totals }` |
+| `POST /api/qa/finding/batch-input` | `{ sessionId, revision, findingKey, input: { skipMode: 'wip' \| 'unskip' } \| { acId } }` | `{ ok, revision, card, skipped? }` |
+| `POST /api/qa/finding/batch-apply` | `{ sessionId, revision, acceptedFindingKeys: string[] }` | `{ ok, sessionId, appliedFindingKeys, notApplied: [{ findingKey, reasonCode }], files: [{ relPath, action }] }` |
+| `POST /api/qa/finding/batch-rollback` | `{ sessionId, forceFiles?: string[] }` | `{ ok, restoredFiles, removedFiles, alreadyRolledBack }`; xung đột → 409 `ROLLBACK_CONFLICT` với `details.files` |
+| `GET /api/qa/finding/batch-last` | — | `{ ok, latest: { sessionId, status, committedAt, files, appliedCount } \| null }` |
+| `GET /api/qa/finding/context?findingKey=…` | — | `{ ok, finding, file: { relPath, startLine, lines: string[] } \| null }` — chỉ đọc, cho modal "Chi tiết & hướng dẫn" |
+
+- `FileCard = { relPath, action: 'modified' | 'created', patches: [{ findingKey, kind, line, risk: 'low' | 'behavior' | 'traceability', defaultSelected, choice?, hunk: { startLine, before: string[], after: string[] } }] }`.
+- `Skipped = { findingKey, kind, where, reasonCode, reason, nextAction?: { type: 'scaffold' | 'autofix' | 'openDoc' | 'detail', target? } }`.
+- `baseHash`, `postHash`, nội dung file đầy đủ không gửi về client.
+- Giới hạn body 64KB (chỉ key và lựa chọn).
+
+### 5.5. Session, lock và giữ chỗ TC
+
+- **State machine:** `PLANNED → APPLYING → COMMITTED → ROLLING_BACK → ROLLED_BACK`; `APPLYING → FAILED`; `PLANNED → EXPIRED` (TTL 15 phút). Chuyển trạng thái sai → 409 `INVALID_STATE`.
+- **Revision:** tăng sau mỗi thay đổi nội dung plan (`batch-input`). Apply với revision cũ → 409 `REVISION_STALE`.
+- **Store:** RAM, tối đa 20 session `PLANNED`, dọn session hết hạn khi có request (không dùng `setInterval` phía server).
+- **Write lock:** một lock theo project root cho `batch-apply`, `batch-rollback`, `/api/qa/fix`. Đang bận → 409 `BATCH_LOCKED` ngay, không xếp hàng.
+- **Giữ chỗ TC (Phase 4):** `max` = TC trong `loadTestCases().links` ∪ TC trong title spec (từ `collect()` của lần lập plan) ∪ TC đang giữ chỗ ở session `PLANNED` khác. Trong lock lúc apply: đọc lại bảng traceability và title của các spec đã biết; nếu trùng → 409 `STALE_FILES` với lý do `TC_TAKEN`.
+
+### 5.6. Kiểm tra cú pháp và predicate (`qaFixValidate.js`)
+
+- **`.js`/`.cjs`:** `new vm.Script('(function (exports, require, module, __filename, __dirname) {' + code + '\n})', { filename })` — chỉ compile, không chạy.
+- **`.mjs` hoặc file có `import` ở top-level:** `node --check` trên file tạm trong `.dashboard-drafts/qa-batch/<sessionId>/` với `windowsHide: true`.
+- **`.md` (Phase 4):** chạy `loadTestCases` trên bản sao trong `.dashboard-drafts/qa-batch/<sessionId>/`; link `(REQ, AC, TC)` mới phải xuất hiện đúng 1 lần.
+- **Predicate theo kind:** `findMissingAwaits` không còn occurrence tại dòng; title có tag cần thêm; dòng khai báo không còn `skip`/`fixme` hoặc title có `@wip`; title khớp `RE_TC_AC_TITLE`.
+
+### 5.7. Commit (`batch-apply`)
+
+1. Lấy write lock (bận → 409 `BATCH_LOCKED`).
+2. Session phải `PLANNED` và `revision` khớp; chuyển sang `APPLYING`.
+3. Stale check: file `modified` → hash nội dung đã chuẩn hoá EOL phải bằng `baseHash`; file `created` → chưa tồn tại. Lệch → 409 `STALE_FILES` (liệt kê file), session về `PLANNED`.
+4. Dựng nội dung cuối: áp các bản vá được tick theo thứ tự dòng giảm dần trên mảng dòng; khôi phục EOL/BOM/newline cuối; chạy lại mục 5.6. File nào không đạt → loại khỏi lần ghi và đưa vào `notApplied` (chưa có gì được ghi).
+5. Tạo `.dashboard-backups/qa-batch/<sessionId>/`: chép file `modified` vào snapshot; ghi `manifest.json` với `status: "APPLYING"`.
+6. Mỗi file: ghi `<file>.qa-batch-tmp` cùng thư mục rồi `fs.renameSync` (Windows `EPERM`/`EBUSY` → thử lại 3 lần, cách 50ms); ghi `postHash` vào manifest.
+7. Lỗi bất kỳ ở bước 6 → khôi phục các file đã ghi từ snapshot, xoá file `created`, xoá file tạm, manifest `FAILED`, trả 500 `{ restored: true }`.
+8. Manifest `COMMITTED`; `invalidateQaSummaryCache()`; nhả lock; trả 200.
+
+```json
+{
+  "sessionId": "qb-20260925-8f3a",
+  "status": "COMMITTED",
+  "createdAt": "2026-09-25T09:12:03.120Z",
+  "committedAt": "2026-09-25T09:12:04.004Z",
+  "appliedFindingKeys": ["a1b2c3d4e5f60718"],
+  "files": [
+    { "relPath": "tests/e2e/desktop/login.spec.js", "action": "modified", "snapshotRel": "files/tests/e2e/desktop/login.spec.js", "baseHash": "…", "postHash": "…" },
+    { "relPath": "test-cases/REQ-002-cart.md", "action": "modified", "snapshotRel": "files/test-cases/REQ-002-cart.md", "baseHash": "…", "postHash": "…" }
+  ]
+}
+```
+
+### 5.8. Rollback, phục hồi và dọn dẹp
+
+- **Rollback:** lấy lock → nạp session từ RAM hoặc `manifest.json` → `ROLLED_BACK` thì trả 200 `alreadyRolledBack` → chỉ cho phép session `COMMITTED` **mới nhất** (không thì 409 `NOT_LATEST_BATCH`) → so hash hiện tại với `postHash`: lệch mà file không có trong `forceFiles` → 409 `ROLLBACK_CONFLICT`. File trong `forceFiles`: sao lưu bản hiện tại vào `pre-rollback/` trước khi khôi phục → khôi phục `modified` (file tạm + rename), xoá `created` → manifest `ROLLED_BACK` → invalidate cache.
+- **Phục hồi:** request batch đầu tiên sau khi server khởi động quét các manifest `APPLYING` → khôi phục từ snapshot, xoá file tạm → `RECOVERED`. `batch-last` báo trạng thái này để UI thông báo.
+- **Dọn dẹp:** sau mỗi commit, giữ 20 session gần nhất hoặc 7 ngày, xoá phần còn lại trong `.dashboard-backups/qa-batch/`.
 
 ---
 
-## 4. Thiết Kế Giao Diện & Tương Tác (UI/UX Design System v5)
+## 6. Thiết Kế UI/UX
 
-### 4.1. Thanh Công Cụ Batch Action Toolbar & Dynamic Selection
-Bố trí ngay phía trên `#qa-static-gaps-list`:
+### 6.1. Toolbar và hành động trên từng dòng
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [ - ] 3 đã chọn   │  Lọc: [ Tất cả (13) ] [ ⚡ Cú pháp nhanh (4) ] [ 🤖 Cần AI (1) ] [ ⚠️ Cần xem xét (8) ]            │
-│                                                                                                                        │
-│  [ ⚡ Sửa Nhanh (2) Lỗi Cú Pháp ]    [ 🤖 Sửa Bằng AI (1)... ]                        [ Bỏ chọn (3) ]                  │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-- **Quy tắc Checkbox tổng (Indeterminate Tri-State Logic):**
-  - Số item chọn trong bộ lọc = 0: Checkbox `unchecked [ ]`.
-  - $0 < \text{số item chọn trong bộ lọc} < \text{tổng item đang hiển thị}$: Checkbox `indeterminate [-]`.
-  - Số item chọn trong bộ lọc = tổng item đang hiển thị: Checkbox `checked [✓]`.
-  - **Hành vi Click:**
-    - Khi đang `[-]` hoặc `[ ]`: Bấm vào sẽ chọn **toàn bộ các mục đang hiển thị** trong bộ lọc hiện tại.
-    - Khi đang `[✓]`: Bấm vào sẽ bỏ chọn **toàn bộ các mục đang hiển thị** trong bộ lọc hiện tại.
-    - Không làm ảnh hưởng đến các item thuộc bộ lọc khác đã được chọn trước đó.
-- **Đồng bộ DOM & Chống Trùng Lặp ID:**
-  - Mỗi hàng finding render checkbox với:
-    ```javascript
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.className = 'qa-finding-checkbox';
-    checkbox.id = `qa-finding-check-${index}`;
-    checkbox.dataset.findingKey = findingKey;
-    checkbox.checked = this.selectedFindingKeys.has(findingKey);
-    ```
-  - Gọi `updateToolbarState()` ngay sau khi render để cập nhật trạng thái master checkbox và các nút bấm.
-- **Nhãn nút bấm động (Dynamic Button Labels):**
-  - Nút `[ ⚡ Sửa Nhanh (N) Lỗi Cú Pháp ]`: $N$ là số lượng finding thuộc nhóm cú pháp nằm trong `selectedFindingKeys`. Nếu $N = 0$, vô hiệu hóa nút (`disabled`).
-  - Nút `[ 🤖 Sửa Bằng AI (M)... ]`: $M$ là số lượng finding cần AI nằm trong `selectedFindingKeys`. Nếu $M = 0$, vô hiệu hóa nút.
-
-### 4.2. Modal "Batch Preview & Confirmation" Dạng Accordion (`#qa-batch-modal`)
-Cấu trúc **Collapsible File Cards** kèm chọn lọc từng file và banner hiển thị finding bị từ chối:
-
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ ⚡ Xem Trước & Xác Nhận Áp Dụng Bản Vá Hàng Loạt                                                                [ ✕ ] │
-│ Đã sẵn sàng 3 bản vá trên 2 file mục tiêu (Đã bật Snapshot sao lưu an toàn)                                            │
-├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ ⚠️ 2 phát hiện đã được bỏ qua (Không thể sửa tự động):                                                                  │
-│ • saucedemo_login.spec.js:17: Chưa có ngữ cảnh REQ-xxx. Vui lòng tạo tài liệu requirement trước.                       │
-├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ ▼ [✓] tests/e2e/desktop/saucedemo_login.spec.js                                         [ +2 / -2 lines ] [ 2 bản vá ] │
-│ ┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
-│ │ 16: - test('TC-LOGIN-01: Đăng nhập thành công @smoke', async ({ page }) => {                                       │ │
-│ │ 16: + test('TC-013 - AC-001: Đăng nhập thành công @smoke', async ({ page }) => {                                   │ │
-│ │ ...                                                                                                                │ │
-│ │ 57: - expect.soft(page.locator('#login-btn')).toBeVisible();                                                       │ │
-│ │ 57: + await expect.soft(page.locator('#login-btn')).toBeVisible();                                                 │ │
-│ └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ │
-│                                                                                                                        │
-│ ▶ [ ] tests/e2e/desktop/sample_cleanup_fixture.spec.js (Đã bỏ chọn)                     [ +1 / -1 lines ] [ 1 bản vá ] │
-│                                                                                                                        │
-│ ℹ️ Bạn có thể bỏ chọn từng file ở trên. Hệ thống sẽ chỉ áp dụng các file được tích chọn.                               │
-├────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ [ Hủy Bỏ ]                                                                        [ ⚡ Áp Dụng 1 File Đã Chọn (Apply) ]│
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```text
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ [▣] 5 đã chọn · 2 đang ẩn  Bỏ chọn             [Tất cả 11] [Sửa nhanh 4] [Xử lý tay 7] │
+│                                       [ph-arrow-counter-clockwise Hoàn tác batch gần nhất] │
+│                                                    [ph-lightning Xem trước & sửa (5)]       │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Selective Modal Response Binding:**
-  - File card trong `plan.files` lưu mảng `findingKeys: string[]`.
-  - Khi bấm Apply, client gửi `acceptedFiles: ['tests/e2e/desktop/saucedemo_login.spec.js']`.
-  - Backend trả về: `{ ok: true, appliedFindingKeys: ['key1', 'key2'], skippedFindingKeys: ['key3'] }`.
-  - Client chỉ xóa `key1`, `key2` khỏi `this.selectedFindingKeys`. `key3` (của file bỏ chọn) được giữ nguyên vẹn.
+**Hành động trên từng dòng** (thay nút "AI Sửa Lỗi"):
 
-### 4.3. Thanh Hoàn Tác Nội Bộ View (In-View Floating Undo Bar - `#qa-batch-undo-bar`)
-- **Vị trí & Cấu trúc:**
-  ```html
-  <div class="qa-batch-undo-bar" id="qa-batch-undo-bar" hidden>
-    <div class="qa-undo-content">
-      <i class="ph-bold ph-check-circle" style="color: var(--success); font-size: 18px;"></i>
-      <span id="qa-undo-message">Đã áp dụng 2 bản vá thành công.</span>
-      <button type="button" class="btn-secondary-sm" id="qa-btn-batch-undo">
-        <i class="ph-bold ph-arrow-counter-clockwise"></i> Hoàn tác (<span id="qa-undo-timer">10</span>s)
-      </button>
-      <button type="button" class="qa-undo-close" id="qa-btn-undo-dismiss" title="Đóng">&times;</button>
-    </div>
-    <div class="qa-undo-progress-track">
-      <div class="qa-undo-progress-fill" id="qa-undo-progress-fill"></div>
-    </div>
-  </div>
-  ```
-- **Hành vi & Vòng đời (Lifecycle Guard):**
-  - Trước khi khởi tạo thanh Undo mới, luôn gọi `clearExistingUndoTimer()` hủy timer đang chạy của phiên trước đó để tránh xung đột đè timer.
-  - Tự động chạy đếm ngược 10 giây. Khi hover chuột vào thanh, **tạm dừng** đếm ngược; khi rời chuột, tiếp tục chạy.
-  - Khi người dùng bấm `Hoàn tác`: Gọi `POST /api/qa/finding/batch-rollback`, khôi phục nguyên trạng mã nguồn, tải lại QA summary, và ẩn thanh.
-  - Khi view `unmount()`: Toàn bộ timer (`setInterval` / `setTimeout`) và event listeners được dọn dẹp sạch sẽ qua mảng `disposers` của helper, không có bất kỳ zombie callback nào.
+| Route | Checkbox | Nút chính | Nút phụ |
+| --- | --- | --- | --- |
+| `quick`, `guided` | Có | "Sửa lỗi" → modal xem trước với đúng finding này | "Chi tiết" |
+| `scaffold` | Không | "Tạo requirement" | "Chi tiết" |
+| `autofix` | Không | "Chuẩn hoá traceability" | "Chi tiết" |
+| `manual` | Không | "Xem hướng dẫn" (modal "Chi tiết & hướng dẫn"); `ma-tc-trung` thêm "Mở tài liệu" | — |
+
+- Dòng gộp trùng có badge `×N project`.
+- **Master checkbox** tính trên các dòng đang hiển thị **và** có checkbox: 0 → unchecked; một phần → `indeterminate`; tất cả → checked. Click khi unchecked/indeterminate → chọn tất cả dòng đang hiển thị; khi checked → bỏ chọn các dòng đó. Không đụng mục bị filter ẩn.
+- **"M đang ẩn"** hiện khi có mục đã chọn nằm ngoài filter; bấm vào để chuyển về "Tất cả". Link "Bỏ chọn" có tooltip "Bỏ chọn tất cả N mục, kể cả mục đang ẩn".
+- **Nút chính "Xem trước & sửa (N)":** N = số mục đã chọn trên mọi filter. Disabled khi N = 0, khi `scanPending` hoặc khi đang có thao tác batch; `title` nói rõ lý do.
+- **`scanPending`:** toolbar hiện "Đang quét lại…" kèm spinner; checkbox và nút "Sửa lỗi" tạm khoá để không thao tác trên dữ liệu cũ.
+- **Chip:** "Tất cả", "Sửa nhanh", "Cần chọn AC" (từ Phase 4), "Xử lý tay"; đếm trên dòng đã gộp trùng; `aria-pressed` cho chip đang chọn.
+- Không có finding sửa được → ẩn nút chính, hiện "Không có mục sửa tự động được".
+
+### 6.2. Vòng đời selection
+
+- State nằm ngoài DOM (`selectionModel`); khi render dòng: `checked = model.has(findingKey)`.
+- Sau mỗi summary mới: `model.prune(currentKeys)`. Có mục bị loại → dòng thông báo nhỏ trong toolbar "3 mục đã chọn không còn trong kết quả quét mới".
+- Sau apply: bỏ `appliedFindingKeys` khỏi selection, giữ mục `notApplied` và mục không được tick trong modal.
+- Sau rollback thành công: chọn lại các key đã áp dụng của batch đó nếu chúng xuất hiện lại sau khi quét.
+- "Sửa lỗi" trên 1 dòng không thay đổi selection hiện có.
+
+### 6.3. Modal xem trước `#qa-batch-modal`
+
+```text
+┌ Xem trước bản vá ────────────────────────────────────────────────────────────── [✕] ┐
+│ 6 bản vá · 2 file · 2 bỏ qua                   Tự động snapshot trước khi ghi       │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ ⚠ 2 mục bị bỏ qua ▸                                                                  │
+│   • cart.spec.js:17 — Không xác định được REQ của test (REQ_UNKNOWN)  [Chi tiết]     │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ ▾ [■] tests/e2e/desktop/login.spec.js                         2/2 bản vá   +2 −2     │
+│     [■] Thiếu await · dòng 57                                                        │
+│          56    await page.fill('#pw', pw);                                           │
+│          57  − expect.soft(page.locator('#login-btn')).toBeVisible();                │
+│          57  + await expect.soft(page.locator('#login-btn')).toBeVisible();          │
+│     [■] Test bị skip · dòng 80    (•) Cách ly bằng @wip   ( ) Kích hoạt lại ⚠        │
+│ ▸ [■] tests/e2e/mobile-web/cart.spec.js                       4/4 bản vá   +4 −4     │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│ [Huỷ]                                                  [Áp dụng 6 bản vá (2 file)]   │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Primitive:** `.app-modal` / `.app-modal-box` / `.app-modal-body`; độ rộng đặt ở ngoài (`width: min(1040px, 94vw)`); ≤ 600px thì full-screen.
+- Mở từ nút "Sửa lỗi" trên 1 dòng: cùng modal, chỉ 1 card; nếu finding bị skip thì modal chỉ hiện lý do + nút "Chi tiết".
+- **Tick theo từng bản vá** (theo `findingKey`); checkbox file là tri-state của các bản vá trong file.
+- **Badge rủi ro:** "Đổi hành vi" (kích hoạt lại test), "Truy vết" (guided). Bản vá guided mặc định không tick.
+- **Đổi lựa chọn** (chế độ skip, AC) → `batch-input` → card cập nhật. Trong lúc chờ: card mờ, nút Apply disabled.
+- **Diff:** có số dòng, 2 dòng ngữ cảnh, dựng bằng `textContent`. Có trên 5 file thì thẻ file thu gọn mặc định.
+- **Banner skipped:** nhóm theo `reasonCode`, mỗi mục có nút `nextAction` (mở Scaffold, Auto-Fix, tài liệu, hoặc "Chi tiết").
+- **Apply** disabled khi 0 bản vá được tick hoặc đang cập nhật revision. Khi đang apply: spinner, khoá ✕/Esc (chặn sự kiện `cancel` của `<dialog>`), khoá mọi checkbox, chỉ 1 request.
+- **Đóng modal khi đã có lựa chọn chưa áp dụng** (bỏ tick, đổi chế độ skip, chọn AC) → xác nhận "Bỏ các lựa chọn đã thay đổi?".
+- **Lỗi:**
+  - 409 `STALE_FILES` / `REVISION_STALE`, 404 `SESSION_NOT_FOUND` → banner đỏ trong modal liệt kê file + nút "Lập lại kế hoạch" (gọi lại `batch-plan` với các key đang tick).
+  - 409 `BATCH_LOCKED` → "Đang có thao tác ghi khác. Thử lại sau vài giây." + nút Thử lại.
+  - 500 `restored: true` → "Ghi đĩa lỗi, đã khôi phục nguyên trạng. Không file nào bị thay đổi."
+- **Focus:** mở modal thì focus vào tiêu đề; đóng thì trả focus về nút đã mở modal.
+
+### 6.4. Modal "Chi tiết & hướng dẫn" `#qa-finding-detail-modal`
+
+- Nội dung: mức độ, nhãn kind, vị trí (`where`) kèm nút sao chép, `message`, `action` của scanner, đoạn mã ±15 dòng quanh vị trí lỗi (chỉ đọc, dòng lỗi được đánh dấu, lấy từ `GET /api/qa/finding/context`).
+- Không có nút áp dụng. Với route `quick`/`guided` có thêm nút "Sửa lỗi" chuyển sang modal xem trước.
+- Trạng thái: đang tải (skeleton), không có file (chỉ hiện thông tin + hướng dẫn), lỗi (thông báo + thử lại).
+- Dùng `.app-modal` primitives; nội dung dựng bằng `textContent`.
+
+### 6.5. Result bar `#qa-batch-result-bar`
+
+```text
+┌ ✓ Đã áp dụng 5 bản vá trên 3 file.   Quét lại: xử lý 5 · còn 0 · phát sinh mới 1 ▸   [Hoàn tác] [✕] ┐
+```
+
+- `role="status"`, `aria-live="polite"`. Hiện ngay khi `batch-apply` trả 200, không đợi quét lại; phần "Quét lại…" cập nhật khi summary mới về (so multiset `matchKey` của các file đã sửa, trước và sau).
+- **Không đếm ngược.** Đóng thanh không làm mất khả năng hoàn tác: toolbar có "Hoàn tác batch gần nhất" (từ `batch-last`, sống qua reload và restart) cho tới khi có batch mới được commit.
+- "phát sinh mới N ▸" lọc danh sách về các finding mới để người dùng thấy cascade.
+- Hoàn tác: nút chuyển "Đang hoàn tác…". Gặp 409 `ROLLBACK_CONFLICT` → dialog liệt kê file đã bị sửa sau batch: "Hoàn tác sẽ ghi đè các thay đổi này (bản hiện tại được sao lưu vào `.dashboard-backups`)." — [Huỷ] [Vẫn hoàn tác].
+
+### 6.6. Responsive, theme, accessibility
+
+- ≥ 1280px: toolbar 1 hàng; 768–1279px: 2 hàng; ≤ 480px: chip cuộn ngang, nút chính full-width, result bar dính đáy view; cột hành động của dòng xuống dưới nội dung.
+- Icon Phosphor (`ph-lightning`, `ph-wrench`, `ph-info`, `ph-arrow-counter-clockwise`), không dùng emoji trong control.
+- Màu qua token (`--success`, `--warning`, `--danger`, `--accent`, `--line`, `--surface-2`); kiểm cả Light và Dark.
+- Bàn phím: Tab tới master checkbox, chip, dòng, nút; Space để tick; Esc đóng modal (trừ khi đang apply). Checkbox nằm trong `label` với tên `Chọn: {nhãn kind} tại {where}`.
+- Event delegation: 1 listener `change` và 1 listener `click` trên `#qa-static-gaps-list` (theo lesson 2026-09-24), không gắn listener cho từng dòng.
 
 ---
 
-## 5. Thiết Kế Backend Service & API Specification
+## 7. Ma Trận Rủi Ro → Rào Chắn → Bằng Chứng
 
-### 5.1. Dịch Vụ Mới: `dashboard/services/qaBatchFixerService.js`
-
-Module độc lập, tuân thủ tiêu chuẩn modularity của dự án (`// master-process-disable-size-check: QA Static Findings batch processor and atomic patch engine`):
-
-1. **`normalizePath(filePath)`**:
-   Chuẩn hóa toàn bộ dấu gạch chéo ngược `\` thành `/`.
-
-2. **`normalizeNewlines(content)`**:
-   Chuyển đổi `\r\n` thành `\n` trước khi băm SHA-256 hoặc cắt dòng.
-
-3. **`createFindingKey(finding)`**:
-   ```javascript
-   function createFindingKey(finding) {
-     const raw = `${finding.kind || ''}|${normalizePath(finding.where || '')}|${finding.message || ''}`;
-     return require('crypto').createHash('sha1').update(raw).digest('hex').slice(0, 12);
-   }
-   ```
-
-4. **`resolveSafeBatchTarget(root, finding)`**:
-   - Nếu `kind === 'khong-doc-duoc-requirement'`: trả về `{ relPath: 'requirements/REQ-001-general.md', absPath, isDir: false, isNew: true }`.
-   - Chặn tuyệt đối Path Traversal (`..`, ổ đĩa `C:`, đường dẫn tuyệt đối ngoài root).
-
-5. **`getGlobalMaxTestCaseNumber(root, options = {})`**:
-   Quét regex `/TC-(\d+)/g` trên các nguồn được giới hạn phạm vi chặt chẽ:
-   - Thư mục kiểm thử nghiệp vụ: `tests/e2e/` và `tests/api/` (**loại trừ tuyệt đối** `tests/dashboard*`).
-   - Thư mục yêu cầu: `options.requirementsDir || 'requirements'`
-   - Thư mục ca kiểm thử: `options.testCasesDir || 'test-cases'`
-   Trả về số nguyên lớn nhất đang tồn tại để cấp phát tăng dần duy nhất.
-
-6. **`Compound Line Pipeline & Splice Replacer`**:
-   - Phân nhóm bản vá theo file $\rightarrow$ theo `lineNumber`.
-   - Với dòng có nhiều biến đổi: Chạy qua pipeline tuần tự theo đúng trật tự chuẩn hóa:
-     1. **Gỡ bỏ skip âm thầm**: `line.replace(/test\.skip\s*\(/, 'test(')`.
-     2. **Chuẩn hóa TC Title**: Hỗ trợ cả test có modifier (`/(test(?:\.skip|\.only|\.fixme)?\s*\(\s*['"`])([^'"`]+)(['"`])/`).
-     3. **Bổ sung tag REQ**: Chèn `@REQ-xxx` vào tiêu đề test.
-   - Sắp xếp các dòng theo số dòng **giảm dần (descending)**.
-   - **Thao tác thay thế an toàn**: Dùng `lines.splice(lineIndex, 1, ...newLines)` trên mảng dòng; **tuyệt đối không dùng `string.replace()`** để chống Duplicate Snippet Collision.
-
-7. **`stageAndCommitBatch(root, { sessionId, acceptedFiles })`**:
-   - **Session State Check**: Kiểm tra trạng thái phiên làm việc trong `sessionCache`. Nếu không phải `PLANNED` $\rightarrow$ ném lỗi 409 Conflict.
-   - **Đổi trạng thái sang `APPLYING`** (Mutex Lock).
-   - **Bước 1 (Stale Check)**:
-     - Với file `isNew`: Nếu đã tồn tại trên đĩa $\rightarrow$ 409 Conflict.
-     - Với file thường: So sánh SHA-256 hash (đã chuẩn hóa LF). Nếu lệch $\rightarrow$ 409 Conflict.
-   - **Bước 2 (Snapshot)**:
-     - Tạo thư mục `.dashboard-backups/qa-batch/<sessionId>/`.
-     - Sao chép các file `modified` vào snapshot (bảo toàn cấu trúc thư mục con tương đối).
-     - Ghi file `manifest.json`:
-       ```json
-       {
-         "sessionId": "...",
-         "createdAt": "...",
-         "status": "COMMITTED",
-         "files": [
-           { "relPath": "tests/e2e/desktop/login.spec.js", "action": "modified", "snapshotRel": "tests/e2e/desktop/login.spec.js" },
-           { "relPath": "requirements/REQ-001-general.md", "action": "created" }
-         ]
-       }
-       ```
-   - **Bước 3 (Atomic Write)**:
-     - Ghi các file xuống đĩa bằng `lines.splice`.
-     - Nếu gặp lỗi: CATCH đọc `manifest.json` $\rightarrow$ khôi phục file `modified` và gọi `fs.unlinkSync` cho file `created`. Đổi trạng thái sang `FAILED`.
-   - **Đổi trạng thái sang `COMMITTED`** và giải phóng Mutex.
-   - Trả về `{ ok: true, appliedFindingKeys, skippedFindingKeys }` dựa trên mapping `findingKeys` của từng file.
-
-8. **`rollbackBatchSession(root, sessionId)`**:
-   - Kiểm tra `sessionCache`: Nếu trạng thái là `ROLLED_BACK` $\rightarrow$ trả về HTTP 200 idempotent ngay lập tức.
-   - **Độ bền vững độc lập RAM**: Nếu `sessionCache` không có (server restart), tự động đọc file `.dashboard-backups/qa-batch/<sessionId>/manifest.json` trên đĩa. Nếu file manifest đã ghi `"status": "ROLLED_BACK"` $\rightarrow$ trả về HTTP 200 ngay.
-   - Phục hồi các file `modified` từ snapshot về vị trí cũ.
-   - Xóa các file `created` bằng `fs.unlinkSync`.
-   - Cập nhật `"status": "ROLLED_BACK"` vào file `manifest.json` trên đĩa và cập nhật cache RAM.
-
-9. **`reconcileAnalysesToPlan(root, analyses)`**:
-   - Nhận mảng các phân tích (từ AI hoặc Heuristic).
-   - **Target Location Grouping**: Phát hiện và xử lý xung đột nếu có 2 phân tích AI cùng trỏ vào 1 dòng trong cùng 1 file.
-   - Gom nhóm theo file, sinh diff hợp nhất, tính toán SHA-256 hash, đính kèm `findingKeys: string[]` vào từng file và cấp phát `sessionId` cho Modal Preview.
-
-### 5.2. Các Endpoints API Bổ Sung (`dashboard/routes/qaRoutes.js`)
-
-* `POST /api/qa/finding/batch-heuristic-plan`:
-  - **Body:** `{ findings: [...] }`
-  - **Xử lý:** Khử trùng lặp, cấp phát TC toàn diện (loại trừ dashboard tests), sinh bản vá bottom-up bằng `lines.splice`. Phân loại finding thiếu context REQ vào danh sách bỏ qua.
-  - **Trả về:**
-    ```json
-    {
-      "ok": true,
-      "plan": {
-        "sessionId": "...",
-        "totalPatches": 3,
-        "files": [
-          {
-            "relPath": "tests/e2e/desktop/login.spec.js",
-            "action": "modified",
-            "findingKeys": ["key1", "key2"],
-            "patches": [...],
-            "diff": "...",
-            "linesAdded": 2,
-            "linesRemoved": 2
-          }
-        ]
-      },
-      "skippedFindings": [
-        {
-          "findingKey": "key3",
-          "kind": "test-khong-co-ma-tc",
-          "where": "tests/e2e/desktop/sample.spec.js:6",
-          "reason": "Chưa có ngữ cảnh REQ-xxx. Vui lòng tạo tài liệu requirement trước."
-        }
-      ]
-    }
-    ```
-
-* `POST /api/qa/finding/batch-reconcile-plan`:
-  - **Body:** `{ analyses: [...] }`
-  - **Xử lý:** Nhận kết quả phân tích AI từ client chunk queue, gom nhóm theo file, xử lý xung đột cùng dòng, sinh Batch Preview Plan thống nhất kèm `findingKeys`.
-  - **Trả về:** `{ ok: true, plan: { files: [...], totalPatches: N, sessionId: '...' }, skippedFindings: [...] }`.
-
-* `POST /api/qa/finding/batch-apply`:
-  - **Body:** `{ sessionId: '...', acceptedFiles: [...] }`
-  - **Xử lý:** Two-Phase Commit có manifest (modified/created), chống crash Stale Check, lưu snapshot bền vững trên đĩa, trả về chi tiết các key đã áp dụng.
-  - **Trả về:** `{ ok: true, message: '...', appliedFiles: [...], appliedFindingKeys: [...], skippedFindingKeys: [...] }`.
-
-* `POST /api/qa/finding/batch-rollback`:
-  - **Body:** `{ sessionId: '...' }`
-  - **Xử lý:** Idempotent Rollback độc lập với bộ nhớ RAM (đọc trực tiếp `manifest.json` trên đĩa).
-  - **Trả về:** `{ ok: true, message: 'Đã hoàn tác toàn bộ thay đổi thành công.' }`.
+| # | Rủi ro | Rào chắn | Scenario |
+| --- | --- | --- | --- |
+| R1 | Bịa REQ/AC/TC | INV-2; `skipped` + `reasonCode`; guided bắt buộc chọn AC | BATCH-11, 13, 40 |
+| R2 | Sửa xong sinh finding mới (cascade) | Guided vá title + tag + traceability cùng giao dịch; result bar báo "phát sinh mới" | BATCH-35, 40 |
+| R3 | Bản vá làm hỏng cú pháp | `qaFixValidate` trước khi ghi | BATCH-08 |
+| R4 | Lệch logic scanner | Dùng `findMissingAwaits` + `column` | BATCH-04..07 |
+| R5 | Bản vá giả / AI sửa sai / ghi đè cả file | INV-8: không AI; xoá `ai-analyze-fix`, `apply-fix`; nút từng dòng dùng chung engine | BATCH-44, 45 |
+| R6 | Kích hoạt test hàng loạt làm CI đỏ | Mặc định `@wip` | BATCH-10 |
+| R7 | Trùng dòng / lệch dòng | Vá trên mảng dòng theo thứ tự giảm dần, định vị theo cột | BATCH-01, 02 |
+| R8 | Chạy lại sinh `await await` | Predicate `ALREADY_FIXED` | BATCH-03 |
+| R9 | Đổi EOL/BOM | `detectFormat` + `fromLines` | BATCH-09 |
+| R10 | File đổi giữa lúc plan và apply | `baseHash` → 409 `STALE_FILES` | BATCH-16, 19 |
+| R11 | Race khi apply | State machine + write lock | BATCH-18 |
+| R12 | Ghi dở dang | File tạm + rename, khôi phục, phục hồi khi khởi động | BATCH-20, 21 |
+| R13 | Rollback đè thay đổi sau batch | `postHash` + xác nhận + sao lưu | BATCH-23 |
+| R14 | Mất khả năng hoàn tác | Manifest + `batch-last` | BATCH-25, 35 |
+| R15 | Client gửi dữ liệu cũ/giả | Chỉ gửi key; server tra `findingsIndex` | BATCH-14, 26 |
+| R16 | Finding trùng qua project | Gộp ở server | BATCH-12 |
+| R17 | Selection "ma" / bị ẩn | Prune + "M đang ẩn" | BATCH-29, 31 |
+| R18 | Response muộn | `revision`; sequence guard trong `reload()` | BATCH-17, 36 |
+| R19 | Rò listener | Disposers, delegation, không timer đếm ngược | BATCH-37, 38 |
+| R20 | Snapshot tích tụ | Retention 20 session / 7 ngày | BATCH-28 |
+| R21 | Hai session cấp trùng TC | Giữ chỗ + kiểm lại trong lock | BATCH-41 |
+| R22 | TC vượt 999 | `TC_OVERFLOW` | BATCH-42 |
 
 ---
 
-## 6. Ma Trận Scenarios Kiểm Thử & Tiêu Chí Nghiệm Thu (Quality Gate 4 — 28 Scenarios)
+## 8. Chiến Lược Kiểm Thử
 
-Bao hàm đầy đủ 28 kịch bản kiểm thử biên từ Senior QA Lead:
+### 8.1. Cấp độ và file
 
-| Mã Scenario | Nhóm | Mô Tả Tình Huống Kiểm Thử | Tiêu Chí Đạt (Acceptance Criteria) |
-|---|:---:|---|---|
-| `BATCH-01` | **Group & Bottom-Up** | 1 file test có 3 lỗi: dòng 10 thiếu await, dòng 25 thiếu await, dòng 40 thiếu tag REQ. | Áp dụng từ dòng 40 $\rightarrow$ 25 $\rightarrow$ 10 bằng `lines.splice`. Không xảy ra lệch dòng, cả 3 lỗi được vá chính xác 100%. |
-| `BATCH-02` | **Scoped Allocator** | `tests/e2e/` có TC-005, `test-cases/` có TC-012, `tests/dashboard-api/` có mock `TC-099`. | `BatchSequenceAllocator` quét scoped, bỏ qua test dashboard, cấp phát chính xác `TC-013` (không bị nhảy vọt lên `TC-100`). |
-| `BATCH-03` | **Context-Aware Guard**| Sửa lỗi `test-khong-co-ma-tc` trên file chưa có tag REQ. | Hệ thống từ chối Fast-Fix bừa bãi, trả về trong `skippedFindings` kèm lý do và hướng dẫn tạo requirement. |
-| `BATCH-04` | **Same-Line Pipeline** | Dòng 17 vừa dính `test.skip`, `test-khong-co-ma-tc` và `test-thieu-tag-req`. | Compound Transform Pipeline gỡ skip trước, chuẩn hóa TC và chèn tag REQ chuẩn xác trong 1 diff duy nhất. |
-| `BATCH-05` | **Idempotency Guard** | Chạy batch fix 2 lần liên tiếp trên các file có lỗi `assertion-thieu-await`. | Lần 2 phát hiện dòng đã có `await`, không chèn thừa `await await expect`, giữ nguyên code sạch. |
-| `BATCH-06` | **Soft Expect Await** | Lệnh test Playwright gọi `expect.soft(btn).toBeVisible();`. | Regex mở rộng `expect(?:\.soft)?` bắt chính xác và chèn `await expect.soft(...)` hợp lệ. |
-| `BATCH-07` | **CRLF Hash Stability**| File mục tiêu được lưu với định dạng Windows CRLF `\r\n`. | Backend chuẩn hóa sang LF trước khi băm SHA-256; không phát sinh lỗi 409 giả mạo. |
-| `BATCH-08` | **New File Creation** | Chọn lỗi Blocker `khong-doc-duoc-requirement` (`isNew: true`). | Bỏ qua hash check trên đĩa, không bị lỗi `ENOENT`. Khởi tạo chính xác file `requirements/REQ-001-general.md`. |
-| `BATCH-09` | **New File Rollback** | Chạy batch tạo file mới rồi bấm nút `Hoàn tác`. | Rollback đọc `manifest.json` và gọi `fs.unlinkSync` xóa sạch file mới tạo, đưa repo về nguyên trạng. |
-| `BATCH-10` | **Atomic Write Fail** | Chạy batch trên 5 file, cố tình mô phỏng lỗi quyền ghi ở file thứ 4. | Backend tự động khôi phục 3 file đầu từ snapshot. Trả về mã lỗi an toàn, repo không bị sửa một nửa. |
-| `BATCH-11` | **Idempotent Rollback**| Bấm đúp chuột 2 lần vào nút `Hoàn tác`. | Lần 1 hoàn tác an toàn, lần 2 trả về HTTP 200 idempotent, không quăng lỗi 500 do mất snapshot. |
-| `BATCH-12` | **Session Mutex Race** | Gửi 2 request `batch-apply` cùng lúc với cùng `sessionId`. | Request 1 thực thi an toàn, Request 2 bị chặn ngay ở tầng Mutex với mã 409 Conflict. |
-| `BATCH-13` | **AI Reconcile Plan** | Chạy AI Chunk Queue cho 4 issues rồi bấm xem Preview. | Gọi `batch-reconcile-plan`, gom nhóm chính xác theo từng file Card trong Modal Accordion. |
-| `BATCH-14` | **Selective Modal Sync**| Modal có File A và File B; user bỏ chọn File B rồi bấm Apply. | Backend chỉ áp dụng File A; client chỉ xóa key của File A, giữ nguyên key của File B trong `selectedKeys`. |
-| `BATCH-15` | **DOM Re-render Sync** | Chọn 3 issue, chuyển filter chip rồi chuyển lại hoặc bấm Reload. | 3 checkbox trên giao diện vẫn được tick `checked = true`, Checkbox tổng hiển thị đúng `[-]`. |
-| `BATCH-16` | **Tri-State Checkbox** | Click vào master checkbox khi đang ở trạng thái Indeterminate `[-]`. | Chọn toàn bộ các mục đang hiển thị trong bộ lọc; click lần 2 bỏ chọn toàn bộ. |
-| `BATCH-17` | **Dynamic Toolbar** | Chọn 2 lỗi cú pháp và 1 lỗi AI. | Nút hiển thị chính xác: `[ ⚡ Sửa Nhanh (2) Lỗi Cú Pháp ]` và `[ 🤖 Sửa Bằng AI (1)... ]`. |
-| `BATCH-18` | **OWN Lifecycle Clean**| Áp dụng batch, hiển thị Floating Undo Bar rồi chuyển tab sang Runner ngay lập tức. | Timer 10s được dọn sạch qua `disposers`, không có lỗi console hay rò rỉ bộ nhớ DOM. |
-| `BATCH-19` | **Server Restart Undo**| Áp dụng batch, khởi động lại server Node (mất RAM cache) rồi bấm Hoàn tác. | Rollback tự động đọc snapshot `manifest.json` trên đĩa, khôi phục mã nguồn thành công 100%. |
-| `BATCH-20` | **Duplicate Snippet Splice** | File có 2 dòng `expect(x).toBeVisible()` giống hệt nhau ở dòng 20 và dòng 45. | `lines.splice` sửa chính xác cả 2 dòng, không bị lỗi đè 2 lần vào dòng 20 như `string.replace`. |
-| `BATCH-21` | **Timer Overwrite Guard**| Thực hiện Batch 1, sau 3s thực hiện Batch 2. | Timer của Batch 1 bị hủy sạch ngay lập tức; thanh Undo Bar đếm trọn vẹn 10s cho Batch 2. |
-| `BATCH-22` | **Multi-Platform Check** | Tìm thấy 2 finding trùng lặp vị trí do chạy đa nền tảng Playwright. | Checkbox render với ID duy nhất `qa-finding-check-${index}`, click không bị nhảy nhầm phần tử. |
-| `BATCH-23` | **AI Same-Line Conflict** | 2 finding cùng dòng được gửi vào Tuyến AI. | AI Queue tự động gom nhóm hoặc Reconciler phát hiện xung đột, không để hỏng cú pháp spec. |
-| `BATCH-24` | **Skipped Banner Display**| Gửi batch plan có 5 lỗi thiếu REQ context. | Modal hiển thị Banner cảnh báo màu vàng ghi rõ lý do 5 lỗi bị bỏ qua mà không làm crash flow. |
-| `BATCH-25` | **Semicolon Await Guard**| Lệnh test viết liền: `doWork();expect.soft(x).toBeVisible()`. | Regex lookbehind bắt đúng và chèn `await` hợp lệ: `doWork();await expect.soft(x)...`. |
-| `BATCH-26` | **Sync Expect Immunity**| Spec có lệnh assert đồng bộ: `expect(items.length).toBe(3);`. | Hệ thống không thêm await vào assert đồng bộ, giữ nguyên code hợp lệ. |
-| `BATCH-27` | **Abort Signal Guard** | Người dùng bấm Hủy hàng đợi AI khi đang phân tích item 3/10. | `AbortController` ngắt ngay kết nối HTTP, tiến trình dừng lập tức, không rò rỉ token. |
-| `BATCH-28` | **20-Roundtrip Mount Clean** | Chuyển đổi qua lại giữa tab QA và tab Runner 20 lần liên tục. | Số lượng event listener và memory heap không tăng lũy kế (tuân thủ `OWN-01..05`). |
+| Cấp | File | Nội dung |
+| --- | --- | --- |
+| Unit | `tools/qa/lib/sources.test.js`, `dashboard/services/qaFindingCatalog.test.js`, `qaFixText.test.js`, `qaFixValidate.test.js`, `qaFindingFixerService.test.js` (viết lại cho `resolveSafePath` + `getFindingContext`) | `column`, key/gộp trùng/route, transform, EOL/BOM, cú pháp, predicate, đường dẫn an toàn, trích đoạn mã |
+| Service integration | `dashboard/services/qaBatchService.test.js` | Plan/commit/rollback/phục hồi/lock trên file thật trong fixture workspace tạm |
+| API contract | `tests/dashboard-api/qa-batch.test.js`; `tests/dashboard-api/qa.test.js` (thay test `ai-analyze-fix`) | 6 endpoint × {200, 400, 403, 404, 409, 500 `restored`}; route cũ trả 404 |
+| E2E UI | `tests/dashboard/qa-batch-fixer.spec.js` (`playwright.dashboard.config.js`) | Toolbar, hành động từng dòng, selection, modal, hoàn tác, vòng đời, viewport × theme; `selectionModel` được kiểm qua `page.evaluate(() => import('/js/views/qa/batch/selectionModel.js'))` |
 
----
+- **Fixture:** mở rộng `createFixtureWorkspace` với seed có requirements + test-cases (bảng `## Traceability`) + spec chứa đủ các loại finding, có biến thể CRLF + BOM và file không có newline cuối.
+- **Mô phỏng lỗi ghi:** `qaBatchCommitService` nhận `fsOps` injectable (mặc định `fs`) để test ném lỗi ở file thứ N.
 
-## 7. Kế Hoạch Triển Khai Chi Tiết (Phased Execution Plan)
+### 8.2. Scenario
 
-### Pha 1: Nền Tảng Backend Batch Engine & Bảo Vệ Dữ Liệu 10/10
-- [ ] **Task 1.1:** Xây dựng `dashboard/services/qaBatchFixerService.js`:
-  - `normalizePath`, `normalizeNewlines`, `createFindingKey`, `resolveSafeBatchTarget`.
-  - `getGlobalMaxTestCaseNumber` quét có phạm vi (`tests/e2e/`, `tests/api/`, `requirements/`, `test-cases/`), loại trừ `tests/dashboard*`.
-  - `applyBottomUpPatches` sử dụng `lines.splice()`, cấm `string.replace()`.
-  - `CompoundLineTransformer` với thứ tự chuẩn hóa: De-skip $\rightarrow$ TC Title $\rightarrow$ Tag REQ.
-  - Regex mở rộng `/(^|[\s;]+)(?<!await\s+)(expect(?:\.soft)?\s*\()/g`.
-  - `stageAndCommitBatch` có manifest `modified`/`created`, Stale Check an toàn cho file mới, gắn `findingKeys` vào từng file.
-  - `rollbackBatchSession` hỗ trợ đọc trực tiếp `manifest.json` trên đĩa khi mất RAM cache, cập nhật status bền vững.
-  - `reconcileAnalysesToPlan` gom nhóm kết quả phân tích AI và phát hiện xung đột cùng dòng.
-- [ ] **Task 1.2:** Tích hợp 4 route mới vào `dashboard/routes/qaRoutes.js`:
-  - `POST /api/qa/finding/batch-heuristic-plan` (trả về `plan` kèm `skippedFindings`).
-  - `POST /api/qa/finding/batch-reconcile-plan` (trả về `plan` kèm `skippedFindings`).
-  - `POST /api/qa/finding/batch-apply` (trả về `appliedFindingKeys` và `skippedFindingKeys`).
-  - `POST /api/qa/finding/batch-rollback` (idempotent rollback).
-- [ ] **Task 1.3:** Viết unit test suite toàn diện `dashboard/services/qaBatchFixerService.test.js`:
-  - Kiểm thử đầy đủ các scenario `BATCH-01..13`, `BATCH-19..20`, `BATCH-23`, `BATCH-25..26`.
+| ID | Cấp | Tình huống | Kỳ vọng |
+| --- | :---: | --- | --- |
+| BATCH-01 | Service | 1 file: thiếu await dòng 10, 25; skip dòng 40 | Cả 3 đúng, không lệch dòng |
+| BATCH-02 | Unit | Dòng 20 và 45 giống hệt nhau, cùng thiếu await | Sửa đúng cả 2 dòng |
+| BATCH-03 | Service | Lập plan lần 2 trên file đã sửa | `ALREADY_FIXED`, không có `await await` |
+| BATCH-04 | Unit | `expect.soft(...)` và expect trải nhiều dòng | Chèn `await` đúng cột ở dòng bắt đầu |
+| BATCH-05 | Unit | `doWork();expect(x).toBeVisible()` | `doWork();await expect(x)…` |
+| BATCH-06 | Unit | Cùng dòng có `expect(a).toBe(1)` và `expect(loc).toBeVisible()` | Chỉ expect bất đồng bộ được thêm `await` |
+| BATCH-07 | Unit | `Promise.all([expect(a).toBeVisible()])` | `IN_EXPRESSION` |
+| BATCH-08 | Service | expect trong `items.forEach(x => expect(…))` (callback không async) | `SYNTAX_INVALID`, file không đổi |
+| BATCH-09 | Service | File CRLF + BOM; file không có newline cuối | Định dạng giữ nguyên; không 409 giả |
+| BATCH-10 | Service | `test.skip(` và `test.fixme(`; chọn unskip; `test.skip(cond, 'lý do')` trong thân test | Mặc định `@wip`; unskip → `test(`; `CONDITIONAL_SKIP` |
+| BATCH-11 | Service | REQ từ traceability; 2 nguồn mâu thuẫn; REQ không tồn tại; quote lồng/escape; template literal; tag option | Tag đúng; `REQ_AMBIGUOUS`; `REQ_NOT_FOUND`; title đúng; `TEMPLATE_TITLE`; `TAG_OPTION_OBJECT` |
+| BATCH-12 | Unit | Cùng finding lặp qua 4 project | 1 key, `occurrences = 4`, 1 bản vá |
+| BATCH-13 | API | Gửi key có route `manual`/`scaffold`/`autofix` | `skipped` với `nextAction` đúng |
+| BATCH-14 | API | Key không còn trong lần quét mới nhất | `skipped` `NOT_IN_LATEST_SCAN` |
+| BATCH-15 | API | Apply một phần các key | `appliedFindingKeys`, `notApplied` đúng; file ngoài danh sách không đổi |
+| BATCH-16 | API | Sửa file sau khi lập plan | 409 `STALE_FILES`, không file nào đổi |
+| BATCH-17 | API | Apply với revision cũ | 409 `REVISION_STALE` |
+| BATCH-18 | API | 2 request apply đồng thời cùng session | 1 thành công, 1 nhận 409 |
+| BATCH-19 | API | 2 session khác nhau cùng file, apply lần lượt | Session sau 409 `STALE_FILES` |
+| BATCH-20 | Service | Lỗi ghi ở file 4/5 | 500 `restored: true`; 3 file đầu byte-identical với ban đầu; manifest `FAILED` |
+| BATCH-21 | Service | Manifest `APPLYING` + file tạm còn sót (giả lập process chết) | Request đầu tiên phục hồi; `batch-last` báo `RECOVERED` |
+| BATCH-22 | API | Rollback 2 lần | Lần 1 khôi phục/xoá đúng; lần 2 200 `alreadyRolledBack` |
+| BATCH-23 | API | Rollback sau khi file bị sửa | 409 `ROLLBACK_CONFLICT`; với `forceFiles` → sao lưu rồi khôi phục |
+| BATCH-24 | API | Rollback session không phải mới nhất | 409 `NOT_LATEST_BATCH` |
+| BATCH-25 | Service | Rollback khi RAM trống (server khởi động lại) | Đọc manifest, khôi phục thành công |
+| BATCH-26 | API | `where` chứa `..`/ổ đĩa/đường dẫn tuyệt đối; body > 200 key | `PATH_REJECTED`; 400 |
+| BATCH-27 | API | Session quá 15 phút | 404 `SESSION_NOT_FOUND` |
+| BATCH-28 | Service | Commit session thứ 21 | Snapshot cũ nhất bị xoá |
+| BATCH-29 | E2E | Master checkbox tri-state với filter | Đúng quy tắc mục 6.1; mục ẩn không đổi; "M đang ẩn" đúng |
+| BATCH-30 | E2E | Hành động từng dòng theo route | Checkbox và nút đúng bảng mục 6.1; nút mở đúng modal/tài liệu |
+| BATCH-31 | E2E | Chọn 3 mục → đổi filter → Làm mới; sau đó key đổi do file đổi | Vẫn tick; key mất thì prune + thông báo |
+| BATCH-32 | E2E | Bỏ tick 1 bản vá trong modal rồi Apply; đổi chế độ skip khi `batch-input` đang chờ | Chỉ phần còn lại được áp dụng; mục bỏ tick vẫn được chọn trong list; Apply disabled khi đang chờ |
+| BATCH-33 | E2E | Double-click Apply; Esc khi đang apply; đóng modal khi đã đổi lựa chọn | 1 request duy nhất; modal không đóng khi apply; hỏi xác nhận khi có lựa chọn chưa áp dụng |
+| BATCH-34 | E2E | 409 `STALE_FILES` | Banner + "Lập lại kế hoạch" hoạt động |
+| BATCH-35 | E2E | Apply → result bar → đóng bar → "Hoàn tác batch gần nhất" | Bar hiện ngay; "Quét lại" đúng; hoàn tác đưa file về byte-identical, selection khôi phục |
+| BATCH-36 | E2E | Apply rồi Undo khi đang quét lại | Chỉ kết quả quét mới nhất được render |
+| BATCH-37 | E2E | Rời view khi `batch-plan` đang chờ | 0 lỗi console; không cập nhật DOM sau unmount |
+| BATCH-38 | E2E | 20 vòng mount/unmount tab QA | Số listener/disposer không tăng |
+| BATCH-39 | E2E | 1920×1080, 1440×900, 1280px, 390×844 × Light/Dark | Không tràn ngang, không chữ bị cắt, focus nhìn thấy được; DOM không có `undefined`/`null`/`TODO`; 0 lỗi/cảnh báo console |
+| BATCH-40 | E2E | Guided: chọn AC, apply, quét lại | Không phát sinh `script-khong-co-trong-test-case`, `test-thieu-tag-req`, `test-tro-toi-ac-khong-ton-tai` |
+| BATCH-41 | Service | 2 session guided lập plan song song | Không cấp trùng TC; apply sau khi TC bị chiếm → 409 `TC_TAKEN` |
+| BATCH-42 | Unit | Max hiện tại là TC-999 | `TC_OVERFLOW` |
+| BATCH-43 | Service | REQ không có file test-cases chứa `## Traceability` | `NO_TRACEABILITY_TABLE` |
+| BATCH-44 | E2E | Bấm "Sửa lỗi" trên 1 dòng `quick` → áp dụng → hoàn tác | Modal có đúng 1 card; file đổi đúng 1 chỗ; hoàn tác về byte-identical; không có request nào tới AI provider |
+| BATCH-45 | API | `GET /api/qa/finding/context` với key hợp lệ / file ngoài root / finding không có file; gọi route cũ `ai-analyze-fix`, `apply-fix` | Excerpt ±15 dòng / 403 / 200 `file: null`; route cũ 404 |
 
-### Pha 2: Giao Diện Người Dùng & Tương Tác (UI/UX)
-- [ ] **Task 2.1:** Cập nhật `dashboard/public/templates/qa.html`:
-  - Bổ sung `Batch Action Toolbar` với Segmented Filter Chips và Checkbox Indeterminate.
-  - Bổ sung modal `#qa-batch-modal` với Collapsible File Accordion, Banner `skippedFindings` và Diff Viewer chuẩn gutter.
-  - Bổ sung Floating Action Bar `#qa-batch-undo-bar` nội bộ trong QA View.
-- [ ] **Task 2.2:** Xây dựng `dashboard/public/js/views/qa/batchFixerHelper.js`:
-  - Quản lý `selectedFindingKeys` bằng `Set` độc lập với DOM.
-  - Gán ID checkbox kèm index `qa-finding-check-${index}` và `data-finding-key` chống trùng ID.
-  - Quản lý Indeterminate Tri-State logic và đồng bộ trạng thái khi re-render.
-  - Quản lý hàng đợi Tuyến 2 (AI Chunk Queue) kèm `AbortController` và gộp target location.
-  - Quản lý Floating Undo Bar (10s countdown, hover-pause, idempotent rollback, hủy timer cũ).
-  - Quản lý vòng đời `disposers` (`OWN-01..05`).
-- [ ] **Task 2.3:** Tích hợp `batchFixerHelper` vào `qaSlice.js`:
-  - Khởi tạo trong `mount()`, dọn dẹp sạch sẽ trong `unmount()`.
-  - Đồng bộ `selectedFindingKeys` trong hàm `renderFindings()`.
-  - Cập nhật nhãn động trên Action Toolbar.
-- [ ] **Task 2.4:** Tích hợp Selective Modal Commit (chỉ xóa `appliedFindingKeys`, giữ lại `skippedFindingKeys`).
+### 8.3. Ánh xạ gate scenarios
 
-### Pha 3: Nghiệm Thu Gate 4 & Bàn Giao
-- [ ] **Task 3.1:** Chạy toàn bộ test suites (`npm test`, `npm run test:dashboard:api`, `npm run check:framework`).
-- [ ] **Task 3.2:** Kiểm thử thực tế trên toàn bộ 13 findings hiện tại của dự án:
-  - Thử nghiệm sửa nhanh lỗi Blocker `khong-doc-duoc-requirement` và kiểm tra việc tạo file `requirements/REQ-001-general.md`.
-  - Thử nghiệm nút Hoàn tác để xác nhận file mới được xóa sạch 100%.
-  - Thử nghiệm Context-Aware allocator trên `test-khong-co-ma-tc` đảm bảo các finding thiếu REQ context được đưa vào Banner Skipped an toàn, không phát sinh lỗi cascade `script-khong-co-trong-test-case`.
-- [ ] **Task 3.3:** Cập nhật tài liệu kỹ thuật và đóng Quality Gate 4.
+| Gate | Bằng chứng |
+| --- | --- |
+| ASYNC-01 | Đổi lựa chọn khi `batch-input` đang chờ → Apply disabled; lựa chọn mới nhất được giữ (BATCH-32) |
+| ASYNC-02 | Đổi filter/Làm mới khi `batch-plan` đang chạy → kết quả chỉ mở modal của đúng yêu cầu còn hiệu lực (BATCH-31 mở rộng) |
+| ASYNC-03 | BATCH-17, 36 |
+| ASYNC-04 | BATCH-20, 34 |
+| ASYNC-05 | UI chỉ báo thành công sau 200 và manifest `COMMITTED` (BATCH-15, 35) |
+| OWN-01..05 | BATCH-37, 38 + unit test disposer của `batchController` (đăng ký 2 lần, dispose 2 lần, disposer cũ không gỡ đăng ký mới) |
+| UI-01..05 | BATCH-29, 30, 33, 39; UI-05: đóng modal khi có lựa chọn chưa áp dụng phải xác nhận (BATCH-33) |
+| LIFE-01 | BATCH-35, 40, 44: UI → server → file thật → scanner quét lại |
 
 ---
 
-## 8. Phiếu Duyệt & Lệnh Thực Thi (Review & Sign-Off)
+## 9. Kế Hoạch Triển Khai (Ước Lượng ~11 Ngày Công)
 
-*Bản kế hoạch v5 đã được nâng cấp toàn diện lên chuẩn **10/10 Bulletproof Production-Grade**, bịt kín toàn bộ 28 rủi ro kỹ thuật, nghiệp vụ truy vết và an toàn giao dịch nguyên tử. Kế hoạch đã sẵn sàng để thực thi ngay.*
+### Phase 0 — Chuẩn bị (0.5 ngày + sửa lỗi chặn)
+
+- [x] 0.0 **Điều kiện tiên quyết (commit `3d36afe`, ngoài PLAN-18):** tách `RESERVED_FIXTURE_NAMES` ra `core/fixtures/reservedFixtureNames.js` để bỏ vòng `require`; loader custom fixture thôi quét file `.js` ở gốc dự án; thêm `core/fixtures/fixtureLoadOrder.test.js`. Bằng chứng: `node --test core/fixtures/*.test.js` 31/31; `playwright test --list` 12 test, không cảnh báo fixture; `sample_cleanup_fixture.spec.js` pass; `npm run check:framework` pass; `node tools/qa/index.js summary --json` liệt kê finding cấp test.
+- [ ] 0.0b `core/generator/objectRepository.js` dùng chung `reservedFixtureNames.js` (bản riêng thiếu `circuitBreakerGuard`). Code đã sẵn nhưng pre-commit hook chặn vì file 1240 dòng > giới hạn 250 (nợ có từ trước) — chờ quyết định: exemption có lý do hoặc tách module.
+- [ ] 0.1 PO/BA chốt 4 quyết định còn mở ở mục 11.
+- [ ] 0.2 Soạn contract PLAN-18 trong `.delivery/phases/` (AC/TC theo mục 8), gửi BA duyệt hash. Không tự duyệt.
+- [ ] 0.3 Chạy baseline, ghi lại các test đang fail sẵn: `node --test dashboard/services/*.test.js tools/qa/lib/*.test.js`, `npm run test:dashboard:api`, `npx playwright test -c playwright.dashboard.config.js`, `npm run check:framework`.
+- [ ] 0.4 Seed fixture batch trong `tests/dashboard/support/`.
+- **Exit:** scanner đọc được test; contract đã nộp duyệt; baseline được ghi vào plan.
+
+### Phase 1 — Nền tảng dùng chung (1.5 ngày)
+
+- [ ] 1.1 `findMissingAwaits` trả `column` + test.
+- [ ] 1.2 `qaFindingCatalog.js`; `getQaSummary` enrich + `findingsIndex` + `scanId` + test.
+- [ ] 1.3 `qaFixText.js`, `qaFixValidate.js` + test.
+- **Exit:** unit test PASS; `tests/dashboard-api/qa.test.js` PASS; modularity audit không có vi phạm mới. Luồng từng dòng cũ chưa bị động tới (giữ `main` luôn chạy được).
+
+### Phase 2 — Batch engine (2.5 ngày)
+
+- [ ] 2.1 `qaBatchSessionStore.js` (state machine, TTL, lock); `/api/qa/fix` đi qua `withWriteLock`.
+- [ ] 2.2 `qaBatchPlanService.js` (3 kind `quick`, skipped, cards, `batch-input` cho `skipMode`).
+- [ ] 2.3 `qaBatchCommitService.js` (stale check, snapshot, file tạm + rename, manifest, 500 `restored`).
+- [ ] 2.4 `qaBatchRollbackService.js` (`postHash`, `forceFiles`, `NOT_LATEST_BATCH`, phục hồi, retention, `batch-last`).
+- [ ] 2.5 `qaBatchRoutes.js` (gồm `GET /api/qa/finding/context`) + đăng ký trong `server.js`.
+- [ ] 2.6 Test service + API: BATCH-01..28.
+- **Exit:** BATCH-01..28 PASS; `npm run test:dashboard:api` PASS; sau rollback, fixture byte-identical với trạng thái trước apply.
+
+### Phase 3 — UI + thay luồng AI từng dòng (3.5 ngày)
+
+- [ ] 3.1 Markup `qa.html` + `qa.css`: toolbar, `#qa-batch-modal`, `#qa-batch-result-bar`, `#qa-finding-detail-modal` (thay `#qa-finding-fix-modal`).
+- [ ] 3.2 `selectionModel`, `batchToolbar`, `batchDiffView`, `batchPreviewModal`, `batchResultBar`, `batchController` (gồm `fixOne`), `findingDetailModal`.
+- [ ] 3.3 `qaSlice.js`: mount/unmount, sequence guard + `scanPending` trong `reload()`, delegation, gộp dòng, hành động từng dòng theo bảng mục 6.1.
+- [ ] 3.4 Xoá luồng AI cũ trong cùng commit với 3.3: `findingFixerHelper.js`, route `ai-analyze-fix` + `apply-fix`, các hàm AI/heuristic/apply trong `qaFindingFixerService.js`; viết lại `qaFindingFixerService.test.js` và test `ai-analyze-fix` trong `tests/dashboard-api/qa.test.js`.
+- [ ] 3.5 E2E + API: BATCH-29..39, 44, 45.
+- **Exit:** E2E PASS; ảnh chụp 4 viewport × 2 theme đã soát; 0 lỗi console; `node --check` các file FE mới PASS; tìm trong `dashboard/` không còn `ai-analyze-fix`, `analyzeWithAiFix`, `apply-fix`.
+
+### Phase 4 — Tuyến `guided` gán TC (2 ngày, có thể phát hành sau)
+
+- [ ] 4.1 Catalog: `test-khong-co-ma-tc` → `guided`; chip "Cần chọn AC".
+- [ ] 4.2 Plan: gọi `collect()` khi có mục guided; danh sách AC của REQ; giữ chỗ TC; vá title + tag + dòng traceability (định dạng của [fixer.js:121](../tools/qa/lib/fixer.js#L121)); `batch-input { acId }`.
+- [ ] 4.3 Modal: dropdown AC từng mục, badge "Truy vết".
+- [ ] 4.4 BATCH-40..43.
+- **Exit:** PASS; trên fixture không phát sinh cascade sau khi quét lại.
+
+### Phase 5 — Gate 4 & bàn giao (1 ngày)
+
+- [ ] 5.1 Chạy toàn bộ: service tests, `tools/qa` tests, `npm run test:dashboard:api`, dashboard E2E, `npm run check:framework`, `npm run check:dashboard-features`, modularity audit.
+- [ ] 5.2 Xuất JUnit với test ID ổn định → `python .master_process/scripts/record-gate-run.py` → `master.ps1 gate`; chạy lại độc lập các test critical trên cùng commit SHA.
+- [ ] 5.3 Trên repo thật: chỉ dùng **xem trước** để xác nhận phân tuyến các finding hiện có; apply/hoàn tác chỉ trên fixture hoặc khi working tree sạch.
+- [ ] 5.4 `npm run sync:satellites` (có thay đổi `tools/qa` và `dashboard`); mở tab QA trên 1 satellite, xác nhận không lỗi.
+- [ ] 5.5 Cập nhật `AI_LESSONS.md` nếu có bài học đã xác nhận; ghi candidate vào `.ai/learning/candidates.md`; cập nhật plan này với bằng chứng chạy thật (lệnh + kết quả) như PLAN-16 mục 7.
+- **Exit:** `master.ps1 gate` PASS với contract đã duyệt; có reviewer độc lập.
+
+---
+
+## 10. Định Nghĩa Hoàn Thành (Definition of Done)
+
+- [ ] BATCH-01..45 PASS, test ID ổn định trong JUnit (BATCH-40..43 chỉ bắt buộc khi phát hành Phase 4).
+- [ ] 4 nhóm ASYNC / OWN / UI / LIFE có bằng chứng theo mục 8.3.
+- [ ] Không bản vá nào ghi REQ/AC/TC không suy ra được (BATCH-11, 13, 40).
+- [ ] Luồng sửa finding không gọi AI provider; không còn route `ai-analyze-fix`, `apply-fix` (BATCH-44, 45).
+- [ ] Rollback trên fixture cho kết quả byte-identical.
+- [ ] Không vi phạm modularity mới; file mới không dùng `master-process-disable-size-check`.
+- [ ] 4 viewport × 2 theme đã kiểm; 0 lỗi/cảnh báo console; không có text debug trên UI.
+- [ ] Satellites đã sync.
+- [ ] Contract được BA duyệt hash; `master.ps1 gate` PASS; có review độc lập.
+
+---
+
+## 11. Quyết Định
+
+| # | Quyết định | Trạng thái | Ảnh hưởng nếu không duyệt |
+| --- | --- | --- | --- |
+| D1 | Bỏ AI khỏi toàn bộ luồng sửa finding; nút "AI Sửa Lỗi" thay bằng "Sửa lỗi" (dùng chung engine) và "Xem hướng dẫn" | **Đã chốt 2026-09-25** | — |
+| D2 | `test-bi-skip-am-tham` mặc định gắn `@wip`; "Kích hoạt lại" là lựa chọn từng mục | Chờ duyệt (đề xuất: đồng ý) | Nguy cơ làm đỏ CI hàng loạt |
+| D3 | Bản vá guided (gán TC) mặc định không tick | Chờ duyệt (đề xuất: đồng ý) | Mã TC/AC được ghi mà không ai xem |
+| D4 | Chỉ hoàn tác được batch gần nhất; không đếm ngược | Chờ duyệt (đề xuất: đồng ý) | Phải thiết kế thêm lịch sử batch và xử lý xung đột chồng lớp |
+| D5 | Phase 4 (guided) có thể phát hành sau Phase 1–3 | Chờ duyệt (đề xuất: đồng ý) | Thêm ~2 ngày vào lần phát hành đầu |
+
+---
+
+## 12. Rủi Ro Còn Lại
+
+- `getQaSummary` quét đồng bộ ~5s và chặn event loop (đã có từ trước). `batch-apply`/`batch-rollback` gửi trong lúc quét sẽ chờ tới khi quét xong. UI hiển thị trạng thái chờ; việc chuyển sang quét bất đồng bộ nên tách thành plan riêng.
+- Các trình ghi file khác của Dashboard (spec editor, Page Manager) không dùng write lock; xung đột chỉ được phát hiện qua hash (409 khi apply/rollback).
+- `vm.Script` chỉ kiểm cú pháp, không phát hiện lỗi runtime (vd. biến không tồn tại).
+- Người dùng quen nút "AI Sửa Lỗi" sẽ thấy nút đổi thành "Sửa lỗi" / "Xem hướng dẫn"; các kind không sửa tự động được (vd. `spec-thieu-assertion`) giờ chỉ có hướng dẫn và đoạn mã, người dùng tự sửa trong editor.
+- Satellite có thể có nhiều `spec-thieu-assertion` hơn repo này. Nếu sau này thật sự cần AI cho loại này, làm plan riêng với các rào chắn: không fallback, hậu kiểm phạm vi và cú pháp, chặn assertion hiển nhiên, mặc định không tick.
