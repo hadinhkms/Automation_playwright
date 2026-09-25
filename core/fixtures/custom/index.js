@@ -1,8 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Import từ baseTest làm single source of truth — tránh duplicate và drift
-const { RESERVED_FIXTURE_NAMES } = require('../baseTest');
+// Single source of truth dùng chung với baseTest.js. Không require '../baseTest' ở đây:
+// baseTest.js require file này nên sẽ thành vòng và RESERVED_FIXTURE_NAMES là undefined.
+const { RESERVED_FIXTURE_NAMES } = require('../reservedFixtureNames');
 
 /**
  * Dynamic Custom Fixtures Loader
@@ -87,10 +88,9 @@ function loadCustomFixtures(customDirOrRootDir = process.cwd()) {
       if (fs.existsSync(canonicalDir) || fs.existsSync(legacyDir)) {
         scanDir(canonicalDir, true);
         scanDir(legacyDir, false);
-      }
-
-      // Nếu customDirOrRootDir là một thư mục test tạm thời độc lập (không phải canonical/legacy)
-      if (customDirOrRootDir !== canonicalDir && customDirOrRootDir !== legacyDir) {
+      } else {
+        // Thư mục fixture độc lập (vd. thư mục tạm của test): quét chính nó.
+        // Không quét gốc dự án, nếu không mọi file .js ở gốc (playwright.config.js...) bị nạp như fixture.
         scanDir(customDirOrRootDir, true);
       }
     }
