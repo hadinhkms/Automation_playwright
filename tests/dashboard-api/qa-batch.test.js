@@ -130,7 +130,7 @@ describe('API Contract: QA batch fixer (PLAN-18)', () => {
     }
   });
 
-  test('GET context trả đoạn mã quanh finding; finding thư mục trả file null', async () => {
+  test('GET context trả đoạn mã ±15 dòng quanh finding', async () => {
     const s = await summary();
     const res = await get(`/api/qa/finding/context?findingKey=${keyAt(s, 'assertion-thieu-await', `${LOGIN}:6`)}`);
     assert.equal(res.status, 200);

@@ -129,6 +129,41 @@ test.describe('QA: sửa static finding hàng loạt (PLAN-18)', () => {
     await expect(check(page, `${LOGIN}:6`)).toBeChecked();
   });
 
+  test('đổi cách xử lý khi batch-input đang chờ: modal khoá, bản vá đã bỏ tick vẫn giữ, đóng thì hỏi và không ghi file (BATCH-33)', async ({ page }) => {
+    await openFindings(page, harness.url);
+    for (const line of [6, 7, 11]) await check(page, `${LOGIN}:${line}`).check();
+    await page.locator('#qa-batch-preview').click();
+    const modal = page.locator('#qa-batch-modal');
+    const apply = page.locator('#qa-batch-modal-apply');
+    const line7 = modal.locator('.qa-batch-patch', { hasText: 'dòng 7' }).locator('input[type=checkbox]');
+    await line7.uncheck();
+
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    await page.route('**/api/qa/finding/batch-input', async (route) => {
+      await gate;
+      await route.continue();
+    });
+    await modal.getByRole('radio', { name: 'Kích hoạt lại' }).check();
+    await expect(apply).toBeDisabled();
+    await expect(line7).toBeDisabled();
+    const response = page.waitForResponse('**/api/qa/finding/batch-input');
+    release();
+    expect((await response).status()).toBe(200);
+
+    await expect(modal.locator('.qa-badge', { hasText: 'Đổi hành vi' })).toBeVisible();
+    await expect(line7).toBeEnabled();
+    await expect(line7).not.toBeChecked();
+    await expect(apply).toHaveText('Áp dụng 2 bản vá (1 file)');
+
+    await page.keyboard.press('Escape');
+    const confirm = page.locator('#qa-batch-confirm');
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole('button', { name: 'Bỏ và đóng' }).click();
+    await expect(modal).toBeHidden();
+    expect(read(fixture.rootPath, LOGIN)).toBe(original);
+  });
+
   test('file đổi sau khi xem trước: báo lỗi kèm file, lập lại kế hoạch rồi áp dụng được (BATCH-34)', async ({ page }) => {
     await openFindings(page, harness.url);
     await rowAt(page, `${LOGIN}:6`).getByRole('button', { name: 'Sửa lỗi' }).click();

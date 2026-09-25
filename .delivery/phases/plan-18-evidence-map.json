@@ -1,0 +1,1460 @@
+{
+  "schema_version": 1,
+  "phase": "plan-18",
+  "contract": ".delivery/phases/plan-18.json",
+  "implementation": {
+    "actor": "claude-implementation",
+    "session": "plan18-impl"
+  },
+  "regression_default": {
+    "status": "NOT_FEASIBLE",
+    "reason": "Hành vi mới do PLAN-18 bổ sung: revision trước PLAN-18 không có API/UI batch nên test không có đối tượng để tái hiện lỗi; test được viết cùng tính năng."
+  },
+  "design": {
+    "async_state": {
+      "capture_identity": {
+        "path": "dashboard/public/js/views/qa/batch/batchController.js",
+        "snippet": "const seq = ++this.seq;"
+      },
+      "completion_guard": {
+        "path": "dashboard/public/js/views/qa/batch/batchController.js",
+        "snippet": "if (!this.alive || seq !== this.seq) return;"
+      }
+    },
+    "ownership_lifecycle": {
+      "registration_identity": {
+        "path": "dashboard/public/js/views/qa/batch/batchController.js",
+        "snippet": "const { modal, result, detail } = this;"
+      },
+      "disposer_guard": {
+        "path": "dashboard/public/js/views/qa/batch/batchPreviewModal.js",
+        "snippet": "if (this.disposed) return;"
+      }
+    },
+    "router_ui": {
+      "registry": {
+        "path": "dashboard/services/qaFindingCatalog.js",
+        "snippet": "const FIX_ROUTES"
+      },
+      "navigation": {
+        "path": "dashboard/public/js/views/qa/batch/batchController.js",
+        "snippet": "if (action === 'fix') this.preview([key]);"
+      },
+      "inventory": {
+        "path": "_Plan_implement/18_QA_STATIC_FINDINGS_BATCH_PROCESSING_PLAN.md",
+        "origin": "approved_spec",
+        "derivation": "Bảng 'Hành động trên từng dòng' (mục 6.1) và bảng routing (mục 4) của PLAN-18; E2E BATCH-29 so DOM thật với số dòng/checkbox/nút viết tay theo bảng này cho fixture batchFixtureSeed, không đọc từ FIX_ROUTES."
+      }
+    },
+    "lifecycle_integration": {
+      "public_entrypoint": {
+        "path": "dashboard/routes/qaBatchRoutes.js",
+        "snippet": "'POST batch-apply': (root, body) => commitPlan(root, body),"
+      }
+    }
+  },
+  "cases": {
+    "P18-TC-01": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaFindingCatalog.test.js",
+      "test": "enrichFindings: gộp finding lặp theo project, giữ thứ tự, gắn key/route (BATCH-12)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(out.length, 2);",
+          "observable": "6 finding lặp chỉ còn 2 mục"
+        },
+        {
+          "snippet": "assert.equal(out[0].occurrences, 4);",
+          "observable": "số lần lặp theo project được ghi lại"
+        },
+        {
+          "snippet": "assert.equal(out[0].fixRoute, 'quick');",
+          "observable": "route do catalog gắn"
+        },
+        {
+          "snippet": "assert.equal(out[0].findingKey, createFindingKey(AWAIT));",
+          "observable": "findingKey do server tính, ổn định"
+        }
+      ]
+    },
+    "P18-TC-02": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaFindingCatalog.test.js",
+      "test": "routeFor: 3 kind quick, các kind có công cụ sẵn, còn lại là manual",
+      "assertions": [
+        {
+          "snippet": "assert.equal(routeFor('assertion-thieu-await'), 'quick');",
+          "observable": "kind quick"
+        },
+        {
+          "snippet": "assert.equal(routeFor('khong-doc-duoc-requirement'), 'scaffold');",
+          "observable": "kind có công cụ Scaffold"
+        },
+        {
+          "snippet": "assert.equal(routeFor('script-khong-co-trong-test-case'), 'autofix');",
+          "observable": "kind có công cụ Auto-Fix"
+        },
+        {
+          "snippet": "assert.equal(routeFor('kind-chua-tung-thay'), 'manual');",
+          "observable": "kind lạ rơi về manual"
+        }
+      ]
+    },
+    "P18-TC-03": {
+      "run": "plan18-node",
+      "entrypoint": "public_api",
+      "source": "tests/dashboard-api/qa-batch.test.js",
+      "test": "GET /api/qa/summary trả finding đã gộp, có findingKey + fixRoute + scanId",
+      "assertions": [
+        {
+          "snippet": "assert.ok(Number.isInteger(body.scanId));",
+          "observable": "response có scanId"
+        },
+        {
+          "snippet": "assert.equal(awaits.length, 3);",
+          "observable": "3 finding await sau khi gộp 2 project"
+        },
+        {
+          "snippet": "f.fixRoute === 'quick' && f.occurrences === 2",
+          "observable": "mỗi finding có key hex, route quick, occurrences 2"
+        }
+      ]
+    },
+    "P18-TC-04": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchPlan.test.js",
+      "test": "await: vá đúng cột kể cả dòng trùng, soft, cùng dòng với expect đồng bộ, nhiều dòng (BATCH-02, 04, 05, 06)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(at(6), \"    await expect(page.locator('#a')).toBeVisible();\");",
+          "observable": "dòng trùng nội dung vẫn vá đúng dòng"
+        },
+        {
+          "snippet": "assert.equal(at(7), \"    await expect.soft(",
+          "observable": "expect.soft được chèn await"
+        },
+        {
+          "snippet": "assert.equal(at(8), \"    doWork();expect(1).toBe(1); await expect(",
+          "observable": "chỉ chèn trước expect bất đồng bộ, đúng cột"
+        },
+        {
+          "snippet": "'IN_EXPRESSION');",
+          "observable": "expect trong biểu thức bị bỏ qua"
+        },
+        {
+          "snippet": "'SYNTAX_INVALID');",
+          "observable": "bản vá làm hỏng cú pháp bị chặn"
+        },
+        {
+          "snippet": "assert.equal(ws.read(AWAIT_REL), AWAIT_SPEC, 'lập kế hoạch không ghi file');",
+          "observable": "file trên đĩa không đổi khi lập kế hoạch"
+        }
+      ]
+    },
+    "P18-TC-05": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchPlan.test.js",
+      "test": "skip: mặc định @wip, xử lý cả fixme; title xuống dòng bị bỏ qua; đổi sang kích hoạt lại qua batch-input (BATCH-10)",
+      "assertions": [
+        {
+          "snippet": "\"  test.skip('TC-001 - AC-001 tạm tắt @wip', async () => {});\");",
+          "observable": "mặc định gắn @wip"
+        },
+        {
+          "snippet": "\"  test.fixme('TC-003 - AC-003 đang sửa @wip'",
+          "observable": "test.fixme cũng được gắn @wip"
+        },
+        {
+          "snippet": "'TITLE_NOT_ON_LINE');",
+          "observable": "title xuống dòng bị bỏ qua"
+        },
+        {
+          "snippet": "assert.equal(patch.risk, 'behavior');",
+          "observable": "kích hoạt lại được đánh dấu đổi hành vi"
+        },
+        {
+          "snippet": "\"  test('TC-001 - AC-001 tạm tắt', async () => {});\");",
+          "observable": "kích hoạt lại gỡ .skip"
+        },
+        {
+          "snippet": "{ code: 'REVISION_STALE' });",
+          "observable": "revision cũ bị từ chối"
+        }
+      ]
+    },
+    "P18-TC-06": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaFixValidate.test.js",
+      "test": "validateSyntax: await trong callback không async bị chặn (BATCH-08)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(res.ok, false);",
+          "observable": "bản vá bị từ chối"
+        },
+        {
+          "snippet": "assert.equal(res.reasonCode, 'SYNTAX_INVALID');",
+          "observable": "lý do SYNTAX_INVALID"
+        }
+      ]
+    },
+    "P18-TC-07": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaFixText.test.js",
+      "test": "parse/serialize: giữ nguyên byte cho LF, CRLF + BOM, lẫn EOL, file rỗng (BATCH-09)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(serializeDocument(parseDocument(content)), content, name);",
+          "observable": "mọi mẫu EOL/BOM giữ nguyên byte"
+        }
+      ]
+    },
+    "P18-TC-08": {
+      "run": "plan18-node",
+      "entrypoint": "public_api",
+      "source": "tests/dashboard-api/qa-batch.test.js",
+      "test": "plan -> đổi lựa chọn -> apply -> quét lại -> rollback -> rollback lần 2 (200 cả luồng)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(applyRes.status, 200);",
+          "observable": "server xác nhận ghi thành công"
+        },
+        {
+          "snippet": "assert.equal(lines[5], \"    await expect(page.locator('#home')).toBeVisible();\");",
+          "observable": "file thật được chèn await"
+        },
+        {
+          "snippet": "assert.equal(lines[10], \"  test('TC-003 - AC-003 chặn trang riêng', async ({ page }) => {\");",
+          "observable": "test được kích hoạt lại theo lựa chọn"
+        },
+        {
+          "snippet": "assert.ok(after.scanId > before.scanId);",
+          "observable": "scanner quét lại thật"
+        },
+        {
+          "snippet": "assert.ok(!after.findings.some((f) => f.findingKey === awaitKey || f.findingKey === skipKey));",
+          "observable": "finding đã sửa biến mất"
+        },
+        {
+          "snippet": "assert.equal(last.latest.status, 'COMMITTED');",
+          "observable": "manifest được ghi nhận COMMITTED"
+        }
+      ]
+    },
+    "P18-TC-09": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchPlan.test.js",
+      "test": "REQ: gắn lên describe, test ngoài describe, mọi lý do bỏ qua (BATCH-11)",
+      "assertions": [
+        {
+          "snippet": "\"test.describe('Đăng nhập sai @REQ-001', () => {\");",
+          "observable": "tag gắn lên describe"
+        },
+        {
+          "snippet": "ngoài describe @REQ-001'",
+          "observable": "test ngoài describe được gắn trực tiếp"
+        },
+        {
+          "snippet": "'DESCRIBE_MIXED_REQ');",
+          "observable": "describe lẫn REQ bị bỏ qua"
+        },
+        {
+          "snippet": "'REQ_UNKNOWN');",
+          "observable": "REQ không tồn tại bị bỏ qua"
+        },
+        {
+          "snippet": "'REQ_AMBIGUOUS');",
+          "observable": "REQ mơ hồ bị bỏ qua"
+        },
+        {
+          "snippet": "'REQ_NOT_FOUND');",
+          "observable": "không suy ra được REQ thì bỏ qua"
+        }
+      ]
+    },
+    "P18-TC-10": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchPlan.test.js",
+      "test": "route không tự động, key đã cũ, đường dẫn thoát project, body sai (BATCH-13, 14, 26)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(res.cards.length, 0);",
+          "observable": "không có bản vá nào"
+        },
+        {
+          "snippet": "assert.deepEqual(byKind['spec-thieu-assertion'].nextAction, { type: 'detail' });",
+          "observable": "manual → xem hướng dẫn"
+        },
+        {
+          "snippet": "assert.deepEqual(byKind['ma-tc-trung'].nextAction, { type: 'openDoc', target: 'test-cases/REQ-001.md' });",
+          "observable": "ma-tc-trung → mở tài liệu"
+        },
+        {
+          "snippet": "'PATH_REJECTED');",
+          "observable": "đường dẫn thoát project bị chặn"
+        },
+        {
+          "snippet": "'NOT_IN_LATEST_SCAN');",
+          "observable": "key cũ bị bỏ qua"
+        },
+        {
+          "snippet": "{ status: 400, code: 'INVALID_BODY' });",
+          "observable": "body sai trả 400"
+        }
+      ]
+    },
+    "P18-TC-11": {
+      "run": "plan18-node",
+      "entrypoint": "public_api",
+      "source": "tests/dashboard-api/qa-batch.test.js",
+      "test": "plan -> đổi lựa chọn -> apply -> quét lại -> rollback -> rollback lần 2 (200 cả luồng)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(plan.totals.patches, 2);",
+          "observable": "chỉ 2 bản vá cho 2 finding quick"
+        },
+        {
+          "snippet": "assert.equal(plan.skipped[0].reasonCode, 'MANUAL_ROUTE');",
+          "observable": "finding manual bị bỏ qua có lý do"
+        },
+        {
+          "snippet": "assert.equal(read(LOGIN), original, 'lập kế hoạch không ghi file');",
+          "observable": "file không đổi"
+        }
+      ]
+    },
+    "P18-TC-12": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchCommit.test.js",
+      "test": "áp dụng một phần, giữ BOM/CRLF/không newline cuối, manifest COMMITTED, chạy lại thì ALREADY_FIXED (BATCH-01, 03, 09, 15)",
+      "assertions": [
+        {
+          "snippet": "assert.deepEqual(res.notApplied, []);",
+          "observable": "mọi bản vá được tick đều ghi"
+        },
+        {
+          "snippet": "'bản vá không tick thì không ghi');",
+          "observable": "bản vá không tick không được ghi"
+        },
+        {
+          "snippet": "assert.equal(manifest.status, 'COMMITTED');",
+          "observable": "manifest COMMITTED"
+        },
+        {
+          "snippet": "f.postHash && f.baseHash && f.postHash !== f.baseHash",
+          "observable": "manifest có hash trước/sau"
+        },
+        {
+          "snippet": "'ALREADY_FIXED');",
+          "observable": "chạy lại là idempotent"
+        },
+        {
+          "snippet": "assert.ok(!ws.read(A).includes('await await'));",
+          "observable": "không chèn await hai lần"
+        }
+      ]
+    },
+    "P18-TC-13": {
+      "run": "plan18-node",
+      "entrypoint": "public_api",
+      "source": "tests/dashboard-api/qa-batch.test.js",
+      "test": "409 STALE_FILES khi file đổi sau khi lập kế hoạch; 409 REVISION_STALE",
+      "assertions": [
+        {
+          "snippet": "assert.equal(stale.status, 409);",
+          "observable": "revision cũ bị 409"
+        },
+        {
+          "snippet": "assert.equal((await stale.json()).code, 'REVISION_STALE');",
+          "observable": "mã REVISION_STALE"
+        },
+        {
+          "snippet": "assert.equal(body.code, 'STALE_FILES');",
+          "observable": "file đổi → STALE_FILES"
+        },
+        {
+          "snippet": "assert.deepEqual(body.details.files, [LOGIN]);",
+          "observable": "kèm danh sách file"
+        }
+      ]
+    },
+    "P18-TC-14": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchCommit.test.js",
+      "test": "file đổi sau khi lập kế hoạch, revision cũ, hai session cùng file, body sai (BATCH-16, 17, 19)",
+      "assertions": [
+        {
+          "snippet": "err.code === 'STALE_FILES' && err.details.files.includes(A)",
+          "observable": "file stale bị 409 kèm tên"
+        },
+        {
+          "snippet": "assert.equal(ws.read(B), B_SPEC, 'không file nào bị ghi khi có file stale');",
+          "observable": "không ghi file nào"
+        },
+        {
+          "snippet": "{ code: 'REVISION_STALE' });",
+          "observable": "revision cũ bị từ chối"
+        },
+        {
+          "snippet": "{ status: 400, code: 'NO_PATCH_SELECTED' });",
+          "observable": "không chọn bản vá thì 400"
+        },
+        {
+          "snippet": "await assert.rejects(applyAll(ws, second), { status: 409, code: 'STALE_FILES' });",
+          "observable": "session thứ hai cùng file bị 409"
+        },
+        {
+          "snippet": "{ status: 409, code: 'INVALID_STATE' });",
+          "observable": "session đã commit không áp dụng lại"
+        }
+      ]
+    },
+    "P18-TC-15": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchCommit.test.js",
+      "test": "hai request apply đồng thời cùng session: đúng một request thành công (BATCH-18)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);",
+          "observable": "chỉ 1 request thành công"
+        },
+        {
+          "snippet": "assert.equal(rejected.status, 409);",
+          "observable": "request còn lại bị 409"
+        }
+      ]
+    },
+    "P18-TC-16": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchCommit.test.js",
+      "test": "lỗi ghi ở file thứ hai: khôi phục nguyên trạng, manifest FAILED, 500 restored (BATCH-20)",
+      "assertions": [
+        {
+          "snippet": "&& err.code === 'WRITE_FAILED' && err.details.restored === true",
+          "observable": "500 WRITE_FAILED, restored"
+        },
+        {
+          "snippet": "assert.equal(ws.read(A), A_SPEC);",
+          "observable": "file đầu về nguyên trạng"
+        },
+        {
+          "snippet": "assert.equal(ws.read(B), B_SPEC);",
+          "observable": "file lỗi giữ nguyên"
+        },
+        {
+          "snippet": "assert.equal(ws.exists(`${B}.qa-batch-tmp`), false);",
+          "observable": "không còn file tạm"
+        },
+        {
+          "snippet": "status, 'FAILED');",
+          "observable": "manifest FAILED"
+        },
+        {
+          "snippet": "assert.equal(getLatestBatch(ws.root), null);",
+          "observable": "không có batch để hoàn tác"
+        }
+      ]
+    },
+    "P18-TC-17": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchRollback.test.js",
+      "test": "manifest APPLYING còn sót: request đầu tiên trả file về snapshot, xoá file tạm (BATCH-21)",
+      "assertions": [
+        {
+          "snippet": "assert.deepEqual(await recoverInterrupted(ws.root), [sessionId]);",
+          "observable": "batch dở được phục hồi"
+        },
+        {
+          "snippet": "assert.equal(ws.read(A), spec('a'));",
+          "observable": "file về snapshot"
+        },
+        {
+          "snippet": "assert.equal(ws.exists(`${A}.qa-batch-tmp`), false);",
+          "observable": "file tạm bị xoá"
+        },
+        {
+          "snippet": "status, 'RECOVERED');",
+          "observable": "manifest RECOVERED"
+        }
+      ]
+    },
+    "P18-TC-18": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchCommit.test.js",
+      "test": "kế hoạch quá 15 phút thì hết hiệu lực (BATCH-27)",
+      "assertions": [
+        {
+          "snippet": "{ status: 404, code: 'SESSION_NOT_FOUND' });",
+          "observable": "session hết hạn trả 404"
+        }
+      ]
+    },
+    "P18-TC-19": {
+      "run": "plan18-node",
+      "entrypoint": "public_api",
+      "source": "tests/dashboard-api/qa-batch.test.js",
+      "test": "400 cho body sai, 404 cho session/finding không tồn tại",
+      "assertions": [
+        {
+          "snippet": "assert.equal(res.status, status, code);",
+          "observable": "HTTP status đúng từng ca"
+        },
+        {
+          "snippet": "assert.equal((await res.json()).code, code);",
+          "observable": "mã lỗi đúng từng ca"
+        }
+      ]
+    },
+    "P18-TC-20": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "file đổi sau khi xem trước: báo lỗi kèm file, lập lại kế hoạch rồi áp dụng được (BATCH-34)",
+      "assertions": [
+        {
+          "snippet": "await expect(error).toContainText('File đã thay đổi');",
+          "observable": "banner lỗi trong modal"
+        },
+        {
+          "snippet": "await expect(error).toContainText(LOGIN);",
+          "observable": "banner nêu tên file"
+        },
+        {
+          "snippet": "await expect(error).toBeHidden();",
+          "observable": "lập lại kế hoạch xoá lỗi"
+        },
+        {
+          "snippet": "expect(content).toContain(\"    await expect(page.locator('#home')).toBeVisible();\");",
+          "observable": "áp dụng lại ghi được bản vá"
+        },
+        {
+          "snippet": "expect(content).toContain('// sửa tay');",
+          "observable": "phần sửa tay được giữ"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-21": {
+      "run": "plan18-node",
+      "entrypoint": "public_api",
+      "source": "tests/dashboard-api/qa-batch.test.js",
+      "test": "plan -> đổi lựa chọn -> apply -> quét lại -> rollback -> rollback lần 2 (200 cả luồng)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(rollbackRes.status, 200);",
+          "observable": "hoàn tác trả 200"
+        },
+        {
+          "snippet": "assert.deepEqual((await rollbackRes.json()).restoredFiles, [LOGIN]);",
+          "observable": "danh sách file đã khôi phục"
+        },
+        {
+          "snippet": "assert.equal(read(LOGIN), original);",
+          "observable": "file byte-identical với bản gốc"
+        },
+        {
+          "snippet": "assert.equal(again.alreadyRolledBack, true);",
+          "observable": "gọi lần hai không lỗi"
+        }
+      ]
+    },
+    "P18-TC-22": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchRollback.test.js",
+      "test": "chỉ hoàn tác batch gần nhất; chạy được khi RAM trống; gọi lại không lỗi (BATCH-22, 24, 25)",
+      "assertions": [
+        {
+          "snippet": "{ status: 409, code: 'NOT_LATEST_BATCH' });",
+          "observable": "batch cũ không hoàn tác được"
+        },
+        {
+          "snippet": "assert.deepEqual(res, { ok: true, alreadyRolledBack: false, restoredFiles: [B], removedFiles: [] });",
+          "observable": "hoàn tác từ manifest khi RAM trống"
+        },
+        {
+          "snippet": "assert.ok(ws.read(A).includes('await expect'), 'batch cũ hơn không bị động tới');",
+          "observable": "batch cũ hơn giữ nguyên"
+        },
+        {
+          "snippet": "status, 'ROLLED_BACK');",
+          "observable": "manifest ROLLED_BACK"
+        },
+        {
+          "snippet": "assert.equal(again.alreadyRolledBack, true);",
+          "observable": "gọi lại không lỗi"
+        }
+      ]
+    },
+    "P18-TC-23": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchRollback.test.js",
+      "test": "file bị sửa sau batch: 409 kèm danh sách; xác nhận thì sao lưu bản hiện tại rồi hoàn tác (BATCH-23)",
+      "assertions": [
+        {
+          "snippet": "err.code === 'ROLLBACK_CONFLICT' && err.details.files[0] === A",
+          "observable": "409 kèm danh sách file"
+        },
+        {
+          "snippet": "assert.equal(ws.read(A), edited, 'không ghi đè khi chưa xác nhận');",
+          "observable": "không ghi đè khi chưa xác nhận"
+        },
+        {
+          "snippet": "assert.equal(ws.read(A), spec('a'));",
+          "observable": "xác nhận thì khôi phục"
+        },
+        {
+          "snippet": "assert.equal(fs.readFileSync(backup, 'utf8'), edited);",
+          "observable": "bản hiện tại được sao lưu"
+        }
+      ]
+    },
+    "P18-TC-24": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaBatchRollback.test.js",
+      "test": "dọn snapshot: giữ 20 batch mới nhất trong 7 ngày và luôn giữ batch commit gần nhất (BATCH-28)",
+      "assertions": [
+        {
+          "snippet": "assert.ok(kept.includes(latest), 'batch commit gần nhất luôn được giữ dù quá 7 ngày');",
+          "observable": "batch commit gần nhất luôn được giữ"
+        },
+        {
+          "snippet": "assert.equal(kept.length, 21);",
+          "observable": "giữ đúng 20 batch + batch commit gần nhất"
+        },
+        {
+          "snippet": "assert.ok(!kept.includes('qb-000022-abcdef') && !kept.includes('qb-000021-abcdef'));",
+          "observable": "batch cũ nhất bị dọn"
+        }
+      ]
+    },
+    "P18-TC-25": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "dòng theo route, checkbox tổng tri-state, mục ẩn, chip A-B-A, selection qua làm mới (BATCH-29, 30, 31)",
+      "assertions": [
+        {
+          "snippet": "await expect(page.locator('.qa-static-gap-row')).toHaveCount(7);",
+          "observable": "7 dòng theo inventory fixture"
+        },
+        {
+          "snippet": "await expect(page.locator('.qa-finding-checkbox')).toHaveCount(6);",
+          "observable": "chỉ mục sửa được có checkbox"
+        },
+        {
+          "snippet": "await expect(manual.locator('.qa-finding-checkbox')).toHaveCount(0);",
+          "observable": "mục manual không có checkbox"
+        },
+        {
+          "snippet": "await expect(manual.getByRole('button', { name: 'Xem hướng dẫn' })).toBeVisible();",
+          "observable": "mục manual có 'Xem hướng dẫn'"
+        },
+        {
+          "snippet": "await expect(rowAt(page, `${LOGIN}:6`).locator('.qa-gap-dup')).toHaveText('×2 project');",
+          "observable": "badge gộp trùng"
+        },
+        {
+          "snippet": "expect(await master.evaluate((el) => el.indeterminate)).toBe(true);",
+          "observable": "checkbox tổng indeterminate"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-hidden')).toHaveText('2 đang ẩn');",
+          "observable": "báo số mục đã chọn đang ẩn"
+        },
+        {
+          "snippet": "await expect(page.locator('[data-batch-filter=\"quick\"]')).toHaveAttribute('aria-pressed', 'true');",
+          "observable": "chip cuối cùng được áp dụng"
+        },
+        {
+          "snippet": "await expect(count).toHaveText('2 đã chọn');",
+          "observable": "selection sống qua làm mới"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-26": {
+      "run": "plan18-e2e",
+      "entrypoint": "function",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "SelectionModel: tri-state theo mục hiển thị, không đụng mục ẩn, prune key cũ",
+      "assertions": [
+        {
+          "snippet": "expect(out).toEqual({ states: ['none', 'some', 'all'], hidden: 1, afterClear: ['z'], pruned: 1, size: 0 });",
+          "observable": "tri-state, mục ẩn và prune"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)"
+    },
+    "P18-TC-27": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "xem trước → bỏ tick → kích hoạt lại → Esc hỏi xác nhận → áp dụng đúng 1 request → quét lại → hoàn tác (BATCH-32, 33, 35)",
+      "assertions": [
+        {
+          "snippet": "await expect(modal.locator('.qa-batch-patch')).toHaveCount(3);",
+          "observable": "3 bản vá trong 1 thẻ file"
+        },
+        {
+          "snippet": "await expect(modal.locator('.qa-badge', { hasText: 'Đổi hành vi' })).toBeVisible();",
+          "observable": "đổi lựa chọn hiện badge rủi ro"
+        },
+        {
+          "snippet": "await expect(apply).toHaveText('Áp dụng 2 bản vá (1 file)');",
+          "observable": "nút Áp dụng đếm theo tick"
+        },
+        {
+          "snippet": "await expect(confirm).toBeVisible();",
+          "observable": "Esc hỏi xác nhận khi có thay đổi"
+        },
+        {
+          "snippet": "expect(applyRequests).toHaveLength(1);",
+          "observable": "double-click chỉ gửi 1 request"
+        },
+        {
+          "snippet": "expect(lines[6]).toBe(\"    expect(page.locator('#home')).toBeVisible();\");",
+          "observable": "bản vá bỏ tick không được ghi"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-28": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "đổi cách xử lý khi batch-input đang chờ: modal khoá, bản vá đã bỏ tick vẫn giữ, đóng thì hỏi và không ghi file (BATCH-33)",
+      "assertions": [
+        {
+          "snippet": "await expect(apply).toBeDisabled();",
+          "observable": "Áp dụng bị khoá khi đang chờ"
+        },
+        {
+          "snippet": "await expect(line7).toBeDisabled();",
+          "observable": "checkbox bị khoá khi đang chờ"
+        },
+        {
+          "snippet": "expect((await response).status()).toBe(200);",
+          "observable": "batch-input được server xác nhận"
+        },
+        {
+          "snippet": "await expect(line7).not.toBeChecked();",
+          "observable": "lựa chọn bỏ tick trước đó được giữ"
+        },
+        {
+          "snippet": "await expect(apply).toHaveText('Áp dụng 2 bản vá (1 file)');",
+          "observable": "số bản vá sau khi đổi lựa chọn"
+        },
+        {
+          "snippet": "expect(read(fixture.rootPath, LOGIN)).toBe(original);",
+          "observable": "'Bỏ và đóng' không ghi file"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-29": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "xem trước → bỏ tick → kích hoạt lại → Esc hỏi xác nhận → áp dụng đúng 1 request → quét lại → hoàn tác (BATCH-32, 33, 35)",
+      "assertions": [
+        {
+          "snippet": "await expect(bar).toContainText('Đã áp dụng 2 bản vá trên 1 file.');",
+          "observable": "result bar hiện sau khi server trả 200"
+        },
+        {
+          "snippet": "await expect(bar).toContainText('Quét lại: đã xử lý 2 · còn 0 · phát sinh mới 0', { timeout: 20_000 });",
+          "observable": "thống kê theo lần quét lại"
+        },
+        {
+          "snippet": "await expect(bar).toContainText('Đã hoàn tác batch');",
+          "observable": "hoàn tác từ toolbar sau khi đóng thanh"
+        },
+        {
+          "snippet": "expect(read(fixture.rootPath, LOGIN)).toBe(original);",
+          "observable": "file về nguyên trạng"
+        },
+        {
+          "snippet": "await expect(check(page, `${LOGIN}:6`)).toBeChecked();",
+          "observable": "lỗi vừa hoàn tác được chọn lại"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-30": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "áp dụng rồi hoàn tác ngay khi đang quét lại: file và danh sách về đúng trạng thái cuối (BATCH-36)",
+      "assertions": [
+        {
+          "snippet": "await expect(bar).toContainText('Đã áp dụng 1 bản vá');",
+          "observable": "áp dụng thành công"
+        },
+        {
+          "snippet": "await expect(bar).toContainText('Đã hoàn tác batch', { timeout: 20_000 });",
+          "observable": "hoàn tác khi đang quét lại"
+        },
+        {
+          "snippet": "expect(read(fixture.rootPath, LOGIN)).toBe(original);",
+          "observable": "file về nguyên trạng"
+        },
+        {
+          "snippet": "await expect(page.locator('.qa-static-gap-row')).toHaveCount(7);",
+          "observable": "danh sách theo kết quả quét mới nhất"
+        },
+        {
+          "snippet": "await expect(rowAt(page, `${LOGIN}:6`)).toHaveCount(1);",
+          "observable": "finding đã hoàn tác xuất hiện lại"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-31": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "20 vòng vào/ra view QA không nhân listener; destroy hai lần an toàn (BATCH-38, OWN-01..04)",
+      "assertions": [
+        {
+          "snippet": "expect(await count()).toBe(baseline);",
+          "observable": "20 vòng không tăng listener"
+        },
+        {
+          "snippet": "expect(res).toEqual({ afterDestroy: 0, afterInit: baseline });",
+          "observable": "destroy hai lần an toàn, init hai lần không nhân"
+        },
+        {
+          "snippet": "await expect(page.locator('[data-batch-filter=\"manual\"]')).toHaveAttribute('aria-pressed', 'true');",
+          "observable": "listener của lần init mới còn sống"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal')).toBeHidden();",
+          "observable": "modal của lần init mới vẫn đóng được"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "regression": {
+        "status": "REPRODUCED",
+        "before_revision": "dfc69171b4e49a5f6bfa7aa662a4318d0c2e531c",
+        "before_log": ".gate-artifacts/plan18-own02-before.log",
+        "failure": "Chạy test hiện tại trên mã giao diện của dfc6917: sau khi gọi lại disposer cũ, nút Huỷ không đóng modal xem trước vì listener của lần init mới đã bị gỡ (toBeHidden thất bại)."
+      }
+    },
+    "P18-TC-32": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "rời view khi đang lập kế hoạch: phản hồi đến muộn không mở modal (BATCH-37, OWN-05)",
+      "assertions": [
+        {
+          "snippet": "expect(await page.evaluate(() => document.getElementById('qa-batch-modal').open)).toBe(false);",
+          "observable": "modal không mở sau khi rời view"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)"
+    },
+    "P18-TC-33": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "bố cục 1920x1080 dark: toolbar và modal không tràn ngang, không lộ chữ debug (BATCH-39)",
+      "assertions": [
+        {
+          "snippet": "expect(card.doc).toBeLessThanOrEqual(1);",
+          "observable": "trang không cuộn ngang"
+        },
+        {
+          "snippet": "expect(card.bad, card.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của card tràn"
+        },
+        {
+          "snippet": "expect(card.text).not.toMatch(",
+          "observable": "không lộ chữ debug trên card"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-title')).toBeFocused();",
+          "observable": "focus vào tiêu đề modal"
+        },
+        {
+          "snippet": "expect(modal.bad, modal.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của modal tràn"
+        },
+        {
+          "snippet": "expect(errors(), errors().join('\\n')).toEqual([]);",
+          "observable": "0 lỗi console / HTTP ngoài dự kiến",
+          "scope": "file"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "decl": "test(`bố cục ${w}x${h} ${theme}:"
+    },
+    "P18-TC-34": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "bố cục 1440x900 dark: toolbar và modal không tràn ngang, không lộ chữ debug (BATCH-39)",
+      "assertions": [
+        {
+          "snippet": "expect(card.doc).toBeLessThanOrEqual(1);",
+          "observable": "trang không cuộn ngang"
+        },
+        {
+          "snippet": "expect(card.bad, card.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của card tràn"
+        },
+        {
+          "snippet": "expect(card.text).not.toMatch(",
+          "observable": "không lộ chữ debug trên card"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-title')).toBeFocused();",
+          "observable": "focus vào tiêu đề modal"
+        },
+        {
+          "snippet": "expect(modal.bad, modal.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của modal tràn"
+        },
+        {
+          "snippet": "expect(errors(), errors().join('\\n')).toEqual([]);",
+          "observable": "0 lỗi console / HTTP ngoài dự kiến",
+          "scope": "file"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "decl": "test(`bố cục ${w}x${h} ${theme}:"
+    },
+    "P18-TC-35": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "bố cục 1280x800 dark: toolbar và modal không tràn ngang, không lộ chữ debug (BATCH-39)",
+      "assertions": [
+        {
+          "snippet": "expect(card.doc).toBeLessThanOrEqual(1);",
+          "observable": "trang không cuộn ngang"
+        },
+        {
+          "snippet": "expect(card.bad, card.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của card tràn"
+        },
+        {
+          "snippet": "expect(card.text).not.toMatch(",
+          "observable": "không lộ chữ debug trên card"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-title')).toBeFocused();",
+          "observable": "focus vào tiêu đề modal"
+        },
+        {
+          "snippet": "expect(modal.bad, modal.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của modal tràn"
+        },
+        {
+          "snippet": "expect(errors(), errors().join('\\n')).toEqual([]);",
+          "observable": "0 lỗi console / HTTP ngoài dự kiến",
+          "scope": "file"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "decl": "test(`bố cục ${w}x${h} ${theme}:"
+    },
+    "P18-TC-36": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "bố cục 390x844 dark: toolbar và modal không tràn ngang, không lộ chữ debug (BATCH-39)",
+      "assertions": [
+        {
+          "snippet": "expect(card.doc).toBeLessThanOrEqual(1);",
+          "observable": "trang không cuộn ngang"
+        },
+        {
+          "snippet": "expect(card.bad, card.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của card tràn"
+        },
+        {
+          "snippet": "expect(card.text).not.toMatch(",
+          "observable": "không lộ chữ debug trên card"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-title')).toBeFocused();",
+          "observable": "focus vào tiêu đề modal"
+        },
+        {
+          "snippet": "expect(modal.bad, modal.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của modal tràn"
+        },
+        {
+          "snippet": "expect(errors(), errors().join('\\n')).toEqual([]);",
+          "observable": "0 lỗi console / HTTP ngoài dự kiến",
+          "scope": "file"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "decl": "test(`bố cục ${w}x${h} ${theme}:"
+    },
+    "P18-TC-37": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "bố cục 1920x1080 light: toolbar và modal không tràn ngang, không lộ chữ debug (BATCH-39)",
+      "assertions": [
+        {
+          "snippet": "expect(card.doc).toBeLessThanOrEqual(1);",
+          "observable": "trang không cuộn ngang"
+        },
+        {
+          "snippet": "expect(card.bad, card.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của card tràn"
+        },
+        {
+          "snippet": "expect(card.text).not.toMatch(",
+          "observable": "không lộ chữ debug trên card"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-title')).toBeFocused();",
+          "observable": "focus vào tiêu đề modal"
+        },
+        {
+          "snippet": "expect(modal.bad, modal.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của modal tràn"
+        },
+        {
+          "snippet": "expect(errors(), errors().join('\\n')).toEqual([]);",
+          "observable": "0 lỗi console / HTTP ngoài dự kiến",
+          "scope": "file"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "decl": "test(`bố cục ${w}x${h} ${theme}:"
+    },
+    "P18-TC-38": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "bố cục 1440x900 light: toolbar và modal không tràn ngang, không lộ chữ debug (BATCH-39)",
+      "assertions": [
+        {
+          "snippet": "expect(card.doc).toBeLessThanOrEqual(1);",
+          "observable": "trang không cuộn ngang"
+        },
+        {
+          "snippet": "expect(card.bad, card.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của card tràn"
+        },
+        {
+          "snippet": "expect(card.text).not.toMatch(",
+          "observable": "không lộ chữ debug trên card"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-title')).toBeFocused();",
+          "observable": "focus vào tiêu đề modal"
+        },
+        {
+          "snippet": "expect(modal.bad, modal.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của modal tràn"
+        },
+        {
+          "snippet": "expect(errors(), errors().join('\\n')).toEqual([]);",
+          "observable": "0 lỗi console / HTTP ngoài dự kiến",
+          "scope": "file"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "decl": "test(`bố cục ${w}x${h} ${theme}:"
+    },
+    "P18-TC-39": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "bố cục 1280x800 light: toolbar và modal không tràn ngang, không lộ chữ debug (BATCH-39)",
+      "assertions": [
+        {
+          "snippet": "expect(card.doc).toBeLessThanOrEqual(1);",
+          "observable": "trang không cuộn ngang"
+        },
+        {
+          "snippet": "expect(card.bad, card.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của card tràn"
+        },
+        {
+          "snippet": "expect(card.text).not.toMatch(",
+          "observable": "không lộ chữ debug trên card"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-title')).toBeFocused();",
+          "observable": "focus vào tiêu đề modal"
+        },
+        {
+          "snippet": "expect(modal.bad, modal.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của modal tràn"
+        },
+        {
+          "snippet": "expect(errors(), errors().join('\\n')).toEqual([]);",
+          "observable": "0 lỗi console / HTTP ngoài dự kiến",
+          "scope": "file"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "decl": "test(`bố cục ${w}x${h} ${theme}:"
+    },
+    "P18-TC-40": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer-layout.spec.js",
+      "test": "bố cục 390x844 light: toolbar và modal không tràn ngang, không lộ chữ debug (BATCH-39)",
+      "assertions": [
+        {
+          "snippet": "expect(card.doc).toBeLessThanOrEqual(1);",
+          "observable": "trang không cuộn ngang"
+        },
+        {
+          "snippet": "expect(card.bad, card.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của card tràn"
+        },
+        {
+          "snippet": "expect(card.text).not.toMatch(",
+          "observable": "không lộ chữ debug trên card"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-title')).toBeFocused();",
+          "observable": "focus vào tiêu đề modal"
+        },
+        {
+          "snippet": "expect(modal.bad, modal.bad.join(', ')).toEqual([]);",
+          "observable": "không phần tử nào của modal tràn"
+        },
+        {
+          "snippet": "expect(errors(), errors().join('\\n')).toEqual([]);",
+          "observable": "0 lỗi console / HTTP ngoài dự kiến",
+          "scope": "file"
+        }
+      ],
+      "suite": "QA: batch fixer — vòng đời và bố cục (PLAN-18)",
+      "decl": "test(`bố cục ${w}x${h} ${theme}:"
+    },
+    "P18-TC-41": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "\"Sửa lỗi\" trên một dòng: đúng một bản vá, không gọi AI, hoàn tác về nguyên trạng (BATCH-44)",
+      "assertions": [
+        {
+          "snippet": "await expect(modal.locator('.qa-batch-card')).toHaveCount(1);",
+          "observable": "đúng 1 thẻ file"
+        },
+        {
+          "snippet": "await expect(modal.locator('.qa-batch-patch')).toHaveCount(1);",
+          "observable": "đúng 1 bản vá"
+        },
+        {
+          "snippet": "expect(changed).toEqual([",
+          "observable": "file đổi đúng 1 dòng"
+        },
+        {
+          "snippet": "expect(read(fixture.rootPath, LOGIN)).toBe(original);",
+          "observable": "hoàn tác byte-identical"
+        },
+        {
+          "snippet": "expect(aiCalls).toEqual([]);",
+          "observable": "không gọi AI"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-42": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "\"Xem hướng dẫn\" hiện đoạn mã chỉ đọc; \"Chi tiết\" của mục sửa được chuyển sang xem trước",
+      "assertions": [
+        {
+          "snippet": "await expect(detail).toBeVisible();",
+          "observable": "modal chi tiết mở"
+        },
+        {
+          "snippet": "await expect(detail.locator('.qa-diff-row.is-focus')).toContainText(",
+          "observable": "đoạn mã quanh dòng lỗi"
+        },
+        {
+          "snippet": "await expect(detail.locator('#qa-finding-detail-fix')).toBeHidden();",
+          "observable": "mục manual không có nút sửa"
+        },
+        {
+          "snippet": "await expect(detail.locator('#qa-finding-detail-fix')).toBeVisible();",
+          "observable": "mục sửa được có nút 'Sửa lỗi'"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal .qa-batch-patch')).toHaveCount(1);",
+          "observable": "chuyển sang modal xem trước"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-43": {
+      "run": "plan18-node",
+      "entrypoint": "public_api",
+      "source": "tests/dashboard-api/qa-batch.test.js",
+      "test": "GET context trả đoạn mã ±15 dòng quanh finding",
+      "assertions": [
+        {
+          "snippet": "assert.equal(res.status, 200);",
+          "observable": "API trả 200"
+        },
+        {
+          "snippet": "assert.equal(body.file.relPath, LOGIN);",
+          "observable": "đúng file"
+        },
+        {
+          "snippet": "assert.equal(body.file.line, 6);",
+          "observable": "đúng dòng lỗi"
+        },
+        {
+          "snippet": "assert.ok(body.file.lines[5].includes(",
+          "observable": "đoạn mã chứa dòng lỗi"
+        }
+      ]
+    },
+    "P18-TC-44": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaFindingContext.test.js",
+      "test": "getFindingContext: ±15 dòng quanh vị trí, chặn đường dẫn thoát project, thư mục thì file null",
+      "assertions": [
+        {
+          "snippet": "assert.equal(ctx.file.startLine, 5);",
+          "observable": "cửa sổ bắt đầu 15 dòng trước"
+        },
+        {
+          "snippet": "assert.equal(ctx.file.lines.length, 31);",
+          "observable": "đúng 31 dòng"
+        },
+        {
+          "snippet": "{ status: 403, code: 'PATH_REJECTED' });",
+          "observable": "đường dẫn thoát project bị chặn"
+        },
+        {
+          "snippet": "assert.equal(getFindingContext(ws.root, key(2), opts).file, null);",
+          "observable": "finding thư mục trả file null"
+        },
+        {
+          "snippet": "{ status: 404, code: 'FINDING_NOT_FOUND' });",
+          "observable": "key không tồn tại trả 404"
+        }
+      ]
+    },
+    "P18-TC-45": {
+      "run": "plan18-node",
+      "entrypoint": "public_api",
+      "source": "tests/dashboard-api/qa.test.js",
+      "test": "PLAN-18: route AI sửa lỗi cũ đã bỏ — ai-analyze-fix và apply-fix trả 404",
+      "assertions": [
+        {
+          "snippet": "assert.equal(res.status, 404, route);",
+          "observable": "cả hai route cũ trả 404"
+        }
+      ],
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Test xác nhận việc gỡ route AI cũ; trước PLAN-18 hai route tồn tại theo thiết kế nên không có lỗi hồi quy để tái hiện."
+      }
+    },
+    "P18-TC-46": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaFindingFixerService.test.js",
+      "test": "PLAN-18: service chỉ còn tra cứu chỉ đọc, không còn đường AI/heuristic ghi file",
+      "assertions": [
+        {
+          "snippet": "assert.deepEqual(Object.keys(service).sort(), ['getFindingContext', 'resolveSafePath']);",
+          "observable": "chỉ còn 2 hàm chỉ đọc"
+        }
+      ],
+      "regression": {
+        "status": "NOT_FEASIBLE",
+        "reason": "Test xác nhận việc gỡ luồng AI cũ; trước PLAN-18 các hàm này tồn tại theo thiết kế nên không có lỗi hồi quy để tái hiện."
+      }
+    },
+    "P18-TC-47": {
+      "run": "plan18-e2e",
+      "entrypoint": "ui",
+      "source": "tests/dashboard/qa-batch-fixer.spec.js",
+      "test": "gán mã TC: chọn AC trong modal → áp dụng → spec + bảng traceability đổi, quét lại không phát sinh lỗi (BATCH-40)",
+      "assertions": [
+        {
+          "snippet": "await expect(acChoice).toContainText('· REQ-001 · AC:');",
+          "observable": "hiện REQ và danh sách AC"
+        },
+        {
+          "snippet": "await expect(page.locator('#qa-batch-modal-apply')).toBeDisabled();",
+          "observable": "chưa chọn AC thì không áp dụng được"
+        },
+        {
+          "snippet": "await expect(modal.locator('.qa-batch-card')).toHaveCount(2);",
+          "observable": "chọn AC thêm thẻ file test-cases"
+        },
+        {
+          "snippet": "'Quét lại: đã xử lý 1 · còn 0 · phát sinh mới 0'",
+          "observable": "quét lại không phát sinh lỗi mới"
+        },
+        {
+          "snippet": ".split('\\n')[14]).toBe(`  test('${tc} - AC-002 kiểm tra tiêu đề trang'",
+          "observable": "title spec mang TC và AC"
+        },
+        {
+          "snippet": "`| REQ-001 | AC-002 | ${tc} | Yes | tests/e2e/login.spec.js | P2 |`",
+          "observable": "dòng Traceability được thêm"
+        }
+      ],
+      "suite": "QA: sửa static finding hàng loạt (PLAN-18)"
+    },
+    "P18-TC-48": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaGuided.test.js",
+      "test": "chọn AC rồi áp dụng: title + tag + dòng traceability; quét lại không phát sinh lỗi truy vết (BATCH-40)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(pending.needsInput, true);",
+          "observable": "bản vá chờ chọn AC"
+        },
+        {
+          "snippet": "assert.equal(pending.defaultSelected, false);",
+          "observable": "không tick sẵn"
+        },
+        {
+          "snippet": "assert.equal(pending.choice.tcId, 'TC-004', 'TC lớn nhất đang dùng là TC-003');",
+          "observable": "giữ chỗ TC kế tiếp"
+        },
+        {
+          "snippet": "{ code: 'INVALID_INPUT' });",
+          "observable": "AC ngoài danh sách bị từ chối"
+        },
+        {
+          "snippet": "assert.deepEqual(row.hunk.insertedLines, [10], 'chèn ngay sau dòng TC-003 (dòng 9)');",
+          "observable": "dòng Traceability đúng vị trí"
+        },
+        {
+          "snippet": "assert.equal(res.files.length, 2);",
+          "observable": "ghi 2 file cùng giao dịch"
+        },
+        {
+          "snippet": "assert.deepEqual(bad, []);",
+          "observable": "quét lại không có finding truy vết"
+        }
+      ]
+    },
+    "P18-TC-49": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaGuided.test.js",
+      "test": "hai session mở cùng lúc giữ chỗ TC khác nhau; TC bị dùng nơi khác thì 409 TC_TAKEN (BATCH-41)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(patchOf(first, key).choice.tcId, 'TC-004');",
+          "observable": "session 1 giữ TC-004"
+        },
+        {
+          "snippet": "assert.equal(patchOf(second, key).choice.tcId, 'TC-005');",
+          "observable": "session 2 giữ TC-005"
+        },
+        {
+          "snippet": "err.details.reason === 'TC_TAKEN'",
+          "observable": "TC bị chiếm → 409 TC_TAKEN"
+        },
+        {
+          "snippet": "assert.ok(!read(LOGIN).includes('TC-005 - AC-001 kiểm tra'), 'không ghi gì khi TC bị chiếm');",
+          "observable": "không ghi file"
+        }
+      ]
+    },
+    "P18-TC-50": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaGuided.test.js",
+      "test": "REQ không có bảng Traceability thì bỏ qua có lý do (BATCH-43)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(plan.cards.length, 0);",
+          "observable": "không tạo bản vá"
+        },
+        {
+          "snippet": "assert.equal(plan.skipped[0].reasonCode, 'NO_TRACEABILITY_TABLE');",
+          "observable": "lý do NO_TRACEABILITY_TABLE"
+        }
+      ]
+    },
+    "P18-TC-51": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaGuided.test.js",
+      "test": "đã dùng tới TC-999 thì bỏ qua với TC_OVERFLOW, không tạo bản vá (BATCH-42)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(plan.cards.length, 0);",
+          "observable": "không tạo bản vá"
+        },
+        {
+          "snippet": "assert.equal(plan.skipped[0].reasonCode, 'TC_OVERFLOW');",
+          "observable": "lý do TC_OVERFLOW"
+        }
+      ]
+    },
+    "P18-TC-52": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaGuided.test.js",
+      "test": "nextTcNumber: bỏ số đã dùng/đang giữ chỗ, quá TC-999 thì null (BATCH-42)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(nextTcNumber(new Set([1, 2, 3]), new Set([4])), 5);",
+          "observable": "bỏ qua số đang giữ chỗ"
+        },
+        {
+          "snippet": "assert.equal(nextTcNumber(new Set([998]), new Set()), 999);",
+          "observable": "cấp được TC-999"
+        },
+        {
+          "snippet": "assert.equal(nextTcNumber(new Set([999]), new Set()), null);",
+          "observable": "không vượt TC-999"
+        }
+      ]
+    },
+    "P18-TC-53": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaGuided.test.js",
+      "test": "buildRow: dựng theo tên cột của bảng — REQ-trước và bảng tiếng Việt TC-trước",
+      "assertions": [
+        {
+          "snippet": "'| REQ-001 | AC-002 | TC-004 | Yes | `tests/e2e/a.spec.js` | P2 |');",
+          "observable": "bảng REQ-trước"
+        },
+        {
+          "snippet": "'| TC-004 | AC-002 | mô tả / có gạch | P2 | Yes | `tests/e2e/a.spec.js` |');",
+          "observable": "bảng tiếng Việt TC-trước, thay '|'"
+        },
+        {
+          "snippet": "'bảng đang để đường dẫn trần thì dòng mới cũng trần');",
+          "observable": "giữ kiểu đường dẫn trần"
+        }
+      ]
+    }
+  }
+}

@@ -103,6 +103,19 @@ test('REQ không có bảng Traceability thì bỏ qua có lý do (BATCH-43)', (
   }
 });
 
+test('đã dùng tới TC-999 thì bỏ qua với TC_OVERFLOW, không tạo bản vá (BATCH-42)', () => {
+  const { ws, root, key, write } = setup();
+  try {
+    write('test-cases/REQ-001.md', TC_DOC.replace(/TC-003/g, 'TC-999'));
+    const plan = buildPlan(root, [key]);
+    assert.equal(plan.cards.length, 0);
+    assert.equal(plan.skipped[0].reasonCode, 'TC_OVERFLOW');
+  } finally {
+    ws.cleanup();
+    invalidateQaSummaryCache();
+  }
+});
+
 test('nextTcNumber: bỏ số đã dùng/đang giữ chỗ, quá TC-999 thì null (BATCH-42)', () => {
   assert.equal(nextTcNumber(new Set([1, 2, 3]), new Set([4])), 5);
   assert.equal(nextTcNumber(new Set(), new Set()), 1);

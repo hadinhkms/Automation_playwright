@@ -26,8 +26,22 @@
       "cases": [
         {
           "id": "P18-TC-01",
-          "intent": "Catalog tạo key ổn định, gộp finding trùng qua nhiều project với occurrences đúng và trả route đúng cho mọi kind (BATCH-12)",
+          "intent": "enrichFindings gộp 6 finding lặp theo project thành 2 mục với occurrences 4 và 2, gắn findingKey/matchKey ổn định và fixRoute lấy từ catalog (BATCH-12)",
           "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-02",
+          "intent": "routeFor trả quick cho 3 kind sửa tự động, scaffold/autofix cho kind đã có công cụ riêng, manual cho các kind còn lại kể cả kind lạ hoặc thiếu",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-03",
+          "intent": "GET /api/qa/summary trên server và scanner thật trả scanId, finding await đã gộp qua 2 Playwright project (occurrences 2) kèm findingKey 16 ký tự hex và fixRoute quick",
+          "level": "integration",
           "critical": false,
           "scenarios": []
         }
@@ -38,18 +52,42 @@
       "text": "Ba loại finding quick (assertion-thieu-await, test-bi-skip-am-tham, test-thieu-tag-req) được vá xác định đúng vị trí, chạy lại không đổi gì, giữ nguyên EOL/BOM/newline cuối, không làm hỏng cú pháp; test bị skip mặc định được gắn @wip.",
       "cases": [
         {
-          "id": "P18-TC-02",
-          "intent": "Chèn await đúng cột do findMissingAwaits xác định, bỏ qua expect đồng bộ và expect nằm trong biểu thức (BATCH-02, 04, 05, 06, 07)",
+          "id": "P18-TC-04",
+          "intent": "Lập kế hoạch chèn await đúng cột với dòng trùng nội dung, expect.soft, dòng có expect đồng bộ và expect nhiều dòng; expect nằm trong biểu thức và bản vá làm hỏng cú pháp bị bỏ qua có lý do; lập kế hoạch không ghi file (BATCH-02, 04, 05, 06, 08)",
           "level": "unit",
           "critical": false,
           "scenarios": []
         },
         {
-          "id": "P18-TC-03",
-          "intent": "Lập kế hoạch trên file thật: nhiều bản vá một file, idempotent, chặn bản vá làm hỏng cú pháp, giữ EOL/BOM, gắn @wip hoặc kích hoạt lại test bị skip (BATCH-01, 03, 08, 09, 10)",
+          "id": "P18-TC-05",
+          "intent": "Test bị skip mặc định được gắn @wip (cả test.fixme); title xuống dòng bị bỏ qua có lý do; đổi sang 'Kích hoạt lại' qua batch-input tăng revision, đánh dấu rủi ro đổi hành vi và từ chối revision cũ (BATCH-10)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-06",
+          "intent": "Kiểm tra cú pháp chặn bản vá tạo await trong callback không async (BATCH-08)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-07",
+          "intent": "Đọc rồi ghi lại tài liệu giữ nguyên từng byte với LF, CRLF + BOM không newline cuối, EOL lẫn lộn, file rỗng (BATCH-09)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-08",
+          "intent": "Qua API thật: lập kế hoạch, đổi sang 'Kích hoạt lại', áp dụng; file trên đĩa đổi đúng 2 dòng, lần quét lại có scanId mới và không còn 2 finding đã sửa, batch-last báo COMMITTED",
           "level": "integration",
           "critical": true,
-          "scenarios": []
+          "scenarios": [
+            "ASYNC-05",
+            "LIFE-01"
+          ]
         }
       ]
     },
@@ -58,10 +96,24 @@
       "text": "Không ghi REQ/AC/TC nào không suy ra được duy nhất từ dữ liệu có sẵn; finding thiếu ngữ cảnh, không thuộc route sửa được, hoặc không còn trong lần quét mới nhất được bỏ qua kèm reasonCode và nextAction.",
       "cases": [
         {
-          "id": "P18-TC-04",
-          "intent": "Suy REQ từ bảng traceability hoặc tên file, từ chối REQ mơ hồ hoặc không tồn tại, trả skipped đúng cho route manual/scaffold/autofix và key đã cũ (BATCH-11, 13, 14)",
+          "id": "P18-TC-09",
+          "intent": "Tag REQ chỉ được gắn khi suy ra duy nhất (lên describe, hoặc lên test ngoài describe); describe lẫn REQ, REQ không tồn tại, REQ mơ hồ hoặc không tìm thấy đều bị bỏ qua với reasonCode (BATCH-11)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-10",
+          "intent": "Finding route manual/scaffold/autofix và ma-tc-trung không tạo bản vá mà trả nextAction đúng; đường dẫn thoát project bị chặn; key không còn trong lần quét mới nhất trả NOT_IN_LATEST_SCAN; body sai hoặc quá 200 key trả 400 (BATCH-13, 14, 26)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-11",
+          "intent": "batch-plan qua API thật bỏ qua finding manual với reasonCode MANUAL_ROUTE, chỉ lập 2 bản vá và không ghi file khi lập kế hoạch",
           "level": "integration",
-          "critical": true,
+          "critical": false,
           "scenarios": []
         }
       ]
@@ -71,30 +123,71 @@
       "text": "Áp dụng chỉ ghi các bản vá được tick; từ chối khi file đã đổi, revision cũ, session không hợp lệ hoặc đang có thao tác ghi khác; lỗi ghi giữa chừng được khôi phục toàn bộ và phục hồi được sau khi process dừng đột ngột.",
       "cases": [
         {
-          "id": "P18-TC-05",
-          "intent": "Apply một phần, từ chối file stale và revision cũ, session khác cùng file bị 409 (BATCH-15, 16, 17, 19)",
+          "id": "P18-TC-12",
+          "intent": "Áp dụng một phần trên 2 file: bản vá không tick không được ghi, giữ BOM/CRLF, manifest COMMITTED có baseHash/postHash, áp dụng lại cùng finding trả ALREADY_FIXED và không sinh 'await await' (BATCH-01, 03, 09, 15)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-13",
+          "intent": "Qua API thật: áp dụng với revision cũ trả 409 REVISION_STALE; file bị sửa tay sau khi lập kế hoạch trả 409 STALE_FILES kèm danh sách file",
           "level": "integration",
           "critical": true,
           "scenarios": [
-            "ASYNC-03",
-            "ASYNC-05"
+            "ASYNC-03"
           ]
         },
         {
-          "id": "P18-TC-06",
-          "intent": "Lỗi ghi ở file thứ N khôi phục byte-identical và manifest FAILED; manifest APPLYING còn sót được phục hồi ở request đầu tiên (BATCH-20, 21)",
-          "level": "integration",
+          "id": "P18-TC-14",
+          "intent": "File stale thì không file nào bị ghi; revision cũ, không chọn bản vá, body thiếu trường bị từ chối; hai session cùng file thì session sau bị 409 STALE_FILES, session đã commit không áp dụng lại được (BATCH-16, 17, 19)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-15",
+          "intent": "Hai request apply đồng thời cùng session: đúng một request thành công, request còn lại nhận 409 (BATCH-18)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-16",
+          "intent": "Lỗi ghi ở file thứ hai: file đầu được khôi phục byte-identical, không còn file tạm, manifest FAILED, lỗi 500 WRITE_FAILED báo restored và không có batch gần nhất (BATCH-20)",
+          "level": "unit",
           "critical": true,
-          "scenarios": [
-            "ASYNC-04"
-          ]
+          "scenarios": []
         },
         {
-          "id": "P18-TC-07",
-          "intent": "Apply đồng thời cùng session chỉ một request thành công; đường dẫn vượt project bị chặn; body quá lớn bị 400; session hết hạn trả 404 (BATCH-18, 26, 27)",
+          "id": "P18-TC-17",
+          "intent": "Manifest APPLYING còn sót sau khi process dừng: lần phục hồi đầu tiên trả file về snapshot, xoá file tạm, đánh dấu RECOVERED và chỉ chạy một lần cho mỗi root (BATCH-21)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-18",
+          "intent": "Kế hoạch quá 15 phút hết hiệu lực: apply trả 404 SESSION_NOT_FOUND (BATCH-27)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-19",
+          "intent": "Qua API thật: JSON hỏng, danh sách key rỗng, sessionId sai định dạng và thiếu findingKey trả 400 INVALID_BODY; session hoặc finding không tồn tại trả 404 (BATCH-26, 27)",
           "level": "integration",
           "critical": false,
           "scenarios": []
+        },
+        {
+          "id": "P18-TC-20",
+          "intent": "File bị sửa tay sau khi xem trước: áp dụng qua UI báo 'File đã thay đổi' kèm tên file, 'Lập lại kế hoạch' xoá lỗi, áp dụng lại thành công và giữ nguyên phần sửa tay (BATCH-34)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-04"
+          ]
         }
       ]
     },
@@ -103,10 +196,31 @@
       "text": "Hoàn tác đưa các file của batch gần nhất về byte-identical, gọi lại không lỗi, hoạt động sau khi server khởi động lại, không ghi đè thay đổi phát sinh sau batch khi chưa được xác nhận, và snapshot cũ được dọn theo chính sách giữ lại.",
       "cases": [
         {
-          "id": "P18-TC-08",
-          "intent": "Rollback idempotent, ROLLBACK_CONFLICT khi file bị sửa sau batch và forceFiles sao lưu trước khi khôi phục, NOT_LATEST_BATCH, rollback từ manifest khi RAM trống, retention 20 session (BATCH-22, 23, 24, 25, 28)",
+          "id": "P18-TC-21",
+          "intent": "Hoàn tác qua API thật trả file về byte-identical với bản trước batch; gọi hoàn tác lần hai trả alreadyRolledBack thay vì lỗi (BATCH-22, 25)",
           "level": "integration",
           "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-22",
+          "intent": "Chỉ hoàn tác được batch gần nhất (409 NOT_LATEST_BATCH); hoàn tác chạy được khi RAM trống, không động tới batch cũ hơn, gọi lại trả alreadyRolledBack (BATCH-22, 24, 25)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-23",
+          "intent": "File bị sửa sau batch: hoàn tác trả 409 ROLLBACK_CONFLICT kèm danh sách và không ghi đè; khi xác nhận forceFiles thì sao lưu bản hiện tại vào pre-rollback rồi khôi phục (BATCH-23)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-24",
+          "intent": "Dọn snapshot giữ 20 batch mới nhất trong 7 ngày và luôn giữ batch commit gần nhất (BATCH-28)",
+          "level": "unit",
+          "critical": false,
           "scenarios": []
         }
       ]
@@ -116,15 +230,21 @@
       "text": "Trên danh sách finding: chỉ mục sửa được có checkbox; mỗi route có đúng hành động theo bảng thiết kế; master checkbox tri-state tính theo mục đang hiển thị; hiện số mục đã chọn đang bị ẩn; selection sống qua đổi filter và làm mới, được prune khi key biến mất.",
       "cases": [
         {
-          "id": "P18-TC-09",
-          "intent": "Tri-state với filter, hành động từng dòng khớp inventory route độc lập, selection sống qua filter/làm mới và chuyển chip A-B-A nhanh chỉ áp dụng lần cuối (BATCH-29, 30, 31)",
+          "id": "P18-TC-25",
+          "intent": "Danh sách finding trên UI khớp inventory độc lập của fixture: 7 dòng, 6 checkbox, mục manual chỉ có 'Xem hướng dẫn', badge ×2 project; checkbox tổng tri-state theo mục hiển thị; 'M đang ẩn' khi lọc; chuyển chip A-B-A nhanh chỉ áp dụng lần cuối; selection sống qua làm mới (BATCH-29, 30, 31)",
           "level": "e2e",
           "critical": true,
           "scenarios": [
             "UI-01",
-            "UI-04",
-            "ASYNC-02"
+            "UI-04"
           ]
+        },
+        {
+          "id": "P18-TC-26",
+          "intent": "SelectionModel: trạng thái tri-state tính theo mục hiển thị, không đụng mục ẩn, prune bỏ key không còn trong lần quét",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
         }
       ]
     },
@@ -133,14 +253,21 @@
       "text": "Modal xem trước cho tick từng bản vá và đổi lựa chọn, khoá thao tác trong lúc áp dụng, hỏi xác nhận khi đóng mà còn lựa chọn chưa áp dụng, và hướng dẫn lập lại kế hoạch khi gặp 409.",
       "cases": [
         {
-          "id": "P18-TC-10",
-          "intent": "Bỏ tick một bản vá rồi áp dụng, đổi lựa chọn khi batch-input đang chờ, double-click và Esc khi đang áp dụng, đóng modal có lựa chọn chưa lưu, 409 STALE_FILES và lập lại kế hoạch (BATCH-32, 33, 34)",
+          "id": "P18-TC-27",
+          "intent": "Modal xem trước: bỏ tick một bản vá, đổi sang 'Kích hoạt lại' (badge 'Đổi hành vi'), Esc hỏi xác nhận và 'Ở lại' giữ modal, double-click Áp dụng chỉ gửi đúng 1 request; file chỉ đổi các bản vá được tick (BATCH-32, 33)",
           "level": "e2e",
           "critical": true,
           "scenarios": [
+            "UI-05"
+          ]
+        },
+        {
+          "id": "P18-TC-28",
+          "intent": "Đổi cách xử lý khi batch-input đang chờ: modal khoá Áp dụng và checkbox; khi phản hồi về, bản vá đã bỏ tick trước đó vẫn bỏ tick và lựa chọn mới được áp; đóng modal hỏi xác nhận, 'Bỏ và đóng' không ghi file (BATCH-33)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
             "ASYNC-01",
-            "ASYNC-04",
-            "UI-02",
             "UI-05"
           ]
         }
@@ -151,13 +278,21 @@
       "text": "Sau khi áp dụng, result bar hiện ngay, báo đã xử lý / còn lại / phát sinh mới theo lần quét lại, 'Hoàn tác batch gần nhất' vẫn dùng được sau khi đóng thanh, và chỉ kết quả quét mới nhất được hiển thị.",
       "cases": [
         {
-          "id": "P18-TC-11",
-          "intent": "Apply qua UI tới file thật và scanner quét lại, đóng result bar rồi hoàn tác, Undo khi đang quét lại chỉ render kết quả mới nhất (BATCH-35, 36)",
+          "id": "P18-TC-29",
+          "intent": "Sau khi áp dụng, result bar hiện ngay, báo 'đã xử lý 2 · còn 0 · phát sinh mới 0' theo lần quét lại; đóng thanh rồi 'Hoàn tác batch gần nhất' vẫn trả file về nguyên trạng và chọn lại các lỗi (BATCH-35)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-05"
+          ]
+        },
+        {
+          "id": "P18-TC-30",
+          "intent": "Áp dụng rồi hoàn tác ngay khi lần quét lại còn đang chạy: file về nguyên trạng và danh sách chỉ hiển thị kết quả quét mới nhất (7 dòng, còn finding dòng 6) (BATCH-36)",
           "level": "e2e",
           "critical": true,
           "scenarios": [
             "ASYNC-03",
-            "ASYNC-05",
             "LIFE-01"
           ]
         }
@@ -168,21 +303,93 @@
       "text": "View QA không nhân listener hoặc disposer qua mount-unmount, không cập nhật DOM sau unmount, và hiển thị đúng ở 1920x1080, 1440x900, 1280px, 390x844 trên Light và Dark mà không có lỗi console.",
       "cases": [
         {
-          "id": "P18-TC-12",
-          "intent": "Đăng ký handler hai lần có identity riêng, disposer cũ không gỡ đăng ký mới, dispose hai lần an toàn, 20 vòng mount-unmount không tăng listener, rời view khi batch-plan đang chờ không cập nhật DOM (BATCH-37, 38)",
+          "id": "P18-TC-31",
+          "intent": "20 vòng vào/ra view QA không tăng số listener; destroy hai lần an toàn; init lại không nhân listener; chạy lại disposer của lần init cũ không gỡ đăng ký mới — filter và modal xem trước vẫn hoạt động (BATCH-38)",
           "level": "e2e",
           "critical": false,
           "scenarios": [
             "OWN-01",
             "OWN-02",
             "OWN-03",
-            "OWN-04",
-            "OWN-05"
+            "OWN-04"
           ]
         },
         {
-          "id": "P18-TC-13",
-          "intent": "4 viewport x 2 theme: không tràn ngang, không chữ bị cắt, focus và trạng thái ẩn/hiện nhất quán, không có text debug, 0 lỗi console (BATCH-39)",
+          "id": "P18-TC-32",
+          "intent": "Rời view QA khi batch-plan còn đang chờ: phản hồi đến muộn không mở modal trên view đã đóng (BATCH-37)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "OWN-05",
+            "ASYNC-02"
+          ]
+        },
+        {
+          "id": "P18-TC-33",
+          "intent": "Ở 1920x1080 theme tối: card finding và modal xem trước không tràn ngang, không lộ undefined/null/TODO, tiêu đề modal nhận focus, 0 lỗi console (BATCH-39)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P18-TC-34",
+          "intent": "Ở 1440x900 theme tối: card finding và modal xem trước không tràn ngang, không lộ undefined/null/TODO, tiêu đề modal nhận focus, 0 lỗi console (BATCH-39)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P18-TC-35",
+          "intent": "Ở 1280x800 theme tối: card finding và modal xem trước không tràn ngang, không lộ undefined/null/TODO, tiêu đề modal nhận focus, 0 lỗi console (BATCH-39)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P18-TC-36",
+          "intent": "Ở 390x844 theme tối: card finding và modal xem trước không tràn ngang, không lộ undefined/null/TODO, tiêu đề modal nhận focus, 0 lỗi console (BATCH-39)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P18-TC-37",
+          "intent": "Ở 1920x1080 theme sáng: card finding và modal xem trước không tràn ngang, không lộ undefined/null/TODO, tiêu đề modal nhận focus, 0 lỗi console (BATCH-39)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P18-TC-38",
+          "intent": "Ở 1440x900 theme sáng: card finding và modal xem trước không tràn ngang, không lộ undefined/null/TODO, tiêu đề modal nhận focus, 0 lỗi console (BATCH-39)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P18-TC-39",
+          "intent": "Ở 1280x800 theme sáng: card finding và modal xem trước không tràn ngang, không lộ undefined/null/TODO, tiêu đề modal nhận focus, 0 lỗi console (BATCH-39)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P18-TC-40",
+          "intent": "Ở 390x844 theme sáng: card finding và modal xem trước không tràn ngang, không lộ undefined/null/TODO, tiêu đề modal nhận focus, 0 lỗi console (BATCH-39)",
           "level": "e2e",
           "critical": false,
           "scenarios": [
@@ -196,8 +403,8 @@
       "text": "Luồng sửa finding không gọi AI provider; nút 'Sửa lỗi' trên từng dòng đi qua cùng engine với sửa hàng loạt; route ai-analyze-fix và apply-fix không còn tồn tại.",
       "cases": [
         {
-          "id": "P18-TC-14",
-          "intent": "Sửa một finding quick qua nút từng dòng: modal có đúng một card, file đổi đúng một chỗ, hoàn tác byte-identical, không có request tới AI provider (BATCH-44)",
+          "id": "P18-TC-41",
+          "intent": "'Sửa lỗi' trên một dòng: modal có đúng 1 thẻ và 1 bản vá, file đổi đúng 1 dòng, hoàn tác về byte-identical, không có request nào tới route AI (BATCH-44)",
           "level": "e2e",
           "critical": true,
           "scenarios": [
@@ -205,9 +412,39 @@
           ]
         },
         {
-          "id": "P18-TC-15",
-          "intent": "GET /api/qa/finding/context trả đoạn mã, chặn đường dẫn ngoài project, xử lý finding không có file; route cũ trả 404 (BATCH-45)",
+          "id": "P18-TC-42",
+          "intent": "'Xem hướng dẫn' mở modal chi tiết với đoạn mã chỉ đọc và không có nút áp dụng; 'Chi tiết' của mục sửa được có nút 'Sửa lỗi' chuyển sang modal xem trước đúng 1 bản vá",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-02"
+          ]
+        },
+        {
+          "id": "P18-TC-43",
+          "intent": "GET /api/qa/finding/context trên server thật trả đoạn mã quanh finding (dòng 6, bắt đầu từ dòng 1) (BATCH-45)",
           "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-44",
+          "intent": "getFindingContext trả ±15 dòng quanh vị trí, chặn đường dẫn thoát project (403), finding thư mục trả file null, key không tồn tại trả 404 (BATCH-45)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-45",
+          "intent": "Route AI cũ POST /api/qa/finding/ai-analyze-fix và /api/qa/finding/apply-fix đã bị gỡ và trả 404 (BATCH-45)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-46",
+          "intent": "qaFindingFixerService chỉ còn export resolveSafePath và getFindingContext (chỉ đọc), không còn hàm gọi AI hay ghi file",
+          "level": "unit",
           "critical": false,
           "scenarios": []
         }
@@ -218,8 +455,8 @@
       "text": "Gán mã TC có hướng dẫn: người dùng chọn AC trong danh sách AC của REQ; bản vá gồm title `TC-NNN - AC-NNN`, tag REQ khi test chưa mang REQ đó và một dòng trong bảng Traceability, áp dụng cùng một giao dịch; không cấp trùng TC giữa các session đang mở; từ chối khi TC đã giữ chỗ bị dùng nơi khác, khi vượt TC-999 hoặc khi REQ không có bảng Traceability; sau khi quét lại không phát sinh lỗi truy vết.",
       "cases": [
         {
-          "id": "P18-TC-16",
-          "intent": "Chọn AC trong modal rồi áp dụng: spec và bảng Traceability đổi đúng, quét lại không phát sinh finding truy vết (BATCH-40)",
+          "id": "P18-TC-47",
+          "intent": "Gán mã TC qua UI: mục guided khoá Áp dụng tới khi chọn AC; chọn AC-002 thêm thẻ file test-cases với badge 'Truy vết'; áp dụng đổi title spec thành 'TC-NNN - AC-002 …' và thêm dòng Traceability; quét lại báo đã xử lý 1, phát sinh mới 0 (BATCH-40)",
           "level": "e2e",
           "critical": true,
           "scenarios": [
@@ -227,15 +464,43 @@
           ]
         },
         {
-          "id": "P18-TC-17",
-          "intent": "Hai session mở cùng lúc giữ chỗ TC khác nhau; TC bị chiếm lúc apply trả 409 TC_TAKEN và không ghi file; REQ không có bảng Traceability bị bỏ qua có lý do (BATCH-41, 43)",
-          "level": "integration",
+          "id": "P18-TC-48",
+          "intent": "Kế hoạch guided: bản vá chờ chọn AC, không tick sẵn, giữ chỗ TC-004 với danh sách AC của REQ-001; AC ngoài danh sách bị từ chối; chọn AC-002 chèn dòng Traceability đúng vị trí; áp dụng ghi 2 file và quét lại không còn finding truy vết ở test đó (BATCH-40)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-49",
+          "intent": "Hai session mở cùng lúc được giữ chỗ TC-004 và TC-005; nếu TC-005 bị dùng ở file khác trước khi áp dụng thì apply trả 409 STALE_FILES lý do TC_TAKEN và không ghi file (BATCH-41)",
+          "level": "unit",
           "critical": true,
           "scenarios": []
         },
         {
-          "id": "P18-TC-18",
-          "intent": "Cấp số TC bỏ qua số đã dùng hoặc đang giữ chỗ và dừng ở TC-999; dòng Traceability dựng theo tên cột và kiểu đường dẫn của bảng đang có (BATCH-42)",
+          "id": "P18-TC-50",
+          "intent": "REQ không có bảng Traceability: không tạo bản vá, bỏ qua với reasonCode NO_TRACEABILITY_TABLE (BATCH-43)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-51",
+          "intent": "Đã dùng tới TC-999: không tạo bản vá, bỏ qua với reasonCode TC_OVERFLOW (BATCH-42)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-52",
+          "intent": "Cấp số TC tiếp theo bỏ qua số đã dùng và đang giữ chỗ; khi TC-999 đã dùng thì không cấp số (BATCH-42)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-53",
+          "intent": "Dòng Traceability dựng theo tên cột của bảng hiện có (REQ-trước hoặc tiếng Việt TC-trước), thay ký tự '|' trong mô tả và giữ kiểu đường dẫn trần khi bảng đang dùng đường dẫn trần",
           "level": "unit",
           "critical": false,
           "scenarios": []
