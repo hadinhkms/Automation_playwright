@@ -3,6 +3,7 @@
 > **Mã kế hoạch:** `PLAN-17`
 > **Trạng thái:** `DRAFT v3 — ĐÃ BỔ SUNG KHẮC PHỤC 10 LỖ HỔNG (GAP-01..10) VỀ STREAMING, QUOTA DRIFT, SAFETY SANDBOX CHO QA-2, CANCEL SIGNAL & MOCK CORPUS. ĐÃ ĐỒNG BỘ VÀO NHÁNH MAIN. CHỜ DUYỆT.`
 > **Chiến lược nhánh:** Dự án do 1 người phát triển chính → Thực hiện trực tiếp trên nhánh `main` (Trunk-based development). Tuân thủ nghiêm ngặt Quality Gates (Gate 3 + Gate 4) trên từng sub-plan nhỏ để giữ nhánh `main` luôn xanh.
+> **Chặng 1 (2026-09-26):** đã chọn A, P3, F1, F3, F5, F8, F9 → sub-plan [17a_FOUNDATION_GATEWAY_PLAN.md](17a_FOUNDATION_GATEWAY_PLAN.md) (DRAFT, chờ chốt 8 quyết định ở mục 11). F0 đã xong.  
 > **Cách duyệt:** Đánh dấu `[x]` ở **Mục 9 – Phiếu Chọn**. Chỉ hạng mục được đánh dấu mới được lên plan chi tiết (contract AC/TC) và implement.
 > **Phạm vi:** `core/ai/`, `dashboard/` (services, routes, `js/views`, `js/components`), `scripts/`, `.github/workflows/`. Không đổi kiến trúc Vanilla HTML/CSS/JS, POM, fixture.
 > **Tham chiếu:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](file:///D:/_Master_Process/03_ACCEPTANCE_GATES.md), [PLAN-16](16_TRACEABILITY_CONFLICT_RESOLUTION_STUDIO_PLAN.md)
@@ -300,7 +301,7 @@ Mỗi chặng theo Master Process: contract AC/TC → implement → Gate 3 → G
 ## 9. Phiếu Chọn (đánh dấu `[x]` rồi báo lại)
 
 ### 9.1. Option kiến trúc
-- [ ] **A** — Nhúng vào Dashboard ⭐ khuyến nghị cho P0–P2
+- [x] **A** — Nhúng vào Dashboard ⭐ khuyến nghị cho P0–P2 (chốt 2026-09-26)
 - [ ] **C** — Thêm MCP server sau (DEV-5), dùng chung lớp F9
 - [ ] **B** — Chỉ MCP + AI bên ngoài (cần host opencode/Claude Code…)
 - ~~D — Bot CI~~ (không khuyến nghị theo R2/R4; thay bằng DEV-3)
@@ -308,21 +309,21 @@ Mỗi chặng theo Master Process: contract AC/TC → implement → Gate 3 → G
 ### 9.2. Provider (9Router qua Settings — đã chốt)
 - [x] P1 9Router là provider mặc định
 - [ ] P2 Chọn model theo tác vụ trong Settings
-- [ ] P3 Combo 9Router `qaFast` / `qaDeep` ⭐
+- [x] P3 Combo 9Router `qaFast` / `qaDeep` ⭐ (chốt 2026-09-26, fallback về model Settings khi thiếu alias)
 
 ### 9.3. Nền tảng
 - [x] F0 Gỡ key cứng + chặn SSRF — **đã làm 2026-09-26** (`dashboard/services/aiEndpointPolicy.js`, rule quét key trong `check:framework`). Còn lại cho chủ dự án: tạo key mới trong 9Router rồi cập nhật `.env` (key cũ vẫn nằm trong lịch sử Git của Hub và 2 vệ tinh); vệ tinh chỉ hết key cứng sau lần sync tới
-- [ ] F1 AI Gateway
+- [x] F1 AI Gateway → [17a](17a_FOUNDATION_GATEWAY_PLAN.md)
 - [ ] F1b Mở rộng Settings → Cấu hình AI
 - [ ] F2 Kho prompt có version
-- [ ] F3 Nhật ký AI (audit log)
+- [x] F3 Nhật ký AI (audit log) — bản gọn, chưa có trang xem → 17a
 - [ ] F4 Context Builder
-- [ ] F5 Bộ component AI dùng chung
+- [x] F5 Bộ component AI dùng chung → 17a (`aiDiffReview` chờ D2 của 17a)
 - [ ] F6 Eval harness
 - [ ] F6a Bộ dữ liệu mẫu từ CarThings (nằm lại trong repo CarThings)
 - [ ] F7 Siết an toàn Agent
-- [ ] F8 Ngân sách token 5 giờ
-- [ ] F9 Lớp nghiệp vụ `core/ai/tasks`
+- [x] F8 Ngân sách token 5 giờ → 17a
+- [x] F9 Lớp nghiệp vụ `core/ai/tasks` → 17a
 - [ ] F10 Ngôn ngữ giao diện AI thống nhất
 
 ### 9.4. PO / BA
