@@ -33,6 +33,7 @@ export class FindingDetailModal {
   }
 
   destroy() {
+    if (!this.alive) return;
     this.alive = false;
     this.token += 1;
     this.disposers.forEach((dispose) => { try { dispose(); } catch (_) { /* đã gỡ */ } });

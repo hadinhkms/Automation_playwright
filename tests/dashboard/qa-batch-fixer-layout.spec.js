@@ -116,6 +116,23 @@ test.describe('QA: batch fixer — vòng đời và bố cục (PLAN-18)', () =>
       return { afterDestroy, afterInit: batch.listenerCount };
     });
     expect(res).toEqual({ afterDestroy: 0, afterInit: baseline });
+
+    // OWN-02: disposer của lần đăng ký cũ chạy lại sau lần init mới không được gỡ đăng ký mới.
+    await page.evaluate(async () => {
+      const { batch } = (await import('/js/views/qa/qaSlice.js')).qaSlice;
+      const stale = batch.disposers.slice();
+      batch.init(document.getElementById('qa-view'));
+      stale.forEach((dispose) => { try { dispose(); } catch (_) { /* đã gỡ */ } });
+    });
+    await waitScanDone(page);
+    await page.locator('[data-batch-filter="manual"]').click();
+    await expect(page.locator('[data-batch-filter="manual"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.qa-static-gap-row')).toHaveCount(1);
+    await page.locator('[data-batch-filter="all"]').click();
+    await rowAt(page, `${LOGIN}:6`).getByRole('button', { name: 'Sửa lỗi' }).click();
+    await expect(page.locator('#qa-batch-modal')).toBeVisible();
+    await page.locator('#qa-batch-modal-cancel').click();
+    await expect(page.locator('#qa-batch-modal')).toBeHidden();
   });
 
   for (const theme of ['dark', 'light']) {

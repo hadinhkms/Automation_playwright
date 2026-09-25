@@ -75,7 +75,9 @@ export class BatchController {
       this.refresh();
     });
     on(bar, 'click', (e) => this._onToolbarClick(e));
-    this.disposers.push(() => { this.modal.destroy(); this.result.destroy(); this.detail.destroy(); });
+    // Giữ đúng instance của lần init này: disposer cũ chạy muộn không được huỷ component của lần init sau.
+    const { modal, result, detail } = this;
+    this.disposers.push(() => { modal.destroy(); result.destroy(); detail.destroy(); });
     this.loadLatest();
   }
 

@@ -23,6 +23,8 @@ export class BatchResultBar {
   }
 
   destroy() {
+    if (this.disposed) return;
+    this.disposed = true;
     this.disposers.forEach((dispose) => { try { dispose(); } catch (_) { /* đã gỡ */ } });
     this.disposers = [];
   }

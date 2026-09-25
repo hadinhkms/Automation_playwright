@@ -31,6 +31,9 @@ export class BatchPreviewModal {
   }
 
   destroy() {
+    // Idempotent: gọi lần hai (disposer cũ chạy muộn) không được đóng dialog mà instance mới đang mở.
+    if (this.disposed) return;
+    this.disposed = true;
     this.disposers.forEach((dispose) => { try { dispose(); } catch (_) { /* đã gỡ */ } });
     this.disposers = [];
     if (this.dialog && this.dialog.open) this.dialog.close();
