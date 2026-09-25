@@ -2,7 +2,7 @@
 
 > **Mã kế hoạch:** `PLAN-18`  
 > **Phiên bản:** `v6.2` — thay thế v5 (mục 0); bỏ AI khỏi toàn bộ luồng sửa finding (mục 0.1)  
-> **Trạng thái:** `DRAFT v6.2 — CHỜ PO/BA DUYỆT 4 QUYẾT ĐỊNH (mục 11) VÀ CONTRACT GATE · Lỗi chặn playwright --list đã sửa (task 0.0)`  
+> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0 XONG, CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · SẴN SÀNG PHASE 1`  
 > **Phạm vi:** View **QA Docs & Automation** (`#/qa`, tab "Vấn đề") — `dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`, `tools/qa/lib/sources.js` (thay đổi nhỏ, tương thích ngược).  
 > **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json).  
 > **Nhánh:** trunk-based trên `main`. Mỗi phase chỉ đóng khi toàn bộ exit criteria của phase có bằng chứng chạy thật (mục 9, 10).
@@ -88,7 +88,7 @@ v6.1 bỏ AI khỏi batch; v6.2 bỏ luôn AI khỏi nút sửa từng dòng.
 
 - Dùng AI trong luồng sửa finding (mục 0.1).
 - Sửa tự động `spec-thieu-assertion`, `ma-tc-trung`, `rule-thieu-boundary-test` và mọi kind không có route `quick`/`guided` ở mục 4 (chỉ hướng dẫn/điều hướng).
-- Chuẩn hoá tag REQ lên cấp `describe`; title test viết trên nhiều dòng; test dùng `{ tag: [...] }` → skip có lý do.
+- Title test/describe viết trên nhiều dòng; test dùng `{ tag: [...] }` → skip có lý do.
 - Điều phối với các trình ghi file khác của Dashboard (spec editor, Page Manager) ngoài việc phát hiện qua hash.
 - Chuyển `getQaSummary` sang bất đồng bộ (ghi nhận ở mục 12).
 - Sửa lỗi `playwright --list` (commit riêng, là điều kiện tiên quyết ở Phase 0).
@@ -133,8 +133,8 @@ Nguồn sự thật duy nhất: `dashboard/services/qaFindingCatalog.js`. Server
 | --- | --- | --- | --- | --- |
 | `assertion-thieu-await` | `quick` | Chèn từ khoá `await` đúng cột của `expect` mà `findMissingAwaits` trả về tại dòng finding | `ALREADY_FIXED` (không còn occurrence), `IN_EXPRESSION` (ký tự khác trắng liền trước là `[`, `(`, `,`), `SYNTAX_INVALID` | Có |
 | `test-bi-skip-am-tham` | `quick` | Mặc định **thêm `@wip`** vào cuối title. Lựa chọn từng mục "Kích hoạt lại": `test.skip(`/`test.fixme(` → `test(` (chỉ dạng khai báo `test.skip('…'`) | `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE`, `TAG_OPTION_OBJECT`, `CONDITIONAL_SKIP` | Có (`@wip`) |
-| `test-thieu-tag-req` | `quick` | Thêm `@REQ-xxx` vào cuối title. REQ lấy từ (1) bảng traceability theo `tcId` của test, (2) tên file chứa `REQ-\d{3}`; REQ phải tồn tại trong `loadRequirements` | `REQ_UNKNOWN`, `REQ_AMBIGUOUS` (2 nguồn khác nhau), `REQ_NOT_FOUND`, `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE`, `TAG_OPTION_OBJECT` | Có |
-| `test-khong-co-ma-tc` | `guided` (Phase 4; trước đó là `manual`) | Người dùng chọn AC → `TC-NNN - AC-NNN: <title>` + `@REQ` nếu thiếu + dòng traceability trong file test-cases của REQ | `REQ_UNKNOWN`, `NO_TRACEABILITY_TABLE`, `TC_OVERFLOW` (> 999), `TITLE_NOT_ON_LINE` | **Không** (cần chọn AC) |
+| `test-thieu-tag-req` | `quick` | Thêm `@REQ-xxx` vào cuối title của `test.describe` bao quanh test ([AI_PROMPTS.md](../ai/shared/AI_PROMPTS.md) 3.3); test không nằm trong describe thì thêm vào title test. REQ lấy từ (1) bảng traceability theo `tcId` của test, (2) tên file chứa `REQ-\d{3}`; REQ phải tồn tại trong `loadRequirements`. Mọi test trong describe phải chưa có REQ hoặc cùng REQ đó | `REQ_UNKNOWN`, `REQ_AMBIGUOUS` (2 nguồn khác nhau), `REQ_NOT_FOUND`, `DESCRIBE_MIXED_REQ`, `DESCRIBE_NOT_RESOLVED`, `TITLE_NOT_ON_LINE`, `TEMPLATE_TITLE`, `TAG_OPTION_OBJECT` | Có |
+| `test-khong-co-ma-tc` | `guided` (Phase 4; trước đó là `manual`) | Người dùng chọn AC → title `TC-NNN - AC-NNN <mô tả>` (AI_PROMPTS 3.3) + `@REQ` lên describe nếu thiếu (cùng quy tắc trên) + dòng traceability trong file test-cases của REQ | `REQ_UNKNOWN`, `NO_TRACEABILITY_TABLE`, `TC_OVERFLOW` (> 999), `TITLE_NOT_ON_LINE` | **Không** (cần chọn AC) |
 | `spec-thieu-assertion` | `manual` | "Xem hướng dẫn": đoạn mã quanh test + hướng dẫn của scanner; người dùng tự viết assertion | — | Không có checkbox |
 | `khong-doc-duoc-requirement` | `scaffold` | Nút "Tạo requirement" mở `#qa-scaffold-modal` sẵn có | — | Không có checkbox |
 | `script-khong-co-trong-test-case` | `autofix` | Nút "Chuẩn hoá traceability" mở Auto-Fix sẵn có (dry-run) | — | Không có checkbox |
@@ -142,6 +142,8 @@ Nguồn sự thật duy nhất: `dashboard/services/qaFindingCatalog.js`. Server
 | Mọi kind khác | `manual` | "Xem hướng dẫn": hiển thị `action` của scanner + đoạn mã liên quan | — | Không có checkbox |
 
 **Định vị title:** title phải là chuỗi literal đầu tiên của lời gọi `test` / `test.skip` / `test.fixme` / `test.only` trên dòng finding, hỗ trợ quote lồng và ký tự escape. Template literal chứa `${` → `TEMPLATE_TITLE`. Chèn tag có tính idempotent: tag đã có thì trả `ALREADY_FIXED`.
+
+**Định vị describe:** dòng `test.describe(` gần nhất phía trên có thụt lề nhỏ hơn dòng test; phạm vi describe kết thúc ở dòng đầu tiên phía dưới có thụt lề ≤ thụt lề describe. Không xác định được → `DESCRIBE_NOT_RESOLVED`. Nhiều finding `test-thieu-tag-req` cùng một describe sinh cùng một bản vá; modal hiện 1 dòng liệt kê các finding đó, tick một lần áp dụng cho tất cả.
 
 ---
 
@@ -187,7 +189,7 @@ sequenceDiagram
 | `tools/qa/lib/sources.js` | sửa (Hub) | `findMissingAwaits` trả thêm `column` (vị trí `expect` trong dòng). Tương thích ngược |
 | `dashboard/services/qaFindingCatalog.js` | mới, utils ≤150 | `createFindingKey`, `createMatchKey`, `routeFor`, `enrichFindings` (gộp trùng, `occurrences`, `fixRoute`) |
 | `dashboard/services/qaService.js` | sửa | `getQaSummary` trả finding đã enrich + `scanId`; giữ `findingsIndex` (Map theo root, không phụ thuộc TTL cache) |
-| `dashboard/services/qaFixText.js` | mới, utils ≤150 | `detectFormat` (eol, bom, finalNewline), `toLines`, `fromLines`, `hashNormalized`, `locateTitle`, `appendTitleTag`, `unskipDeclaration`, `insertAtColumn` |
+| `dashboard/services/qaFixText.js` | mới, utils ≤150 | `detectFormat` (eol, bom, finalNewline), `toLines`, `fromLines`, `hashNormalized`, `locateTitle`, `locateEnclosingDescribe`, `appendTitleTag`, `unskipDeclaration`, `insertAtColumn` |
 | `dashboard/services/qaFixValidate.js` | mới, utils ≤150 | `validateSyntax`, `predicates` theo kind |
 | `dashboard/services/qaBatchSessionStore.js` | mới, utils ≤150 | Session Map, TTL, state machine, `withWriteLock(root, fn)` |
 | `dashboard/services/qaBatchPlanService.js` | mới, service ≤200 | `buildPlan`, `applyInput`, `renderCards` (hunk + 2 dòng ngữ cảnh) |
@@ -441,7 +443,7 @@ sequenceDiagram
 | API contract | `tests/dashboard-api/qa-batch.test.js`; `tests/dashboard-api/qa.test.js` (thay test `ai-analyze-fix`) | 6 endpoint × {200, 400, 403, 404, 409, 500 `restored`}; route cũ trả 404 |
 | E2E UI | `tests/dashboard/qa-batch-fixer.spec.js` (`playwright.dashboard.config.js`) | Toolbar, hành động từng dòng, selection, modal, hoàn tác, vòng đời, viewport × theme; `selectionModel` được kiểm qua `page.evaluate(() => import('/js/views/qa/batch/selectionModel.js'))` |
 
-- **Fixture:** mở rộng `createFixtureWorkspace` với seed có requirements + test-cases (bảng `## Traceability`) + spec chứa đủ các loại finding, có biến thể CRLF + BOM và file không có newline cuối.
+- **Fixture:** `tests/dashboard/support/batchFixtureSeed.js` seed vào `createFixtureWorkspace`: requirement có front matter, bảng `## Traceability`, `playwright.config.js` 2 project, spec chứa đủ 5 loại finding (có dòng trùng hệt, biến thể CRLF + BOM không newline cuối). `dashboard/services/qaBatchFixture.test.js` chạy scanner thật trên fixture và khoá kết quả mong đợi.
 - **Mô phỏng lỗi ghi:** `qaBatchCommitService` nhận `fsOps` injectable (mặc định `fs`) để test ném lỗi ở file thứ N.
 
 ### 8.2. Scenario
@@ -458,7 +460,7 @@ sequenceDiagram
 | BATCH-08 | Service | expect trong `items.forEach(x => expect(…))` (callback không async) | `SYNTAX_INVALID`, file không đổi |
 | BATCH-09 | Service | File CRLF + BOM; file không có newline cuối | Định dạng giữ nguyên; không 409 giả |
 | BATCH-10 | Service | `test.skip(` và `test.fixme(`; chọn unskip; `test.skip(cond, 'lý do')` trong thân test | Mặc định `@wip`; unskip → `test(`; `CONDITIONAL_SKIP` |
-| BATCH-11 | Service | REQ từ traceability; 2 nguồn mâu thuẫn; REQ không tồn tại; quote lồng/escape; template literal; tag option | Tag đúng; `REQ_AMBIGUOUS`; `REQ_NOT_FOUND`; title đúng; `TEMPLATE_TITLE`; `TAG_OPTION_OBJECT` |
+| BATCH-11 | Service | REQ từ traceability; 2 nguồn mâu thuẫn; REQ không tồn tại; describe chứa test đã có REQ khác; test ngoài describe; quote lồng/escape; template literal; tag option | Tag gắn vào title describe; `REQ_AMBIGUOUS`; `REQ_NOT_FOUND`; `DESCRIBE_MIXED_REQ`; tag gắn vào title test; title đúng; `TEMPLATE_TITLE`; `TAG_OPTION_OBJECT` |
 | BATCH-12 | Unit | Cùng finding lặp qua 4 project | 1 key, `occurrences = 4`, 1 bản vá |
 | BATCH-13 | API | Gửi key có route `manual`/`scaffold`/`autofix` | `skipped` với `nextAction` đúng |
 | BATCH-14 | API | Key không còn trong lần quét mới nhất | `skipped` `NOT_IN_LATEST_SCAN` |
@@ -514,12 +516,12 @@ sequenceDiagram
 ### Phase 0 — Chuẩn bị (0.5 ngày + sửa lỗi chặn)
 
 - [x] 0.0 **Điều kiện tiên quyết (commit `3d36afe`, ngoài PLAN-18):** tách `RESERVED_FIXTURE_NAMES` ra `core/fixtures/reservedFixtureNames.js` để bỏ vòng `require`; loader custom fixture thôi quét file `.js` ở gốc dự án; thêm `core/fixtures/fixtureLoadOrder.test.js`. Bằng chứng: `node --test core/fixtures/*.test.js` 31/31; `playwright test --list` 12 test, không cảnh báo fixture; `sample_cleanup_fixture.spec.js` pass; `npm run check:framework` pass; `node tools/qa/index.js summary --json` liệt kê finding cấp test.
-- [ ] 0.0b `core/generator/objectRepository.js` dùng chung `reservedFixtureNames.js` (bản riêng thiếu `circuitBreakerGuard`). Code đã sẵn nhưng pre-commit hook chặn vì file 1240 dòng > giới hạn 250 (nợ có từ trước) — chờ quyết định: exemption có lý do hoặc tách module.
-- [ ] 0.1 PO/BA chốt 4 quyết định còn mở ở mục 11.
-- [ ] 0.2 Soạn contract PLAN-18 trong `.delivery/phases/` (AC/TC theo mục 8), gửi BA duyệt hash. Không tự duyệt.
-- [ ] 0.3 Chạy baseline, ghi lại các test đang fail sẵn: `node --test dashboard/services/*.test.js tools/qa/lib/*.test.js`, `npm run test:dashboard:api`, `npx playwright test -c playwright.dashboard.config.js`, `npm run check:framework`.
-- [ ] 0.4 Seed fixture batch trong `tests/dashboard/support/`.
-- **Exit:** scanner đọc được test; contract đã nộp duyệt; baseline được ghi vào plan.
+- [x] 0.0b `core/generator/objectRepository.js` dùng chung `reservedFixtureNames.js` (bản riêng thiếu `circuitBreakerGuard`); thêm exemption size-check có lý do cho file 1240 dòng có từ trước (commit `648f8a9`).
+- [x] 0.1 D1–D5 đã chốt (2026-09-25).
+- [x] 0.2 Soạn contract `.delivery/phases/plan-18.json` cho Phase 1–3 (10 AC, 15 TC, 9 critical, phủ đủ 16 gate scenario; qua `gates/contract.py`). **Chờ BA duyệt hash** — sha256 bản LF lúc soạn: `6ae16afcb1eb9a68805d461b58444822d2060531ea7b086b8a17c9d2e090c10a` (repo bật `core.autocrlf`, BA cần tính lại trên bản checkout). Không tự duyệt. Tuyến guided (Phase 4) sẽ có contract riêng.
+- [x] 0.3 Baseline 2026-09-25 (HEAD `648f8a9`): `node --test core/fixtures/*.test.js core/generator/*.test.js` 63/63; `npm run test:dashboard:api` 62/62; `npm run check:framework` pass; `npx playwright test -c playwright.dashboard.config.js` 67 pass / **1 fail sẵn**: `templates-performance-a11y.spec.js` TC-13 (DOM ban đầu 4432 > ngưỡng 1500) — đã ghi nhận từ PLAN-16, không thuộc PLAN-18.
+- [x] 0.4 `tests/dashboard/support/batchFixtureSeed.js` + `dashboard/services/qaBatchFixture.test.js`: scanner thật trên fixture sinh `assertion-thieu-await` 6, `test-bi-skip-am-tham` 2, `spec-thieu-assertion` 2, `test-khong-co-ma-tc` 2, `test-thieu-tag-req` 2 (mỗi finding ×2 project).
+- **Exit:** scanner đọc được test ✓; contract đã nộp duyệt ✓ (chờ BA ký); baseline được ghi ✓.
 
 ### Phase 1 — Nền tảng dùng chung (1.5 ngày)
 
@@ -585,10 +587,10 @@ sequenceDiagram
 | # | Quyết định | Trạng thái | Ảnh hưởng nếu không duyệt |
 | --- | --- | --- | --- |
 | D1 | Bỏ AI khỏi toàn bộ luồng sửa finding; nút "AI Sửa Lỗi" thay bằng "Sửa lỗi" (dùng chung engine) và "Xem hướng dẫn" | **Đã chốt 2026-09-25** | — |
-| D2 | `test-bi-skip-am-tham` mặc định gắn `@wip`; "Kích hoạt lại" là lựa chọn từng mục | Chờ duyệt (đề xuất: đồng ý) | Nguy cơ làm đỏ CI hàng loạt |
-| D3 | Bản vá guided (gán TC) mặc định không tick | Chờ duyệt (đề xuất: đồng ý) | Mã TC/AC được ghi mà không ai xem |
-| D4 | Chỉ hoàn tác được batch gần nhất; không đếm ngược | Chờ duyệt (đề xuất: đồng ý) | Phải thiết kế thêm lịch sử batch và xử lý xung đột chồng lớp |
-| D5 | Phase 4 (guided) có thể phát hành sau Phase 1–3 | Chờ duyệt (đề xuất: đồng ý) | Thêm ~2 ngày vào lần phát hành đầu |
+| D2 | `test-bi-skip-am-tham` mặc định gắn `@wip`; "Kích hoạt lại" là lựa chọn từng mục | **Đã chốt 2026-09-25** | — |
+| D3 | Bản vá guided (gán TC) mặc định không tick | **Đã chốt 2026-09-25** | — |
+| D4 | Chỉ hoàn tác được batch gần nhất; không đếm ngược | **Đã chốt 2026-09-25** | — |
+| D5 | Phase 4 (guided) có thể phát hành sau Phase 1–3 | **Đã chốt 2026-09-25** | — |
 
 ---
 

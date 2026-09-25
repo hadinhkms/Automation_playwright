@@ -1,0 +1,189 @@
+{
+  "schema_version": 1,
+  "phase": "plan-18",
+  "groups": {
+    "async_state": {
+      "applies": true,
+      "reason": ""
+    },
+    "ownership_lifecycle": {
+      "applies": true,
+      "reason": ""
+    },
+    "router_ui": {
+      "applies": true,
+      "reason": ""
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "P18-AC-01",
+      "text": "Mỗi finding trong QA summary có findingKey ổn định do server tính, fixRoute lấy từ một catalog duy nhất, và được gộp trùng qua các Playwright project; UI không tự suy luận route.",
+      "cases": [
+        {
+          "id": "P18-TC-01",
+          "intent": "Catalog tạo key ổn định, gộp finding trùng qua nhiều project với occurrences đúng và trả route đúng cho mọi kind (BATCH-12)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-02",
+      "text": "Ba loại finding quick (assertion-thieu-await, test-bi-skip-am-tham, test-thieu-tag-req) được vá xác định đúng vị trí, chạy lại không đổi gì, giữ nguyên EOL/BOM/newline cuối, không làm hỏng cú pháp; test bị skip mặc định được gắn @wip.",
+      "cases": [
+        {
+          "id": "P18-TC-02",
+          "intent": "Chèn await đúng cột do findMissingAwaits xác định, bỏ qua expect đồng bộ và expect nằm trong biểu thức (BATCH-02, 04, 05, 06, 07)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P18-TC-03",
+          "intent": "Lập kế hoạch trên file thật: nhiều bản vá một file, idempotent, chặn bản vá làm hỏng cú pháp, giữ EOL/BOM, gắn @wip hoặc kích hoạt lại test bị skip (BATCH-01, 03, 08, 09, 10)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-03",
+      "text": "Không ghi REQ/AC/TC nào không suy ra được duy nhất từ dữ liệu có sẵn; finding thiếu ngữ cảnh, không thuộc route sửa được, hoặc không còn trong lần quét mới nhất được bỏ qua kèm reasonCode và nextAction.",
+      "cases": [
+        {
+          "id": "P18-TC-04",
+          "intent": "Suy REQ từ bảng traceability hoặc tên file, từ chối REQ mơ hồ hoặc không tồn tại, trả skipped đúng cho route manual/scaffold/autofix và key đã cũ (BATCH-11, 13, 14)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-04",
+      "text": "Áp dụng chỉ ghi các bản vá được tick; từ chối khi file đã đổi, revision cũ, session không hợp lệ hoặc đang có thao tác ghi khác; lỗi ghi giữa chừng được khôi phục toàn bộ và phục hồi được sau khi process dừng đột ngột.",
+      "cases": [
+        {
+          "id": "P18-TC-05",
+          "intent": "Apply một phần, từ chối file stale và revision cũ, session khác cùng file bị 409 (BATCH-15, 16, 17, 19)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": ["ASYNC-03", "ASYNC-05"]
+        },
+        {
+          "id": "P18-TC-06",
+          "intent": "Lỗi ghi ở file thứ N khôi phục byte-identical và manifest FAILED; manifest APPLYING còn sót được phục hồi ở request đầu tiên (BATCH-20, 21)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": ["ASYNC-04"]
+        },
+        {
+          "id": "P18-TC-07",
+          "intent": "Apply đồng thời cùng session chỉ một request thành công; đường dẫn vượt project bị chặn; body quá lớn bị 400; session hết hạn trả 404 (BATCH-18, 26, 27)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-05",
+      "text": "Hoàn tác đưa các file của batch gần nhất về byte-identical, gọi lại không lỗi, hoạt động sau khi server khởi động lại, không ghi đè thay đổi phát sinh sau batch khi chưa được xác nhận, và snapshot cũ được dọn theo chính sách giữ lại.",
+      "cases": [
+        {
+          "id": "P18-TC-08",
+          "intent": "Rollback idempotent, ROLLBACK_CONFLICT khi file bị sửa sau batch và forceFiles sao lưu trước khi khôi phục, NOT_LATEST_BATCH, rollback từ manifest khi RAM trống, retention 20 session (BATCH-22, 23, 24, 25, 28)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-06",
+      "text": "Trên danh sách finding: chỉ mục sửa được có checkbox; mỗi route có đúng hành động theo bảng thiết kế; master checkbox tri-state tính theo mục đang hiển thị; hiện số mục đã chọn đang bị ẩn; selection sống qua đổi filter và làm mới, được prune khi key biến mất.",
+      "cases": [
+        {
+          "id": "P18-TC-09",
+          "intent": "Tri-state với filter, hành động từng dòng khớp inventory route độc lập, selection sống qua filter/làm mới và chuyển chip A-B-A nhanh chỉ áp dụng lần cuối (BATCH-29, 30, 31)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["UI-01", "UI-04", "ASYNC-02"]
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-07",
+      "text": "Modal xem trước cho tick từng bản vá và đổi lựa chọn, khoá thao tác trong lúc áp dụng, hỏi xác nhận khi đóng mà còn lựa chọn chưa áp dụng, và hướng dẫn lập lại kế hoạch khi gặp 409.",
+      "cases": [
+        {
+          "id": "P18-TC-10",
+          "intent": "Bỏ tick một bản vá rồi áp dụng, đổi lựa chọn khi batch-input đang chờ, double-click và Esc khi đang áp dụng, đóng modal có lựa chọn chưa lưu, 409 STALE_FILES và lập lại kế hoạch (BATCH-32, 33, 34)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["ASYNC-01", "ASYNC-04", "UI-02", "UI-05"]
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-08",
+      "text": "Sau khi áp dụng, result bar hiện ngay, báo đã xử lý / còn lại / phát sinh mới theo lần quét lại, 'Hoàn tác batch gần nhất' vẫn dùng được sau khi đóng thanh, và chỉ kết quả quét mới nhất được hiển thị.",
+      "cases": [
+        {
+          "id": "P18-TC-11",
+          "intent": "Apply qua UI tới file thật và scanner quét lại, đóng result bar rồi hoàn tác, Undo khi đang quét lại chỉ render kết quả mới nhất (BATCH-35, 36)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["ASYNC-03", "ASYNC-05", "LIFE-01"]
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-09",
+      "text": "View QA không nhân listener hoặc disposer qua mount-unmount, không cập nhật DOM sau unmount, và hiển thị đúng ở 1920x1080, 1440x900, 1280px, 390x844 trên Light và Dark mà không có lỗi console.",
+      "cases": [
+        {
+          "id": "P18-TC-12",
+          "intent": "Đăng ký handler hai lần có identity riêng, disposer cũ không gỡ đăng ký mới, dispose hai lần an toàn, 20 vòng mount-unmount không tăng listener, rời view khi batch-plan đang chờ không cập nhật DOM (BATCH-37, 38)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": ["OWN-01", "OWN-02", "OWN-03", "OWN-04", "OWN-05"]
+        },
+        {
+          "id": "P18-TC-13",
+          "intent": "4 viewport x 2 theme: không tràn ngang, không chữ bị cắt, focus và trạng thái ẩn/hiện nhất quán, không có text debug, 0 lỗi console (BATCH-39)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": ["UI-03"]
+        }
+      ]
+    },
+    {
+      "id": "P18-AC-10",
+      "text": "Luồng sửa finding không gọi AI provider; nút 'Sửa lỗi' trên từng dòng đi qua cùng engine với sửa hàng loạt; route ai-analyze-fix và apply-fix không còn tồn tại.",
+      "cases": [
+        {
+          "id": "P18-TC-14",
+          "intent": "Sửa một finding quick qua nút từng dòng: modal có đúng một card, file đổi đúng một chỗ, hoàn tác byte-identical, không có request tới AI provider (BATCH-44)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["LIFE-01"]
+        },
+        {
+          "id": "P18-TC-15",
+          "intent": "GET /api/qa/finding/context trả đoạn mã, chặn đường dẫn ngoài project, xử lý finding không có file; route cũ trả 404 (BATCH-45)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    }
+  ]
+}
