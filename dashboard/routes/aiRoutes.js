@@ -7,6 +7,9 @@ const path = require('path');
 const { createCopilotService } = require('../../core/ai/copilotService');
 const { analyzeDiagnostics } = require('../../core/diagnostics/diagnosticsAnalyzer');
 const { sendJson, parseBody } = require('./routeUtils');
+const {
+  isCrossSiteRequest, resolveModelsRequest, resolveTestConnection, validateConfigBody,
+} = require('../services/aiEndpointPolicy');
 
 const copilotService = createCopilotService({ quota: Number(process.env.DASHBOARD_AI_QUOTA || 20) });
 
@@ -26,9 +29,18 @@ function writeEnvFile(filePath, envObj) {
   fs.writeFileSync(filePath, Object.entries(envObj).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', 'utf8');
 }
 
+function readClientConfig(request) {
+  if (!request.headers['x-ai-config']) return null;
+  try { return JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch { return null; }
+}
+
 async function handleAiRoutes(request, response, url, context = {}) {
   const root = context.root || process.env.QA_PROJECT_ROOT || process.cwd();
   const agentService = context.agentService;
+
+  if (url.pathname.startsWith('/api/ai/') && isCrossSiteRequest(request.headers)) {
+    return sendJson(response, 403, { error: 'Yêu cầu tới cấu hình AI phải xuất phát từ chính Dashboard.' }) || true;
+  }
 
   if (request.method === 'GET' && url.pathname === '/api/ai/config') {
     const env = parseEnvFile(path.join(root, '.env'));
@@ -44,13 +56,16 @@ async function handleAiRoutes(request, response, url, context = {}) {
   if (request.method === 'GET' && url.pathname === '/api/ai/models') {
     try {
       const env = parseEnvFile(path.join(root, '.env'));
-      const qBase = url.searchParams.get('baseURL');
-      const qKey = url.searchParams.get('apiKey');
-      const base = (qBase || env.AI_BASE_URL || 'http://localhost:20128/v1').replace(/\/+$/, '');
-      const key = qKey || env.AI_API_KEY || env.OPENAI_API_KEY || 'sk-222d28244f5c9294-6676rz-8fcc38a6';
-      const resp = await fetch(`${base}/models`, {
+      const target = resolveModelsRequest({
+        baseURL: url.searchParams.get('baseURL'),
+        queryKey: url.searchParams.get('apiKey'),
+        clientKey: readClientConfig(request)?.apiKey,
+        env,
+      });
+      if (!target.ok) return sendJson(response, target.status, { success: false, error: target.error, models: [] }) || true;
+      const resp = await fetch(`${target.base}/models`, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${key}` },
+        headers: target.key ? { 'Authorization': `Bearer ${target.key}` } : {},
         signal: AbortSignal.timeout(4000),
       });
       if (!resp.ok) return sendJson(response, 200, { success: false, error: `HTTP ${resp.status}`, models: [] }) || true;
@@ -65,10 +80,8 @@ async function handleAiRoutes(request, response, url, context = {}) {
   if ((request.method === 'PUT' || request.method === 'POST') && url.pathname === '/api/ai/config') {
     try {
       const body = await parseBody(request);
-      const env = parseEnvFile(path.join(root, '.env'));
-      const provider = body.provider || env.AI_PROVIDER || 'gemini';
-      const baseURL = body.baseURL !== undefined && body.baseURL !== '' ? body.baseURL : (env.AI_BASE_URL || (provider === '9router' ? 'http://localhost:20128/v1' : ''));
-      const model = body.model || env.AI_MODEL || '';
+      const check = validateConfigBody(body);
+      if (!check.ok) return sendJson(response, check.status, { error: check.error }) || true;
       const envPath = path.join(root, '.env');
       const current = parseEnvFile(envPath);
       if (body.provider) current.AI_PROVIDER = body.provider;
@@ -96,17 +109,10 @@ async function handleAiRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/ai/test-connection') {
     try {
       const body = await parseBody(request);
-      const env = parseEnvFile(path.join(root, '.env'));
-      const provider = body.provider || env.AI_PROVIDER || 'gemini';
-      const baseURL = body.baseURL !== undefined && body.baseURL !== '' ? body.baseURL : (env.AI_BASE_URL || '');
-      const model = body.model || env.AI_MODEL || '';
-      let keyToTest = body.apiKey;
-      if (!keyToTest || keyToTest.includes('...')) {
-        const env = parseEnvFile(path.join(root, '.env'));
-        keyToTest = env.AI_API_KEY || (body.provider === 'gemini' ? env.GEMINI_API_KEY : body.provider === 'openai' ? env.OPENAI_API_KEY : body.provider === 'deepseek' ? env.DEEPSEEK_API_KEY : env.GEMINI_API_KEY);
-      }
+      const target = resolveTestConnection({ body, env: parseEnvFile(path.join(root, '.env')) });
+      if (!target.ok) return sendJson(response, target.status, { error: target.error }) || true;
       const result = await agentService.testConnection({
-        provider, apiKey: keyToTest, baseURL, model,
+        provider: target.provider, apiKey: target.apiKey, baseURL: target.baseURL, model: target.model,
       });
       sendJson(response, 200, result);
     } catch (e) { sendJson(response, 400, { error: e.message || 'Kiểm tra kết nối thất bại.' }); }
@@ -116,10 +122,7 @@ async function handleAiRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/ai/inline-suggest') {
     try {
       const body = await parseBody(request, 64 * 1024);
-      let clientConfig = body.clientConfig || null;
-      if (!clientConfig && request.headers['x-ai-config']) {
-        try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
-      }
+      const clientConfig = body.clientConfig || readClientConfig(request);
       const result = await agentService.inlineSuggest({
         prefix: body.prefix, suffix: body.suffix, language: body.language, clientConfig, model: body.model,
       });

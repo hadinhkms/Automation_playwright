@@ -311,7 +311,7 @@ Mỗi chặng theo Master Process: contract AC/TC → implement → Gate 3 → G
 - [ ] P3 Combo 9Router `qaFast` / `qaDeep` ⭐
 
 ### 9.3. Nền tảng
-- [ ] F0 Gỡ key cứng + chặn SSRF — **nên làm ngay**
+- [x] F0 Gỡ key cứng + chặn SSRF — **đã làm 2026-09-26** (`dashboard/services/aiEndpointPolicy.js`, rule quét key trong `check:framework`). Còn lại cho chủ dự án: tạo key mới trong 9Router rồi cập nhật `.env` (key cũ vẫn nằm trong lịch sử Git của Hub và 2 vệ tinh); vệ tinh chỉ hết key cứng sau lần sync tới
 - [ ] F1 AI Gateway
 - [ ] F1b Mở rộng Settings → Cấu hình AI
 - [ ] F2 Kho prompt có version

@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { findHardcodedSecrets } = require('./lib/secretScan');
 
 function runFrameworkCheck({ root = process.cwd(), targetArgs = [] } = {}) {
   const sourceDirs = ['tests/e2e', 'tests/api', 'pages', 'core/utils', 'core/fixtures'];
@@ -59,6 +60,8 @@ function runFrameworkCheck({ root = process.cwd(), targetArgs = [] } = {}) {
       }
     }
   }
+
+  issues.push(...findHardcodedSecrets({ root, files: targetArgs.length > 0 ? files : null }));
 
   const passed = issues.length === 0;
   const summary = passed

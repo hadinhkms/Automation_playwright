@@ -6541,7 +6541,7 @@ const AI_PRESETS = {
     baseURL: 'http://localhost:20128/v1',
     models: ['myCombo', 'ag/gemini-3.8-flash', 'gemini/gemini-3.8-flash', 'gemini/gemini-2.5-flash', 'openai/gpt-4o-mini', 'openai/gpt-4o'],
     defaultModel: 'myCombo',
-    keyPlaceholder: 'sk-222d28244f5c9294-... (Key từ 9Router)',
+    keyPlaceholder: 'sk-... (để trống nếu 9Router không bật xác thực)',
     keyDesc: 'AI Gateway cục bộ chạy tại http://localhost:20128/v1 - Định tuyến đa mô hình tự động',
   },
   gemini: {
@@ -6649,9 +6649,6 @@ function initAiSettings() {
       }
     }
     if (apiKeyInput) apiKeyInput.placeholder = preset.keyPlaceholder;
-    if (p === '9router' && apiKeyInput && (!apiKeyInput.value || apiKeyInput.value.length < 5)) {
-      apiKeyInput.value = 'sk-222d28244f5c9294-6676rz-8fcc38a6';
-    }
     const desc = $('#settings-ai-key-desc');
     if (desc) desc.textContent = preset.keyDesc;
     updateModelPresets(p, null);
@@ -6687,17 +6684,22 @@ function initAiSettings() {
   async function fetchLiveModels(baseURL, apiKey, showNotif = false) {
     try {
       const qBase = baseURL || 'http://localhost:20128/v1';
-      const qKey = apiKey || 'sk-222d28244f5c9294-6676rz-8fcc38a6';
-      const res = await request(`/api/ai/models?baseURL=${encodeURIComponent(qBase)}&apiKey=${encodeURIComponent(qKey)}`);
-      if (res && res.success && Array.isArray(res.models) && res.models.length) {
-        AI_PRESETS['9router'].models = Array.from(new Set(['myCombo', ...res.models]));
-        updateModelPresets(providerSelect?.value || '9router', customModelInput?.value || 'myCombo');
-        if (showNotif) {
-          notify(`Đã nạp ${res.models.length} mô hình từ 9Router!`);
-          showAlert(true, 'Tải models thành công', `Đã nhận diện ${res.models.length} mô hình từ 9Router.`);
-        }
-        return true;
+      // The key travels in a header, never in the URL, so it stays out of history and server logs.
+      const headers = apiKey ? { 'X-AI-Config': btoa(unescape(encodeURIComponent(JSON.stringify({ apiKey })))) } : {};
+      const res = await request(`/api/ai/models?baseURL=${encodeURIComponent(qBase)}`, { headers });
+      if (!res?.success) {
+        throw new Error(/^HTTP 40[13]$/.test(res?.error || '')
+          ? `Endpoint yêu cầu API Key hợp lệ (${res.error}). Nhập API Key rồi thử lại.`
+          : (res?.error || 'Hãy kiểm tra xem 9Router có đang chạy không.'));
       }
+      if (!Array.isArray(res.models) || !res.models.length) throw new Error('Endpoint không trả về mô hình nào.');
+      AI_PRESETS['9router'].models = Array.from(new Set(['myCombo', ...res.models]));
+      updateModelPresets(providerSelect?.value || '9router', customModelInput?.value || 'myCombo');
+      if (showNotif) {
+        notify(`Đã nạp ${res.models.length} mô hình từ 9Router!`);
+        showAlert(true, 'Tải models thành công', `Đã nhận diện ${res.models.length} mô hình từ 9Router.`);
+      }
+      return true;
     } catch (e) {
       if (showNotif) {
         showAlert(false, 'Không thể tải danh sách mô hình', e.message || 'Hãy kiểm tra xem 9Router có đang chạy không.');
@@ -6710,19 +6712,15 @@ function initAiSettings() {
   detect9RouterBtn?.addEventListener('click', async () => {
     if (providerSelect) providerSelect.value = '9router';
     if (baseUrlInput) baseUrlInput.value = 'http://localhost:20128/v1';
-    if (apiKeyInput && (!apiKeyInput.value || apiKeyInput.value.length < 5)) {
-      apiKeyInput.value = 'sk-222d28244f5c9294-6676rz-8fcc38a6';
-    }
     updateModelPresets('9router', 'myCombo');
     notify('Đang tự động nhận diện và kết nối 9Router...');
-    await fetchLiveModels('http://localhost:20128/v1', apiKeyInput?.value || 'sk-222d28244f5c9294-6676rz-8fcc38a6');
-    showAlert(true, 'Đã nhận diện 9Router', 'Đã thiết lập endpoint http://localhost:20128/v1 và tải danh sách mô hình từ 9Router thành công!');
+    await fetchLiveModels('http://localhost:20128/v1', apiKeyInput?.value.trim() || '', true);
   });
 
   const fetchModelsBtn = $('#btn-fetch-9router-models');
   fetchModelsBtn?.addEventListener('click', async () => {
     const base = baseUrlInput?.value.trim() || 'http://localhost:20128/v1';
-    const key = apiKeyInput?.value.trim() || 'sk-222d28244f5c9294-6676rz-8fcc38a6';
+    const key = apiKeyInput?.value.trim() || '';
     await fetchLiveModels(base, key, true);
   });
 
@@ -6912,9 +6910,14 @@ async function loadAiSettings() {
 
   const statusBadge = $('#settings-9router-status-badge');
   if (statusBadge) {
-    request('/api/ai/models?baseURL=http://localhost:20128/v1').then((r) => {
-      if (r && r.success) {
-        statusBadge.innerHTML = '<i class="ph-fill ph-circle" style="color: #22c55e;"></i> Online (Cổng 20128)';
+    const statusHeaders = personal?.enabled && personal.apiKey
+      ? { 'X-AI-Config': btoa(unescape(encodeURIComponent(JSON.stringify({ apiKey: personal.apiKey })))) }
+      : {};
+    request('/api/ai/models?baseURL=http://localhost:20128/v1', { headers: statusHeaders }).then((r) => {
+      if (r && (r.success || /^HTTP 40[13]$/.test(r.error || ''))) {
+        statusBadge.innerHTML = r.success
+          ? '<i class="ph-fill ph-circle" style="color: #22c55e;"></i> Online (Cổng 20128)'
+          : '<i class="ph-fill ph-circle" style="color: #22c55e;"></i> Online (Cổng 20128) · cần API Key';
         statusBadge.className = 'settings-badge-status settings-badge-status--server';
         if (r.models && r.models.length) {
           AI_PRESETS['9router'].models = Array.from(new Set(['myCombo', ...r.models]));
