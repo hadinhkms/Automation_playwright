@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { createBackup } = require('./resourceService');
 const { parseEnvFile } = require('../routes/aiRoutes');
+const { mayUseServerKey } = require('./aiEndpointPolicy');
 
 const RE_REQ = /\bREQ-(\d{3})\b/;
 const RE_AC = /\bAC-(\d{3})\b/g;
@@ -318,7 +319,9 @@ function inferWithHeuristic({ reqId, decidedQuestions, existingTcIds, existingTc
  */
 async function inferWithAi({ reqId, reqContent, decidedQuestions, existingTcIds, existingTcTitles, acs, clientConfig, root }) {
   const env = parseEnvFile(path.join(root || process.cwd(), '.env'));
-  const apiKey = (clientConfig && clientConfig.apiKey) || env.AI_API_KEY || env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.DEEPSEEK_API_KEY;
+  const serverKey = mayUseServerKey(clientConfig && clientConfig.baseURL, env)
+    ? (env.AI_API_KEY || env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.DEEPSEEK_API_KEY) : '';
+  const apiKey = (clientConfig && clientConfig.apiKey) || serverKey;
   const provider = (clientConfig && clientConfig.provider) || env.AI_PROVIDER || (env.OPENAI_API_KEY ? 'openai' : env.DEEPSEEK_API_KEY ? 'deepseek' : 'gemini');
   const baseURL = (clientConfig && clientConfig.baseURL) || env.AI_BASE_URL || '';
   const model = (clientConfig && clientConfig.model) || env.AI_MODEL || (provider === 'gemini' ? (env.DASHBOARD_GEMINI_MODEL || 'gemini-2.5-flash') : provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini');
@@ -938,7 +941,8 @@ function extractHeuristicFromSpecText(rawContent, reqId, domain) {
 async function extractWithAi(root, rawContent, inputType, reqId, domain, payload = {}) {
   const env = parseEnvFile(path.join(root || process.cwd(), '.env'));
   const apiKey = env.AI_API_KEY || env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.DEEPSEEK_API_KEY || '';
-  if (!apiKey) return null;
+  // Only the .env key exists here, so a request naming another endpoint falls back to the heuristic.
+  if (!apiKey || !mayUseServerKey(payload.baseURL, env)) return null;
 
   const provider = (payload.provider || env.AI_PROVIDER || (env.OPENAI_API_KEY ? 'openai' : env.DEEPSEEK_API_KEY ? 'deepseek' : 'gemini')).toLowerCase();
   const baseURL = payload.baseURL || env.AI_BASE_URL || '';

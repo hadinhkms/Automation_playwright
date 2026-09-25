@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const { parseEnvFile } = require('../routes/aiRoutes');
 const { createBackup } = require('./resourceService');
+const { mayUseServerKey } = require('./aiEndpointPolicy');
 
 /**
  * Thu thập ngữ cảnh hiện có trong repo: test cases, specs, page objects.
@@ -163,7 +164,9 @@ function formatContextSummary(context) {
  */
 async function analyzeWithAi({ rawText, repoContext, clientConfig, root }) {
   const env = parseEnvFile(path.join(root, '.env'));
-  const apiKey = (clientConfig && clientConfig.apiKey) || env.AI_API_KEY || env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.DEEPSEEK_API_KEY;
+  const serverKey = mayUseServerKey(clientConfig && clientConfig.baseURL, env)
+    ? (env.AI_API_KEY || env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.DEEPSEEK_API_KEY) : '';
+  const apiKey = (clientConfig && clientConfig.apiKey) || serverKey;
   const provider = (clientConfig && clientConfig.provider) || env.AI_PROVIDER || (env.OPENAI_API_KEY ? 'openai' : env.DEEPSEEK_API_KEY ? 'deepseek' : 'gemini');
   const baseURL = (clientConfig && clientConfig.baseURL) || env.AI_BASE_URL || '';
   const model = (clientConfig && clientConfig.model) || env.AI_MODEL || (provider === 'gemini' ? (env.DASHBOARD_GEMINI_MODEL || 'gemini-2.5-flash') : provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini');

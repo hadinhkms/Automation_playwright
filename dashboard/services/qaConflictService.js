@@ -23,6 +23,7 @@ const path = require('node:path');
 const { parseEnvFile } = require('../routes/aiRoutes');
 const { createBackup } = require('./resourceService');
 const { resolveSafePath } = require('./qaFindingFixerService');
+const { mayUseServerKey } = require('./aiEndpointPolicy');
 
 // qaService nạp module này để gắn dữ liệu xung đột vào finding, nên phải nạp ngược lại một
 // cách lười (lúc gọi hàm) để tránh vòng require trả về exports rỗng.
@@ -516,9 +517,10 @@ function resolveAiConfig(root, clientConfig) {
   const provider = cc.provider || env.AI_PROVIDER
     || (env.AI_BASE_URL && env.AI_BASE_URL.includes('20128') ? '9router'
       : env.OPENAI_API_KEY ? 'openai' : env.DEEPSEEK_API_KEY ? 'deepseek' : 'gemini');
-  const apiKey = cc.apiKey || env.AI_API_KEY
+  const serverKey = env.AI_API_KEY
     || (provider === 'gemini' ? env.GEMINI_API_KEY : provider === 'deepseek' ? env.DEEPSEEK_API_KEY : env.OPENAI_API_KEY)
     || env.GEMINI_API_KEY || env.OPENAI_API_KEY || env.DEEPSEEK_API_KEY;
+  const apiKey = cc.apiKey || (mayUseServerKey(cc.baseURL, env) ? serverKey : '');
   const defaultModel = provider === 'gemini' ? (env.DASHBOARD_GEMINI_MODEL || 'gemini-2.5-flash')
     : provider === 'deepseek' ? 'deepseek-chat' : provider === '9router' ? 'myCombo' : 'gpt-4o-mini';
   const defaultBase = provider === 'gemini' ? 'https://generativelanguage.googleapis.com/v1beta/models'

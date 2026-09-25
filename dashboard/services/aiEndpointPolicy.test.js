@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   isCrossSiteRequest,
+  mayUseServerKey,
   resolveModelsRequest,
   resolveTestConnection,
   sameEndpoint,
@@ -130,4 +131,13 @@ test('isCrossSiteRequest: trang khác, cổng localhost khác, origin null và D
   assert.equal(isCrossSiteRequest({ host: '127.0.0.1:4173', origin: 'null' }), true);
   assert.equal(isCrossSiteRequest({ host: 'attacker.example:4173', origin: 'http://attacker.example:4173' }), true);
   assert.equal(isCrossSiteRequest({}), true);
+});
+
+test('mayUseServerKey: chỉ khi request không nêu endpoint hoặc nêu đúng endpoint đã lưu', () => {
+  assert.equal(mayUseServerKey(undefined, SAVED_9ROUTER), true);
+  assert.equal(mayUseServerKey('', SAVED_9ROUTER), true);
+  assert.equal(mayUseServerKey('http://127.0.0.1:20128/v1', SAVED_9ROUTER), true);
+  assert.equal(mayUseServerKey('http://attacker.example/v1', SAVED_9ROUTER), false);
+  assert.equal(mayUseServerKey('https://api.openai.com/v1', SAVED_9ROUTER), false);
+  assert.equal(mayUseServerKey('http://localhost:20128/v1', { AI_PROVIDER: 'gemini' }), false);
 });

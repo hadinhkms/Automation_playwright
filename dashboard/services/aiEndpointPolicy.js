@@ -50,6 +50,14 @@ function serverBaseUrl(env = {}) {
   return String(env.AI_PROVIDER || '').toLowerCase() === '9router' ? DEFAULT_9ROUTER_BASE : '';
 }
 
+/**
+ * Whether a server-side AI call may use the .env key. Requests can name their own endpoint
+ * (clientConfig.baseURL, payload.baseURL); the .env key is used only when they name none or the saved one.
+ */
+function mayUseServerKey(requestedBaseURL, env = {}) {
+  return !requestedBaseURL || sameEndpoint(requestedBaseURL, serverBaseUrl(env));
+}
+
 function isAllowedModelsBase(url, env = {}) {
   return isNineRouter(url) || OFFICIAL_ORIGINS.has(url.origin) || sameEndpoint(url, serverBaseUrl(env));
 }
@@ -133,6 +141,7 @@ function isCrossSiteRequest(headers = {}) {
 module.exports = {
   DEFAULT_9ROUTER_BASE,
   isCrossSiteRequest,
+  mayUseServerKey,
   resolveModelsRequest,
   resolveTestConnection,
   sameEndpoint,
