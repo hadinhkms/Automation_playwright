@@ -15,7 +15,7 @@ import { renderMarkdown, parseFrontMatter } from './markdownView.js';
 import { parseOpenQuestions, applyAnswers } from './openQuestions.js';
 import { ProcessStudioHelper } from './processStudioHelper.js';
 import { ReqAnalyzerHelper } from './reqAnalyzerHelper.js';
-import { FindingFixerHelper } from './findingFixerHelper.js';
+import { BatchController } from './batch/batchController.js';
 import { ConflictStudioHelper } from './conflictStudioHelper.js';
 
 const PRIORITY_ORDER = { P0: 0, P1: 1, P2: 2, P3: 3 };
@@ -60,7 +60,10 @@ export class QaSlice {
     this.draftText = '';
     this._lastAuthor = '';
     this.reqAnalyzer = new ReqAnalyzerHelper(this);
-    this.findingFixer = new FindingFixerHelper(this);
+    // PLAN-18: sửa static finding (từng dòng và hàng loạt) qua một engine xác định, không AI.
+    this.batch = new BatchController(this);
+    // Chỉ lần tải summary mới nhất được vẽ: Apply rồi Undo nhanh không để kết quả cũ đè kết quả mới.
+    this._summarySeq = 0;
     this.conflictStudio = new ConflictStudioHelper(this);
   }
 
@@ -76,8 +79,8 @@ export class QaSlice {
     if (this.reqAnalyzer) {
       this.reqAnalyzer.destroy();
     }
-    if (this.findingFixer) {
-      this.findingFixer.destroy();
+    if (this.batch) {
+      this.batch.destroy();
     }
     if (this.conflictStudio) {
       this.conflictStudio.destroy();
@@ -248,9 +251,9 @@ export class QaSlice {
       this._disposers.push(() => this.reqAnalyzer.destroy());
     }
 
-    if (this.findingFixer) {
-      this.findingFixer.init(root);
-      this._disposers.push(() => this.findingFixer.destroy());
+    if (this.batch) {
+      this.batch.init(root);
+      this._disposers.push(() => this.batch.destroy());
     }
   }
 
@@ -329,8 +332,11 @@ export class QaSlice {
 
     // Chạy ngầm summary để nạp chỉ số chuyên sâu và scorecard (không chặn mở tab)
     const summaryUrl = announce ? '/api/qa/summary?force=true' : '/api/qa/summary';
+    const seq = ++this._summarySeq;
+    if (this.batch) this.batch.setScanPending(true);
     apiClient.get(summaryUrl).then((summaryRes) => {
-      if (!this._mounted) return;
+      if (!this._mounted || seq !== this._summarySeq) return;
+      if (this.batch) this.batch.scanPending = false;
       this.summary = summaryRes;
       this._renderStats();
       this._renderExecutiveScorecard();
@@ -338,7 +344,8 @@ export class QaSlice {
       this.renderFindings();
       if (announce) this.notify('Đã làm mới dữ liệu QA.');
     }).catch((err) => {
-      if (!this._mounted) return;
+      if (!this._mounted || seq !== this._summarySeq) return;
+      if (this.batch) this.batch.setScanPending(false);
       this._degraded.push({ part: 'bộ chỉ số QA Core', reason: err });
       if (announce) this.notify('Đã làm mới dữ liệu QA (chỉ số chuyên sâu chưa hoàn tất).');
     });
@@ -2258,118 +2265,22 @@ export class QaSlice {
     const root = this._root();
     if (!root) return;
 
-    // 1. Render Static Findings & Gaps Card
+    // 1. Static Findings & Gaps: danh sách, toolbar và các modal do BatchController vẽ (PLAN-18)
     const staticGapsCard = root.querySelector('#qa-static-gaps-card');
     const staticGapsBadge = root.querySelector('#qa-static-gaps-badge');
-    const staticGapsList = root.querySelector('#qa-static-gaps-list');
-
-    const allFindings = (this.summary && Array.isArray(this.summary.findings))
+    const staticGaps = (this.summary && Array.isArray(this.summary.findings))
       ? this.summary.findings
       : [];
 
-    const staticGaps = allFindings;
-
-    if (staticGapsCard && staticGapsList) {
-      staticGapsList.textContent = '';
-      if (staticGaps.length === 0) {
-        staticGapsCard.hidden = true;
-      } else {
-        staticGapsCard.hidden = false;
-        const blockers = staticGaps.filter((f) => f.severity === 'blocker').length;
-        if (staticGapsBadge) {
-          staticGapsBadge.textContent = `${staticGaps.length} phát hiện (${blockers > 0 ? `${blockers} blocker` : 'cảnh báo'})`;
-          if (blockers > 0) {
-            staticGapsBadge.className = 'qa-badge qa-badge-danger';
-          } else {
-            staticGapsBadge.className = 'qa-badge qa-badge-warn';
-          }
-        }
-
-        for (const gap of staticGaps) {
-          const row = document.createElement('div');
-          row.className = 'qa-static-gap-row';
-
-          const iconCol = document.createElement('div');
-          iconCol.className = 'qa-gap-icon-col';
-          const icon = document.createElement('i');
-          if (gap.severity === 'blocker' || gap.kind === 'assertion-thieu-await') {
-            icon.className = 'ph-bold ph-warning-circle';
-            icon.style.color = 'var(--danger)';
-          } else if (gap.kind === 'rule-thieu-boundary-test' || gap.kind === 'thieu-kiem-tra-bien') {
-            icon.className = 'ph-bold ph-compass';
-            icon.style.color = 'var(--warning)';
-          } else {
-            icon.className = 'ph-bold ph-git-diff';
-            icon.style.color = 'var(--accent)';
-          }
-          iconCol.appendChild(icon);
-          row.appendChild(iconCol);
-
-          const contentCol = document.createElement('div');
-          contentCol.className = 'qa-gap-content-col';
-
-          const title = document.createElement('div');
-          title.className = 'qa-gap-title';
-          const labelSpan = document.createElement('span');
-          labelSpan.textContent = gap.label || gap.kind;
-          title.appendChild(labelSpan);
-
-          if (gap.severity) {
-            const sev = document.createElement('span');
-            sev.className = `qa-badge qa-badge-${gap.severity === 'blocker' ? 'danger' : 'warn'}`;
-            sev.style.marginLeft = '8px';
-            sev.textContent = gap.severity.toUpperCase();
-            title.appendChild(sev);
-          }
-
-          if (gap.where || gap.id) {
-            const loc = document.createElement('span');
-            loc.className = 'qa-gap-location';
-            loc.textContent = gap.where || gap.id;
-            title.appendChild(loc);
-          }
-          contentCol.appendChild(title);
-
-          const detail = document.createElement('div');
-          detail.className = 'qa-gap-detail';
-          detail.textContent = gap.detail || gap.message || '';
-          if (gap.action) {
-            detail.textContent += ` ➔ Hướng dẫn: ${gap.action}`;
-          }
-          contentCol.appendChild(detail);
-
-          row.appendChild(contentCol);
-
-          // Cột thao tác: Nút AI Sửa Lỗi
-          const actionsCol = document.createElement('div');
-          actionsCol.className = 'qa-gap-actions-col';
-          const fixBtn = document.createElement('button');
-          fixBtn.type = 'button';
-          fixBtn.className = 'qa-gap-ai-fix-btn';
-          fixBtn.title = 'AI chẩn đoán nguyên nhân và tự động sinh bản vá cho lỗi này';
-
-          const fixIcon = document.createElement('i');
-          fixIcon.className = 'ph-bold ph-sparkle';
-          fixBtn.appendChild(fixIcon);
-
-          const fixText = document.createElement('span');
-          fixText.textContent = 'AI Sửa Lỗi';
-          fixBtn.appendChild(fixText);
-
-          const onFixClick = () => {
-            if (this.findingFixer) {
-              this.findingFixer.openModal(root, gap);
-            }
-          };
-          fixBtn.addEventListener('click', onFixClick);
-          this._renderDisposers.push(() => fixBtn.removeEventListener('click', onFixClick));
-
-          actionsCol.appendChild(fixBtn);
-          row.appendChild(actionsCol);
-
-          staticGapsList.appendChild(row);
-        }
+    if (staticGapsCard) {
+      // Vẫn hiện card khi đã sửa hết lỗi nhưng thanh kết quả (có nút Hoàn tác) đang mở.
+      staticGapsCard.hidden = staticGaps.length === 0 && !(this.batch && this.batch.hasActiveResult);
+      const blockers = staticGaps.filter((f) => f.severity === 'blocker').length;
+      if (staticGapsBadge) {
+        staticGapsBadge.textContent = `${staticGaps.length} phát hiện (${blockers > 0 ? `${blockers} blocker` : 'cảnh báo'})`;
+        staticGapsBadge.className = `qa-badge ${blockers > 0 ? 'qa-badge-danger' : 'qa-badge-warn'}`;
       }
+      if (this.batch) this.batch.render(this.summary);
     }
 
     // 2. Render nhóm Findings chung từ trace

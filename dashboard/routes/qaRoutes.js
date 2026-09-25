@@ -31,10 +31,6 @@ const {
   scaffoldFromAnalysis,
 } = require('../services/qaRequirementAnalyzerService');
 const {
-  analyzeFindingFix,
-  applyFindingFix,
-} = require('../services/qaFindingFixerService');
-const {
   getConflictContext,
   resolveConflict,
   arbitrateWithAi,
@@ -302,48 +298,6 @@ async function handleQaRoutes(request, response, url, context = {}) {
         title: body.title,
         domain: body.domain || 'general',
         analysisResult: body.analysisResult,
-      });
-      sendJson(response, 200, result);
-    } catch (error) {
-      const status = Number.isInteger(error.status) ? error.status : 400;
-      sendJson(response, status, {
-        error: error instanceof SyntaxError ? 'JSON không hợp lệ.' : error.message,
-      });
-    }
-    return true;
-  }
-
-  if (request.method === 'POST' && url.pathname === '/api/qa/finding/ai-analyze-fix') {
-    try {
-      const body = await parseBody(request, 256 * 1024);
-      let clientConfig = body.clientConfig || null;
-      if (!clientConfig && request.headers['x-ai-config']) {
-        try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
-      }
-      const result = await analyzeFindingFix({
-        root,
-        finding: body.finding,
-        clientConfig,
-      });
-      sendJson(response, 200, result);
-    } catch (error) {
-      const status = Number.isInteger(error.status) ? error.status : 400;
-      sendJson(response, status, {
-        error: error instanceof SyntaxError ? 'JSON không hợp lệ.' : error.message,
-      });
-    }
-    return true;
-  }
-
-  if (request.method === 'POST' && url.pathname === '/api/qa/finding/apply-fix') {
-    try {
-      const body = await parseBody(request, 512 * 1024);
-      const result = applyFindingFix(root, {
-        targetFile: body.targetFile,
-        patchType: body.patchType,
-        originalSnippet: body.originalSnippet,
-        fixedSnippet: body.fixedSnippet,
-        fullContent: body.fullContent,
       });
       sendJson(response, 200, result);
     } catch (error) {

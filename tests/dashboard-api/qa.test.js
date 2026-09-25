@@ -478,49 +478,15 @@ Khu vực đào tạo (phường/xã) tối đa 10 mục. Bỏ trống trung tâ
     assert.equal(body.files.length, 2);
   });
 
-  test('POST /api/qa/finding/ai-analyze-fix phân tích lỗi và đề xuất bản vá qua Heuristic fallback', async () => {
-    const finding = {
-      kind: 'test-khong-co-ma-tc',
-      where: 'tests/example.spec.js:1',
-      message: 'Test không mở đầu bằng TC-xxx, không trace được.',
-    };
-
-    const res = await fetch(`${harness.url}/api/qa/finding/ai-analyze-fix`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ finding }),
-    });
-    assert.equal(res.status, 200);
-    const body = await res.json();
-    assert.equal(body.ok, true);
-    assert.ok(body.analysis);
-    assert.ok(body.analysis.rootCause);
-  });
-
-  test('POST /api/qa/finding/apply-fix áp dụng bản vá an toàn kèm backup', async () => {
-    // Tạo file mẫu trong thư mục của fixture
-    const sampleRel = 'tests/apply-fix-sample.spec.js';
-    const sampleAbs = path.join(fixture.rootPath, sampleRel);
-    fs.mkdirSync(path.dirname(sampleAbs), { recursive: true });
-    fs.writeFileSync(sampleAbs, "test('Sample test without TC', async () => {});", 'utf8');
-
-    const res = await fetch(`${harness.url}/api/qa/finding/apply-fix`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        targetFile: sampleRel,
-        patchType: 'replace_lines',
-        originalSnippet: "test('Sample test without TC',",
-        fixedSnippet: "test('TC-099: Sample test without TC',",
-      }),
-    });
-    assert.equal(res.status, 200);
-    const body = await res.json();
-    assert.equal(body.ok, true);
-    assert.ok(body.backup);
-
-    const updated = fs.readFileSync(sampleAbs, 'utf8');
-    assert.ok(updated.includes('TC-099:'));
+  test('PLAN-18: route AI sửa lỗi cũ đã bỏ — ai-analyze-fix và apply-fix trả 404', async () => {
+    for (const route of ['/api/qa/finding/ai-analyze-fix', '/api/qa/finding/apply-fix']) {
+      const res = await fetch(`${harness.url}${route}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ finding: { kind: 'test-khong-co-ma-tc', where: 'tests/example.spec.js:1' } }),
+      });
+      assert.equal(res.status, 404, route);
+    }
   });
 
   // --- Traceability Conflict Studio ---

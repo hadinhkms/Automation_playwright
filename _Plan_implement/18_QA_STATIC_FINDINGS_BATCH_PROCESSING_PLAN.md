@@ -2,7 +2,7 @@
 
 > **Mã kế hoạch:** `PLAN-18`  
 > **Phiên bản:** `v6.2` — thay thế v5 (mục 0); bỏ AI khỏi toàn bộ luồng sửa finding (mục 0.1)  
-> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0–2 XONG · CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · TIẾP THEO: PHASE 3`  
+> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0–3 XONG · CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · TIẾP THEO: PHASE 4`  
 > **Phạm vi:** View **QA Docs & Automation** (`#/qa`, tab "Vấn đề") — `dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`, `tools/qa/lib/sources.js` (thay đổi nhỏ, tương thích ngược).  
 > **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json).  
 > **Nhánh:** trunk-based trên `main`. Mỗi phase chỉ đóng khi toàn bộ exit criteria của phase có bằng chứng chạy thật (mục 9, 10).
@@ -546,12 +546,12 @@ sequenceDiagram
 
 ### Phase 3 — UI + thay luồng AI từng dòng (3.5 ngày)
 
-- [ ] 3.1 Markup `qa.html` + `qa.css`: toolbar, `#qa-batch-modal`, `#qa-batch-result-bar`, `#qa-finding-detail-modal` (thay `#qa-finding-fix-modal`).
-- [ ] 3.2 `selectionModel`, `batchToolbar`, `batchDiffView`, `batchPreviewModal`, `batchResultBar`, `batchController` (gồm `fixOne`), `findingDetailModal`.
-- [ ] 3.3 `qaSlice.js`: mount/unmount, sequence guard + `scanPending` trong `reload()`, delegation, gộp dòng, hành động từng dòng theo bảng mục 6.1.
-- [ ] 3.4 Xoá luồng AI cũ trong cùng commit với 3.3: `findingFixerHelper.js`, route `ai-analyze-fix` + `apply-fix`, các hàm AI/heuristic/apply trong `qaFindingFixerService.js`; viết lại `qaFindingFixerService.test.js` và test `ai-analyze-fix` trong `tests/dashboard-api/qa.test.js`.
-- [ ] 3.5 E2E + API: BATCH-29..39, 44, 45.
-- **Exit:** E2E PASS; ảnh chụp 4 viewport × 2 theme đã soát; 0 lỗi console; `node --check` các file FE mới PASS; tìm trong `dashboard/` không còn `ai-analyze-fix`, `analyzeWithAiFix`, `apply-fix`.
+- [x] 3.1 Markup `qa.html` + `qa.css`: toolbar, `#qa-batch-result-bar`, `#qa-batch-modal`, `#qa-finding-detail-modal` (thay `#qa-finding-fix-modal`), `#qa-batch-confirm` (hộp xác nhận thay `window.confirm`); style chỉ dùng token, nhãn không kế thừa kiểu `label` viết hoa toàn cục.
+- [x] 3.2 `dashboard/public/js/views/qa/batch/`: `selectionModel`, `findingRows`, `batchToolbar`, `batchDiffView`, `batchPreviewModal` + `batchPreviewRender`, `batchResultBar`, `batchConfirm`, `findingDetailModal`, `batchFlows` (áp dụng, đổi lựa chọn, thống kê quét lại, hoàn tác), `batchController` — mỗi file ≤ 250 dòng.
+- [x] 3.3 `qaSlice.js`: `BatchController` thay `FindingFixerHelper`; `reload()` có sequence guard + `scanPending`; `renderFindings()` giao danh sách cho controller; card vẫn hiện khi đã hết lỗi nhưng thanh kết quả còn mở.
+- [x] 3.4 Đã xoá luồng AI cũ: `findingFixerHelper.js`, route `ai-analyze-fix` + `apply-fix`, các hàm AI/heuristic/apply trong `qaFindingFixerService.js` (còn `resolveSafePath` + `getFindingContext`, 102 dòng, bỏ exemption); test tương ứng viết lại. Giữ class `.qa-gap-ai-fix-btn` vì Conflict Studio dùng cho nút "Trọng tài AI".
+- [x] 3.5 E2E `tests/dashboard/qa-batch-fixer.spec.js` (BATCH-29–36, 44, modal chi tiết) và `qa-batch-fixer-layout.spec.js` (SelectionModel, BATCH-37, 38, 39 ở 4 viewport × 2 theme); API: route cũ trả 404 trong `qa.test.js`.
+- **Exit (2026-09-26):** services/tools/core 272/272; `test:dashboard:api` 66/66; dashboard E2E 84 pass / 1 fail có sẵn từ baseline (`templates-performance-a11y` TC-13); ảnh 4 viewport × 2 theme đã soát (sửa: chữ chip xuống dòng ở 390px, nhãn modal bị viết hoa); 0 lỗi console; modularity không có vi phạm mới (3 vi phạm có sẵn: `dataSlice.js`, `markdownView.js`, `resourceService.js`); `dashboard/` không còn `ai-analyze-fix`, `analyzeWithAiFix`, `apply-fix`.
 
 ### Phase 4 — Tuyến `guided` gán TC (2 ngày, có thể phát hành sau)
 
