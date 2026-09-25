@@ -142,7 +142,7 @@
         },
         {
           "snippet": "'IN_EXPRESSION');",
-          "observable": "expect trong biểu thức bị bỏ qua"
+          "observable": "expect trong Promise.all bị bỏ qua (IN_EXPRESSION)"
         },
         {
           "snippet": "'SYNTAX_INVALID');",
@@ -1453,6 +1453,26 @@
         {
           "snippet": "'bảng đang để đường dẫn trần thì dòng mới cũng trần');",
           "observable": "giữ kiểu đường dẫn trần"
+        }
+      ]
+    },
+    "P18-TC-54": {
+      "run": "plan18-node",
+      "entrypoint": "function",
+      "source": "dashboard/services/qaFixTitle.test.js",
+      "test": "unskipDeclaration: chỉ gỡ skip/fixme ở dạng khai báo (BATCH-10)",
+      "assertions": [
+        {
+          "snippet": "assert.equal(unskipDeclaration(\"  test.skip('x', async () => {\").line, \"  test('x', async () => {\");",
+          "observable": "test.skip dạng khai báo được gỡ"
+        },
+        {
+          "snippet": "assert.equal(unskipDeclaration(\"  test.fixme('x', async () => {\").line,",
+          "observable": "test.fixme dạng khai báo được gỡ"
+        },
+        {
+          "snippet": "'lý do');\").error, 'CONDITIONAL_SKIP');",
+          "observable": "skip có điều kiện không bị gỡ"
         }
       ]
     }

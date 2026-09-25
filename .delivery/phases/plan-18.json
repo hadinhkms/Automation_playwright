@@ -53,7 +53,7 @@
       "cases": [
         {
           "id": "P18-TC-04",
-          "intent": "Lập kế hoạch chèn await đúng cột với dòng trùng nội dung, expect.soft, dòng có expect đồng bộ và expect nhiều dòng; expect nằm trong biểu thức và bản vá làm hỏng cú pháp bị bỏ qua có lý do; lập kế hoạch không ghi file (BATCH-02, 04, 05, 06, 08)",
+          "intent": "Lập kế hoạch chèn await đúng cột với dòng trùng nội dung, expect.soft, dòng có expect đồng bộ và expect nhiều dòng; expect nằm trong biểu thức và bản vá làm hỏng cú pháp bị bỏ qua có lý do; lập kế hoạch không ghi file (BATCH-02, 04, 05, 06, 07, 08)",
           "level": "unit",
           "critical": false,
           "scenarios": []
@@ -88,6 +88,13 @@
             "ASYNC-05",
             "LIFE-01"
           ]
+        },
+        {
+          "id": "P18-TC-54",
+          "intent": "Gỡ skip chỉ áp dụng cho test.skip/test.fixme dạng khai báo; test.skip có điều kiện trong thân test hoặc dòng không phải khai báo skip trả CONDITIONAL_SKIP (BATCH-10)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
         }
       ]
     },

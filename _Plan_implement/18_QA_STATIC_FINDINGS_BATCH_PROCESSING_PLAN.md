@@ -2,7 +2,7 @@
 
 > **Mã kế hoạch:** `PLAN-18`  
 > **Phiên bản:** `v6.2` — thay thế v5 (mục 0); bỏ AI khỏi toàn bộ luồng sửa finding (mục 0.1)  
-> **Trạng thái:** `v6.2 — D1–D5 ĐÃ CHỐT · PHASE 0–4 XONG · CONTRACT CHỜ BA DUYỆT HASH (task 0.2) · TIẾP THEO: PHASE 5`  
+> **Trạng thái:** `v6.2 — PHASE 0–5 XONG PHẦN IMPLEMENTATION · CHỜ: BA DUYỆT HASH CONTRACT (task 0.2) · REVIEW ĐỘC LẬP GATE 3/4 (task 5.2) · QUYẾT ĐỊNH DRIFT VỆ TINH TRƯỚC KHI SYNC (task 5.4)`  
 > **Phạm vi:** View **QA Docs & Automation** (`#/qa`, tab "Vấn đề") — `dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`, `tools/qa/lib/sources.js` (thay đổi nhỏ, tương thích ngược).  
 > **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json).  
 > **Nhánh:** trunk-based trên `main`. Mỗi phase chỉ đóng khi toàn bộ exit criteria của phase có bằng chứng chạy thật (mục 9, 10).
@@ -446,9 +446,9 @@ sequenceDiagram
 | --- | --- | --- |
 | Unit | `tools/qa/lib/sources.test.js`, `dashboard/services/qaFindingCatalog.test.js`, `qaFixText.test.js`, `qaFixTitle.test.js`, `qaFixValidate.test.js`, `qaFindingFixerService.test.js` (viết lại cho `resolveSafePath` + `getFindingContext`) | `column`, key/gộp trùng/route, transform, EOL/BOM, cú pháp, predicate, đường dẫn an toàn, trích đoạn mã |
 | Integration (scanner thật) | `dashboard/services/qaBatchFixture.test.js`, `qaSummaryFindings.test.js` | Fixture sinh đúng finding; `getQaSummary` gộp trùng, `scanId`, `findingsIndex` |
-| Service integration | `dashboard/services/qaBatchService.test.js` | Plan/commit/rollback/phục hồi/lock trên file thật trong fixture workspace tạm |
-| API contract | `tests/dashboard-api/qa-batch.test.js`; `tests/dashboard-api/qa.test.js` (thay test `ai-analyze-fix`) | 6 endpoint × {200, 400, 403, 404, 409, 500 `restored`}; route cũ trả 404 |
-| E2E UI | `tests/dashboard/qa-batch-fixer.spec.js` (`playwright.dashboard.config.js`) | Toolbar, hành động từng dòng, selection, modal, hoàn tác, vòng đời, viewport × theme; `selectionModel` được kiểm qua `page.evaluate(() => import('/js/views/qa/batch/selectionModel.js'))` |
+| Service (gọi hàm trên file thật — contract khai là `unit`) | `dashboard/services/qaBatchPlan.test.js`, `qaBatchCommit.test.js`, `qaBatchRollback.test.js`, `qaGuided.test.js`, `qaFindingContext.test.js` | Plan/commit/rollback/phục hồi/lock/giữ chỗ TC trên file thật trong fixture workspace tạm |
+| API contract | `tests/dashboard-api/qa-batch.test.js`; `tests/dashboard-api/qa.test.js` (thay test `ai-analyze-fix`) | Luồng plan → input → apply → quét lại → rollback ×2; 400/404/409; context; route cũ trả 404 |
+| E2E UI | `tests/dashboard/qa-batch-fixer.spec.js`, `qa-batch-fixer-layout.spec.js` (`playwright.dashboard.config.js`) | Toolbar, hành động từng dòng, selection, modal, hoàn tác, gán TC, vòng đời, viewport × theme; `selectionModel` được kiểm qua `page.evaluate(() => import('/js/views/qa/batch/selectionModel.js'))` (contract khai là `unit`) |
 
 - **Fixture:** `tests/dashboard/support/batchFixtureSeed.js` seed vào `createFixtureWorkspace`: requirement có front matter, bảng `## Traceability`, `playwright.config.js` 2 project, spec chứa đủ 5 loại finding (có dòng trùng hệt, biến thể CRLF + BOM không newline cuối). `dashboard/services/qaBatchFixture.test.js` chạy scanner thật trên fixture và khoá kết quả mong đợi.
 - **Mô phỏng lỗi ghi:** `qaBatchCommitService` nhận `fsOps` injectable (mặc định `fs`) để test ném lỗi ở file thứ N.
@@ -505,16 +505,22 @@ sequenceDiagram
 
 ### 8.3. Ánh xạ gate scenarios
 
-| Gate | Bằng chứng |
-| --- | --- |
-| ASYNC-01 | Đổi lựa chọn khi `batch-input` đang chờ → Apply disabled; lựa chọn mới nhất được giữ (BATCH-32) |
-| ASYNC-02 | Đổi filter/Làm mới khi `batch-plan` đang chạy → kết quả chỉ mở modal của đúng yêu cầu còn hiệu lực (BATCH-31 mở rộng) |
-| ASYNC-03 | BATCH-17, 36 |
-| ASYNC-04 | BATCH-20, 34 |
-| ASYNC-05 | UI chỉ báo thành công sau 200 và manifest `COMMITTED` (BATCH-15, 35) |
-| OWN-01..05 | BATCH-37, 38 + unit test disposer của `batchController` (đăng ký 2 lần, dispose 2 lần, disposer cũ không gỡ đăng ký mới) |
-| UI-01..05 | BATCH-29, 30, 33, 39; UI-05: đóng modal khi có lựa chọn chưa áp dụng phải xác nhận (BATCH-33) |
-| LIFE-01 | BATCH-35, 40, 44: UI → server → file thật → scanner quét lại |
+Ánh xạ thật trong contract (mỗi TC = 1 test; chi tiết dòng assertion ở `.delivery/phases/plan-18-evidence-map.json`). Scenario có cấp tối thiểu `integration` chỉ gắn vào test HTTP hoặc Playwright, không gắn vào test gọi hàm.
+
+| Gate | TC | Bằng chứng |
+| --- | --- | --- |
+| ASYNC-01 | TC-28 | E2E: đổi "Kích hoạt lại" khi `batch-input` đang chờ → Áp dụng và checkbox khoá; khi phản hồi về, bản vá đã bỏ tick vẫn bỏ tick (BATCH-33) |
+| ASYNC-02 | TC-32 | E2E: rời view khi `batch-plan` đang chờ → phản hồi muộn không mở modal (BATCH-37). Trong lúc lập kế hoạch, dòng và toolbar bị khoá nên không thể mở yêu cầu thứ hai |
+| ASYNC-03 | TC-13, TC-30 | API 409 `REVISION_STALE`; E2E hoàn tác khi đang quét lại chỉ hiển thị kết quả quét mới nhất (BATCH-17, 36) |
+| ASYNC-04 | TC-20 | E2E: 409 `STALE_FILES` → "Lập lại kế hoạch" → áp dụng lại được, phần sửa tay giữ nguyên (BATCH-34). Lỗi ghi 500 `restored` được kiểm ở TC-16 (unit) |
+| ASYNC-05 | TC-08, TC-29 | API: 200 + file trên đĩa đổi + `batch-last` `COMMITTED`; E2E: result bar chỉ hiện sau 200 (BATCH-15, 35) |
+| OWN-01..04 | TC-31 | E2E: 20 vòng mount/unmount; destroy ×2; init ×2; chạy lại disposer cũ rồi dùng filter và modal (BATCH-38) — **tái hiện được lỗi trên `dfc6917`** |
+| OWN-05 | TC-32 | E2E BATCH-37 |
+| UI-01, UI-04 | TC-25 | E2E: số dòng/checkbox/nút viết tay theo bảng mục 6.1 cho fixture (không đọc từ `FIX_ROUTES`); chip A-B-A (BATCH-29, 30, 31) |
+| UI-02 | TC-42 | E2E: "Chi tiết" → "Sửa lỗi" chuyển sang modal xem trước |
+| UI-03 | TC-33..40 | E2E: 4 viewport × 2 theme, focus tiêu đề modal, không tràn, 0 lỗi console (BATCH-39) |
+| UI-05 | TC-27, TC-28 | E2E: Esc hỏi xác nhận → "Ở lại" / "Bỏ và đóng" (BATCH-33) |
+| LIFE-01 | TC-08, TC-30, TC-41, TC-47 | API luồng đầy đủ; E2E BATCH-36, 44, 40: UI → server → file thật → scanner quét lại |
 
 ---
 
@@ -525,7 +531,7 @@ sequenceDiagram
 - [x] 0.0 **Điều kiện tiên quyết (commit `3d36afe`, ngoài PLAN-18):** tách `RESERVED_FIXTURE_NAMES` ra `core/fixtures/reservedFixtureNames.js` để bỏ vòng `require`; loader custom fixture thôi quét file `.js` ở gốc dự án; thêm `core/fixtures/fixtureLoadOrder.test.js`. Bằng chứng: `node --test core/fixtures/*.test.js` 31/31; `playwright test --list` 12 test, không cảnh báo fixture; `sample_cleanup_fixture.spec.js` pass; `npm run check:framework` pass; `node tools/qa/index.js summary --json` liệt kê finding cấp test.
 - [x] 0.0b `core/generator/objectRepository.js` dùng chung `reservedFixtureNames.js` (bản riêng thiếu `circuitBreakerGuard`); thêm exemption size-check có lý do cho file 1240 dòng có từ trước (commit `648f8a9`).
 - [x] 0.1 D1–D5 đã chốt (2026-09-25).
-- [x] 0.2 Soạn contract `.delivery/phases/plan-18.json` cho Phase 1–3 (10 AC, 15 TC, 9 critical, phủ đủ 16 gate scenario; qua `gates/contract.py`). **Chờ BA duyệt hash** — sha256 bản LF lúc soạn: `6ae16afcb1eb9a68805d461b58444822d2060531ea7b086b8a17c9d2e090c10a` (repo bật `core.autocrlf`, BA cần tính lại trên bản checkout). Không tự duyệt. Cập nhật 2026-09-26: Phase 4 giao cùng đợt nên tiêu chí guided được gộp vào contract này (`P18-AC-11`, TC-16..18) — nay 11 AC, 18 TC, 11 critical; sha256 bản LF mới: `1ad17a068c73359b2e120748d482d26d22d2182c745083711cfa7440686a3fcd`.
+- [x] 0.2 Soạn contract `.delivery/phases/plan-18.json` cho Phase 1–3 (10 AC, 15 TC, 9 critical, phủ đủ 16 gate scenario; qua `gates/contract.py`). **Chờ BA duyệt hash** — sha256 bản LF lúc soạn: `6ae16afcb1eb9a68805d461b58444822d2060531ea7b086b8a17c9d2e090c10a` (repo bật `core.autocrlf`, BA cần tính lại trên bản checkout). Không tự duyệt. Cập nhật 2026-09-26: Phase 4 giao cùng đợt nên tiêu chí guided được gộp vào contract này (`P18-AC-11`, TC-16..18) — nay 11 AC, 18 TC, 11 critical; sha256 bản LF mới: `1ad17a068c73359b2e120748d482d26d22d2182c745083711cfa7440686a3fcd`. **Cập nhật Phase 5:** viết lại để mỗi TC ứng đúng 1 test thật ở đúng cấp nó chạy (test gọi hàm service = `unit`; test HTTP = `integration`/`public_api`; Playwright = `e2e`/`ui`) — 11 AC (nội dung AC giữ nguyên), 54 TC (27 unit, 8 integration, 19 e2e), 10 critical, phủ đủ 16 gate scenario và BATCH-01..45; ánh xạ TC → test → dòng assertion ở `.delivery/phases/plan-18-evidence-map.json`. sha256 bản LF: `f404c3acb8590db7537adde5d2196998ad7fc157fd71498921431b2472ae308f`. **Hash cũ không còn giá trị — BA duyệt hash mới** (tính lại trên bản checkout).
 - [x] 0.3 Baseline 2026-09-25 (HEAD `648f8a9`): `node --test core/fixtures/*.test.js core/generator/*.test.js` 63/63; `npm run test:dashboard:api` 62/62; `npm run check:framework` pass; `npx playwright test -c playwright.dashboard.config.js` 67 pass / **1 fail sẵn**: `templates-performance-a11y.spec.js` TC-13 (DOM ban đầu 4432 > ngưỡng 1500) — đã ghi nhận từ PLAN-16, không thuộc PLAN-18.
 - [x] 0.4 `tests/dashboard/support/batchFixtureSeed.js` + `dashboard/services/qaBatchFixture.test.js`: scanner thật trên fixture sinh `assertion-thieu-await` 6, `test-bi-skip-am-tham` 2, `spec-thieu-assertion` 2, `test-khong-co-ma-tc` 2, `test-thieu-tag-req` 2 (mỗi finding ×2 project).
 - **Exit:** scanner đọc được test ✓; contract đã nộp duyệt ✓ (chờ BA ký); baseline được ghi ✓.
@@ -566,26 +572,45 @@ sequenceDiagram
 
 ### Phase 5 — Gate 4 & bàn giao (1 ngày)
 
-- [ ] 5.1 Chạy toàn bộ: service tests, `tools/qa` tests, `npm run test:dashboard:api`, dashboard E2E, `npm run check:framework`, `npm run check:dashboard-features`, modularity audit.
-- [ ] 5.2 Xuất JUnit với test ID ổn định → `python .master_process/scripts/record-gate-run.py` → `master.ps1 gate`; chạy lại độc lập các test critical trên cùng commit SHA.
-- [ ] 5.3 Trên repo thật: chỉ dùng **xem trước** để xác nhận phân tuyến các finding hiện có; apply/hoàn tác chỉ trên fixture hoặc khi working tree sạch.
-- [ ] 5.4 `npm run sync:satellites` (có thay đổi `tools/qa` và `dashboard`); mở tab QA trên 1 satellite, xác nhận không lỗi.
-- [ ] 5.5 Cập nhật `AI_LESSONS.md` nếu có bài học đã xác nhận; ghi candidate vào `.ai/learning/candidates.md`; cập nhật plan này với bằng chứng chạy thật (lệnh + kết quả) như PLAN-16 mục 7.
-- **Exit:** `master.ps1 gate` PASS với contract đã duyệt; có reviewer độc lập.
+- [x] 5.1 Chạy toàn bộ (2026-09-26, HEAD `21f650a`):
+  - `node --test dashboard/services/*.test.js tools/qa/lib/*.test.js core/**/*.test.js`: **323/323**.
+  - `npm run test:dashboard:api`: **66/66**.
+  - `npx playwright test -c playwright.dashboard.config.js`: **86 pass / 1 fail có sẵn**, là `templates-performance-a11y` TC-13 (DOM ban đầu > 1500). Đo lại: với `qa.html` trước PLAN-18 là 4432, với bản hiện tại là 4466. Lý do: `main.js` gọi `templateLoader.preloadAll()` nên mọi template đều được mount lúc khởi động, và PLAN-18 thêm 34 phần tử (toolbar + 3 dialog). Không có test nào chuyển từ pass sang fail.
+  - `npm run check:framework` pass; `npm run check:dashboard-features` pass (14 view, 13 nhóm route).
+  - Modularity: 0 vi phạm mới. Toàn repo có 21 vi phạm có sẵn, không file nào thuộc PLAN-18; riêng dashboard vẫn là 3 file cũ `dataSlice.js`, `markdownView.js`, `resourceService.js`.
+- [x] 5.2 Receipt và evidence (phần implementation):
+  - **Receipts:** `record-gate-run.py` tạo `plan18-node` (169 testcase) và `plan18-e2e` (19 testcase) trên HEAD sạch, ghi vào `.gate-artifacts/` (gitignored).
+  - **Evidence:** `python .delivery/build-phase-evidence.py --map .delivery/phases/plan-18-evidence-map.json --receipt … --output .gate-artifacts/plan18-evidence.json`. Script gắn dòng assertion, hash nguồn và kết quả JUnit thật cho 54/54 TC PASS. TC-31 có regression `REPRODUCED`: log trước khi sửa ở `.gate-artifacts/plan18-own02-before.log`, chạy test hiện tại trên mã giao diện của `dfc6917`. Các TC còn lại `NOT_FEASIBLE` kèm lý do (hành vi mới hoặc route bị gỡ theo thiết kế).
+  - **Kiểm cục bộ:** chạy `verify-gate.py --gate 3|4` với hash contract hiện tại, chỉ để mô phỏng việc BA đã duyệt. Contract, design anchors, receipts, cấp/entrypoint, dòng assertion và regression đều qua. Chỉ còn chặn ở `gate3: missing independent PASS`.
+  - **Còn lại (không tự làm được):**
+    - BA duyệt hash contract (task 0.2).
+    - Reviewer độc lập (actor/session khác `claude-implementation`/`plan18-impl`) điền `reviews.gate3/gate4` trong evidence.
+    - Reviewer chạy lại 10 TC critical (TC-08, 13, 16, 21, 25, 27, 30, 41, 47, 49) trên cùng SHA bằng `record-gate-run.py` với actor/session của mình.
+    - Chạy `master.ps1 gate`.
+- [x] 5.3 Repo thật, chỉ xem trước qua `getQaSummary` + `buildPlan`, không apply:
+  - Có 11 finding: 1 `scaffold` (`khong-doc-duoc-requirement` @ `requirements/`) và 10 `guided` (`test-khong-co-ma-tc` ở các sample spec).
+  - Kế hoạch có 0 bản vá; cả 10 mục guided bị bỏ qua với `REQ_UNKNOWN`. Repo gốc không có requirement nào và sample spec không mang `@REQ`, nên đúng INV-2: không bịa REQ.
+  - Không file nào đổi.
+- [ ] 5.4 **Chặn — chưa sync.** `node scripts/pre-sync-drift.js` (chỉ đọc) báo cả 2 vệ tinh (`Vieclam24h-Automation_JS`, `Automation_Carthings`) có nội dung riêng mà Hub chưa từng có trong `tools/qa/lib/commands.js` và `tools/qa/lib/sources.js`: hỗ trợ nhiều TC/AC trong một title (`allTcIds`, `allAcIds`, `getAutomatedTcIds`, `getWipTcIds`). `npm run sync:satellites` sẽ xoá phần này. Cần quyết định trước khi sync: đưa ngược phần multi-TC lên Hub (khuyến nghị, vì PLAN-18 đổi cùng file `sources.js`) hoặc chuyển sang `core/local/`. 20 file còn lại chỉ là bản cũ của Hub, ghi đè an toàn.
+- [x] 5.5 Hai bài học đã xác nhận ghi vào `ai/dashboard/AI_LESSONS.md` (commit `c7ba08b`):
+  - Disposer phải giữ đúng instance nó sở hữu (OWN-02).
+  - Rule `label` toàn cục làm chữ trong modal thành in hoa; một số biến thể `qa-badge-*` chưa được định nghĩa.
+  - `.ai/learning/candidates.md` đang ở trần 49/50 dòng nên chưa thêm candidate; cần chạy Knowledge Curator (Gate 0.5) để lưu trữ các mục cũ trước.
+- **Exit:** phần implementation đã có đủ bằng chứng. Phase chỉ đóng khi BA duyệt hash, reviewer độc lập PASS gate 3/4 kèm rerun critical, và `master.ps1 gate` PASS.
 
 ---
 
 ## 10. Định Nghĩa Hoàn Thành (Definition of Done)
 
-- [ ] BATCH-01..45 PASS, test ID ổn định trong JUnit (BATCH-40..43 chỉ bắt buộc khi phát hành Phase 4).
-- [ ] 4 nhóm ASYNC / OWN / UI / LIFE có bằng chứng theo mục 8.3.
-- [ ] Không bản vá nào ghi REQ/AC/TC không suy ra được (BATCH-11, 13, 40).
-- [ ] Luồng sửa finding không gọi AI provider; không còn route `ai-analyze-fix`, `apply-fix` (BATCH-44, 45).
-- [ ] Rollback trên fixture cho kết quả byte-identical.
-- [ ] Không vi phạm modularity mới; file mới không dùng `master-process-disable-size-check`.
-- [ ] 4 viewport × 2 theme đã kiểm; 0 lỗi/cảnh báo console; không có text debug trên UI.
-- [ ] Satellites đã sync.
-- [ ] Contract được BA duyệt hash; `master.ps1 gate` PASS; có review độc lập.
+- [x] BATCH-01..45 PASS, test ID ổn định trong JUnit (receipts `plan18-node`, `plan18-e2e`; mục 5.2).
+- [x] 4 nhóm ASYNC / OWN / UI / LIFE có bằng chứng theo mục 8.3.
+- [x] Không bản vá nào ghi REQ/AC/TC không suy ra được (BATCH-11, 13, 40; repo thật: 10 mục guided bị bỏ qua `REQ_UNKNOWN`, mục 5.3).
+- [x] Luồng sửa finding không gọi AI provider; không còn route `ai-analyze-fix`, `apply-fix` (BATCH-44, 45).
+- [x] Rollback trên fixture cho kết quả byte-identical (TC-21, TC-29, TC-30, TC-41).
+- [x] Không vi phạm modularity mới; file mới không dùng `master-process-disable-size-check`.
+- [x] 4 viewport × 2 theme đã kiểm; 0 lỗi/cảnh báo console; không có text debug trên UI (TC-33..40).
+- [ ] Satellites đã sync — **chặn bởi drift** (mục 5.4).
+- [ ] Contract được BA duyệt hash; `master.ps1 gate` PASS; có review độc lập — **chờ BA và reviewer** (mục 5.2).
 
 ---
 
@@ -607,4 +632,6 @@ sequenceDiagram
 - Các trình ghi file khác của Dashboard (spec editor, Page Manager) không dùng write lock; xung đột chỉ được phát hiện qua hash (409 khi apply/rollback).
 - `vm.Script` chỉ kiểm cú pháp, không phát hiện lỗi runtime (vd. biến không tồn tại).
 - Người dùng quen nút "AI Sửa Lỗi" sẽ thấy nút đổi thành "Sửa lỗi" / "Xem hướng dẫn"; các kind không sửa tự động được (vd. `spec-thieu-assertion`) giờ chỉ có hướng dẫn và đoạn mã, người dùng tự sửa trong editor.
+- Repo không có requirement nào: chip "Cần chọn AC" vẫn đếm các mục `test-khong-co-ma-tc`, nhưng mọi mục đều bị bỏ qua `REQ_UNKNOWN` cho tới khi có REQ (tạo bằng Scaffold). Nếu thấy gây nhầm, có thể cho mục này gợi ý `nextAction: scaffold` khi thư mục requirements trống (thay đổi nhỏ, chưa làm).
+- `templates-performance-a11y` TC-13 fail từ trước vì `main.js` preload mọi template. PLAN-18 làm DOM ban đầu tăng thêm 34 phần tử (4432 → 4466); cần xử lý ở tầng preload, ngoài phạm vi PLAN-18.
 - Satellite có thể có nhiều `spec-thieu-assertion` hơn repo này. Nếu sau này thật sự cần AI cho loại này, làm plan riêng với các rào chắn: không fallback, hậu kiểm phạm vi và cú pháp, chặn assertion hiển nhiên, mặc định không tick.
