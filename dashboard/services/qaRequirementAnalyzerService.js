@@ -15,6 +15,7 @@ const path = require('path');
 const { parseEnvFile } = require('../routes/aiRoutes');
 const { createBackup } = require('./resourceService');
 const { mayUseServerKey } = require('./aiEndpointPolicy');
+const { callAi } = require('../../core/ai/gateway/index');
 
 /**
  * Thu thập ngữ cảnh hiện có trong repo: test cases, specs, page objects.
@@ -273,69 +274,23 @@ ${contextStr || '(Repo chưa có nhiều specs hoặc requirements mẫu)'}
 
 Hãy phân tích toàn diện và trả về JSON theo đúng schema yêu cầu.`;
 
-  let responseJsonText = '';
+  const messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }];
+  const res = await callAi({
+    task: 'analyzeRequirement',
+    messages,
+    clientConfig,
+    root: root || process.cwd(),
+    signal,
+    tier: 'deep',
+    timeoutMs: 60000,
+    temperature: 0.2
+  });
 
-  if (provider === 'gemini') {
-    const targetModel = model || 'gemini-2.5-flash';
-    const base = (baseURL || 'https://generativelanguage.googleapis.com/v1beta/models').replace(/\/+$/, '');
-    const url = `${base}/${encodeURIComponent(targetModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          { role: 'user', parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] },
-        ],
-        generationConfig: {
-          temperature: 0.2,
-          maxOutputTokens: 4096,
-          responseMimeType: 'application/json',
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(`Gemini API trả về lỗi (${res.status}): ${errData.error?.message || res.statusText}`);
-    }
-
-    const data = await res.json();
-    responseJsonText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  } else {
-    const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
-    const base = (baseURL || defaultBase).replace(/\/+$/, '');
-    const url = `${base}/chat/completions`;
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.2,
-        stream: false,
-        response_format: { type: 'json_object' },
-      }),
-    });
-
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(`${provider.toUpperCase()} API trả về lỗi (${res.status}): ${errData.error?.message || res.statusText}`);
-    }
-
-    const data = await res.json();
-    responseJsonText = data.choices?.[0]?.message?.content || '';
+  if (!res.ok) {
+    throw new Error(res.message || 'Lỗi khi gọi AI');
   }
 
-  // Parse JSON
-  let cleaned = responseJsonText.trim();
+  let cleaned = (res.text || '').trim();
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
   }
@@ -344,12 +299,14 @@ Hãy phân tích toàn diện và trả về JSON theo đúng schema yêu cầu.
     const parsed = JSON.parse(cleaned);
     return {
       engine: 'ai',
-      provider,
-      model,
+      provider: res.provider || 'gateway',
+      model: res.model,
       ...parsed,
+      usage: res.usage,
+      requestId: res.requestId
     };
   } catch (err) {
-    throw new Error(`Phản hồi từ AI không đúng định dạng JSON: ${err.message}. Nội dung thô: ${cleaned.slice(0, 200)}...`);
+    throw new Error(`Phản hồi từ AI không đúng định dạng JSON: ${err.message}.`);
   }
 }
 
@@ -597,7 +554,7 @@ function analyzeWithHeuristic({ rawText, repoContext }) {
 /**
  * Hàm phân tích chính được gọi từ Routes
  */
-async function analyzeRequirement({ root, rawText, mode = 'ai', clientConfig, scanExisting = true }) {
+async function analyzeRequirement({ root, rawText, mode = 'ai', clientConfig, scanExisting = true, signal = null }) {
   if (!rawText || !rawText.trim()) {
     throw Object.assign(new Error('Vui lòng nhập hoặc dán nội dung requirement để phân tích.'), { status: 400 });
   }
@@ -609,7 +566,7 @@ async function analyzeRequirement({ root, rawText, mode = 'ai', clientConfig, sc
   }
 
   try {
-    return await analyzeWithAi({ rawText, repoContext, clientConfig, root });
+    return await analyzeWithAi({ rawText, repoContext, clientConfig, root, signal });
   } catch (err) {
     // Nếu gọi AI thất bại (do mạng, hết quota, hoặc chưa có key), fallback sang Heuristic có ghi chú
     const fallback = analyzeWithHeuristic({ rawText, repoContext });

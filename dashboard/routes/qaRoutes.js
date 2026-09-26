@@ -37,7 +37,7 @@ const {
   escalateConflictToDecision,
 } = require('../services/qaConflictService');
 const { withWriteLock } = require('../services/qaBatchSessionStore');
-const { sendJson, parseBody } = require('./routeUtils');
+const { sendJson, parseBody, abortSignalFor } = require('./routeUtils');
 
 const MAX_BODY_BYTES = 1_048_576;
 
@@ -83,7 +83,12 @@ async function handleQaRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/qa/scaffold/extract') {
     try {
       const body = await parseBody(request);
-      const result = await extractScaffoldFromRaw(root, body || {});
+      const signal = abortSignalFor(request, response);
+      let clientConfig = body.clientConfig || null;
+      if (!clientConfig && request.headers['x-ai-config']) {
+        try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
+      }
+      const result = await extractScaffoldFromRaw(root, { ...(body || {}), ...(clientConfig || {}), signal });
       sendJson(response, 200, result);
     } catch (error) {
       const status = Number.isInteger(error.status) ? error.status : 400;
@@ -205,11 +210,17 @@ async function handleQaRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/qa/infer-testcases') {
     try {
       const body = await parseBody(request);
+      const signal = abortSignalFor(request, response);
+      let clientConfig = body.clientConfig || null;
+      if (!clientConfig && request.headers['x-ai-config']) {
+        try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
+      }
       const result = await inferTestCases({
         root,
         reqPath: body.reqPath,
         mode: body.mode || 'heuristic',
-        clientConfig: body.clientConfig || null,
+        clientConfig,
+        signal,
       });
       sendJson(response, 200, result);
     } catch (error) {
@@ -269,6 +280,7 @@ async function handleQaRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/qa/analyze-requirement') {
     try {
       const body = await parseBody(request, 256 * 1024);
+      const signal = abortSignalFor(request, response);
       let clientConfig = body.clientConfig || null;
       if (!clientConfig && request.headers['x-ai-config']) {
         try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
@@ -279,6 +291,7 @@ async function handleQaRoutes(request, response, url, context = {}) {
         mode: body.mode || 'ai',
         scanExisting: body.scanExisting !== false,
         clientConfig,
+        signal,
       });
       sendJson(response, 200, result);
     } catch (error) {
@@ -347,6 +360,7 @@ async function handleQaRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/qa/conflict/arbitrate') {
     try {
       const body = await parseBody(request, 64 * 1024);
+      const signal = abortSignalFor(request, response);
       let clientConfig = body.clientConfig || null;
       if (!clientConfig && request.headers['x-ai-config']) {
         try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
@@ -356,6 +370,7 @@ async function handleQaRoutes(request, response, url, context = {}) {
         tcId: body.tcId,
         specFile: body.specFile,
         clientConfig,
+        signal,
       }));
     } catch (error) {
       sendConflictError(error);

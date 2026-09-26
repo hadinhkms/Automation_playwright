@@ -6,7 +6,9 @@ const fs = require('fs');
 const path = require('path');
 const { createCopilotService } = require('../../core/ai/copilotService');
 const { analyzeDiagnostics } = require('../../core/diagnostics/diagnosticsAnalyzer');
-const { sendJson, parseBody } = require('./routeUtils');
+const { sendJson, parseBody, abortSignalFor } = require('./routeUtils');
+const { getUsageStatus } = require('../../core/ai/gateway/usage');
+const { readRecentAuditRecords, clearAuditLogs } = require('../../core/ai/gateway/audit');
 const {
   isCrossSiteRequest, resolveModelsRequest, resolveTestConnection, validateConfigBody,
 } = require('../services/aiEndpointPolicy');
@@ -119,12 +121,30 @@ async function handleAiRoutes(request, response, url, context = {}) {
     return true;
   }
 
+  if (request.method === 'GET' && url.pathname === '/api/ai/usage') {
+    const budget = Number(process.env.AI_TOKEN_BUDGET_5H || 1_000_000);
+    const usage = getUsageStatus({ root, budget });
+    return sendJson(response, 200, usage) || true;
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/ai/audit') {
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
+    const records = readRecentAuditRecords({ root, limit });
+    return sendJson(response, 200, { success: true, count: records.length, records }) || true;
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/ai/audit/clear') {
+    clearAuditLogs({ root });
+    return sendJson(response, 200, { success: true, message: 'Đã xóa nhật ký AI.' }) || true;
+  }
+
   if (request.method === 'POST' && url.pathname === '/api/ai/inline-suggest') {
     try {
       const body = await parseBody(request, 64 * 1024);
       const clientConfig = body.clientConfig || readClientConfig(request);
+      const signal = abortSignalFor(request, response);
       const result = await agentService.inlineSuggest({
-        prefix: body.prefix, suffix: body.suffix, language: body.language, clientConfig, model: body.model,
+        prefix: body.prefix, suffix: body.suffix, language: body.language, clientConfig, model: body.model, signal,
       });
       sendJson(response, 200, result);
     } catch (e) { sendJson(response, 200, { success: false, suggestion: '', error: e.message }); }
