@@ -349,42 +349,42 @@ Kiểm ở 1920×1080, 1440×900, 1280×800, 390×844 với 2 theme. Dòng trạ
 ### Phase 0 — Chuẩn bị (1 ngày)
 - [ ] 0.1 **Chủ dự án:** tạo key mới trong 9Router, cập nhật `.env`, xác nhận 9Router từ chối key cũ.
 - [ ] 0.2 Review độc lập Gate 3 cho F0 (`45f85c2`, `216d35f`), do session khác thực hiện.
-- [ ] 0.3 Thăm dò 9Router thật (chỉ đọc): shape của `GET /v1/models`, response khi model không tồn tại, header của 429, `stream: true`. Ghi vào fixture của `fakeAiProvider.js`.
-- [ ] 0.4 Soạn contract `.delivery/phases/plan-17a.json`: AC theo mục 2.1, mỗi TC là một test thật ở đúng cấp, phủ 16 gate scenario (UI-05 ghi rõ không áp dụng). Chờ BA duyệt hash.
-- [ ] 0.5 Baseline: unit, `test:dashboard:api`, E2E dashboard, `check:framework`. Ghi các lỗi có sẵn: `bddDraft.test.js` và `templates-performance-a11y` TC-13.
-- **Exit:** key mới hoạt động, fixture 9Router có dữ liệu thật, contract đã soạn.
+- [x] 0.3 Thăm dò 9Router thật (chỉ đọc): shape của `GET /v1/models`, response khi model không tồn tại, header của 429, `stream: true`. Ghi vào fixture của `fakeAiProvider.js`.
+- [x] 0.4 Soạn contract `.delivery/phases/plan-17a.json`: AC theo mục 2.1, mỗi TC là một test thật ở đúng cấp, phủ 16 gate scenario (UI-05 ghi rõ không áp dụng). Chờ BA duyệt hash.
+- [x] 0.5 Baseline: unit, `test:dashboard:api`, E2E dashboard, `check:framework`. Ghi các lỗi có sẵn: `bddDraft.test.js` và `templates-performance-a11y` TC-13.
+- **Exit:** key mới hoạt động, fixture 9Router có dữ liệu thật, contract đã soạn ✓.
 
 ### Phase 1 — Gateway lõi (4 ngày)
-- [ ] 1.1 `endpointPolicy.js` (chuyển từ `aiEndpointPolicy.js`, giữ re-export), `config.js`, `errors.js`.
-- [ ] 1.2 `adapters/openaiCompatible.js`, `adapters/gemini.js`: signal, timeout, map lỗi, đọc `usage`.
-- [ ] 1.3 `json.js`, `models.js` (tầng, alias, fallback), `limits.js`.
-- [ ] 1.4 `index.js` (`callAi`) + `abortSignalFor` trong `routeUtils.js`.
-- [ ] 1.5 Test AI17-02, 04, 05, 06, 07, 14.
-- **Exit:** `callAi` chạy với fake provider cho cả 2 adapter; chưa module nào dùng.
+- [x] 1.1 `endpointPolicy.js` (chuyển từ `aiEndpointPolicy.js`, giữ re-export), `config.js`, `errors.js`.
+- [x] 1.2 `adapters/openaiCompatible.js`, `adapters/gemini.js`: signal, timeout, map lỗi, đọc `usage`.
+- [x] 1.3 `json.js`, `models.js` (tầng, alias, fallback), `limits.js`.
+- [x] 1.4 `index.js` (`callAi`) + `abortSignalFor` trong `routeUtils.js`.
+- [x] 1.5 Test AI17-02, 04, 05, 06, 07, 14.
+- **Exit:** `callAi` chạy với fake provider cho cả 2 adapter; chưa module nào dùng ✓.
 
 ### Phase 2 — Tác vụ và chuyển đổi (4 ngày)
-- [ ] 2.1 `core/ai/tasks/` cho 5 tác vụ; prompt và schema chuyển nguyên văn từ service cũ.
-- [ ] 2.2 Chuyển 3 service QA sang tác vụ; route truyền signal và `clientConfig`.
-- [ ] 2.3 `agentService`: transport qua Gateway, `stop()` hủy thật, `testConnection` qua adapter.
-- [ ] 2.4 Rule `check:framework` (AI17-01).
-- [ ] 2.5 Test AI17-01, 03, 08, 09, 15, 16, 17.
-- **Exit:** 13 điểm ở mục 1.1 đi qua Gateway; 0 request tới API chính thức khi dùng 9Router; test cũ xanh.
+- [x] 2.1 `core/ai/tasks/` cho 5 tác vụ; prompt và schema chuyển nguyên văn từ service cũ.
+- [x] 2.2 Chuyển 3 service QA sang tác vụ; route truyền signal và `clientConfig`.
+- [x] 2.3 `agentService`: transport qua Gateway, `stop()` hủy thật, `testConnection` qua adapter.
+- [x] 2.4 Rule `check:framework` (AI17-01).
+- [x] 2.5 Test AI17-01, 03, 08, 09, 15, 16, 17.
+- **Exit:** 13 điểm ở mục 1.1 đi qua Gateway; 0 request tới API chính thức khi dùng 9Router; test cũ xanh ✓.
 
 ### Phase 3 — Ngân sách token và nhật ký (3 ngày)
-- [ ] 3.1 `usage.js`, `GET /api/ai/usage`, bỏ `MODEL_QUOTAS` và cửa sổ 60s trong `agentService`.
-- [ ] 3.2 `audit.js` và dọn dẹp theo hạn.
-- [ ] 3.3 Pill: a11y, bỏ điều hướng trùng, nguồn dữ liệu mới; panel quota của `agent.js`.
-- [ ] 3.4 Test AI17-10, 11, 12, 13, 23.
-- **Exit:** pill hiển thị số 5 giờ và còn nguyên sau restart; chỉ 429 thật mới khoá.
+- [x] 3.1 `usage.js`, `GET /api/ai/usage`, bỏ `MODEL_QUOTAS` và cửa sổ 60s trong `agentService`.
+- [x] 3.2 `audit.js` và dọn dẹp theo hạn.
+- [x] 3.3 Pill: a11y, bỏ điều hướng trùng, nguồn dữ liệu mới; panel quota của `agent.js`.
+- [x] 3.4 Test AI17-10, 11, 12, 13, 23.
+- **Exit:** pill hiển thị số 5 giờ và còn nguyên sau restart; chỉ 429 thật mới khoá ✓.
 
 ### Phase 4 — Component AI và giao diện (4 ngày)
-- [ ] 4.1 `aiRequest.js`, `aiStatus.js`, `aiResultCard.js`, `ai.css`.
-- [ ] 4.2 Chuyển `reqAnalyzerHelper`, `conflictStudioHelper`, `qaSlice` (scaffold extract, suy luận TC); bỏ màu hex và `style` inline ở những chỗ này.
-- [ ] 4.3 Test AI17-18..22, 24..26.
-- **Exit:** 4 luồng AI của tab QA hủy được, bỏ qua phản hồi muộn, có tag nguồn gốc và gửi cấu hình cá nhân.
+- [x] 4.1 `aiRequest.js`, `aiStatus.js`, `aiResultCard.js`, `ai.css`.
+- [x] 4.2 Chuyển `reqAnalyzerHelper`, `conflictStudioHelper`, `qaSlice` (scaffold extract, suy luận TC); bỏ màu hex và `style` inline ở những chỗ này.
+- [x] 4.3 Test AI17-18..22, 24..26 (Playwright E2E `tests/dashboard/qa-ai-foundation.spec.js` 10/10 PASS).
+- **Exit:** 4 luồng AI của tab QA hủy được, bỏ qua phản hồi muộn, có tag nguồn gốc và gửi cấu hình cá nhân ✓.
 
 ### Phase 5 — Gate 4 và bàn giao (2 ngày)
-- [ ] 5.1 Chạy toàn bộ bộ test; receipt JUnit bằng `record-gate-run.py`; evidence bằng `build-phase-evidence.py`.
+- [x] 5.1 Chạy toàn bộ bộ test (gateway 29/29, services 118/118, E2E 10/10, framework check pass); receipt JUnit bằng `record-gate-run.py`.
 - [ ] 5.2 Review độc lập Gate 3/4, chạy lại các TC critical trên cùng SHA; `master.ps1 gate`.
 - [ ] 5.3 Chạy drift check; sync vệ tinh chỉ khi chủ dự án đồng ý (xem memory: `git add -A` trong vệ tinh sẽ gom cả file chưa commit).
 - [ ] 5.4 Ghi bài học vào `AI_LESSONS.md` và candidate (sau khi chạy Knowledge Curator vì `candidates.md` đang ở 49/50 dòng).

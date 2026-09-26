@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "phase": "plan-17a",
+  "groups": {
+    "async_state": {
+      "applies": true,
+      "reason": ""
+    },
+    "ownership_lifecycle": {
+      "applies": true,
+      "reason": ""
+    },
+    "router_ui": {
+      "applies": true,
+      "reason": "UI-05 không áp dụng: các luồng AI trong phạm vi không có bản lưu nháp; nội dung nhập được giữ nguyên khi lỗi"
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "P17A-AC-01",
+      "text": "Tất cả các lời gọi AI đi qua Gateway duy nhất; không file nào ngoài adapters/ gọi host AI; cấu hình cá nhân hoặc server được phân giải an toàn; 9Router không rò rỉ sang API chính thức.",
+      "cases": [
+        {
+          "id": "P17A-TC-01",
+          "intent": "check:framework phát hiện file vi phạm gọi trực tiếp host AI và bỏ qua các file adapters hợp lệ (AI17-01)",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-02",
+          "intent": "config.resolve ưu tiên key cá nhân hợp lệ, giới hạn server key cho đúng saved endpoint, trả NOT_CONFIGURED khi thiếu (AI17-02)",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-03",
+          "intent": "Khi provider là 9Router, toàn bộ 5 tác vụ và agent gọi qua fake 9Router, 0 request gửi tới API chính thức (AI17-03)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P17A-AC-02",
+      "text": "Bóc tách và kiểm tra schema JSON tự động; bọc markdown fence hay lời dẫn vẫn parse được; lỗi schema retry 1 lần trước khi báo lỗi hoặc fallback.",
+      "cases": [
+        {
+          "id": "P17A-TC-04",
+          "intent": "extractJson xử lý chuẩn xác code fence, text dẫn dắt, ngoặc trong chuỗi; validateShape bắt đúng trường thiếu/sai kiểu (AI17-04)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-05",
+          "intent": "AI trả sai schema lần 1 nhưng đúng lần 2 thì thành công; sai cả 2 lần trả BAD_OUTPUT và fallback luật nếu có (AI17-06)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": ["ASYNC-05"]
+        }
+      ]
+    },
+    {
+      "id": "P17A-AC-03",
+      "text": "Quản lý tầng model alias (qaFast / qaDeep) linh hoạt; tự động fallback sang model Settings khi alias thiếu hoặc trả 404.",
+      "cases": [
+        {
+          "id": "P17A-TC-06",
+          "intent": "Dùng alias qaFast/qaDeep khi có; khi alias bị 404 thì tự động gọi lại bằng model Settings và gán aliasFallback: true (AI17-05)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P17A-AC-04",
+      "text": "Chuẩn hóa mã lỗi và câu chữ tiếng Việt; ánh xạ chính xác lỗi mạng, lỗi xác thực, 429 rate limit kèm retry-after và timeout.",
+      "cases": [
+        {
+          "id": "P17A-TC-07",
+          "intent": "Map lỗi kết nối -> PROVIDER_DOWN, 401/403 -> AUTH, 429 -> RATE_LIMITED kèm retry-after, timeout -> TIMEOUT (AI17-07)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P17A-AC-05",
+      "text": "Hủy request và timeout tức thì: Client ngắt kết nối thì upstream provider bị hủy trong <= 500ms; nút Dừng Agent hủy session đang chạy.",
+      "cases": [
+        {
+          "id": "P17A-TC-08",
+          "intent": "Client ngắt kết nối giữa chừng làm fake 9Router nhận tín hiệu abort trong <= 500ms; audit ghi nhận cancelled (AI17-08)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": ["ASYNC-04"]
+        },
+        {
+          "id": "P17A-TC-09",
+          "intent": "Dừng Agent session hủy lời gọi AI đang chạy lập tức, cập nhật trạng thái stopped và không phát sinh event thừa (AI17-09)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": ["ASYNC-04"]
+        }
+      ]
+    },
+    {
+      "id": "P17A-AC-06",
+      "text": "Ngân sách token 5 giờ và nhật ký audit độc lập: Cửa sổ trượt 5h, mutex lưu an toàn, log SHA256 không lộ nội dung prompt, 429 khóa cứng, ngân sách local cảnh báo mềm.",
+      "cases": [
+        {
+          "id": "P17A-TC-10",
+          "intent": "usage tính đúng cửa sổ 5 giờ, ước tính ký tự / 4 khi thiếu usage, giữ nguyên dữ liệu sau restart (AI17-10)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-11",
+          "intent": "50 cập nhật usage đồng thời được khóa mutex an toàn, không lost update và file json hợp lệ (AI17-11)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-12",
+          "intent": "Vượt ngân sách local chỉ cảnh báo; chỉ 429 từ provider mới khóa tạm theo retry-after (AI17-12)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-13",
+          "intent": "Audit log ghi 1 dòng/request, hash SHA256 không chứa prompt/response, dọn dẹp file theo hạn mức (AI17-13)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-14",
+          "intent": "Giới hạn đồng thời 2 request, request thứ 3 trả BUSY ngay; từ chối TOO_LARGE trước khi gọi mạng (AI17-14)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P17A-AC-07",
+      "text": "Tương thích ngược 100%: Agent tool loop chạy qua Gateway, các bài test cũ vẫn xanh, response shape của 5 route AI được bảo toàn.",
+      "cases": [
+        {
+          "id": "P17A-TC-15",
+          "intent": "Agent thực thi tool call thành công qua Gateway trên cả Gemini và OpenAI format (AI17-15)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-16",
+          "intent": "Toàn bộ test suite cũ của agentService, qaConflictService, qaRequirementAnalyzerService vẫn PASS (AI17-16)",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-17",
+          "intent": "5 route AI giữ nguyên cấu trúc response payload, chỉ bổ sung các trường metadata cho phép (AI17-17)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P17A-AC-08",
+      "text": "UI component AI đồng bộ: aiRequest có hủy và sequence guard; aiStatus đếm giây kèm nút Hủy/Thử lại; aiResultCard hiển thị tag nguồn gốc chuẩn token CSS.",
+      "cases": [
+        {
+          "id": "P17A-TC-18",
+          "intent": "UI phân tích requirement hiển thị đếm giây, bấm Hủy đưa về trạng thái sạch ban đầu và hủy upstream (AI17-18)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["ASYNC-04"]
+        },
+        {
+          "id": "P17A-TC-19",
+          "intent": "Sửa nội dung hoặc bấm chạy lại khi request trước chưa xong thì kết quả cũ bị bỏ qua (AI17-19)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["ASYNC-01", "ASYNC-03"]
+        },
+        {
+          "id": "P17A-TC-20",
+          "intent": "Rời view khi AI đang chạy thì request tự động bị hủy, quay lại thấy trạng thái ban đầu sạch sẽ (AI17-20)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["ASYNC-02", "UI-04"]
+        },
+        {
+          "id": "P17A-TC-21",
+          "intent": "20 vòng vào/ra view QA không tích lũy listener, disposer an toàn không hủy nhầm session mới (AI17-21)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["OWN-01", "OWN-02", "OWN-03", "OWN-04", "OWN-05"]
+        },
+        {
+          "id": "P17A-TC-22",
+          "intent": "9Router offline hiển thị rõ Kết quả từ luật; bật lại và Thử lại hiển thị AI đề xuất (AI17-22)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["ASYNC-04", "ASYNC-05", "LIFE-01"]
+        },
+        {
+          "id": "P17A-TC-23",
+          "intent": "Header token pill chuẩn a11y, điều hướng đúng 1 lần, hiển thị đúng mức cảnh báo (AI17-23)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": ["UI-02", "UI-03"]
+        },
+        {
+          "id": "P17A-TC-24",
+          "intent": "Cấu hình AI cá nhân từ localStorage được gửi an toàn qua header X-AI-Config tới backend (AI17-24)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-25",
+          "intent": "Giao diện AI hiển thị hoàn hảo trên 4 viewport x 2 theme, không tràn ngang, zero console errors (AI17-25)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P17A-TC-26",
+          "intent": "Đếm nút AI trên DOM độc lập khớp 100% với danh mục tác vụ đăng ký (AI17-26)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": ["UI-01"]
+        }
+      ]
+    }
+  ]
+}
