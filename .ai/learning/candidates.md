@@ -33,3 +33,8 @@
 ### [LEARN-AI-007] Jira Markup Parser Order & Vietnamese Diacritics in Slugs
 - **Quan sát:** (1) Jira numbered list `# item` nếu parse sau `h1.` -> `# Title` sẽ vô tình biến `# Title` thành `1. Title`. (2) `đ/Đ` tiếng Việt không bị tách bởi `normalize('NFD')` nên regex `[^a-z0-9]` sẽ nuốt mất hoặc biến thành gạch ngang đôi.
 - **DO:** Luôn parse numbered list `#` TRƯỚC heading `h1..h6`; thay thế `[đĐ] -> d` trước khi `normalize('NFD')`. **Trạng thái:** PENDING
+
+### [LEARN-AI-008] Locator-Not-Found vs Assertion Priority & Strip ANSI in AI Triage
+- **Quan sát:** `expect(locator).toBeVisible()` khi `element(s) not found` bị phán nhầm thành `product_bug` vì assertion mismatch có điểm số cao hơn. ANSI code làm gãy regex.
+- **DO:** Bóc tách `stripAnsi` trước khi regex; ưu tiên `locator-not-found` (`test_bug`) khi phần tử chưa từng xuất hiện; chỉ phán `product_bug` khi phần tử có thật nhưng dữ liệu/trạng thái sai. **Trạng thái:** PENDING
+
