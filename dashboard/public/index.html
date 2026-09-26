@@ -6,6 +6,7 @@
   <title>QA Automation Studio</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='20' font-size='20'>⚡</text></svg>" id="favicon">
   <link rel="stylesheet" href="/styles.css?v=6.7">
+  <link rel="stylesheet" href="/styles/components/ai.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -81,8 +82,8 @@
       </div>
 
       <div class="header-actions">
-        <button type="button" class="agent-quota-pill is-healthy" id="agent-quota-pill" title="Hạn mức Token API còn lại (bấm để mở AI Agent)" role="status" aria-label="Hạn mức Token API" data-view="agent-view">
-          <i class="ph-bold ph-gauge"></i> <strong id="agent-quota-pill-percent">100%</strong> <span class="quota-pill-label">Token</span>
+        <button type="button" class="agent-quota-pill is-healthy" id="agent-quota-pill" title="Ngân sách Token AI 5 giờ" aria-label="Ngân sách Token AI 5 giờ" data-view="agent-view">
+          <i class="ph-bold ph-gauge" id="agent-quota-pill-icon"></i> <strong id="agent-quota-pill-percent">100%</strong> <span class="quota-pill-label">Token</span>
         </button>
         <button id="system-update-btn" class="header-action-btn" type="button" data-tooltip="Kiểm tra cập nhật hệ thống" data-tooltip-pos="bottom" style="position: relative;">
           <i class="ph-bold ph-cloud-arrow-down" id="topbar-update-icon"></i>
@@ -653,6 +654,9 @@
 
     <div id="toast" role="alert"></div>
   </main>
+  <script src="/js/components/ai/aiRequest.js"></script>
+  <script src="/js/components/ai/aiStatus.js"></script>
+  <script src="/js/components/ai/aiResultCard.js"></script>
   <script src="/app.js?v=5.8"></script>
   <script src="/agent.js?v=1"></script>
   <script type="module" src="/js/main.js?v=6.6"></script>

@@ -111,19 +111,19 @@ export class ReqAnalyzerHelper {
     if (!badge) return;
 
     badge.textContent = 'Đang kiểm tra AI...';
-    badge.style.background = 'rgba(156, 163, 175, 0.15)';
+    badge.style.background = 'var(--surface-variant, rgba(156, 163, 175, 0.15))';
     badge.style.color = 'var(--muted)';
 
     try {
       const config = await apiClient.get('/api/ai/config');
       if (config && config.hasKey) {
         badge.textContent = `🟢 Sẵn sàng (${config.provider} - ${config.model})`;
-        badge.style.background = 'rgba(16, 185, 129, 0.15)';
-        badge.style.color = '#10b981';
+        badge.style.background = 'var(--success-subtle, rgba(16, 185, 129, 0.15))';
+        badge.style.color = 'var(--success)';
       } else {
         badge.textContent = '⚪ Chưa cấu hình Key';
-        badge.style.background = 'rgba(239, 68, 68, 0.15)';
-        badge.style.color = '#ef4444';
+        badge.style.background = 'var(--danger-subtle, rgba(239, 68, 68, 0.15))';
+        badge.style.color = 'var(--danger)';
       }
     } catch (_) {
       badge.textContent = '⚪ Không khả dụng';
@@ -166,23 +166,67 @@ export class ReqAnalyzerHelper {
     if (loadingSection) loadingSection.style.display = 'block';
     if (resultsSection) resultsSection.style.display = 'none';
 
-    try {
-      const res = await apiClient.post('/api/qa/analyze-requirement', {
-        rawText,
-        mode,
-        scanExisting,
+    if (this._activeRequest) {
+      try { this._activeRequest.cancel(); } catch (_) {}
+      this._activeRequest = null;
+    }
+
+    if (window.AiStatus && !this._statusBar && loadingSection) {
+      this._statusBar = window.AiStatus.createAiStatusBar({
+        container: loadingSection,
+        onCancel: () => {
+          if (this._activeRequest) {
+            try { this._activeRequest.cancel(); } catch (_) {}
+            this._activeRequest = null;
+          }
+          if (this._statusBar) this._statusBar.clear();
+          this.showInputView(root);
+          toast.info('Đã hủy phân tích requirement.');
+        },
+        onRetry: () => this.runAnalysis(root),
       });
+    }
+
+    if (this._statusBar) {
+      this._statusBar.setPending('Đang chờ AI phân tích requirement…', { showCancel: true });
+    }
+
+    const startAi = window.AiRequest && typeof window.AiRequest.startAiRequest === 'function';
+    try {
+      let res;
+      if (startAi) {
+        this._activeRequest = window.AiRequest.startAiRequest({
+          url: '/api/qa/analyze-requirement',
+          body: { rawText, mode, scanExisting },
+          timeoutMs: 60000,
+          owner: this,
+        });
+        res = await this._activeRequest.promise;
+      } else {
+        res = await apiClient.post('/api/qa/analyze-requirement', { rawText, mode, scanExisting });
+      }
 
       this.currentResult = res;
+      if (this._statusBar) this._statusBar.clear();
       if (loadingSection) loadingSection.style.display = 'none';
       if (resultsSection) resultsSection.style.display = 'flex';
 
       this.renderResults(root, res);
       toast.success('Phân tích requirement thành công!');
     } catch (err) {
-      if (loadingSection) loadingSection.style.display = 'none';
-      if (inputSection) inputSection.style.display = 'flex';
+      if (err.name === 'AbortError' || err.code === 'CANCELLED' || err.message === 'Tác vụ đã được hủy.') {
+        this.showInputView(root);
+        return;
+      }
+      if (this._statusBar) {
+        this._statusBar.setError(err.message || 'Lỗi phân tích requirement.', { showRetry: true });
+      } else {
+        if (loadingSection) loadingSection.style.display = 'none';
+        if (inputSection) inputSection.style.display = 'flex';
+      }
       toast.error(`Lỗi phân tích: ${err.message || 'Không thể xử lý yêu cầu.'}`);
+    } finally {
+      this._activeRequest = null;
     }
   }
 
@@ -203,7 +247,7 @@ export class ReqAnalyzerHelper {
     if (statTc) statTc.textContent = `${tcCount} TCs`;
     if (statRisk) {
       statRisk.textContent = riskLevel;
-      statRisk.style.color = riskLevel === 'Cao' ? '#ef4444' : riskLevel === 'Thấp' ? '#10b981' : '#f59e0b';
+      statRisk.style.color = riskLevel === 'Cao' ? 'var(--danger)' : riskLevel === 'Thấp' ? 'var(--success)' : 'var(--warning)';
     }
     if (statImpacted) statImpacted.textContent = `${impactedCount} TC`;
     if (statLogic) statLogic.textContent = String(logicCount);
@@ -557,6 +601,14 @@ export class ReqAnalyzerHelper {
   }
 
   destroy() {
+    if (this._activeRequest) {
+      try { this._activeRequest.cancel(); } catch (_) {}
+      this._activeRequest = null;
+    }
+    if (this._statusBar) {
+      try { this._statusBar.dispose(); } catch (_) {}
+      this._statusBar = null;
+    }
     this.disposers.forEach((d) => {
       try { d(); } catch (_) {}
     });

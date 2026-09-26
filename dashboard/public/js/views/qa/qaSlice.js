@@ -853,11 +853,23 @@ export class QaSlice {
     }
 
     try {
-      const res = await apiClient.post('/api/qa/scaffold/extract', {
-        rawContent,
-        reqId,
-        domain,
-      });
+      const startAi = window.AiRequest && typeof window.AiRequest.startAiRequest === 'function';
+      let res;
+      if (startAi) {
+        const req = window.AiRequest.startAiRequest({
+          url: '/api/qa/scaffold/extract',
+          body: { rawContent, reqId, domain },
+          timeoutMs: 60000,
+          owner: this,
+        });
+        res = await req.promise;
+      } else {
+        res = await apiClient.post('/api/qa/scaffold/extract', {
+          rawContent,
+          reqId,
+          domain,
+        });
+      }
 
       this._scaffoldRawExtracted = res;
 
@@ -873,13 +885,13 @@ export class QaSlice {
 
       if (engineBadge) {
         engineBadge.textContent = res.engine === 'ai' ? 'AI Semantic' : 'Heuristic Cục Bộ';
-        engineBadge.style.background = res.engine === 'ai' ? 'rgba(168, 85, 247, 0.15)' : 'rgba(59, 130, 246, 0.15)';
-        engineBadge.style.color = res.engine === 'ai' ? '#a855f7' : 'var(--accent)';
+        engineBadge.style.background = res.engine === 'ai' ? 'var(--primary-subtle, rgba(168, 85, 247, 0.15))' : 'var(--accent-subtle, rgba(59, 130, 246, 0.15))';
+        engineBadge.style.color = res.engine === 'ai' ? 'var(--primary)' : 'var(--accent)';
       }
       if (typeBadge) {
         typeBadge.textContent = res.inputType === 'test_script' ? 'Playwright Script' : 'Spec Text';
-        typeBadge.style.background = res.inputType === 'test_script' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(16, 185, 129, 0.15)';
-        typeBadge.style.color = res.inputType === 'test_script' ? '#eab308' : '#10b981';
+        typeBadge.style.background = res.inputType === 'test_script' ? 'var(--warning-subtle, rgba(234, 179, 8, 0.15))' : 'var(--success-subtle, rgba(16, 185, 129, 0.15))';
+        typeBadge.style.color = res.inputType === 'test_script' ? 'var(--warning)' : 'var(--success)';
       }
 
       if (previewReqId) previewReqId.textContent = res.preview.reqId;
@@ -1052,10 +1064,22 @@ export class QaSlice {
     if (submitBtn) submitBtn.disabled = true;
 
     try {
-      const res = await apiClient.post('/api/qa/infer-testcases', {
-        reqPath: this._activeDoc.path,
-        mode,
-      });
+      const startAi = window.AiRequest && typeof window.AiRequest.startAiRequest === 'function';
+      let res;
+      if (startAi) {
+        const req = window.AiRequest.startAiRequest({
+          url: '/api/qa/infer-testcases',
+          body: { reqPath: this._activeDoc.path, mode },
+          timeoutMs: 60000,
+          owner: this,
+        });
+        res = await req.promise;
+      } else {
+        res = await apiClient.post('/api/qa/infer-testcases', {
+          reqPath: this._activeDoc.path,
+          mode,
+        });
+      }
 
       if (loading) loading.style.display = 'none';
 

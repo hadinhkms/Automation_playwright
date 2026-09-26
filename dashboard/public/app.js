@@ -15764,27 +15764,34 @@ async function updateGlobalHeaderTokenQuota() {
     if (clientConfig) {
       headers['X-AI-Config'] = btoa(unescape(encodeURIComponent(JSON.stringify(clientConfig))));
     }
-    const res = await fetch('/api/agent/status', { headers });
+    const res = await fetch('/api/ai/usage');
     if (!res.ok) return;
     const data = await res.json();
-    if (data.tokenQuota) {
-      const percent = data.tokenQuota.remainingPercent ?? 100;
-      const pillPercent = document.getElementById('agent-quota-pill-percent');
-      if (pillPercent) pillPercent.textContent = `${percent}%`;
-      const pill = document.getElementById('agent-quota-pill');
-      if (pill) {
-        pill.classList.toggle('is-healthy', percent >= 50);
-        pill.classList.toggle('is-warning', percent >= 20 && percent < 50);
-        pill.classList.toggle('is-danger', percent < 20);
-        pill.title = `Hạn mức Token: ${percent}% còn lại (${data.tokenQuota.modelName || 'AI'}) - Bấm để mở tab AI Agent`;
+    const percent = Math.max(0, Math.min(100, data.remainingPercent ?? 100));
+    const pillPercent = document.getElementById('agent-quota-pill-percent');
+    if (pillPercent) pillPercent.textContent = `${percent}%`;
+    const pill = document.getElementById('agent-quota-pill');
+    const icon = document.getElementById('agent-quota-pill-icon');
+    if (pill) {
+      if (data.isBlocked) {
+        pill.classList.remove('is-healthy', 'is-warning');
+        pill.classList.add('is-danger');
+        if (icon) icon.className = 'ph-bold ph-lock-key';
+        const waitSec = Math.max(1, Math.ceil((data.blockedUntil - Date.now()) / 1000));
+        pill.title = `Tạm khóa do chạm giới hạn (429). Thử lại sau ${waitSec}s.`;
+      } else {
+        pill.classList.toggle('is-healthy', percent >= 30);
+        pill.classList.toggle('is-warning', percent >= 10 && percent < 30);
+        pill.classList.toggle('is-danger', percent < 10);
+        if (icon) icon.className = 'ph-bold ph-gauge';
+        const usedFmt = (data.usedTokens || 0).toLocaleString('vi-VN');
+        const budgetFmt = (data.budget || 1000000).toLocaleString('vi-VN');
+        const remFmt = (data.remainingTokens || 0).toLocaleString('vi-VN');
+        pill.title = `Token 5 giờ (ước tính): ${usedFmt} / ${budgetFmt} (${100 - percent}%) · Còn lại: ${remFmt} tokens`;
       }
     }
   } catch (_) {}
 }
-
-document.getElementById('agent-quota-pill')?.addEventListener('click', () => {
-  document.getElementById('agent-tab')?.click();
-});
 
 updateGlobalHeaderTokenQuota();
 window.addEventListener('focus', updateGlobalHeaderTokenQuota);

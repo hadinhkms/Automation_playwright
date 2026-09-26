@@ -456,7 +456,19 @@ export class ConflictStudioHelper {
     }
     this._setBusy(true);
     try {
-      const res = await apiClient.post('/api/qa/conflict/arbitrate', { tcId: c.tcId, specFile: c.specFile }, { timeout: AI_TIMEOUT_MS });
+      const startAi = window.AiRequest && typeof window.AiRequest.startAiRequest === 'function';
+      let res;
+      if (startAi) {
+        const req = window.AiRequest.startAiRequest({
+          url: '/api/qa/conflict/arbitrate',
+          body: { tcId: c.tcId, specFile: c.specFile },
+          timeoutMs: AI_TIMEOUT_MS,
+          owner: this,
+        });
+        res = await req.promise;
+      } else {
+        res = await apiClient.post('/api/qa/conflict/arbitrate', { tcId: c.tcId, specFile: c.specFile }, { timeout: AI_TIMEOUT_MS });
+      }
       this._verdictCache.set(sig, res);
       const live = this._cardFor(key);
       if (live && live.dataset.conflictSig === sig) this._renderVerdict(live, c, res);
@@ -484,7 +496,11 @@ export class ConflictStudioHelper {
       toDoc ? `Đề xuất: tài liệu theo Spec → ${list(c.specAcs)}` : `Đề xuất: spec theo Tài liệu → ${list(c.docAcs)}`));
     const confidence = Number(res.confidence) || 0;
     top.appendChild(this._el('span', `qa-conflict-chip ${confidence >= 75 ? 'is-ok' : 'is-warn'}`, `Độ tin cậy ${confidence}%`));
-    top.appendChild(this._el('span', 'qa-conflict-muted', res.engine === 'ai' ? `AI · ${res.engineNote || ''}` : (res.engineNote || 'Luật suy luận tĩnh')));
+    const badgeText = res.engine === 'ai'
+      ? `✦ AI đề xuất · ${res.engineNote || res.model || 'qaFast'}`
+      : `Kết quả từ luật (không dùng AI)${res.engineNote ? `: ${res.engineNote}` : ''}`;
+    const badgeClass = res.engine === 'ai' ? 'ai-badge ai-badge-ai' : 'ai-badge ai-badge-rule';
+    top.appendChild(this._el('span', badgeClass, badgeText));
     box.appendChild(top);
     box.appendChild(this._el('p', 'qa-conflict-verdict-reason', res.reason || ''));
 
