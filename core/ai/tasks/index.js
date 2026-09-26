@@ -19,6 +19,10 @@ const { runAnalyzeTestImpact } = require('./analyzeTestImpact');
 const { runGenerateReleaseBriefing } = require('./generateReleaseBriefing');
 const { runAnalyzeRequirementChange } = require('./analyzeRequirementChange');
 const { runGeneratePlaywrightSpec, validateScriptSyntax } = require('./generatePlaywrightSpec');
+const { runDraftDecisionRecord } = require('./draftDecisionRecord');
+const { formatForJira } = require('./copyForJira');
+const { runDetectFlakyTests } = require('./detectFlakyTests');
+const { runSummarizeCiRun } = require('./summarizeCiRun');
 
 module.exports = {
   runArbitrateConflict,
@@ -39,5 +43,9 @@ module.exports = {
   runGenerateReleaseBriefing,
   runAnalyzeRequirementChange,
   runGeneratePlaywrightSpec,
-  validateScriptSyntax
+  validateScriptSyntax,
+  runDraftDecisionRecord,
+  formatForJira,
+  runDetectFlakyTests,
+  runSummarizeCiRun
 };

@@ -39,6 +39,8 @@
 - **DO:** Bóc tách `stripAnsi` trước khi regex; ưu tiên `locator-not-found` (`test_bug`) khi phần tử chưa từng xuất hiện; chỉ phán `product_bug` khi phần tử có thật nhưng dữ liệu/trạng thái sai. **Trạng thái:** PENDING
 
 ### [LEARN-AI-009] Safe AbortSignal Binding & Rule Fallback in AI Tasks
-- **Quan sát:** `abortSignalFor(req, res)` nếu thiếu `res` sẽ crash `res.once`. Khi AI offline, task thiếu rule fallback làm treo UI.
-- **DO:** Kiểm tra `res && typeof res.once === 'function'`; luôn cung cấp rule fallback heuristic (0 token) cho BA-1, QA-1, QA-4 để UI hoạt động độc lập. **Trạng thái:** PENDING
+- **Quan sát/DO:** Kiểm tra `res?.once`; luôn cấp rule fallback heuristic (0 token) cho task AI khi offline. **Trạng thái:** PENDING
+
+### [LEARN-AI-010] Level 1 Safety Sandbox & Versioned Prompt Fallback
+- **Quan sát/DO:** Không auto-run headless trên live target (G15). Dùng `vm.Script` kiểm tra cú pháp tĩnh; nạp prompt theo thứ tự `prompts.local/` -> `prompts/` -> default. **Trạng thái:** PENDING
 

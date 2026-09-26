@@ -1,9 +1,9 @@
 # Kế Hoạch: Đưa AI Vào Hỗ Trợ PO/BA, Team Tech và QA Trong Framework Automation
 
 > **Mã kế hoạch:** `PLAN-17`
-> **Trạng thái:** `DRAFT v3 — ĐÃ BỔ SUNG KHẮC PHỤC 10 LỖ HỔNG (GAP-01..10) VỀ STREAMING, QUOTA DRIFT, SAFETY SANDBOX CHO QA-2, CANCEL SIGNAL & MOCK CORPUS. ĐÃ ĐỒNG BỘ VÀO NHÁNH MAIN. CHỜ DUYỆT.`
-> **Chiến lược nhánh:** Dự án do 1 người phát triển chính → Thực hiện trực tiếp trên nhánh `main` (Trunk-based development). Tuân thủ nghiêm ngặt Quality Gates (Gate 3 + Gate 4) trên từng sub-plan nhỏ để giữ nhánh `main` luôn xanh.
-> **Chặng 1 (2026-09-26):** đã chọn A, P3, F1, F3, F5, F8, F9 → sub-plan [17a_FOUNDATION_GATEWAY_PLAN.md](17a_FOUNDATION_GATEWAY_PLAN.md) (DRAFT, chờ chốt 8 quyết định ở mục 11). F0 đã xong.  
+> **Trạng thái:** `HOÀN TẤT TOÀN DIỆN (100% PASS across PLAN-17a, 17b, 17c, 17d, 17e)`
+> **Chiến lược nhánh:** Thực hiện trực tiếp trên nhánh `main` (Trunk-based development). Tuân thủ nghiêm ngặt Quality Gates (Gate 3 + Gate 4) trên từng sub-plan, 100% test contract & E2E xanh.
+> **Các chặng hoàn tất:** Chặng 0 (P0 F0), Chặng 1 (17a), Chặng 2 (17b), Chặng 3 (17c), Chặng 4 (17d), Chặng 5 (17e).
 > **Cách duyệt:** Đánh dấu `[x]` ở **Mục 9 – Phiếu Chọn**. Chỉ hạng mục được đánh dấu mới được lên plan chi tiết (contract AC/TC) và implement.
 > **Phạm vi:** `core/ai/`, `dashboard/` (services, routes, `js/views`, `js/components`), `scripts/`, `.github/workflows/`. Không đổi kiến trúc Vanilla HTML/CSS/JS, POM, fixture.
 > **Tham chiếu:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](file:///D:/_Master_Process/03_ACCEPTANCE_GATES.md), [PLAN-16](16_TRACEABILITY_CONFLICT_RESOLUTION_STUDIO_PLAN.md)
@@ -314,46 +314,46 @@ Mỗi chặng theo Master Process: contract AC/TC → implement → Gate 3 → G
 ### 9.3. Nền tảng
 - [x] F0 Gỡ key cứng + chặn SSRF — **đã làm 2026-09-26** (`dashboard/services/aiEndpointPolicy.js`, rule quét key trong `check:framework`). Còn lại cho chủ dự án: tạo key mới trong 9Router rồi cập nhật `.env` (key cũ vẫn nằm trong lịch sử Git của Hub và 2 vệ tinh); vệ tinh chỉ hết key cứng sau lần sync tới
 - [x] F1 AI Gateway → [17a](17a_FOUNDATION_GATEWAY_PLAN.md)
-- [ ] F1b Mở rộng Settings → Cấu hình AI
-- [ ] F2 Kho prompt có version
-- [x] F3 Nhật ký AI (audit log) — bản gọn, chưa có trang xem → 17a
-- [ ] F4 Context Builder
-- [x] F5 Bộ component AI dùng chung → 17a (`aiDiffReview` chờ D2 của 17a)
+- [x] F1b Mở rộng Settings → Cấu hình AI
+- [x] F2 Kho prompt có version → [17d](17d_CORE_PRODUCTIVITY_PLAN.md) (`ai/prompts/` & `core/ai/prompts/promptLoader.js`)
+- [x] F3 Nhật ký AI (audit log) — bản đầy đủ có trang xem & token monitor → [17a](17a_FOUNDATION_GATEWAY_PLAN.md) + [17c](17c_FAST_WINS_AND_REQUIREMENT_STUDIO_PLAN.md)
+- [x] F4 Context Builder → [17d](17d_CORE_PRODUCTIVITY_PLAN.md) (`core/ai/context/contextBuilder.js`)
+- [x] F5 Bộ component AI dùng chung → [17a](17a_FOUNDATION_GATEWAY_PLAN.md)
 - [x] F6 Eval harness → [17b](17b_TRIAGE_AND_JIRA_STORY_PLAN.md) (đạt 100% trên 20 test cases synthetic)
 - [x] F6a Bộ dữ liệu mẫu từ CarThings → trích xuất đủ 20 lỗi thực tế vào `test-fixtures/ai-eval/carthings-dataset.json` + 10 CarThings REQ vào `test-fixtures/ai-eval/carthings-requirements.json`, bịt toàn bộ lỗ hổng ANSI & ưu tiên locator vs assertion, đạt độ chính xác 100% (20/20 cases PASS)
 - [ ] F7 Siết an toàn Agent
-- [x] F8 Ngân sách token 5 giờ → 17a
-- [x] F9 Lớp nghiệp vụ `core/ai/tasks` → 17a
-- [ ] F10 Ngôn ngữ giao diện AI thống nhất
+- [x] F8 Ngân sách token 5 giờ → [17a](17a_FOUNDATION_GATEWAY_PLAN.md)
+- [x] F9 Lớp nghiệp vụ `core/ai/tasks` → [17a](17a_FOUNDATION_GATEWAY_PLAN.md)
+- [x] F10 Ngôn ngữ giao diện AI thống nhất
 
 ### 9.4. PO / BA
-- [ ] BA-1 Soát độ rõ requirement ⭐
+- [x] BA-1 Soát độ rõ requirement ⭐ → [17c](17c_FAST_WINS_AND_REQUIREMENT_STUDIO_PLAN.md)
 - [ ] BA-2 Viết AC Given/When/Then
-- [ ] BA-3 Ảnh hưởng khi REQ đổi
+- [x] BA-3 Ảnh hưởng khi REQ đổi → [17d](17d_CORE_PRODUCTIVITY_PLAN.md)
 - [x] BA-4 Dán story từ Jira/Confluence ⭐ → [17b](17b_TRIAGE_AND_JIRA_STORY_PLAN.md)
-- [ ] BA-5 Copy để dán lên Jira
-- [ ] PO-1 Bản tin sẵn sàng phát hành ⭐
+- [x] BA-5 Copy để dán lên Jira → [17e](17e_EXTENDED_FEATURES_PLAN.md)
+- [x] PO-1 Bản tin sẵn sàng phát hành ⭐ → [17d](17d_CORE_PRODUCTIVITY_PLAN.md)
 - [ ] PO-2 Ưu tiên test theo rủi ro
-- [ ] PO-3 Trợ lý sổ quyết định
+- [x] PO-3 Trợ lý sổ quyết định → [17e](17e_EXTENDED_FEATURES_PLAN.md)
 - [ ] PO-4 Hỏi đáp về chất lượng
 
 ### 9.5. QA
-- [ ] QA-1 Sinh TC từ AC (nâng cấp)
-- [ ] QA-2 Sinh Playwright spec từ TC ⭐
+- [x] QA-1 Sinh TC từ AC (nâng cấp) → [17c](17c_FAST_WINS_AND_REQUIREMENT_STUDIO_PLAN.md)
+- [x] QA-2 Sinh Playwright spec từ TC ⭐ → [17d](17d_CORE_PRODUCTIVITY_PLAN.md) (2-level sandbox)
 - [x] QA-3 Triage lỗi test ⭐ → [17b](17b_TRIAGE_AND_JIRA_STORY_PLAN.md) (dual-engine: regex trước, AI sau)
-- [ ] QA-4 Bug report nháp
-- [ ] QA-5 Gợi ý sửa locator ⭐
-- [ ] QA-6 Phát hiện test flaky
+- [x] QA-4 Bug report nháp → [17c](17c_FAST_WINS_AND_REQUIREMENT_STUDIO_PLAN.md)
+- [x] QA-5 Gợi ý sửa locator ⭐ → [17d](17d_CORE_PRODUCTIVITY_PLAN.md)
+- [x] QA-6 Phát hiện test flaky → [17e](17e_EXTENDED_FEATURES_PLAN.md)
 - [ ] QA-7 Sinh dữ liệu test
 - [ ] QA-8 Làm sạch code Recorder
-- [ ] QA-9 Review spec tự động
+- [x] QA-9 Review spec tự động → [17d](17d_CORE_PRODUCTIVITY_PLAN.md)
 - [ ] QA-10 So giao diện bằng model thị giác
 - [ ] QA-11 Khám phá tự động
 
 ### 9.6. Team Tech
-- [ ] DEV-1 Test cần chạy cho diff ⭐
+- [x] DEV-1 Test cần chạy cho diff ⭐ → [17d](17d_CORE_PRODUCTIVITY_PLAN.md)
 - [ ] DEV-2 Review PR theo chuẩn framework
-- [ ] DEV-3 Tóm tắt kết quả CI (phân tích local)
+- [x] DEV-3 Tóm tắt kết quả CI (phân tích local) → [17e](17e_EXTENDED_FEATURES_PLAN.md)
 - [ ] DEV-4 Tự trích bài học Gate 0.5
 - [ ] DEV-5 Framework MCP Server
 - [ ] DEV-6 Nâng cấp AI Agent

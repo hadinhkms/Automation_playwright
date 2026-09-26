@@ -14,24 +14,24 @@ const {
 } = require('../services/aiEndpointPolicy');
 const { handleAiFastWinsRoutes } = require('./aiFastWinsRoutes');
 const { handleAiProductivityRoutes } = require('./aiProductivityRoutes');
+const { handleAiExtendedRoutes } = require('./aiExtendedRoutes');
 
 const copilotService = createCopilotService({ quota: Number(process.env.DASHBOARD_AI_QUOTA || 20) });
 
 function parseEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return {};
   const env = {};
-  fs.readFileSync(filePath, 'utf8').split(/\r?\n/).forEach((line) => {
-    const t = line.trim();
-    if (!t || t.startsWith('#')) return;
-    const i = t.indexOf('=');
-    if (i !== -1) env[t.slice(0, i).trim()] = t.slice(i + 1).trim();
+  fs.readFileSync(filePath, 'utf8').split(/\r?\n/).forEach((l) => {
+    const t = l.trim();
+    if (t && !t.startsWith('#') && t.includes('=')) {
+      const i = t.indexOf('=');
+      env[t.slice(0, i).trim()] = t.slice(i + 1).trim();
+    }
   });
   return env;
 }
 
-function writeEnvFile(filePath, envObj) {
-  fs.writeFileSync(filePath, Object.entries(envObj).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', 'utf8');
-}
+const writeEnvFile = (p, o) => fs.writeFileSync(p, Object.entries(o).map(([k, v]) => `${k}=${v}`).join('\n') + '\n', 'utf8');
 
 function readClientConfig(request) {
   if (!request.headers['x-ai-config']) return null;
@@ -48,6 +48,7 @@ async function handleAiRoutes(request, response, url, context = {}) {
 
   if (await handleAiFastWinsRoutes(request, response, url, context)) return true;
   if (await handleAiProductivityRoutes(request, response, url, readClientConfig(request))) return true;
+  if (await handleAiExtendedRoutes(request, response, url, readClientConfig(request))) return true;
 
   if (request.method === 'GET' && url.pathname === '/api/ai/config') {
     const env = parseEnvFile(path.join(root, '.env'));
