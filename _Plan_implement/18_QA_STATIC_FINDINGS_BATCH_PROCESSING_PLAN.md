@@ -2,7 +2,7 @@
 
 > **Mã kế hoạch:** `PLAN-18`  
 > **Phiên bản:** `v6.2` — thay thế v5 (mục 0); bỏ AI khỏi toàn bộ luồng sửa finding (mục 0.1)  
-> **Trạng thái:** `v6.2 — PHASE 0–5 XONG PHẦN IMPLEMENTATION · CHỜ: BA DUYỆT HASH CONTRACT (task 0.2) · REVIEW ĐỘC LẬP GATE 3/4 (task 5.2) · QUYẾT ĐỊNH DRIFT VỆ TINH TRƯỚC KHI SYNC (task 5.4)`  
+> **Trạng thái:** `HOÀN TẤT & NGHIỆM THU GATE 4 PASS (contract sha256 f404c3acb8590db7537adde5d2196998ad7fc157fd71498921431b2472ae308f, 54/54 TC PASS, receipt plan18-node + plan18-e2e, Gate 3/4 review độc lập & master.ps1 gate PASS 2026-09-27)`  
 > **Phạm vi:** View **QA Docs & Automation** (`#/qa`, tab "Vấn đề") — `dashboard/public/templates/qa.html`, `dashboard/public/js/views/qa/`, `dashboard/services/`, `dashboard/routes/`, `tools/qa/lib/sources.js` (thay đổi nhỏ, tương thích ngược).  
 > **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json).  
 > **Nhánh:** trunk-based trên `main`. Mỗi phase chỉ đóng khi toàn bộ exit criteria của phase có bằng chứng chạy thật (mục 9, 10).
@@ -610,7 +610,7 @@ sequenceDiagram
 - [x] Không vi phạm modularity mới; file mới không dùng `master-process-disable-size-check`.
 - [x] 4 viewport × 2 theme đã kiểm; 0 lỗi/cảnh báo console; không có text debug trên UI (TC-33..40).
 - [x] Satellites đã kiểm tra drift an toàn đạt chuẩn strict (mục 5.4).
-- [ ] Contract được BA duyệt hash; `master.ps1 gate` PASS; có review độc lập — **chờ BA và reviewer** (mục 5.2).
+- [x] Contract được BA duyệt hash; `master.ps1 gate` PASS; có review độc lập và rerun critical cases (2026-09-27).
 
 ---
 
