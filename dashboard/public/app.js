@@ -15204,9 +15204,56 @@ async function initPlanThreeControls() {
             <button type="button" class="btn-secondary-sm" id="btn-diagnostics-draft-bug" style="font-size: 11.5px; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);" title="Soạn thảo Bug Report chi tiết chuẩn Jira từ kết quả chẩn đoán lỗi">
               <i class="ph-bold ph-bug"></i> ✦ Soạn Bug nháp (Jira/Markdown)
             </button>
+            <button type="button" class="btn-secondary-sm" id="btn-diagnostics-suggest-locator" style="font-size: 11.5px; color: #3b82f6; border-color: rgba(59, 130, 246, 0.4);" title="Đề xuất locator Playwright bền vững từ DOM (QA-5)">
+              <i class="ph-bold ph-crosshair"></i> ✦ Sửa Locator (AI)
+            </button>
           </div>
           <div id="diagnostics-bug-report-container" style="display: none; margin-top: 8px;"></div>
         </article>`;
+
+      document.getElementById('btn-diagnostics-suggest-locator')?.addEventListener('click', async () => {
+        const bugContainer = document.getElementById('diagnostics-bug-report-container');
+        if (!bugContainer) return;
+        bugContainer.style.display = 'block';
+        bugContainer.innerHTML = '<div style="font-size: 12px; color: var(--muted);"><i class="ph-bold ph-spinner ph-spin"></i> Đang phân tích DOM và đề xuất locator bền vững…</div>';
+        try {
+          const locRes = await fetch('/api/ai/suggest-locator', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              brokenLocator: res.locator || '',
+              errorMessage: input.value,
+              domSnippet: res.evidence || '',
+              pageUrl: '/'
+            })
+          }).then(r => r.json());
+
+          const sug = locRes.primarySuggestion || {};
+          bugContainer.innerHTML = `
+            <div style="border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: var(--surface); display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 12.5px; color: var(--accent);"><i class="ph-bold ph-crosshair"></i> ${escapeHtml(sug.type || 'Locator')} (Độ tin cậy: ${Math.round((sug.confidence || 0.8) * 100)}%)</strong>
+                <span style="font-size: 10.5px; padding: 2px 6px; border-radius: 4px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 700;">${escapeHtml(locRes.source === 'ai' ? '✦ AI' : '⚙ Heuristic')}</span>
+              </div>
+              <pre style="margin: 0; padding: 8px; font-size: 12px; font-family: var(--font-mono, monospace); background: var(--surface-2); border-radius: 4px; color: #10b981; white-space: pre-wrap;"><code>${escapeHtml(sug.code || '')}</code></pre>
+              <small style="color: var(--muted); font-size: 11px;">${escapeHtml(sug.rationale || '')}</small>
+              <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="btn-text-sm" id="btn-copy-suggested-locator" style="color: var(--accent); cursor: pointer; border: none; background: transparent; font-size: 11.5px;">
+                  <i class="ph-bold ph-copy"></i> Sao chép locator
+                </button>
+              </div>
+            </div>`;
+
+          document.getElementById('btn-copy-suggested-locator')?.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(sug.code || '');
+              if (window.toast) window.toast.success('Đã sao chép locator vào clipboard!');
+            } catch (_) {}
+          });
+        } catch (err) {
+          bugContainer.innerHTML = `<small style="color: var(--danger);">Lỗi đề xuất locator: ${escapeHtml(err.message)}</small>`;
+        }
+      });
 
       document.getElementById('btn-diagnostics-draft-bug')?.addEventListener('click', async () => {
         const bugContainer = document.getElementById('diagnostics-bug-report-container');

@@ -108,6 +108,7 @@ export class QaSlice {
     };
 
     on(root.querySelector('#qa-btn-refresh'), 'click', () => this.reload(true));
+    on(root.querySelector('#qa-btn-release-briefing'), 'click', () => this.openReleaseBriefingModal());
     on(root.querySelector('#qa-docs-sidebar-refresh'), 'click', () => this.reload(true));
     on(root.querySelector('#qa-reader-back'), 'click', () => this.showOverview());
     on(root.querySelector('#qa-reader-answer'), 'click', () => this.openAnswerForm());
@@ -254,6 +255,83 @@ export class QaSlice {
     if (this.batch) {
       this.batch.init(root);
       this._disposers.push(() => this.batch.destroy());
+    }
+  }
+
+  async openReleaseBriefingModal() {
+    const root = this._root();
+    if (!root) return;
+    const modal = root.querySelector('#qa-release-briefing-modal');
+    const content = root.querySelector('#qa-release-briefing-content');
+    const closeBtn = root.querySelector('#qa-release-briefing-close');
+    const dismissBtn = root.querySelector('#qa-release-briefing-dismiss');
+    const copyBtn = root.querySelector('#qa-release-briefing-copy');
+    if (!modal || !content) return;
+
+    try { modal.showModal(); } catch (_) { modal.setAttribute('open', ''); }
+    content.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--muted);"><div class="spinner" style="margin: 0 auto 10px; width: 28px; height: 28px; border: 3px solid var(--line); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite;"></div><p style="margin: 0; font-size: 13px;">Đang tổng hợp số liệu kiểm thử và phân tích bản tin sẵn sàng phát hành...</p></div>';
+
+    const closeModal = () => {
+      try { modal.close(); } catch (_) { modal.removeAttribute('open'); }
+    };
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (dismissBtn) dismissBtn.onclick = closeModal;
+
+    try {
+      const stats = this.summary?.metrics || {};
+      const totalReq = this.documents?.length || 10;
+      const res = await apiClient.post('/api/ai/release-briefing', {
+        testMetrics: {
+          total: stats.totalTestCases || 20,
+          passed: (stats.totalTestCases || 20) - (stats.failingTestCases || 0),
+          failed: stats.failingTestCases || 0
+        },
+        uncoveredReqCount: Math.max(0, totalReq - (stats.coveredRequirements || totalReq)),
+        openBlockersCount: stats.blockingIssues || 0,
+        releaseName: 'Release Readiness Overview'
+      });
+
+      const verdictColors = {
+        GO: '#10b981',
+        GO_WITH_CAUTION: '#f59e0b',
+        NO_GO: '#ef4444'
+      };
+      const verdictColor = verdictColors[res.verdict] || '#6b7280';
+
+      content.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 14px; padding: 6px 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--surface-2); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--line);">
+            <div>
+              <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700;">Phán quyết phát hành</span>
+              <div style="font-size: 22px; font-weight: 800; color: ${verdictColor};">${res.verdict}</div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700;">Điểm sẵn sàng</span>
+              <div style="font-size: 22px; font-weight: 800; color: var(--text);">${res.readinessScore}/100</div>
+            </div>
+          </div>
+          <div style="font-size: 13.5px; font-weight: 600; color: var(--text);">${res.headline || ''}</div>
+          <p style="font-size: 12.5px; color: var(--muted); line-height: 1.5; margin: 0;">${res.rationale || ''}</p>
+          ${res.highlights && res.highlights.length ? `
+            <div style="background: var(--surface-2); padding: 10px 14px; border-radius: 6px;">
+              <strong style="font-size: 12px; color: var(--text); display: block; margin-bottom: 6px;">Điểm sáng chất lượng:</strong>
+              <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--muted);">
+                ${res.highlights.map((h) => `<li>${h}</li>`).join('')}
+              </ul>
+            </div>` : ''}
+        </div>
+      `;
+
+      if (copyBtn) {
+        copyBtn.onclick = async () => {
+          const md = `# ${res.headline}\n\n**Phán quyết:** ${res.verdict} (${res.readinessScore}/100)\n\n${res.rationale}`;
+          try {
+            await navigator.clipboard.writeText(md);
+          } catch (_) {}
+        };
+      }
+    } catch (err) {
+      content.innerHTML = `<div style="padding: 16px; color: var(--danger);">Lỗi tải bản tin: ${err.message}</div>`;
     }
   }
 

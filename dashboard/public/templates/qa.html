@@ -21,6 +21,9 @@
           </div>
           <!-- Nút làm mới phải LUÔN hiện: nếu nó nằm trong thanh nguồn (vốn bị ẩn cho tới khi
                tải xong) thì đúng lúc tải lỗi người dùng sẽ không còn cách nào thử lại. -->
+          <button type="button" class="btn-secondary-sm" id="qa-btn-release-briefing" title="Bản tin sẵn sàng phát hành bằng AI (PO-1)">
+            <i class="ph-bold ph-newspaper"></i> Bản tin phát hành (AI)
+          </button>
           <button type="button" class="btn-secondary-sm" id="qa-btn-refresh">
             <i class="ph-bold ph-arrows-clockwise"></i> Làm mới
           </button>
@@ -836,6 +839,9 @@ test.describe('Đổi mật khẩu @account', () => {
                 <button type="button" class="btn-secondary-sm" id="qa-req-btn-generate-tc" style="color: #10b981; border-color: rgba(16, 185, 129, 0.4);" title="Sinh test case BDD (Positive, Negative, BVA, Security) từ AC">
                   <i class="ph-bold ph-list-plus"></i> Sinh Test Case (AI)
                 </button>
+                <button type="button" class="btn-secondary-sm" id="qa-req-btn-generate-spec" style="color: #6366f1; border-color: rgba(99, 102, 241, 0.4);" title="Sinh Playwright Spec code (.spec.js) tự động từ test cases (QA-2)">
+                  <i class="ph-bold ph-code"></i> Sinh Spec (AI)
+                </button>
                 <button type="button" class="btn-primary-sm" id="qa-req-analyzer-btn-submit" style="background: var(--primary); border-color: var(--primary);">
                   <i class="ph-bold ph-sparkle"></i> Bắt đầu Phân tích
                 </button>
@@ -903,6 +909,9 @@ test.describe('Đổi mật khẩu @account', () => {
               <button type="button" class="qa-req-tab" data-tab="clarity" style="padding: 8px 14px; font-size: 12.5px; font-weight: 600; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer;">
                 <i class="ph-bold ph-seal-check"></i> Độ Rõ &amp; BDD (<span id="qa-req-tab-clarity-score">—</span>)
               </button>
+              <button type="button" class="qa-req-tab" data-tab="spec" id="qa-req-subtab-spec" style="padding: 8px 14px; font-size: 12.5px; font-weight: 600; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer;">
+                <i class="ph-bold ph-code"></i> Playwright Spec (<span id="qa-req-tab-spec-status">—</span>)
+              </button>
             </div>
 
             <!-- Panel 1: Test Cases -->
@@ -969,6 +978,11 @@ test.describe('Đổi mật khẩu @account', () => {
             <!-- Panel 5: Clarity & BDD Rewrite -->
             <div class="qa-req-panel" id="qa-req-panel-clarity" style="display: none; flex-direction: column; gap: 12px;">
               <div id="qa-req-clarity-result" style="display: flex; flex-direction: column; gap: 12px;"></div>
+            </div>
+
+            <!-- Panel 6: Playwright Spec Code (QA-2) -->
+            <div class="qa-req-panel" id="qa-req-panel-spec" style="display: none; flex-direction: column; gap: 12px;">
+              <div id="qa-req-spec-result" style="display: flex; flex-direction: column; gap: 12px;"></div>
             </div>
           </div>
         </div>
@@ -1055,5 +1069,22 @@ test.describe('Đổi mật khẩu @account', () => {
           </div>
         </div>
       </dialog>
-
-
+      <!-- PLAN-17d: Bản tin sẵn sàng phát hành cho PO (PO-1) -->
+      <dialog class="app-modal" id="qa-release-briefing-modal" aria-labelledby="qa-release-briefing-title" style="width: 720px; max-width: 90vw;">
+        <div class="app-modal-box">
+          <div class="app-modal-head">
+            <div>
+              <h3 id="qa-release-briefing-title" tabindex="-1"><i class="ph-bold ph-newspaper"></i> Bản Tin Sẵn Sàng Phát Hành (Release Readiness)</h3>
+              <p style="font-size: 12px; color: var(--muted); margin: 4px 0 0;">Tổng hợp chỉ số kiểm thử, rủi ro tồn đọng và phán quyết Go / No-Go cho Product Owner.</p>
+            </div>
+            <button type="button" class="btn-icon-subtle" id="qa-release-briefing-close" aria-label="Đóng"><i class="ph ph-x"></i></button>
+          </div>
+          <div class="app-modal-body" id="qa-release-briefing-body">
+            <div id="qa-release-briefing-content"></div>
+          </div>
+          <div class="app-modal-foot">
+            <button type="button" class="btn-secondary-sm" id="qa-release-briefing-copy"><i class="ph-bold ph-copy"></i> Sao chép Markdown</button>
+            <button type="button" class="btn-secondary-sm" id="qa-release-briefing-dismiss">Đóng</button>
+          </div>
+        </div>
+      </dialog>

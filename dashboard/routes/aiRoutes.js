@@ -13,6 +13,7 @@ const {
   isCrossSiteRequest, resolveModelsRequest, resolveTestConnection, validateConfigBody,
 } = require('../services/aiEndpointPolicy');
 const { handleAiFastWinsRoutes } = require('./aiFastWinsRoutes');
+const { handleAiProductivityRoutes } = require('./aiProductivityRoutes');
 
 const copilotService = createCopilotService({ quota: Number(process.env.DASHBOARD_AI_QUOTA || 20) });
 
@@ -46,6 +47,7 @@ async function handleAiRoutes(request, response, url, context = {}) {
   }
 
   if (await handleAiFastWinsRoutes(request, response, url, context)) return true;
+  if (await handleAiProductivityRoutes(request, response, url, readClientConfig(request))) return true;
 
   if (request.method === 'GET' && url.pathname === '/api/ai/config') {
     const env = parseEnvFile(path.join(root, '.env'));

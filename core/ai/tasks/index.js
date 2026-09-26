@@ -10,6 +10,15 @@ const { runAnalyzeRequirement } = require('./analyzeRequirement');
 const { runInlineSuggest } = require('./inlineSuggest');
 const { runTriageFailure } = require('./triageFailure');
 const { parseJiraMarkupToMarkdown, extractJiraKey } = require('./jiraStoryParser');
+const { runCheckRequirementClarity } = require('./checkRequirementClarity');
+const { runDraftBugReport } = require('./draftBugReport');
+const { runGenerateTestCases } = require('./generateTestCases');
+const { runSuggestLocator } = require('./suggestLocator');
+const { runReviewSpec, staticSpecReview } = require('./reviewSpec');
+const { runAnalyzeTestImpact } = require('./analyzeTestImpact');
+const { runGenerateReleaseBriefing } = require('./generateReleaseBriefing');
+const { runAnalyzeRequirementChange } = require('./analyzeRequirementChange');
+const { runGeneratePlaywrightSpec, validateScriptSyntax } = require('./generatePlaywrightSpec');
 
 module.exports = {
   runArbitrateConflict,
@@ -19,5 +28,16 @@ module.exports = {
   runInlineSuggest,
   runTriageFailure,
   parseJiraMarkupToMarkdown,
-  extractJiraKey
+  extractJiraKey,
+  runCheckRequirementClarity,
+  runDraftBugReport,
+  runGenerateTestCases,
+  runSuggestLocator,
+  runReviewSpec,
+  staticSpecReview,
+  runAnalyzeTestImpact,
+  runGenerateReleaseBriefing,
+  runAnalyzeRequirementChange,
+  runGeneratePlaywrightSpec,
+  validateScriptSyntax
 };

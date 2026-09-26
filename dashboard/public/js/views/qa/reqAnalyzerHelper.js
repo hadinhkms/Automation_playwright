@@ -104,6 +104,12 @@ export class ReqAnalyzerHelper {
     // QA-1: Sinh test case từ AC (AI)
     addEvt(generateTcBtn, 'click', () => this.runGenerateTestCases(root));
 
+    // QA-2: Sinh Playwright spec từ test cases (AI)
+    const generateSpecBtn = root.querySelector('#qa-req-btn-generate-spec');
+    if (generateSpecBtn) {
+      addEvt(generateSpecBtn, 'click', () => this.runGenerateSpec(root));
+    }
+
     // Chuyển Tabs kết quả
     const tabBtns = root.querySelectorAll('.qa-req-tab');
     tabBtns.forEach((tabBtn) => {
@@ -304,6 +310,91 @@ export class ReqAnalyzerHelper {
       if (loadingSection) loadingSection.style.display = 'none';
       if (inputSection) inputSection.style.display = 'flex';
       toast.error(`Lỗi sinh test cases: ${err.message}`);
+    }
+  }
+
+  async runGenerateSpec(root) {
+    const textarea = root.querySelector('#qa-req-analyzer-text');
+    const rawText = textarea ? textarea.value.trim() : '';
+
+    if (!rawText) {
+      toast.warn('Vui lòng nhập hoặc dán nội dung requirement trước khi sinh Playwright spec.');
+      if (textarea) textarea.focus();
+      return;
+    }
+
+    const inputSection = root.querySelector('#qa-req-analyzer-input-section');
+    const loadingSection = root.querySelector('#qa-req-analyzer-loading');
+    const resultsSection = root.querySelector('#qa-req-analyzer-results-section');
+
+    if (inputSection) inputSection.style.display = 'none';
+    if (loadingSection) loadingSection.style.display = 'block';
+    if (resultsSection) resultsSection.style.display = 'none';
+
+    try {
+      const jiraKeyInput = root.querySelector('#qa-req-jira-key');
+      const reqId = jiraKeyInput?.value.trim() || this.extractJiraKey(rawText) || 'REQ-001';
+
+      const res = await apiClient.post('/api/ai/generate-spec', {
+        reqId,
+        requirementTitle: 'Yêu cầu tự động hóa',
+        tcList: [
+          { id: `${reqId}-TC-01`, title: 'Xác thực luồng chính', acId: 'AC-01' },
+          { id: `${reqId}-TC-02`, title: 'Xác thực trường hợp biên', acId: 'AC-02' }
+        ]
+      });
+
+      if (!res.specCode) throw new Error('Không nhận được mã nguồn spec từ AI.');
+
+      if (loadingSection) loadingSection.style.display = 'none';
+      if (resultsSection) resultsSection.style.display = 'flex';
+
+      this.renderSpecResult(root, res);
+      const tabSpecStatus = root.querySelector('#qa-req-tab-spec-status');
+      if (tabSpecStatus) tabSpecStatus.textContent = 'Đã sinh';
+
+      this.switchTab(root, 'spec');
+      toast.success(`Đã sinh mã Playwright spec (${res.fileName}) thành công!`);
+    } catch (err) {
+      if (loadingSection) loadingSection.style.display = 'none';
+      if (inputSection) inputSection.style.display = 'flex';
+      toast.error(`Lỗi sinh spec: ${err.message}`);
+    }
+  }
+
+  renderSpecResult(root, res) {
+    const container = root.querySelector('#qa-req-spec-result');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <i class="ph-bold ph-file-code" style="color: #6366f1; font-size: 18px;"></i>
+            <strong style="font-family: var(--font-mono, monospace); font-size: 13px;">${this._escape(res.fileName || 'spec.js')}</strong>
+            <span style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 600;">
+              ${res.source === 'ai' ? '✦ AI Đề xuất (với Level 1 Sandbox)' : '⚙ Heuristic Skeleton'}
+            </span>
+          </div>
+          <button type="button" class="btn-secondary-sm" id="btn-copy-spec-code" style="font-size: 11.5px;">
+            <i class="ph-bold ph-copy"></i> Sao chép mã Spec
+          </button>
+        </div>
+        <p style="font-size: 12px; color: var(--muted); margin: 0;">${this._escape(res.summary || '')}</p>
+        <pre style="margin: 0; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; color: var(--text); overflow-x: auto; max-height: 380px;"><code>${this._escape(res.specCode || '')}</code></pre>
+      </div>
+    `;
+
+    const copyBtn = container.querySelector('#btn-copy-spec-code');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(res.specCode || '');
+          toast.success('Đã sao chép mã Playwright spec vào clipboard!');
+        } catch (_) {
+          toast.warn('Không thể tự động ghi vào clipboard.');
+        }
+      });
     }
   }
 
