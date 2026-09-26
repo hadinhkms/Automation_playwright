@@ -8,11 +8,16 @@ const { runInferTestCases } = require('./inferTestCases');
 const { runExtractScaffold } = require('./extractScaffold');
 const { runAnalyzeRequirement } = require('./analyzeRequirement');
 const { runInlineSuggest } = require('./inlineSuggest');
+const { runTriageFailure } = require('./triageFailure');
+const { parseJiraMarkupToMarkdown, extractJiraKey } = require('./jiraStoryParser');
 
 module.exports = {
   runArbitrateConflict,
   runInferTestCases,
   runExtractScaffold,
   runAnalyzeRequirement,
-  runInlineSuggest
+  runInlineSuggest,
+  runTriageFailure,
+  parseJiraMarkupToMarkdown,
+  extractJiraKey
 };

@@ -10,9 +10,28 @@ function analyzeDiagnostics(input = {}) {
   const serialized = JSON.stringify(input);
   if (serialized.length > MAX_INPUT_LENGTH) throw new Error('Diagnostic artifact vượt quá giới hạn.');
   const errorText = maskSecrets([input.error, input.message, input.stack, input.testTitle, input.stepTitle].filter(Boolean).join('\n'));
+  const CATEGORY_MAP = {
+    'locator-not-found': 'test_bug',
+    'covered-by-overlay': 'flaky',
+    'navigation-timeout': 'environment',
+    'assertion-mismatch': 'product_bug',
+    'fixture-error': 'test_bug',
+    'unknown': 'unknown'
+  };
+
   const findings = [];
   const common = { step: input.stepTitle || input.testTitle || null, url: input.url || null };
-  const add = (code, message, confidence, fix, sources) => findings.push({ code, message, evidence: [...evidence('error', errorText), ...sources], confidence, suggestedFix: fix ? { type: fix.type, preview: fix.preview, requiresConfirmation: true } : null, ...common });
+  const add = (code, message, confidence, fix, sources) => {
+    findings.push({
+      code,
+      category: CATEGORY_MAP[code] || 'test_bug',
+      message,
+      evidence: [...evidence('error', errorText), ...sources],
+      confidence,
+      suggestedFix: fix ? { type: fix.type, preview: fix.preview, requiresConfirmation: true } : null,
+      ...common
+    });
+  };
 
   if (/strict mode violation|locator\s*\(|element\s+not\s+found|no element|waiting for locator/i.test(errorText)) {
     add('locator-not-found', 'Không tìm thấy phần tử hoặc locator không còn khớp với giao diện hiện tại.', 0.92, { type: 'selector-update', preview: 'Xem diff selector mới trước khi cập nhật Page Object.' }, [...evidence('locator', input.locator)]);
@@ -30,7 +49,11 @@ function analyzeDiagnostics(input = {}) {
     add('fixture-error', 'Fixture hoặc tiền điều kiện không khởi tạo đúng.', 0.78, { type: 'fixture-review', preview: 'Kiểm tra fixture, dữ liệu test và thứ tự tiền điều kiện.' }, [...evidence('console', input.consoleLogs)]);
   }
   if (!findings.length) add('unknown', 'Chưa đủ bằng chứng để xác định nguyên nhân gốc.', 0.2, null, [...evidence('trace', input.trace)]);
-  return { version: 1, deterministic: true, findings, masked: true };
+
+  const topFinding = findings.slice().sort((a, b) => b.confidence - a.confidence)[0];
+  const topCategory = topFinding ? topFinding.category : 'unknown';
+
+  return { version: 1, deterministic: true, findings, topCategory, masked: true };
 }
 
 module.exports = { MAX_INPUT_LENGTH, analyzeDiagnostics };

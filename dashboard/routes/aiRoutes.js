@@ -168,6 +168,74 @@ async function handleAiRoutes(request, response, url, context = {}) {
     return true;
   }
 
+  if (request.method === 'POST' && url.pathname === '/api/diagnostics/triage') {
+    try {
+      const body = await parseBody(request, 128 * 1024);
+      const ruleResult = analyzeDiagnostics(body);
+      const mode = body.mode || 'auto';
+
+      if (mode !== 'ai' && ruleResult.topCategory !== 'unknown' && (ruleResult.findings[0]?.confidence || 0) >= 0.85) {
+        sendJson(response, 200, {
+          ok: true,
+          source: 'rule',
+          category: ruleResult.topCategory,
+          confidence: Math.round((ruleResult.findings[0]?.confidence || 0.8) * 100),
+          summary: ruleResult.findings[0]?.message || 'Lỗi kiểm thử.',
+          evidence: ruleResult.findings[0]?.evidence?.map((e) => e.value).join('\n') || '',
+          suggestedFix: ruleResult.findings[0]?.suggestedFix?.preview || '',
+          findings: ruleResult.findings
+        });
+        return true;
+      }
+
+      const errorText = [body.error, body.message, body.stack].filter(Boolean).join('\n');
+      let clientConfig = null;
+      try {
+        const rawHeader = request.headers['x-ai-config'];
+        if (rawHeader) clientConfig = JSON.parse(rawHeader);
+      } catch (_) {}
+
+      const triageRes = await runTriageFailure({
+        errorText,
+        testTitle: body.testTitle || '',
+        locator: body.locator || '',
+        snippet: body.snippet || '',
+        consoleLogs: body.consoleLogs || '',
+        url: body.url || '',
+        clientConfig,
+        signal: abortSignalFor(request)
+      });
+
+      if (triageRes.ok) {
+        sendJson(response, 200, {
+          ok: true,
+          source: 'ai',
+          category: triageRes.category,
+          confidence: triageRes.confidence,
+          summary: triageRes.summary,
+          evidence: triageRes.evidence,
+          suggestedFix: triageRes.suggestedFix,
+          model: triageRes.model,
+          requestId: triageRes.requestId,
+          findings: ruleResult.findings
+        });
+      } else {
+        sendJson(response, 200, {
+          ok: true,
+          source: 'rule',
+          fallbackNotice: 'AI không khả dụng, sử dụng luật chẩn đoán tĩnh.',
+          category: ruleResult.topCategory,
+          confidence: Math.round((ruleResult.findings[0]?.confidence || 0.5) * 100),
+          summary: ruleResult.findings[0]?.message || 'Lỗi kiểm thử Playwright.',
+          evidence: errorText.slice(0, 1000),
+          suggestedFix: ruleResult.findings[0]?.suggestedFix?.preview || 'Kiểm tra lại kịch bản test.',
+          findings: ruleResult.findings
+        });
+      }
+    } catch (e) { sendJson(response, 422, { error: e.message }); }
+    return true;
+  }
+
   return false;
 }
 
