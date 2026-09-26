@@ -17,6 +17,13 @@ const SCHEMA = {
   }
 };
 
+function formatLogSnippet(text, maxLen = 4000) {
+  if (!text || text.length <= maxLen) return text || '';
+  const headLen = Math.min(800, Math.floor(maxLen * 0.25));
+  const tailLen = maxLen - headLen - 50;
+  return `${text.slice(0, headLen)}\n\n...[cắt bớt ${text.length - maxLen} ký tự log trung gian]...\n\n${text.slice(text.length - tailLen)}`;
+}
+
 function buildTriagePrompts({ errorText = '', testTitle = '', locator = '', snippet = '', consoleLogs = '', url = '' } = {}) {
   const system = `Bạn là Senior QA Automation Architect kiêm Root Cause Analysis (RCA) Specialist với hơn 10 năm kinh nghiệm xử lý lỗi Playwright.
 Nhiệm vụ của bạn là phân tích thông tin lỗi kiểm thử và phân loại chính xác nguyên nhân gốc rễ vào ĐÚNG MỘT trong 4 nhóm:
@@ -40,14 +47,14 @@ Tên test case: ${testTitle || '(không rõ)'}
 URL trang: ${url || '(không rõ)'}
 Locator liên quan: ${locator || '(không rõ)'}
 
-CHI TIẾT LỖI / STACK TRACE:
-${errorText.slice(0, 4000)}
+CHI TIẾT LỖI / STACK TRACE & CALL LOG (ĐẦU + ĐUÔI):
+${formatLogSnippet(errorText, 4000)}
 
 ĐOẠN CODE TEST XẢY RA LỖI:
-${snippet.slice(0, 3000)}
+${formatLogSnippet(snippet, 3000)}
 
 CONSOLE LOGS:
-${consoleLogs.slice(0, 2000)}
+${formatLogSnippet(consoleLogs, 2000)}
 ---
 Hãy phân tích và trả về đúng JSON schema quy định.`;
 

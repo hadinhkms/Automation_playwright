@@ -124,4 +124,17 @@ test('Plan-17b Failure Triage & Jira Parser Suite', async (t) => {
     assert.equal(outcome.passed, true);
     assert.equal(outcome.accuracy >= 80, true);
   });
+
+  await t.test('P17B-TC-13: CarThings 10 Requirements (F6a) parse and preserve Jira traceability key', async () => {
+    const reqPath = require('path').join(__dirname, '..', '..', 'test-fixtures', 'ai-eval', 'carthings-requirements.json');
+    const reqs = JSON.parse(require('fs').readFileSync(reqPath, 'utf8'));
+    assert.equal(reqs.length, 10);
+    for (const r of reqs) {
+      assert.equal(typeof r.jiraKey, 'string');
+      assert.match(r.jiraKey, /^CT-\d+/);
+      const parsed = parseJiraMarkupToMarkdown(r.content);
+      assert.equal(typeof parsed, 'string');
+      assert.equal(parsed.length > 0, true);
+    }
+  });
 });

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "REQ-001",
+    "file": "REQ-001-entry-points.md",
+    "jiraKey": "CT-001",
+    "title": "---",
+    "content": "---\nid: REQ-001\ntitle: Màn hình Entry và ba Entry Point của Instructor Portal\nstatus: Approved\nversion: 1.0\nrisk: High\nowner: chưa gán\nslug: entry-points\ntest_cases: test-cases/REQ-001-entry-points.md\n---\n\n# REQ-001: Màn hình Entry và ba Entry Point của Instructor Portal\n\n- Status: Approved\n- Owner: chưa gán — cần PO xác nhận, xem Open questions\n- Version: 1.0\n- Risk: High\n- Related pages/modules: `instructor-dev.carthings.vn/login`, `pages/InstructorPortalPage.js`\n- Source: Product requirement — Confluence page `8880213` v13 (2026-08-15), §3, §5, §18, §22, §23, §25\n\n## Business goal\n\nInstructor mở Portal và phải thấy đúng ba con đường vào hệ thống. Ba lựa chọn này là\n**ba điểm bắt đầu**, không phải ba loại tài khoản. Hiểu sai chỗ này là gốc của mọi lỗi\nthiết kế phía sau: dev sẽ tạo `AccountType = CARTHINGS / COMPANY / INSTRUCTOR`, và từ đó\nsinh ra tài khoản trùng, quyền bị cấp nhầm, và tài khoản không thể đăng nhập.\n\nPRD §23 liệt kê chính điều này đầu tiên trong danh sách giả định bị cấm.\n\n## Scope\n\n### In scope\n\n- Màn hình Entry: số lượng và bản chất của ba Entry Point (PRD §5).\n- EP-01 Đăng nhập bằng Carthings: ranh giới giữa authentication và authorization (§5.1).\n- EP-02 Tham gia Company bằng mã mời: bản chất của Invitation Code (§5.2).\n- EP-03 Đăng nhập Instructor Portal: tập Login Method được phép (§5.3).\n- Yêu cầu trình bày của màn hình Entry (§18).\n\n### Out of scope\n\n- Verify ownership và claim Invitation — thuộc REQ-003.\n- Account resolution và chống trùng — thuộc R"
+  },
+  {
+    "id": "REQ-010",
+    "file": "REQ-010-admin-company-management.md",
+    "jiraKey": "CT-010",
+    "title": "---\r",
+    "content": "---\r\nid: REQ-010\r\ntitle: Admin tạo công ty và phiên đăng nhập quản trị dùng chung\r\nstatus: Approved\r\nversion: 1.0\r\nrisk: High\r\nowner: chưa gán\r\nslug: admin-company-management\r\ntest_cases: test-cases/REQ-010-admin-company-management.md\r\n---\r\n\r\n# REQ-010: Admin tạo công ty và phiên đăng nhập quản trị dùng chung\r\n\r\n- Status: Approved\r\n- Owner: chưa gán\r\n- Version: 1.0\r\n- Risk: High — mọi kịch bản cổng công ty đều dựng dữ liệu nền qua luồng này\r\n- Related pages/modules: `pages/AdminLoginPage.js`, `pages/AdminCompaniesPage.js`, `core/fixtures/companyFixtures.js`\r\n- Source: `tests/setup/auth.setup.spec.js`, `tests/e2e/desktop/admin-add-company.spec.js`, `core/fixtures/companyFixtures.js`.\r\n  **Không có PRD cho phạm vi này** — theo `requirements/README.md`, hành vi mà test đang assert\r\n  được ghi lại thành requirement ngầm, mức tin cậy `Inferred`.\r\n\r\n## Business goal\r\n\r\nQuản trị viên là người duy nhất tạo được công ty (trung tâm đào tạo) trong hệ thống. Tài khoản\r\nchủ công ty sinh ra từ đây chính là cửa vào của toàn bộ nghiệp vụ cổng nhà cung cấp: thêm giáo\r\nviên, học viên, xe, khóa học, tin đăng, thuê xe. Nếu luồng này hỏng thì 8/10 kịch bản e2e còn lại\r\nkhông có tiền điều kiện để chạy.\r\n\r\nPhiên đăng nhập của Admin được lưu ra `playwright/.auth/admin.json` và dùng lại cho mọi project —\r\nđây là điểm chịu tải cao nhất của bộ test, hỏng một lần là cả bộ đỏ.\r\n\r\n## Scope\r\n\r\n### In scope\r\n\r\n- Đăng nhập Admin và lưu trạng thái phiên để tái sử dụng.\r\n- Tạo công ty mới với thông tin bắt buộ"
+  },
+  {
+    "id": "REQ-011",
+    "file": "REQ-011-admin-student-lifecycle.md",
+    "jiraKey": "CT-011",
+    "title": "---",
+    "content": "---\nid: REQ-011\ntitle: Admin tạo học viên và phê duyệt CCCD để kích hoạt tài khoản\nstatus: Approved\nversion: 1.0\nrisk: High\nowner: chưa gán\nslug: admin-student-lifecycle\ntest_cases: test-cases/REQ-011-admin-student-lifecycle.md\n---\n\n# REQ-011: Admin tạo học viên và phê duyệt CCCD để kích hoạt tài khoản\n\n- Status: Approved\n- Owner: chưa gán\n- Version: 1.0\n- Risk: High — là cổng kích hoạt tài khoản; duyệt sai thì người chưa định danh vẫn dùng được hệ thống\n- Related pages/modules: `pages/AdminStudentsPage.js`, `core/utils/adminStudentPrecondition.js`\n- Source: `tests/e2e/desktop/admin-add-student.spec.js`, `core/utils/adminStudentPrecondition.js`.\n  **Không có PRD cho phạm vi này** — requirement ngầm, mức tin cậy `Inferred`.\n\n## Business goal\n\nHọc viên chỉ được coi là hợp lệ sau khi Admin duyệt giấy tờ định danh (CCCD/CMND). Trạng thái\n\"Hoạt động\" là điều kiện để học viên đăng nhập cổng người dùng và đăng tin khóa học (REQ-014).\nToàn bộ chuỗi tạo → bổ sung CCCD → tải ảnh → duyệt là một vòng đời liên tục, đứt ở bước nào thì\ntài khoản kẹt ở trạng thái chưa kích hoạt.\n\nHelper `createApprovedStudentAccount()` / `createApprovedInstructorAccount()` đóng gói đúng vòng đời\nnày và đang là tiền điều kiện cho 3 spec khác — nên đây là nghiệp vụ được dùng lại nhiều nhất của\nkhu vực Admin, chỉ sau đăng nhập.\n\n## Scope\n\n### In scope\n\n- Tạo học viên mới từ trang quản trị.\n- Bổ sung số CCCD/CMND qua màn hình chỉnh sửa.\n- Tải ảnh CCCD mặt trước và mặt sau.\n- Phê duyệt CCCD và chuyển trạng thái t"
+  },
+  {
+    "id": "REQ-012",
+    "file": "REQ-012-company-people-management.md",
+    "jiraKey": "CT-012",
+    "title": "---",
+    "content": "---\nid: REQ-012\ntitle: Chủ công ty quản lý giáo viên và học viên của công ty\nstatus: Approved\nversion: 1.0\nrisk: Medium\nowner: chưa gán\nslug: company-people-management\ntest_cases: test-cases/REQ-012-company-people-management.md\n---\n\n# REQ-012: Chủ công ty quản lý giáo viên và học viên của công ty\n\n- Status: Approved\n- Owner: chưa gán\n- Version: 1.0\n- Risk: Medium — sai sót ở đây làm hỏng dữ liệu nền của khóa học và phiên thuê xe\n- Related pages/modules: `pages/CompanyInstructorsPage.js`, `pages/CompanyStudentsPage.js`\n- Source: `tests/e2e/desktop/company-add-instructor.spec.js`, `tests/e2e/desktop/company-add-student.spec.js`,\n  phần import của `tests/e2e/desktop/company-post-listing.spec.js` và `tests/e2e/desktop/company-rental-flow.spec.js`.\n  **Không có PRD cho phạm vi này** — requirement ngầm, mức tin cậy `Inferred`.\n\n## Business goal\n\nChủ công ty tự quản lý nhân sự của mình: giáo viên đứng lớp và học viên theo học. Hai tập dữ liệu\nnày là đầu vào bắt buộc của khóa học (REQ-014) và của phiên thuê xe (REQ-015) — không có giáo viên\nvà học viên thì không mở được khóa, không bắt đầu được phiên thuê.\n\nHệ thống hỗ trợ hai cách nhập: nhập tay từng người qua form, và nhập hàng loạt từ file CSV mẫu.\nCả hai đều đang được automation sử dụng, nhưng ở hai spec khác nhau.\n\n## Scope\n\n### In scope\n\n- Thêm giáo viên mới vào công ty bằng form.\n- Thêm học viên mới vào công ty bằng form, có mã học viên riêng.\n- Nhập hàng loạt giáo viên và học viên từ file CSV mẫu.\n- Xác minh người vừa thêm hi"
+  },
+  {
+    "id": "REQ-013",
+    "file": "REQ-013-company-vehicle-management.md",
+    "jiraKey": "CT-013",
+    "title": "---",
+    "content": "---\nid: REQ-013\ntitle: Chủ công ty quản lý xe tập lái và đưa xe vào khóa học\nstatus: Approved\nversion: 1.0\nrisk: High\nowner: chưa gán\nslug: company-vehicle-management\ntest_cases: test-cases/REQ-013-company-vehicle-management.md\n---\n\n# REQ-013: Chủ công ty quản lý xe tập lái và đưa xe vào khóa học\n\n- Status: Approved\n- Owner: chưa gán\n- Version: 1.0\n- Risk: High — xe khai sai mục đích sử dụng hoặc sai hạng bằng thì không xếp được vào khóa học,\n  lỗi chỉ lộ ra ở bước cuối của quy trình mở lớp\n- Related pages/modules: `pages/CompanyVehiclesPage.js`, `pages/CompanyCoursesPage.js`, `core/utils/carHelper.js`\n- Source: `tests/e2e/desktop/company-add-vehicle.spec.js`, phần import xe của\n  `tests/e2e/desktop/company-post-listing.spec.js` và `tests/e2e/desktop/company-rental-flow.spec.js`.\n  **Không có PRD cho phạm vi này** — requirement ngầm, mức tin cậy `Inferred`.\n\n## Business goal\n\nXe là tài sản trung tâm của trung tâm đào tạo: vừa là phương tiện dạy lái trong khóa học, vừa là\nđối tượng cho thuê trong nghiệp vụ thuê xe (REQ-015). Một chiếc xe chỉ có ích khi nó được khai\nđúng **mục đích sử dụng** và **hạng bằng**, vì đó là hai điều kiện để xe xuất hiện trong danh sách\nxe tập lái của khóa học.\n\nĐây là chỗ duy nhất trong bộ test hiện có mà kiểm chứng đi tới tận hệ quả nghiệp vụ: không dừng ở\n\"xe đã lưu\", mà đi tiếp tới \"xe dùng được trong khóa học\".\n\n## Scope\n\n### In scope\n\n- Kích hoạt gói dùng thử tính năng Thuê xe trước khi quản lý xe.\n- Thêm xe mới với hồ sơ đầy đủ: nhãn hiệu, dòng"
+  },
+  {
+    "id": "REQ-014",
+    "file": "REQ-014-course-listing-publication.md",
+    "jiraKey": "CT-014",
+    "title": "---\r",
+    "content": "---\r\nid: REQ-014\r\ntitle: Tạo khóa học, đăng tin tuyển sinh và phê duyệt tin đăng\r\nstatus: Approved\r\nversion: 1.0\r\nrisk: High\r\nowner: chưa gán\r\nslug: course-listing-publication\r\ntest_cases: test-cases/REQ-014-course-listing-publication.md\r\n---\r\n\r\n# REQ-014: Tạo khóa học, đăng tin tuyển sinh và phê duyệt tin đăng\r\n\r\n- Status: Approved\r\n- Owner: chưa gán\r\n- Version: 1.0\r\n- Risk: High — tin đăng là nội dung hiển thị ra công chúng; duyệt sai là rủi ro pháp lý và uy tín\r\n- Related pages/modules: `pages/CompanyCoursesPage.js`, `pages/InstructorPortalPage.js`,\r\n  `pages/PortalLoginPage.js`, `pages/PortalPostListingPage.js`, `pages/AdminListingsPage.js`\r\n- Source: `tests/e2e/desktop/company-post-listing.spec.js`, `tests/e2e/desktop/instructor-post-listing.spec.js`,\r\n  `tests/e2e/desktop/student-post-listing.spec.js`, `tests/e2e/desktop/student-post-listing-new-car.spec.js`.\r\n  **Không có PRD cho phạm vi này** — requirement ngầm, mức tin cậy `Inferred`.\r\n\r\n## Business goal\r\n\r\nTin đăng khóa học là sản phẩm cuối cùng mà người học nhìn thấy. Ba nhóm chủ thể đăng được tin —\r\ncông ty, giáo viên và học viên — nhưng đều đi qua **một cửa kiểm duyệt duy nhất của Admin**. Tin chỉ\r\nhiển thị công khai sau khi được duyệt; trước đó nằm ở trạng thái \"Chờ duyệt\".\r\n\r\nĐiểm chung của cả ba luồng: phải có khóa học (kèm xe và giáo viên hợp lệ), phải có ảnh, phải có mốc\r\nthời gian tuyển sinh, và phải qua Admin. Điểm khác nhau nằm ở tiền điều kiện của chủ thể: giáo viên\r\ncòn phải được Admin duyệt **hồ sơ hàn"
+  },
+  {
+    "id": "REQ-015",
+    "file": "REQ-015-vehicle-rental-session.md",
+    "jiraKey": "CT-015",
+    "title": "---",
+    "content": "---\nid: REQ-015\ntitle: Phiên thuê xe từ lúc bắt đầu tới lúc thanh toán và kết thúc\nstatus: Approved\nversion: 1.0\nrisk: High\nowner: chưa gán\nslug: vehicle-rental-session\ntest_cases: test-cases/REQ-015-vehicle-rental-session.md\n---\n\n# REQ-015: Phiên thuê xe từ lúc bắt đầu tới lúc thanh toán và kết thúc\n\n- Status: Approved\n- Owner: chưa gán\n- Version: 1.0\n- Risk: High — có dòng tiền thật; tính sai tiền hoặc kết thúc sai phiên là thiệt hại trực tiếp\n- Related pages/modules: `pages/CompanyRentalStartPage.js`, `pages/CompanyRentalYardPage.js`,\n  `pages/CompanyRentalEndPage.js`, `pages/CompanyPaymentAccountsPage.js`\n- Source: `tests/e2e/desktop/company-rental-flow.spec.js`, `data/companyRentalData.json`.\n  **Không có PRD cho phạm vi này** — requirement ngầm, mức tin cậy `Inferred`.\n\n## Business goal\n\nNghiệp vụ thuê xe cho phép trung tâm cho học viên thuê xe tập lái theo thời gian, tính tiền theo\nthời lượng sử dụng thực tế, và thu tiền khi kết thúc phiên. Đây là luồng duy nhất trong bộ test\nchạm tới **tiền**, và cũng là luồng dài nhất: phải bật ba gói tính năng, nhập ba tập dữ liệu, mở\nphiên, quản lý phiên tại bãi, cấu hình tài khoản nhận tiền, chờ hệ thống tính tiền rồi mới kết thúc.\n\nThời gian chờ tính tiền khoảng 5 phút là đặc tính nghiệp vụ, không phải độ trễ kỹ thuật — số tiền\nchỉ xuất hiện sau khi phiên đã chạy đủ lâu.\n\n## Scope\n\n### In scope\n\n- Kích hoạt ba gói dùng thử: Thuê xe, Thanh toán online, Hóa đơn điện tử.\n- Bắt đầu phiên thuê với giáo viên, danh sách học viên, xe và "
+  },
+  {
+    "id": "REQ-016",
+    "file": "REQ-016-instructor-payout.md",
+    "jiraKey": "CT-16",
+    "title": "REQ-016: Quyết toán và rút tiền thu nhập giáo viên",
+    "content": "h1. Instructor Payout Feature\nAs an instructor, I want to request payout for completed driving sessions.\nh2. Acceptance Criteria\n* Instructor balance > 500,000 VND\n* Payout request sent to Admin approval queue"
+  },
+  {
+    "id": "REQ-017",
+    "file": "REQ-017-student-feedback-review.md",
+    "jiraKey": "CT-17",
+    "title": "REQ-017: Đánh giá và chấm điểm khóa học lái xe",
+    "content": "h1. Student Review & Feedback\nAs a student, I want to rate my instructor 1-5 stars with comments.\nh2. Acceptance Criteria\n* Only completed bookings can be reviewed\n* Profanity filter blocks vulgar comments"
+  },
+  {
+    "id": "REQ-018",
+    "file": "REQ-018-discount-voucher-campaign.md",
+    "jiraKey": "CT-18",
+    "title": "REQ-018: Áp dụng mã khuyến mãi học lái xe",
+    "content": "h1. Discount Voucher Campaign\nAs a student, I want to apply promotional vouchers at checkout.\nh2. Acceptance Criteria\n* Valid voucher deducts correct percentage\n* Expired voucher displays clear error message"
+  }
+]

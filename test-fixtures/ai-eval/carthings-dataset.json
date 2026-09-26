@@ -74,7 +74,7 @@
     "source": "26-09-20\\desktop\\all-scripts\\[26-09-20 18-12-28-716 c30381] results.json",
     "testTitle": "TC-003 - AC-003 EP-03 hiển thị đủ ba Login Method được hỗ trợ @smoke",
     "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: /email/i }).or(getByText(/email otp/i)).first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: /email/i }).or(getByText(/email otp/i)).first()\u001b[22m",
-    "expectedCategory": "product_bug"
+    "expectedCategory": "test_bug"
   },
   {
     "id": "CT-ERR-12",
@@ -88,13 +88,55 @@
     "source": "26-09-20\\desktop\\all-scripts\\[26-09-20 18-12-28-716 c30381] results.json",
     "testTitle": "TC-002 - AC-002 Không trình bày Entry Point như loại tài khoản @p1",
     "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: /mã mời|tham gia công ty|company invitation/i }).or(getByRole('link', { name: /mã mời|tham gia công ty/i })).or(locator('[data-testid=\"ep-company-invite\"]'))\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: /mã mời|tham gia công ty|company invitation/i }).or(getByRole('link', { name: /mã mời|tham gia công ty/i })).or(locator('[data-testid=\"ep-company-invite\"]'))\u001b[22m",
-    "expectedCategory": "product_bug"
+    "expectedCategory": "test_bug"
   },
   {
     "id": "CT-ERR-14",
     "source": "26-09-20\\desktop\\all-scripts\\[26-09-20 18-12-28-716 c30381] results.json",
     "testTitle": "TC-005 - AC-004 Ô nhập mã mời không phải trường password @p1",
     "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('textbox', { name: /mã mời|mã tham gia|mã kích hoạt/i }).or(getByPlaceholder(/nhập mã mời|mã mời/i)).or(locator('input[name*=\"code\" i], input[name*=\"invite\" i]')).first().or(getByRole('button', { name: /mã mời|tham gia công ty|company invitation/i }).or(getByRole('link', { name: /mã mời|tham gia công ty/i })).or(locator('[data-testid=\"ep-company-invite\"]')))\nExpected: visible\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('textbox', { name: /mã mời|mã tham gia|mã kích hoạt/i }).or(getByPlaceholder(/nhập mã mời|mã mời/i)).or(locator('input[name*=\"code\" i], input[name*=\"invite\" i]')).first().or(getByRole('button', { name: /mã mời|tham gia công ty|company invitation/i }).or(getByRole('link', { name: /mã mời|tham gia công ty/i })).or(locator('[data-testid=\"ep-company-invite\"]')))\u001b[22m",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "CT-ERR-15",
+    "source": "test_output.txt",
+    "testTitle": "TC-049 - AC-004 Hoc vien dang ky xe moi va dang tin khoa hoc @e2e @carthings @post-listing [TC-049]",
+    "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByText(/Tai anh len|Bam de tai anh|Tai anh dai dien|Tai anh bia/i).first() to be visible",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "CT-ERR-16",
+    "source": "tests/setup/auth.setup.spec.js",
+    "testTitle": "Setup - Phien dang nhap Admin dung chung @REQ-010 authenticate as admin",
+    "error": "Error: page.goto: net::ERR_CONNECTION_REFUSED at https://admin-dev.carthings.vn/login\nCall log:\n  - navigating to \"https://admin-dev.carthings.vn/login\", waiting until \"load\"",
+    "expectedCategory": "environment"
+  },
+  {
+    "id": "CT-ERR-17",
+    "source": "tests/e2e/desktop/company-add-vehicle.spec.js",
+    "testTitle": "TC-022 - AC-002 Tao xe moi trong doi xe cong ty @CompanySite",
+    "error": "Error: expect(received).toBe(expected) // Object.is equality\nExpected: 200\nReceived: 500\nResponse body: {\"error\": \"Internal server error\", \"code\": \"DB_CONNECTION_TIMEOUT\"}",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "CT-ERR-18",
+    "source": "tests/e2e/desktop/instructor-post-listing.spec.js",
+    "testTitle": "TC-030 - AC-003 Cap nhat ho so giao vien va luu chung chi @instructor",
+    "error": "locator.click: Error: Element is not receiving click events, obscured by <div class=\"MuiBackdrop-root MuiBackdrop-invisible\">...</div>",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "CT-ERR-19",
+    "source": "tests/e2e/desktop/company-people-isolation.spec.js",
+    "testTitle": "TC-015 - AC-001 Phan quyen tai khoan quan tri cong ty @CompanySite",
+    "error": "TypeError: Cannot read properties of undefined (reading \"companyId\")\n    at CompanyPage.selectCompany (D:\\_CarThings\\Automation_Carthings\\pages\\companyPage.js:42:18)",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "CT-ERR-20",
+    "source": "tests/e2e/desktop/student-post-listing.spec.js",
+    "testTitle": "TC-040 - AC-001 Truy cap chi tiet khoa hoc da dang @e2e @carthings",
+    "error": "Error: expect(page).toHaveURL(expected) failed\nExpected pattern: /^https:\\/\\/carthings\\.vn\\/courses\\/[0-9]+$/\nReceived string:  \"https://carthings.vn/404-not-found\"\nTimeout: 5000ms",
     "expectedCategory": "product_bug"
   }
 ]
