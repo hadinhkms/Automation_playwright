@@ -320,7 +320,7 @@ Mỗi chặng theo Master Process: contract AC/TC → implement → Gate 3 → G
 - [ ] F4 Context Builder
 - [x] F5 Bộ component AI dùng chung → 17a (`aiDiffReview` chờ D2 của 17a)
 - [x] F6 Eval harness → [17b](17b_TRIAGE_AND_JIRA_STORY_PLAN.md) (đạt 90% trên 20 test cases mẫu)
-- [ ] F6a Bộ dữ liệu mẫu từ CarThings (nằm lại trong repo CarThings)
+- [x] F6a Bộ dữ liệu mẫu từ CarThings → trích xuất 14 lỗi thực tế từ test-results CarThings vào `test-fixtures/ai-eval/carthings-dataset.json`, tối ưu bộ luật chẩn đoán Playwright (`getBy*`, timeouts, runtime errors), đạt độ chính xác 100% (14/14 cases PASS)
 - [ ] F7 Siết an toàn Agent
 - [x] F8 Ngân sách token 5 giờ → 17a
 - [x] F9 Lớp nghiệp vụ `core/ai/tasks` → 17a

@@ -116,4 +116,12 @@ test('Plan-17b Failure Triage & Jira Parser Suite', async (t) => {
     assert.equal(extractJiraKey('No jira key here'), null);
     assert.equal(extractJiraKey(''), null);
   });
+
+  await t.test('P17B-TC-12: CarThings real dataset (F6a) evaluation achieves >= 80% accuracy', async () => {
+    const { evaluateDataset } = require('../../scripts/eval-triage');
+    const ctPath = require('path').join(__dirname, '..', '..', 'test-fixtures', 'ai-eval', 'carthings-dataset.json');
+    const outcome = evaluateDataset(ctPath, 'CarThings Real Benchmark (F6a)');
+    assert.equal(outcome.passed, true);
+    assert.equal(outcome.accuracy >= 80, true);
+  });
 });

@@ -1,20 +1,19 @@
 /**
  * scripts/eval-triage.js
- * Evaluates Failure Triage accuracy on the synthetic dataset (Plan-17b F6 / P17B-TC-11).
- * Target: Accuracy >= 80%.
+ * Evaluates Failure Triage accuracy on Synthetic (F6) and CarThings Real (F6a) datasets.
+ * Target: Accuracy >= 80% for all suites.
  * Strict ceiling <= 150 lines.
  */
 const fs = require('fs');
 const path = require('path');
 const { analyzeDiagnostics } = require('../core/diagnostics/diagnosticsAnalyzer');
 
-function runEvaluation() {
-  const datasetPath = path.join(__dirname, '..', 'test-fixtures', 'ai-eval', 'triage-dataset.json');
-  if (!fs.existsSync(datasetPath)) {
-    throw new Error(`Dataset not found at ${datasetPath}`);
+function evaluateDataset(filePath, suiteName) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Dataset not found at ${filePath}`);
   }
 
-  const dataset = JSON.parse(fs.readFileSync(datasetPath, 'utf8'));
+  const dataset = JSON.parse(fs.readFileSync(filePath, 'utf8'));
   let matched = 0;
   const results = [];
 
@@ -40,14 +39,34 @@ function runEvaluation() {
   const passed = accuracy >= 80;
 
   console.log(`\n==================================================`);
-  console.log(`TRIAGE SYNTHETIC EVALUATION REPORT (Plan-17b F6)`);
+  console.log(`TRIAGE EVALUATION REPORT: ${suiteName}`);
   console.log(`Total samples: ${dataset.length}`);
   console.log(`Matches: ${matched}/${dataset.length}`);
   console.log(`Accuracy: ${accuracy.toFixed(1)}% (Threshold >= 80%)`);
   console.log(`Verdict: ${passed ? 'PASSED (Green Gate)' : 'FAILED'}`);
-  console.log(`==================================================\n`);
+  console.log(`==================================================`);
 
   return { passed, accuracy, matched, total: dataset.length, results };
+}
+
+function runEvaluation() {
+  const baseDir = path.join(__dirname, '..', 'test-fixtures', 'ai-eval');
+  const syntheticPath = path.join(baseDir, 'triage-dataset.json');
+  const carthingsPath = path.join(baseDir, 'carthings-dataset.json');
+
+  const synOutcome = evaluateDataset(syntheticPath, 'Synthetic Dataset (Plan-17b F6)');
+  let ctOutcome = { passed: true };
+
+  if (fs.existsSync(carthingsPath)) {
+    ctOutcome = evaluateDataset(carthingsPath, 'CarThings Real Dataset (Plan-17 F6a)');
+  }
+
+  const allPassed = synOutcome.passed && ctOutcome.passed;
+  return {
+    passed: allPassed,
+    synthetic: synOutcome,
+    carthings: ctOutcome
+  };
 }
 
 if (require.main === module) {
@@ -60,4 +79,5 @@ if (require.main === module) {
   }
 }
 
-module.exports = { runEvaluation };
+module.exports = { runEvaluation, evaluateDataset };
+

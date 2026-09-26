@@ -1,0 +1,100 @@
+[
+  {
+    "id": "CT-ERR-01",
+    "source": "26-08-30\\desktop\\student-post-listing\\[26-08-30 23-46-43-621 7a107c] results.json",
+    "testTitle": "should allow a newly approved admin-created student to post a driving course listing @e2e @carthings",
+    "error": "\u001b[31mTest timeout of 600000ms exceeded.\u001b[39m",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "CT-ERR-02",
+    "source": "26-08-31\\desktop\\all-scripts\\[26-08-31 04-30-57-908 721270] results.json",
+    "testTitle": "should allow a newly approved admin-created student to post a driving course listing @e2e @carthings",
+    "error": "\u001b[31mTest timeout of 600000ms exceeded.\u001b[39m",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "CT-ERR-03",
+    "source": "26-09-13\\desktop\\all-scripts\\[26-09-13 23-11-25-079 62ae0e] results.json",
+    "testTitle": "should allow a newly approved student to register a new vehicle and post a driving course listing @e2e @carthings @post-listing",
+    "error": "TimeoutError: locator.click: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Thêm xe', exact: true }).or(locator('button').filter({ hasText: /^Thêm xe$/ })).first()\u001b[22m\n\u001b[2m    - locator resolved to <button type=\"submit\" data-headlessui-state=\"\" class=\"px-6.5! py-3! relative isolate inline-flex shrink-0 items-center justify-center gap-x-2.5 rounded-full border  px-[calc(--spacing(4)-1px)] py-[calc(--spacing(2.5)-1px)] sm:px-[calc(--spacing(5)-1px)] sm:text-sm/6 focus:not-data-focus:outline-hidden data-focus:outline-2 data-focus:outline-offset-2 data-focus:outline-blue-500 data-disabled:opacity-50 *:data-[slot=icon]:-mx-0.5 *:data-[slot=icon]:my-0.5 *:data-[slot=icon]:size-5 *:data-[slot=icon]:shr…>…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-testid=\"container\" class=\"reactEasyCrop_Container\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div class=\"fixed inset-0 flex items-center justify-center p-4\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-testid=\"container\" class=\"reactEasyCrop_Container\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    6 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-testid=\"container\" class=\"reactEasyCrop_Container\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 500ms\u001b[22m\n\u001b[2m      - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div class=\"fixed inset-0 flex items-center justify-center p-4\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 500ms\u001b[22m\n\u001b[2m      - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-testid=\"container\" class=\"reactEasyCrop_Container\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 500ms\u001b[22m\n\u001b[2m      - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <div data-testid=\"container\" class=\"reactEasyCrop_Container\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 500ms\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-testid=\"container\" class=\"reactEasyCrop_Container\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 500ms\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div class=\"fixed inset-0 flex items-center justify-center p-4\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 500ms\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <div data-testid=\"container\" class=\"reactEasyCrop_Container\">…</div> from <div id=\"headlessui-portal-root\">…</div> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 500ms\u001b[22m",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "CT-ERR-04",
+    "source": "26-09-14\\desktop\\student-post-listing\\[26-09-14 23-50-33-699 677d9b] results.json",
+    "testTitle": "should allow a newly approved admin-created student to post a driving course listing @e2e @carthings @post-listing",
+    "error": "ReferenceError: path is not defined",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "CT-ERR-05",
+    "source": "26-09-15\\desktop\\all-scripts\\[26-09-15 23-57-43-004 db72f0] results.json",
+    "testTitle": "Quy trình đầy đủ từ đăng ký giáo viên, cập nhật hồ sơ, tạo xe, tạo khóa học, đăng tin và Admin duyệt @e2e @instructor @post-listing",
+    "error": "TimeoutError: locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[role=\"dialog\"], .MuiDialog-root').first() to be hidden\u001b[22m\n\u001b[2m    33 × locator resolved to visible <div role=\"presentation\" class=\"MuiDialog-root MuiModal-root mui-w5hhrz\">…</div>\u001b[22m",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "CT-ERR-06",
+    "source": "26-09-15\\desktop\\instructor-post-listing\\[26-09-15 03-10-46-207 0f7cb6] results.json",
+    "testTitle": "Quy trình đầy đủ từ đăng ký giáo viên, cập nhật hồ sơ, tạo xe, tạo khóa học, đăng tin và Admin duyệt @e2e @instructor @post-listing",
+    "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('row').filter({ hasText: 'Lớp kèm lái B tự động vững tay lái K1867-200' }).filter({ hasText: /Chờ duyệt|pending/i }).first().locator('button, a').filter({ hasText: /Xem chi tiết/i }).or(getByRole('row').filter({ hasText: 'Lớp kèm lái B tự động vững tay lái K1867-200' }).filter({ hasText: /Chờ duyệt|pending/i }).first().getByLabel('Xem chi tiết')).or(getByRole('row').filter({ hasText: 'Lớp kèm lái B tự động vững tay lái K1867-200' }).filter({ hasText: /Chờ duyệt|pending/i }).first().locator('button').filter({ has: locator('svg') }).first()) to be visible\u001b[22m",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "CT-ERR-07",
+    "source": "26-09-16\\desktop\\company-post-listing\\[26-09-16 23-42-19-846 1181fa] results.json",
+    "testTitle": "should allow company owner to import teachers and vehicles, create course, post course listing, and approve on admin @e2e @CompanySite @post-listing",
+    "error": "TimeoutError: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /Gửi duyệt/i }) to be visible\u001b[22m",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "CT-ERR-08",
+    "source": "26-09-16\\desktop\\instructor-post-listing\\[26-09-16 23-36-27-261 8430af] results.json",
+    "testTitle": "Quy trình đầy đủ từ đăng ký giáo viên, cập nhật hồ sơ, tạo xe, tạo khóa học, đăng tin và Admin duyệt @e2e @instructor @post-listing",
+    "error": "\u001b[31mTest timeout of 240000ms exceeded.\u001b[39m",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "CT-ERR-09",
+    "source": "26-09-16\\desktop\\student-post-listing-new-car\\[26-09-16 01-34-18-837 58eb5c] results.json",
+    "testTitle": "should allow a newly approved student to register a new vehicle and post a driving course listing @e2e @carthings @post-listing",
+    "error": "TypeError: generateRandomLicensePlate is not a function",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "CT-ERR-10",
+    "source": "26-09-20\\desktop\\all-scripts\\[26-09-20 18-12-28-716 c30381] results.json",
+    "testTitle": "TC-001 - AC-001 Landing hiển thị đúng ba Entry Point @smoke",
+    "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/^https:\\/\\/instructor-dev\\.carthings\\.vn\\/?$/\u001b[39m\nReceived string:  \u001b[31m\"https://instructor-dev.carthings.vn/login?redirectTo=%2F\"\u001b[39m\nTimeout: 5000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 5000ms\u001b[22m\n\u001b[2m    14 × unexpected value \"https://instructor-dev.carthings.vn/login?redirectTo=%2F\"\u001b[22m",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "CT-ERR-11",
+    "source": "26-09-20\\desktop\\all-scripts\\[26-09-20 18-12-28-716 c30381] results.json",
+    "testTitle": "TC-003 - AC-003 EP-03 hiển thị đủ ba Login Method được hỗ trợ @smoke",
+    "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: /email/i }).or(getByText(/email otp/i)).first()\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: /email/i }).or(getByText(/email otp/i)).first()\u001b[22m",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "CT-ERR-12",
+    "source": "26-09-20\\desktop\\all-scripts\\[26-09-20 18-12-28-716 c30381] results.json",
+    "testTitle": "TC-004 - AC-003 EP-03 không có Google và Zalo @security",
+    "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('button', { name: /zalo/i }).or(locator('[data-testid=\"zalo-login-btn\"]'))\nExpected: not visible\nReceived: visible\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: /zalo/i }).or(locator('[data-testid=\"zalo-login-btn\"]'))\u001b[22m\n\u001b[2m    14 × locator resolved to <button tabindex=\"0\" type=\"button\" class=\"MuiButtonBase-root MuiButton-root MuiButton-tonal MuiButton-tonalSecondary MuiButton-sizeMedium MuiButton-tonalSizeMedium MuiButton-colorSecondary MuiButton-fullWidth MuiButton-root MuiButton-tonal MuiButton-tonalSecondary MuiButton-sizeMedium MuiButton-tonalSizeMedium MuiButton-colorSecondary MuiButton-fullWidth mui-18ixo24\">…</button>\u001b[22m\n\u001b[2m       - unexpected value \"visible\"\u001b[22m",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "CT-ERR-13",
+    "source": "26-09-20\\desktop\\all-scripts\\[26-09-20 18-12-28-716 c30381] results.json",
+    "testTitle": "TC-002 - AC-002 Không trình bày Entry Point như loại tài khoản @p1",
+    "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: /mã mời|tham gia công ty|company invitation/i }).or(getByRole('link', { name: /mã mời|tham gia công ty/i })).or(locator('[data-testid=\"ep-company-invite\"]'))\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: /mã mời|tham gia công ty|company invitation/i }).or(getByRole('link', { name: /mã mời|tham gia công ty/i })).or(locator('[data-testid=\"ep-company-invite\"]'))\u001b[22m",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "CT-ERR-14",
+    "source": "26-09-20\\desktop\\all-scripts\\[26-09-20 18-12-28-716 c30381] results.json",
+    "testTitle": "TC-005 - AC-004 Ô nhập mã mời không phải trường password @p1",
+    "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('textbox', { name: /mã mời|mã tham gia|mã kích hoạt/i }).or(getByPlaceholder(/nhập mã mời|mã mời/i)).or(locator('input[name*=\"code\" i], input[name*=\"invite\" i]')).first().or(getByRole('button', { name: /mã mời|tham gia công ty|company invitation/i }).or(getByRole('link', { name: /mã mời|tham gia công ty/i })).or(locator('[data-testid=\"ep-company-invite\"]')))\nExpected: visible\nTimeout: 15000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('textbox', { name: /mã mời|mã tham gia|mã kích hoạt/i }).or(getByPlaceholder(/nhập mã mời|mã mời/i)).or(locator('input[name*=\"code\" i], input[name*=\"invite\" i]')).first().or(getByRole('button', { name: /mã mời|tham gia công ty|company invitation/i }).or(getByRole('link', { name: /mã mời|tham gia công ty/i })).or(locator('[data-testid=\"ep-company-invite\"]')))\u001b[22m",
+    "expectedCategory": "product_bug"
+  }
+]
