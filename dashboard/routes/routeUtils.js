@@ -54,19 +54,27 @@ function safeChildPath(base, requestedPath) {
 function abortSignalFor(request, response) {
   const controller = new AbortController();
   const cleanup = () => {
-    response.removeListener('close', onClose);
-    if (request) request.removeListener('close', onClose);
+    if (response && typeof response.removeListener === 'function') {
+      response.removeListener('close', onClose);
+    }
+    if (request && typeof request.removeListener === 'function') {
+      request.removeListener('close', onClose);
+    }
   };
 
   const onClose = () => {
-    if (!response.writableEnded && !controller.signal.aborted) {
+    if ((!response || !response.writableEnded) && !controller.signal.aborted) {
       controller.abort();
     }
     cleanup();
   };
 
-  response.once('close', onClose);
-  if (request) request.once('close', onClose);
+  if (response && typeof response.once === 'function') {
+    response.once('close', onClose);
+  }
+  if (request && typeof request.once === 'function') {
+    request.once('close', onClose);
+  }
   return controller.signal;
 }
 

@@ -8,10 +8,11 @@ const { createCopilotService } = require('../../core/ai/copilotService');
 const { analyzeDiagnostics } = require('../../core/diagnostics/diagnosticsAnalyzer');
 const { sendJson, parseBody, abortSignalFor } = require('./routeUtils');
 const { getUsageStatus } = require('../../core/ai/gateway/usage');
-const { readRecentAuditRecords, clearAuditLogs } = require('../../core/ai/gateway/audit');
+const { runTriageFailure } = require('../../core/ai/tasks/triageFailure');
 const {
   isCrossSiteRequest, resolveModelsRequest, resolveTestConnection, validateConfigBody,
 } = require('../services/aiEndpointPolicy');
+const { handleAiFastWinsRoutes } = require('./aiFastWinsRoutes');
 
 const copilotService = createCopilotService({ quota: Number(process.env.DASHBOARD_AI_QUOTA || 20) });
 
@@ -43,6 +44,8 @@ async function handleAiRoutes(request, response, url, context = {}) {
   if (url.pathname.startsWith('/api/ai/') && isCrossSiteRequest(request.headers)) {
     return sendJson(response, 403, { error: 'Yêu cầu tới cấu hình AI phải xuất phát từ chính Dashboard.' }) || true;
   }
+
+  if (await handleAiFastWinsRoutes(request, response, url, context)) return true;
 
   if (request.method === 'GET' && url.pathname === '/api/ai/config') {
     const env = parseEnvFile(path.join(root, '.env'));
@@ -203,7 +206,7 @@ async function handleAiRoutes(request, response, url, context = {}) {
         consoleLogs: body.consoleLogs || '',
         url: body.url || '',
         clientConfig,
-        signal: abortSignalFor(request)
+        signal: abortSignalFor(request, response)
       });
 
       if (triageRes.ok) {

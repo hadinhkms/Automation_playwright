@@ -6806,7 +6806,76 @@ function initAiSettings() {
     }
   });
 
+  async function loadAiAuditLogTable() {
+    const tbody = $('#ai-audit-table-body');
+    const totalEl = $('#ai-audit-total-tokens');
+    const countEl = $('#ai-audit-call-count');
+    const rateEl = $('#ai-audit-success-rate');
+    if (!tbody) return;
+
+    try {
+      const res = await request('/api/ai/audit?limit=50').catch(() => ({ ok: false, records: [] }));
+      const records = res?.records || [];
+
+      if (countEl) countEl.textContent = `${records.length} lượt`;
+
+      let totalTokens = 0;
+      let okCount = 0;
+      records.forEach((r) => {
+        const u = r.usage?.totalTokens || r.usage?.total_tokens || 0;
+        totalTokens += Number(u) || 0;
+        if (r.outcome === 'ok' || r.outcome === 'success') okCount++;
+      });
+
+      if (totalEl) totalEl.textContent = `${totalTokens.toLocaleString()} token`;
+      if (rateEl) {
+        const rate = records.length ? Math.round((okCount / records.length) * 100) : 100;
+        rateEl.textContent = `${rate}%`;
+      }
+
+      if (!records.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="padding: 16px; text-align: center; color: var(--muted);">Chưa có lịch sử giao dịch AI nào được ghi nhận.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = records.map((r) => {
+        const tsFormatted = r.ts ? new Date(r.ts).toLocaleTimeString() : '—';
+        const isOk = r.outcome === 'ok' || r.outcome === 'success';
+        const statusBadge = isOk
+          ? '<span style="color: var(--success); font-weight: 600;">Thành công</span>'
+          : `<span style="color: var(--danger); font-weight: 600;">Lỗi (${escapeHtml(r.errorCode || r.outcome || '')})</span>`;
+        const tokens = r.usage?.totalTokens || r.usage?.total_tokens || (r.inputChars ? `≈${Math.round(r.inputChars / 4)}` : '0');
+
+        return `
+          <tr style="border-bottom: 1px solid var(--line);">
+            <td style="padding: 6px 10px; font-family: var(--font-mono, monospace); font-size: 11px;">${escapeHtml(tsFormatted)}</td>
+            <td style="padding: 6px 10px; font-weight: 600;">${escapeHtml(r.task || 'unknown')}</td>
+            <td style="padding: 6px 10px; color: var(--muted); font-size: 11px;">${escapeHtml(r.model || '—')}</td>
+            <td style="padding: 6px 10px; font-size: 11px;">${r.durationMs || 0} ms</td>
+            <td style="padding: 6px 10px; font-family: var(--font-mono, monospace); font-size: 11px; color: var(--accent);">${tokens}</td>
+            <td style="padding: 6px 10px;">${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding: 16px; text-align: center; color: var(--danger);">Không thể nạp nhật ký AI.</td></tr>';
+    }
+  }
+
+  $('#btn-ai-audit-refresh')?.addEventListener('click', () => loadAiAuditLogTable());
+  $('#btn-ai-audit-clear')?.addEventListener('click', async () => {
+    if (!confirm('Bạn có chắc muốn xóa toàn bộ file log AI trong thư mục .tmp không?')) return;
+    try {
+      await request('/api/ai/audit', { method: 'DELETE' });
+      notify('Đã xóa toàn bộ nhật ký AI!');
+      loadAiAuditLogTable();
+    } catch (e) {
+      notify(`Lỗi xóa log: ${e.message}`);
+    }
+  });
+
   loadAiSettings();
+  loadAiAuditLogTable();
 }
 
 async function loadAiSettings() {
@@ -15131,7 +15200,59 @@ async function initPlanThreeControls() {
           ${res.evidence ? `<pre style="margin: 0; padding: 8px; font-size: 11.5px; background: var(--surface); border-radius: 6px; overflow-x: auto; color: var(--muted); max-height: 120px;"><code>${escapeHtml(res.evidence)}</code></pre>` : ''}
           ${res.suggestedFix ? `<div class="diagnostic-fix-preview" style="font-size: 12px; padding: 8px 10px; border-radius: 6px; background: rgba(139, 92, 246, 0.08); border-left: 3px solid #8b5cf6;"><strong>Gợi ý khắc phục:</strong> ${escapeHtml(res.suggestedFix)}</div>` : ''}
           ${res.fallbackNotice ? `<small style="color: var(--warning); font-size: 11px;">${escapeHtml(res.fallbackNotice)}</small>` : ''}
+          <div style="display: flex; gap: 8px; margin-top: 6px;">
+            <button type="button" class="btn-secondary-sm" id="btn-diagnostics-draft-bug" style="font-size: 11.5px; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);" title="Soạn thảo Bug Report chi tiết chuẩn Jira từ kết quả chẩn đoán lỗi">
+              <i class="ph-bold ph-bug"></i> ✦ Soạn Bug nháp (Jira/Markdown)
+            </button>
+          </div>
+          <div id="diagnostics-bug-report-container" style="display: none; margin-top: 8px;"></div>
         </article>`;
+
+      document.getElementById('btn-diagnostics-draft-bug')?.addEventListener('click', async () => {
+        const bugContainer = document.getElementById('diagnostics-bug-report-container');
+        if (!bugContainer) return;
+        bugContainer.style.display = 'block';
+        bugContainer.innerHTML = '<div style="font-size: 12px; color: var(--muted);"><i class="ph-bold ph-spinner ph-spin"></i> Đang soạn thảo Bug Report nháp…</div>';
+        try {
+          const bugRes = await fetch('/api/ai/draft-bug', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              testTitle: currentRun?.options?.spec || '',
+              errorText: input.value,
+              triageCategory: res.category,
+              triageSummary: res.summary,
+              snippet: res.evidence,
+              locator: res.locator || '',
+            })
+          }).then(r => r.json());
+
+          if (!bugRes.ok) throw new Error(bugRes.error || 'Lỗi soạn bug');
+
+          bugContainer.innerHTML = `
+            <div style="border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: var(--surface); display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="font-size: 12.5px; color: var(--danger);">${escapeHtml(bugRes.title)}</strong>
+                <span style="font-size: 10.5px; padding: 2px 6px; border-radius: 4px; background: rgba(239, 68, 68, 0.15); color: #ef4444; font-weight: 700;">${escapeHtml(bugRes.severity)}</span>
+              </div>
+              <pre style="margin: 0; padding: 8px; font-size: 11px; background: var(--surface-2); border-radius: 4px; max-height: 180px; overflow-y: auto; color: var(--text); white-space: pre-wrap;"><code>${escapeHtml(bugRes.markdownReport || '')}</code></pre>
+              <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" class="btn-text-sm" id="btn-copy-bug-report" style="color: var(--accent); cursor: pointer; border: none; background: transparent; font-size: 11.5px;">
+                  <i class="ph-bold ph-copy"></i> Sao chép Markdown Jira
+                </button>
+              </div>
+            </div>`;
+
+          document.getElementById('btn-copy-bug-report')?.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(bugRes.markdownReport || '');
+              if (window.toast) window.toast.success('Đã sao chép Bug Report nháp vào clipboard!');
+            } catch (_) {}
+          });
+        } catch (e) {
+          bugContainer.innerHTML = `<div style="font-size: 11.5px; color: var(--danger);">Lỗi soạn bug: ${escapeHtml(e.message)}</div>`;
+        }
+      });
     } catch (error) {
       results.innerHTML = `<div style="padding: 10px; color: var(--danger);">Lỗi phân tích: ${escapeHtml(error.message)}</div>`;
     }

@@ -31,6 +31,8 @@ export class ReqAnalyzerHelper {
     const scaffoldBtn = root.querySelector('#qa-req-analyzer-btn-scaffold');
     const formatJiraBtn = root.querySelector('#qa-req-btn-format-jira');
     const jiraKeyInput = root.querySelector('#qa-req-jira-key');
+    const clarityBtn = root.querySelector('#qa-req-btn-clarity');
+    const generateTcBtn = root.querySelector('#qa-req-btn-generate-tc');
 
     if (!modal) return;
 
@@ -96,6 +98,12 @@ export class ReqAnalyzerHelper {
     // Bắt đầu phân tích
     addEvt(submitBtn, 'click', () => this.runAnalysis(root));
 
+    // BA-1: Soát độ rõ requirement (AI)
+    addEvt(clarityBtn, 'click', () => this.runClarityCheck(root));
+
+    // QA-1: Sinh test case từ AC (AI)
+    addEvt(generateTcBtn, 'click', () => this.runGenerateTestCases(root));
+
     // Chuyển Tabs kết quả
     const tabBtns = root.querySelectorAll('.qa-req-tab');
     tabBtns.forEach((tabBtn) => {
@@ -110,6 +118,193 @@ export class ReqAnalyzerHelper {
 
     // 1-Click Scaffold
     addEvt(scaffoldBtn, 'click', () => this.scaffoldFiles(root));
+  }
+
+  async runClarityCheck(root) {
+    const textarea = root.querySelector('#qa-req-analyzer-text');
+    const rawText = textarea ? textarea.value.trim() : '';
+
+    if (!rawText) {
+      toast.warn('Vui lòng nhập hoặc dán nội dung requirement trước khi soát độ rõ.');
+      if (textarea) textarea.focus();
+      return;
+    }
+
+    const inputSection = root.querySelector('#qa-req-analyzer-input-section');
+    const loadingSection = root.querySelector('#qa-req-analyzer-loading');
+    const resultsSection = root.querySelector('#qa-req-analyzer-results-section');
+
+    if (inputSection) inputSection.style.display = 'none';
+    if (loadingSection) loadingSection.style.display = 'block';
+    if (resultsSection) resultsSection.style.display = 'none';
+
+    try {
+      const res = await apiClient.post('/api/ai/req-clarity', {
+        requirementText: rawText,
+        title: this.extractJiraKey(rawText) || 'Requirement',
+      });
+
+      if (!res.ok) throw new Error(res.error || 'Lỗi khi soát requirement');
+
+      if (loadingSection) loadingSection.style.display = 'none';
+      if (resultsSection) resultsSection.style.display = 'flex';
+
+      this.renderClarityResult(root, res);
+      const scoreBadge = root.querySelector('#qa-req-tab-clarity-score');
+      if (scoreBadge) scoreBadge.textContent = `${res.score}/100`;
+
+      this.switchTab(root, 'clarity');
+      toast.success(`Đã soát độ rõ thành công (Điểm: ${res.score}/100)!`);
+    } catch (err) {
+      if (loadingSection) loadingSection.style.display = 'none';
+      if (inputSection) inputSection.style.display = 'flex';
+      toast.error(`Lỗi soát độ rõ: ${err.message}`);
+    }
+  }
+
+  renderClarityResult(root, res) {
+    const container = root.querySelector('#qa-req-clarity-result');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const scoreColors = {
+      clear: '#10b981',
+      needs_clarification: '#f59e0b',
+      highly_ambiguous: '#ef4444'
+    };
+    const statusLabels = {
+      clear: 'Rõ ràng (Đạt chuẩn)',
+      needs_clarification: 'Cần làm rõ thêm',
+      highly_ambiguous: 'Quá mơ hồ / Thiếu tiêu chí'
+    };
+    const color = scoreColors[res.status] || '#f59e0b';
+    const label = statusLabels[res.status] || res.status;
+
+    const ambiguitiesHtml = (res.ambiguities || []).map((a) => `
+      <div style="background: var(--surface-2); border: 1px solid var(--line); border-left: 3px solid ${color}; border-radius: 6px; padding: 10px 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <strong style="color: ${color}; font-size: 13px;">"${this._escape(a.phrase)}"</strong>
+          <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--line); color: var(--muted);">Cụm từ định tính</span>
+        </div>
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 4px;"><strong>Vấn đề:</strong> ${this._escape(a.reason)}</div>
+        <div style="font-size: 12px; color: var(--accent);"><strong>Đề xuất viết lại:</strong> ${this._escape(a.suggestion)}</div>
+      </div>
+    `).join('');
+
+    const missingHtml = (res.missingAspects || []).map((m) => `
+      <span style="font-size: 11.5px; padding: 3px 8px; border-radius: 4px; background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2);">
+        <i class="ph-bold ph-warning"></i> ${this._escape(m)}
+      </span>
+    `).join(' ');
+
+    container.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; background: var(--surface-2); padding: 12px 16px; border-radius: 8px; border: 1px solid var(--line);">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 20px; font-weight: 700; color: ${color};">${res.score}/100</span>
+            <span style="font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: color-mix(in srgb, ${color} 15%, transparent); color: ${color};">${label}</span>
+          </div>
+          <p style="margin: 4px 0 0; font-size: 12.5px; color: var(--text);">${this._escape(res.summary || '')}</p>
+        </div>
+      </div>
+
+      ${res.missingAspects?.length ? `
+        <div>
+          <strong style="display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px;">CÁC GÓC CẠNH CÒN THIẾU TIÊU CHÍ KIỂM ĐỊNH:</strong>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">${missingHtml}</div>
+        </div>
+      ` : ''}
+
+      <div>
+        <strong style="display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px;">DANH SÁCH CỤM TỪ MƠ HỒ CẦN LÀM RÕ (${res.ambiguities?.length || 0}):</strong>
+        <div style="display: flex; flex-direction: column; gap: 8px;">${ambiguitiesHtml || '<p style="color: var(--muted); font-size: 12px;">Không phát hiện từ ngữ mơ hồ.</p>'}</div>
+      </div>
+
+      ${res.clarifiedDraft ? `
+        <div style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="font-size: 12.5px; color: var(--accent);"><i class="ph-bold ph-sparkle"></i> Đề xuất viết lại theo chuẩn BDD (Given-When-Then):</strong>
+            <button type="button" class="btn-text-sm" id="btn-copy-bdd-draft" style="color: var(--accent); font-size: 11.5px; cursor: pointer; border: none; background: transparent;">
+              <i class="ph-bold ph-copy"></i> Sao chép BDD
+            </button>
+          </div>
+          <pre style="margin: 0; padding: 10px; background: var(--surface); border-radius: 6px; font-size: 12px; line-height: 1.5; color: var(--text); white-space: pre-wrap; word-break: break-word;"><code>${this._escape(res.clarifiedDraft)}</code></pre>
+        </div>
+      ` : ''}
+    `;
+
+    const copyBddBtn = container.querySelector('#btn-copy-bdd-draft');
+    if (copyBddBtn) {
+      copyBddBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(res.clarifiedDraft);
+          toast.success('Đã sao chép văn bản BDD viết lại vào clipboard!');
+        } catch (_) {
+          toast.warn('Không thể sao chép tự động.');
+        }
+      });
+    }
+  }
+
+  async runGenerateTestCases(root) {
+    const textarea = root.querySelector('#qa-req-analyzer-text');
+    const rawText = textarea ? textarea.value.trim() : '';
+
+    if (!rawText) {
+      toast.warn('Vui lòng nhập hoặc dán nội dung requirement trước khi sinh test cases.');
+      if (textarea) textarea.focus();
+      return;
+    }
+
+    const inputSection = root.querySelector('#qa-req-analyzer-input-section');
+    const loadingSection = root.querySelector('#qa-req-analyzer-loading');
+    const resultsSection = root.querySelector('#qa-req-analyzer-results-section');
+
+    if (inputSection) inputSection.style.display = 'none';
+    if (loadingSection) loadingSection.style.display = 'block';
+    if (resultsSection) resultsSection.style.display = 'none';
+
+    try {
+      const jiraKeyInput = root.querySelector('#qa-req-jira-key');
+      const reqId = jiraKeyInput?.value.trim() || this.extractJiraKey(rawText) || 'REQ-001';
+
+      const res = await apiClient.post('/api/ai/generate-tc', {
+        reqId,
+        reqTitle: 'Yêu cầu tính năng',
+        criteriaText: rawText,
+        startTcNumber: 1
+      });
+
+      if (!res.ok) throw new Error(res.error || 'Lỗi khi sinh test cases');
+
+      if (loadingSection) loadingSection.style.display = 'none';
+      if (resultsSection) resultsSection.style.display = 'flex';
+
+      const formattedTcs = (res.testCases || []).map((tc) => ({
+        suggestedId: tc.tcId,
+        title: tc.title,
+        type: tc.type === 'positive' ? 'Positive' : tc.type === 'negative' ? 'Negative' : tc.type === 'boundary' ? 'Boundary' : 'Security',
+        priority: 'P1',
+        precondition: tc.given,
+        steps: [
+          { step: 1, action: tc.when, expected: tc.then }
+        ],
+        testData: tc.tags ? tc.tags.join(', ') : ''
+      }));
+
+      this.renderTestCases(root, formattedTcs);
+      const tabTcCount = root.querySelector('#qa-req-tab-tc-count');
+      const statTc = root.querySelector('#qa-req-stat-tc');
+      if (tabTcCount) tabTcCount.textContent = String(formattedTcs.length);
+      if (statTc) statTc.textContent = `${formattedTcs.length} TCs`;
+
+      this.switchTab(root, 'tc');
+      toast.success(`Đã sinh thành công ${formattedTcs.length} Test Cases bằng AI!`);
+    } catch (err) {
+      if (loadingSection) loadingSection.style.display = 'none';
+      if (inputSection) inputSection.style.display = 'flex';
+      toast.error(`Lỗi sinh test cases: ${err.message}`);
+    }
   }
 
   async openModal(root) {

@@ -38,3 +38,7 @@
 - **Quan sát:** `expect(locator).toBeVisible()` khi `element(s) not found` bị phán nhầm thành `product_bug` vì assertion mismatch có điểm số cao hơn. ANSI code làm gãy regex.
 - **DO:** Bóc tách `stripAnsi` trước khi regex; ưu tiên `locator-not-found` (`test_bug`) khi phần tử chưa từng xuất hiện; chỉ phán `product_bug` khi phần tử có thật nhưng dữ liệu/trạng thái sai. **Trạng thái:** PENDING
 
+### [LEARN-AI-009] Safe AbortSignal Binding & Rule Fallback in AI Tasks
+- **Quan sát:** `abortSignalFor(req, res)` nếu thiếu `res` sẽ crash `res.once`. Khi AI offline, task thiếu rule fallback làm treo UI.
+- **DO:** Kiểm tra `res && typeof res.once === 'function'`; luôn cung cấp rule fallback heuristic (0 token) cho BA-1, QA-1, QA-4 để UI hoạt động độc lập. **Trạng thái:** PENDING
+

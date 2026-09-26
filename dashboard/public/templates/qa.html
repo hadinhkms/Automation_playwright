@@ -829,9 +829,17 @@ test.describe('Đổi mật khẩu @account', () => {
                   <span>Đối chiếu test-cases &amp; specs hiện có trong repo</span>
                 </label>
               </div>
-              <button type="button" class="btn-primary-sm" id="qa-req-analyzer-btn-submit" style="background: var(--primary); border-color: var(--primary);">
-                <i class="ph-bold ph-sparkle"></i> Bắt đầu Phân tích
-              </button>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button type="button" class="btn-secondary-sm" id="qa-req-btn-clarity" style="color: #8b5cf6; border-color: rgba(139, 92, 246, 0.4);" title="Soát các từ định tính, mơ hồ và đề xuất viết lại theo BDD">
+                  <i class="ph-bold ph-sparkle"></i> Soát độ rõ (AI)
+                </button>
+                <button type="button" class="btn-secondary-sm" id="qa-req-btn-generate-tc" style="color: #10b981; border-color: rgba(16, 185, 129, 0.4);" title="Sinh test case BDD (Positive, Negative, BVA, Security) từ AC">
+                  <i class="ph-bold ph-list-plus"></i> Sinh Test Case (AI)
+                </button>
+                <button type="button" class="btn-primary-sm" id="qa-req-analyzer-btn-submit" style="background: var(--primary); border-color: var(--primary);">
+                  <i class="ph-bold ph-sparkle"></i> Bắt đầu Phân tích
+                </button>
+              </div>
             </div>
           </div>
 
@@ -891,6 +899,9 @@ test.describe('Đổi mật khẩu @account', () => {
               </button>
               <button type="button" class="qa-req-tab" data-tab="qa" style="padding: 8px 14px; font-size: 12.5px; font-weight: 600; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer;">
                 <i class="ph-bold ph-shield-warning"></i> Bộ Câu Hỏi Phản Biện Của Team QA (<span id="qa-req-tab-qa-count">0</span>)
+              </button>
+              <button type="button" class="qa-req-tab" data-tab="clarity" style="padding: 8px 14px; font-size: 12.5px; font-weight: 600; background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted); cursor: pointer;">
+                <i class="ph-bold ph-seal-check"></i> Độ Rõ &amp; BDD (<span id="qa-req-tab-clarity-score">—</span>)
               </button>
             </div>
 
@@ -953,6 +964,11 @@ test.describe('Đổi mật khẩu @account', () => {
             <!-- Panel 4: QA Team Inquiries -->
             <div class="qa-req-panel" id="qa-req-panel-qa" style="display: none; flex-direction: column; gap: 10px;">
               <div id="qa-req-qa-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+
+            <!-- Panel 5: Clarity & BDD Rewrite -->
+            <div class="qa-req-panel" id="qa-req-panel-clarity" style="display: none; flex-direction: column; gap: 12px;">
+              <div id="qa-req-clarity-result" style="display: flex; flex-direction: column; gap: 12px;"></div>
             </div>
           </div>
         </div>
