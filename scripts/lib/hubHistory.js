@@ -66,6 +66,24 @@ function createHubHistoryProbe(hubRoot) {
   }
 
   const cache = new Map();
+  const fileLinesCache = new Map();
+
+  function getEverHadLinesForFile(relFile) {
+    if (fileLinesCache.has(relFile)) return fileLinesCache.get(relFile);
+    const lineSet = new Set();
+    try {
+      const diffOutput = git(hubRoot, ['log', '--all', '-p', '-U0', '--format=', '--', relFile]);
+      const lines = diffOutput.split(/\r?\n/);
+      for (const rawLine of lines) {
+        if (rawLine.startsWith('+') && !rawLine.startsWith('+++')) {
+          const trimmed = rawLine.slice(1).trim();
+          if (trimmed) lineSet.add(trimmed);
+        }
+      }
+    } catch (_) {}
+    fileLinesCache.set(relFile, lineSet);
+    return lineSet;
+  }
 
   function everHad(relFile, line) {
     if (!available) return false;
@@ -75,10 +93,15 @@ function createHubHistoryProbe(hubRoot) {
     const key = `${relFile}\u0000${needle}`;
     if (cache.has(key)) return cache.get(key);
 
+    const fileLines = getEverHadLinesForFile(relFile);
+    if (fileLines.has(needle)) {
+      cache.set(key, true);
+      return true;
+    }
+
     let found = false;
     try {
-      // -S đếm số commit làm THAY ĐỔI số lần xuất hiện của chuỗi này trong file.
-      // Có kết quả nghĩa là chuỗi từng tồn tại ở đó.
+      // Fallback nếu lineSet chưa bao phủ
       found = git(hubRoot, ['log', '--all', '--format=%H', '-S', needle, '--', relFile]).trim().length > 0;
     } catch (_) {
       found = false;

@@ -307,7 +307,7 @@ describe('API Contract: QA Docs & Automation', () => {
     assert.deepEqual(body.ids, ['TC-001', 'TC-002']);
     assert.ok(body.text.includes('# TC-001'), 'phải có nội dung của TC-001');
     assert.ok(body.text.includes('Given Tiền điều kiện'), 'phải theo khuôn BDD');
-    assert.ok(body.text.includes('KHÔNG được lưu lại'), 'phải nói rõ bản thảo là nhất thời');
+    assert.ok(!body.text.includes('Bản thảo KHÔNG được lưu lại'), 'disclaimer phải được đưa ra Dashboard UI chứ không nằm trong script BDD');
 
     // Không được ghi bất cứ thứ gì vào test-cases/.
     assert.deepEqual(snap(tcDir), snapBefore);

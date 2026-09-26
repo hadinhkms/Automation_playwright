@@ -17174,11 +17174,62 @@ function renderFixturesList() {
     `;
   }).join('');
 
+function isFixtureDirty() {
+  if (!currentSelectedFixture || !currentSelectedFixture.isCustom) return false;
+  const editor = document.getElementById('fx-source-editor');
+  if (!editor) return false;
+  return editor.value !== (currentSelectedFixture.rawCode || '');
+}
+
+function updateFixtureDirtyIndicator(dirty) {
+  let dirtyBadge = document.getElementById('fx-dirty-badge');
+  if (!dirtyBadge) {
+    const modeBadge = document.getElementById('fx-mode-badge');
+    if (modeBadge && modeBadge.parentElement) {
+      dirtyBadge = document.createElement('span');
+      dirtyBadge.id = 'fx-dirty-badge';
+      dirtyBadge.className = 'fx-dirty-pill';
+      dirtyBadge.style.fontSize = '11px';
+      dirtyBadge.style.fontWeight = '600';
+      dirtyBadge.style.padding = '2px 8px';
+      dirtyBadge.style.borderRadius = '999px';
+      dirtyBadge.style.display = 'none';
+      dirtyBadge.style.marginLeft = '6px';
+      modeBadge.parentElement.appendChild(dirtyBadge);
+    }
+  }
+  if (dirtyBadge) {
+    if (dirty) {
+      dirtyBadge.textContent = '● Chưa lưu';
+      dirtyBadge.style.display = 'inline-flex';
+      dirtyBadge.style.background = 'rgba(234, 179, 8, 0.15)';
+      dirtyBadge.style.color = '#eab308';
+      dirtyBadge.style.border = '1px solid rgba(234, 179, 8, 0.3)';
+    } else {
+      dirtyBadge.textContent = '✓ Đã lưu';
+      dirtyBadge.style.display = 'inline-flex';
+      dirtyBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+      dirtyBadge.style.color = '#22c55e';
+      dirtyBadge.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+      setTimeout(() => {
+        if (!isFixtureDirty() && dirtyBadge) dirtyBadge.style.display = 'none';
+      }, 2000);
+    }
+  }
+}
+
   container.querySelectorAll('.fixture-card-item').forEach((card) => {
     card.addEventListener('click', () => {
       const name = card.dataset.name;
       const found = repoFixtures.find((f) => f.name === name);
-      if (found) selectFixture(found);
+      if (found) {
+        if (currentSelectedFixture && currentSelectedFixture.name === found.name) return;
+        if (isFixtureDirty()) {
+          const ok = confirm(`Bạn có thay đổi chưa lưu trong fixture "${currentSelectedFixture.name}". Bạn có muốn chuyển sang fixture khác mà không lưu không?`);
+          if (!ok) return;
+        }
+        selectFixture(found);
+      }
     });
   });
 
@@ -17186,8 +17237,20 @@ function renderFixturesList() {
     selectFixture(filtered[0]);
   } else if (currentSelectedFixture) {
     const stillExists = filtered.find((f) => f.name === currentSelectedFixture.name);
-    if (stillExists) selectFixture(stillExists);
-    else if (filtered.length > 0) selectFixture(filtered[0]);
+    if (stillExists) {
+      // Bảo toàn bản thảo: chỉ cập nhật highlight card, không gọi lại selectFixture ghi đè textarea
+      document.querySelectorAll('#fixtures-list-container .fixture-card-item').forEach((card) => {
+        const isThis = card.dataset.name === currentSelectedFixture.name;
+        card.classList.toggle('is-selected', isThis);
+        card.classList.toggle('active', isThis);
+      });
+    } else if (filtered.length > 0) {
+      if (isFixtureDirty()) {
+        const ok = confirm(`Bạn có thay đổi chưa lưu trong fixture "${currentSelectedFixture.name}". Bạn có muốn chuyển sang fixture khác không?`);
+        if (!ok) return;
+      }
+      selectFixture(filtered[0]);
+    }
   }
 }
 
@@ -17257,6 +17320,7 @@ async function selectFixture(fx) {
     if (sourceEditor) {
       sourceEditor.style.display = 'block';
       sourceEditor.value = sourceCode;
+      updateFixtureDirtyIndicator(false);
     }
     if (editorHint) editorHint.textContent = 'Mã nguồn fixture tùy biến có thể chỉnh sửa trực tiếp. Bấm "Lưu thay đổi" để áp dụng.';
   } else {
@@ -17336,8 +17400,11 @@ function initFixturesStudioListeners() {
     }
   });
 
-  $('#fixtures-search-input')?.addEventListener('input', () => {
+  $('#fx-source-editor')?.addEventListener('input', () => {
+    updateFixtureDirtyIndicator(isFixtureDirty());
+  });
 
+  $('#fixtures-search-input')?.addEventListener('input', () => {
     renderFixturesList();
   });
 
@@ -17362,6 +17429,10 @@ function initFixturesStudioListeners() {
   });
 
   $('#btn-open-create-fixture-modal')?.addEventListener('click', () => {
+    if (isFixtureDirty()) {
+      const ok = confirm(`Bạn có thay đổi chưa lưu trong fixture "${currentSelectedFixture.name}". Bạn có chắc chắn muốn mở trình tạo fixture mới không?`);
+      if (!ok) return;
+    }
     const modal = document.getElementById('modal-create-fixture');
     if (modal) {
       $('#form-create-fixture')?.reset();
@@ -17476,6 +17547,8 @@ function initFixturesStudioListeners() {
       if (res.success) {
         showToast(res.message || 'Đã lưu thay đổi fixture thành công!', 'success');
         currentSelectedFixture.revision = res.revision;
+        currentSelectedFixture.rawCode = sourceCode;
+        updateFixtureDirtyIndicator(false);
         if ($('#fx-detail-revision')) $('#fx-detail-revision').textContent = 'rev: ' + res.revision;
         await loadFixturesList();
       } else {
