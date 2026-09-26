@@ -579,14 +579,16 @@ async function analyzeRequirement({ root, rawText, mode = 'ai', clientConfig, sc
 /**
  * 1-Click Scaffold: Tạo file REQ và TC từ kết quả phân tích
  */
-function scaffoldFromAnalysis(root, { reqId, title, domain = 'general', analysisResult }) {
+function scaffoldFromAnalysis(root, { reqId, title, domain = 'general', analysisResult, source }) {
   if (!analysisResult) {
     throw Object.assign(new Error('Thiếu dữ liệu kết quả phân tích.'), { status: 400 });
   }
 
   const cleanReqId = (reqId || 'REQ-001').toUpperCase().trim();
   const cleanTitle = (title || analysisResult.summary || 'Requirement Mới').trim();
+  const resolvedSource = (source || analysisResult.source || '').trim();
   const safeSlug = cleanTitle.toLowerCase()
+    .replace(/[đĐ]/g, 'd')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '') || 'feature';
@@ -619,8 +621,10 @@ function scaffoldFromAnalysis(root, { reqId, title, domain = 'general', analysis
     return `${idx + 1}. [${q.topic}] ${q.question} — cần xác nhận với PO/BA.\n   *Ý nghĩa: ${q.whyItMatters}*\n   *Đề xuất mặc định: ${q.proposedDefault}*`;
   }).join('\n\n');
 
-  const reqContent = `# ${cleanReqId}: ${cleanTitle}
+  const sourceMeta = resolvedSource ? `\n> **Source:** ${resolvedSource}\n` : '';
 
+  const reqContent = `# ${cleanReqId}: ${cleanTitle}
+${sourceMeta}
 ## 1. Tổng quan & Mục tiêu
 ${analysisResult.summary || cleanTitle}
 

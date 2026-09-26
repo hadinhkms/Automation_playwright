@@ -29,6 +29,8 @@ export class ReqAnalyzerHelper {
     const reinputBtn = root.querySelector('#qa-req-analyzer-btn-reinput');
     const copyBtn = root.querySelector('#qa-req-analyzer-btn-copy');
     const scaffoldBtn = root.querySelector('#qa-req-analyzer-btn-scaffold');
+    const formatJiraBtn = root.querySelector('#qa-req-btn-format-jira');
+    const jiraKeyInput = root.querySelector('#qa-req-jira-key');
 
     if (!modal) return;
 
@@ -37,6 +39,24 @@ export class ReqAnalyzerHelper {
       target.addEventListener(evt, handler);
       this.disposers.push(() => target.removeEventListener(evt, handler));
     };
+
+    // Chuyển Jira Markup sang Markdown
+    addEvt(formatJiraBtn, 'click', () => {
+      const textarea = root.querySelector('#qa-req-analyzer-text');
+      if (!textarea || !textarea.value.trim()) {
+        toast.info('Vui lòng dán nội dung requirement trước khi chuyển đổi.');
+        return;
+      }
+      const original = textarea.value;
+      const formatted = this.parseJiraMarkup(original);
+      textarea.value = formatted;
+
+      if (jiraKeyInput && !jiraKeyInput.value.trim()) {
+        const detectedKey = this.extractJiraKey(original) || this.extractJiraKey(formatted);
+        if (detectedKey) jiraKeyInput.value = detectedKey;
+      }
+      toast.success('Đã chuyển đổi Jira markup sang Markdown.');
+    });
 
     // Mở modal
     addEvt(openBtn, 'click', () => this.openModal(root));
@@ -204,6 +224,14 @@ export class ReqAnalyzerHelper {
         res = await this._activeRequest.promise;
       } else {
         res = await apiClient.post('/api/qa/analyze-requirement', { rawText, mode, scanExisting });
+      }
+      const jiraKeyInput = root.querySelector('#qa-req-jira-key');
+      if (jiraKeyInput && !jiraKeyInput.value.trim()) {
+        const detected = this.extractJiraKey(rawText);
+        if (detected) jiraKeyInput.value = detected;
+      }
+      if (res && jiraKeyInput?.value.trim()) {
+        res.source = jiraKeyInput.value.trim();
       }
 
       this.currentResult = res;
@@ -573,10 +601,14 @@ export class ReqAnalyzerHelper {
     const reqId = window.prompt('Nhập mã Requirement (ví dụ REQ-016):', 'REQ-016');
     if (!reqId) return;
 
+    const jiraKeyInput = root?.querySelector?.('#qa-req-jira-key');
+    const source = jiraKeyInput?.value.trim() || this.extractJiraKey(this.currentRawText) || this.currentResult.source;
+
     try {
       const res = await apiClient.post('/api/qa/scaffold-from-analysis', {
         reqId,
         title,
+        source: source || undefined,
         analysisResult: this.currentResult,
       });
 
@@ -589,6 +621,64 @@ export class ReqAnalyzerHelper {
     } catch (err) {
       toast.error(`Không thể tạo file: ${err.message}`);
     }
+  }
+
+  parseJiraMarkup(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    let text = raw;
+    if (/<[a-z][\s\S]*>/i.test(text)) {
+      text = text.replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, lvl, c) => `${'#'.repeat(Number(lvl))} ${c.trim()}\n\n`);
+      text = text.replace(/<(?:strong|b)[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**');
+      text = text.replace(/<(?:em|i)[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*');
+      text = text.replace(/<(?:del|s|strike)[^>]*>([\s\S]*?)<\/(?:del|s|strike)>/gi, '~~$1~~');
+      text = text.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, '`$1`');
+      text = text.replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, '```\n$1\n```\n\n');
+      text = text.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n');
+      text = text.replace(/<\/?(?:ul|ol)[^>]*>/gi, '\n');
+      text = text.replace(/<br\s*\/?>/gi, '\n');
+      text = text.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '$1\n\n');
+      text = text.replace(/<[^>]+>/g, '');
+      text = text.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+    }
+    text = text.replace(/\{code(?::([a-z]+))?\}([\s\S]*?)\{code\}/gi, (_, lang, code) => `\`\`\`${lang || ''}\n${code.trim()}\n\`\`\`\n`);
+    text = text.replace(/\{noformat\}([\s\S]*?)\{noformat\}/gi, (_, code) => `\`\`\`\n${code.trim()}\n\`\`\`\n`);
+    text = text.replace(/\{quote\}([\s\S]*?)\{quote\}/gi, (_, q) => q.trim().split('\n').map((l) => `> ${l}`).join('\n') + '\n\n');
+    text = text.replace(/^bq\.\s*(.+)$/gm, '> $1');
+    text = text.replace(/^(\s*)#+\s+/gm, '$11. ');
+    text = text.replace(/^(\s*)\*\s+/gm, '$1- ');
+    text = text.replace(/^h([1-6])\.\s*(.+)$/gm, (_, lvl, title) => `${'#'.repeat(Number(lvl))} ${title.trim()}`);
+    text = text.replace(/(^|[\s(])\*([^\s*][^*]*[^\s*])\*([\s).,!?:]|$)/g, '$1**$2**$3');
+    text = text.replace(/(^|[\s(])_([^\s_][^_]*[^\s_])_([\s).,!?:]|$)/g, '$1*$2*$3');
+    text = text.replace(/(^|[\s(])-([^\s-][^-]*[^\s-])-([\s).,!?:]|$)/g, '$1~~$2~~$3');
+    text = text.replace(/\{\{([^{}]+)\}\}/g, '`$1`');
+    text = text.replace(/\[([^|\]]+)\|([^\]]+)\]/g, '[$1]($2)');
+    text = text.replace(/\[([a-z]+:\/\/[^\]]+)\]/g, '<$1>');
+    const lines = text.split('\n');
+    const resultLines = [];
+    let inTable = false;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('||') && line.endsWith('||')) {
+        const headers = line.slice(2, -2).split('||').map((h) => h.trim());
+        resultLines.push(`| ${headers.join(' | ')} |`);
+        resultLines.push(`| ${headers.map(() => '---').join(' | ')} |`);
+        inTable = true;
+      } else if (line.startsWith('|') && line.endsWith('|') && !line.startsWith('||')) {
+        const cells = line.slice(1, -1).split('|').map((c) => c.trim());
+        resultLines.push(`| ${cells.join(' | ')} |`);
+        inTable = true;
+      } else {
+        if (inTable) inTable = false;
+        resultLines.push(lines[i]);
+      }
+    }
+    return resultLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  extractJiraKey(text) {
+    if (!text) return null;
+    const match = String(text).match(/\b([A-Z][A-Z0-9]+-\d+)\b/);
+    return match ? match[1] : null;
   }
 
   _escape(str) {

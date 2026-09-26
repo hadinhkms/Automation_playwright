@@ -15088,27 +15088,57 @@ function initVisualBuilderControls() {
 }
 
 async function initPlanThreeControls() {
-  document.getElementById('diagnostics-analyze-btn')?.addEventListener('click', async () => {
+  const runTriage = async (mode = 'auto') => {
     const input = document.getElementById('diagnostics-error-input');
     const results = document.getElementById('diagnostics-results');
     if (!input?.value.trim()) return notify('Vui lòng dán lỗi hoặc stack trace.');
+
+    results.innerHTML = `<div style="padding: 12px; color: var(--muted);"><i class="ph-bold ph-spinner" style="animation: spin 1s linear infinite;"></i> Đang phân tích nguyên nhân lỗi (${mode === 'ai' ? 'AI Gateway RCA' : 'Luật suy luận & AI'})...</div>`;
+
     try {
-      const result = await request('/api/diagnostics/analyze', {
+      const res = await request('/api/diagnostics/triage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: input.value, testTitle: currentRun?.options?.spec || '' }),
+        body: JSON.stringify({
+          error: input.value,
+          testTitle: currentRun?.options?.spec || '',
+          mode
+        }),
       });
-      results.innerHTML = result.findings.map((finding) => `
-        <article class="diagnostic-finding">
-          <strong>${escapeHtml(finding.code)}</strong>
-          <p>${escapeHtml(finding.message)}</p>
-          <small>Confidence: ${Math.round(finding.confidence * 100)}%</small>
-          ${finding.suggestedFix ? `<div class="diagnostic-fix-preview">Preview: ${escapeHtml(finding.suggestedFix.preview)}</div>` : ''}
-        </article>`).join('');
+
+      const catLabels = {
+        product_bug: { label: 'Lỗi sản phẩm (Product Bug)', color: 'var(--danger, #ef4444)' },
+        test_bug: { label: 'Lỗi kịch bản test (Test Bug)', color: 'var(--warning, #f59e0b)' },
+        environment: { label: 'Lỗi hạ tầng / mạng (Environment)', color: 'var(--muted, #6b7280)' },
+        flaky: { label: 'Lỗi chập chờn / Flaky (Timing)', color: 'var(--accent, #8b5cf6)' }
+      };
+
+      const catInfo = catLabels[res.category] || { label: res.category || 'Chưa rõ', color: 'var(--text)' };
+      const sourceBadge = res.source === 'ai'
+        ? `<span style="font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; font-weight: 600;">AI · triage (${escapeHtml(res.model || 'fast')})</span>`
+        : `<span style="font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 600;">Luật suy luận (0 token)</span>`;
+
+      results.innerHTML = `
+        <article class="diagnostic-finding" style="display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--surface-2);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <strong style="color: ${catInfo.color}; font-size: 13.5px;">${catInfo.label}</strong>
+              <small style="color: var(--muted); font-size: 11.5px;">(Độ tin cậy: ${res.confidence || 75}%)</small>
+            </div>
+            ${sourceBadge}
+          </div>
+          <p style="margin: 0; font-size: 13px; line-height: 1.45; color: var(--text);">${escapeHtml(res.summary || '')}</p>
+          ${res.evidence ? `<pre style="margin: 0; padding: 8px; font-size: 11.5px; background: var(--surface); border-radius: 6px; overflow-x: auto; color: var(--muted); max-height: 120px;"><code>${escapeHtml(res.evidence)}</code></pre>` : ''}
+          ${res.suggestedFix ? `<div class="diagnostic-fix-preview" style="font-size: 12px; padding: 8px 10px; border-radius: 6px; background: rgba(139, 92, 246, 0.08); border-left: 3px solid #8b5cf6;"><strong>Gợi ý khắc phục:</strong> ${escapeHtml(res.suggestedFix)}</div>` : ''}
+          ${res.fallbackNotice ? `<small style="color: var(--warning); font-size: 11px;">${escapeHtml(res.fallbackNotice)}</small>` : ''}
+        </article>`;
     } catch (error) {
-      results.textContent = error.message;
+      results.innerHTML = `<div style="padding: 10px; color: var(--danger);">Lỗi phân tích: ${escapeHtml(error.message)}</div>`;
     }
-  });
+  };
+
+  document.getElementById('diagnostics-analyze-btn')?.addEventListener('click', () => runTriage('auto'));
+  document.getElementById('diagnostics-ai-btn')?.addEventListener('click', () => runTriage('ai'));
 }
 
 let builderLoadedFixtures = [];

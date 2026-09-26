@@ -311,6 +311,7 @@ async function handleQaRoutes(request, response, url, context = {}) {
         title: body.title,
         domain: body.domain || 'general',
         analysisResult: body.analysisResult,
+        source: body.source || body.jiraKey || body.analysisResult?.source
       });
       sendJson(response, 200, result);
     } catch (error) {

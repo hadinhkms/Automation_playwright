@@ -789,13 +789,24 @@ test.describe('Đổi mật khẩu @account', () => {
           <!-- 1. INPUT SECTION -->
           <div id="qa-req-analyzer-input-section" style="display: flex; flex-direction: column; gap: 12px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
                 <label for="qa-req-analyzer-text" style="font-size: 12.5px; font-weight: 600; color: var(--text);">
                   <i class="ph-bold ph-clipboard-text"></i> Nội dung Requirement / User Story / Change Request (Văn bản thô):
                 </label>
-                <button type="button" class="btn-text-sm" id="qa-req-analyzer-sample-btn" style="font-size: 11.5px; color: var(--accent); background: transparent; border: none; cursor: pointer;">
-                  <i class="ph-bold ph-lightbulb"></i> Nạp requirement mẫu
-                </button>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <button type="button" class="btn-text-sm" id="qa-req-btn-format-jira" style="font-size: 11.5px; color: #8b5cf6; background: transparent; border: none; cursor: pointer;" title="Chuyển Jira Wiki Markup / Confluence HTML sang Markdown chuẩn">
+                    <i class="ph-bold ph-magic-wand"></i> Chuyển Jira Markup
+                  </button>
+                  <button type="button" class="btn-text-sm" id="qa-req-analyzer-sample-btn" style="font-size: 11.5px; color: var(--accent); background: transparent; border: none; cursor: pointer;">
+                    <i class="ph-bold ph-lightbulb"></i> Nạp requirement mẫu
+                  </button>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+                <label for="qa-req-jira-key" style="font-size: 11.5px; font-weight: 600; color: var(--muted); white-space: nowrap;">
+                  <i class="ph-bold ph-ticket"></i> Mã Jira (tùy chọn):
+                </label>
+                <input type="text" id="qa-req-jira-key" class="input-sm" placeholder="VD: PROJ-123 (tự động nhận diện nếu dán story Jira)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font-size: 11.5px; flex: 1; max-width: 320px;">
               </div>
               <textarea id="qa-req-analyzer-text" rows="9" class="input-sm" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); resize: vertical;" placeholder="Dán nội dung requirement từ Jira, Confluence, Slack, PRD hoặc Change Request vào đây...&#10;&#10;Ví dụ:&#10;Hồ sơ giáo viên có thêm trường 'Trung tâm sát hạch' đứng cạnh 'Trung tâm đang công tác'.&#10;- Bắt buộc cả khi tạo mới và khi cập nhật (hồ sơ cũ chưa có sẽ bị chặn lưu).&#10;- Khu vực đào tạo (phường/xã) nâng hạn mức tối đa từ 6 lên 10 mục.&#10;- Nút 'Dùng lại trung tâm đang công tác' tự copy và biến mất khi 2 ô trùng nhau."></textarea>
             </div>
