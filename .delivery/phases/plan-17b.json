@@ -1,0 +1,137 @@
+{
+  "schema_version": 1,
+  "phase": "plan-17b",
+  "groups": {
+    "async_state": {
+      "applies": true,
+      "reason": ""
+    },
+    "ownership_lifecycle": {
+      "applies": true,
+      "reason": ""
+    },
+    "router_ui": {
+      "applies": true,
+      "reason": "UI-05 không áp dụng: phân tích lỗi triage không ghi dữ liệu nháp"
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "P17B-AC-01",
+      "text": "Dual-engine Triage: Luật regex tĩnh chạy trước để nhận diện lỗi hiển nhiên; AI Gateway chỉ kích hoạt khi luật không chắc chắn hoặc theo yêu cầu người dùng.",
+      "cases": [
+        {
+          "id": "P17B-TC-01",
+          "intent": "Lỗi assertion rõ ràng được luật regex tĩnh phân loại ngay mà không tốn token AI",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P17B-TC-02",
+          "intent": "Lỗi phức tạp hoặc chưa rõ nguyên nhân được chuyển tiếp tới AI Gateway task triageFailure",
+          "level": "integration",
+          "critical": true,
+          "scenarios": ["LIFE-01"]
+        }
+      ]
+    },
+    {
+      "id": "P17B-AC-02",
+      "text": "Chuẩn hóa phân loại lỗi vào 4 nhóm nguyên nhân: product_bug, test_bug, environment, flaky kèm độ tin cậy và gợi ý sửa chữa.",
+      "cases": [
+        {
+          "id": "P17B-TC-03",
+          "intent": "Kết quả triage trả về đúng schema quy định và thuộc một trong 4 nhóm nguyên nhân chuẩn",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P17B-TC-04",
+          "intent": "Phát hiện dấu hiệu flaky test khi có timing/timeout chập chờn hoặc retry thành công",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P17B-AC-03",
+      "text": "Bộ chuyển đổi Jira Wiki Markup & Confluence HTML sang Markdown chuẩn, loại bỏ thẻ thừa và giữ nguyên cấu trúc phân cấp.",
+      "cases": [
+        {
+          "id": "P17B-TC-05",
+          "intent": "Làm sạch tiêu đề, in đậm, khối code, danh sách từ Jira markup sang Markdown hợp lệ",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P17B-TC-06",
+          "intent": "Xóa các thẻ wrapper HTML rác từ Confluence và chuyển đổi bảng biểu sang markdown",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P17B-AC-04",
+      "text": "Requirement Studio lưu vết Source: PROJ-xxx trong tài liệu requirement khi scaffold từ story Jira.",
+      "cases": [
+        {
+          "id": "P17B-TC-07",
+          "intent": "File requirements/REQ-xxx.md được tạo có trường Source: PROJ-xxx ở phần metadata đầu trang",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P17B-AC-05",
+      "text": "Giao diện tích hợp: Hiển thị kết quả triage trong panel chẩn đoán Runner và modal Requirement Studio hỗ trợ dán Jira story.",
+      "cases": [
+        {
+          "id": "P17B-TC-08",
+          "intent": "Panel chẩn đoán Runner hiển thị thẻ kết quả triage với nhãn nguồn gốc chuẩn (Luật / AI)",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["UI-01", "UI-02"]
+        },
+        {
+          "id": "P17B-TC-09",
+          "intent": "Modal Requirement Studio có ô nhập Jira Key và nút format tự động định dạng văn bản",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["UI-04"]
+        },
+        {
+          "id": "P17B-TC-10",
+          "intent": "Nút Hủy trong quá trình triage ngắt kết nối an toàn và đưa UI về trạng thái sạch",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": ["ASYNC-04"]
+        }
+      ]
+    },
+    {
+      "id": "P17B-AC-06",
+      "text": "Độ chính xác triage đạt tối thiểu 80% trên tập dữ liệu đánh giá synthetic nội bộ.",
+      "cases": [
+        {
+          "id": "P17B-TC-11",
+          "intent": "Bộ mẫu 20 lỗi synthetic đạt tỷ lệ phân loại đúng >= 80% qua harness đánh giá",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        }
+      ]
+    }
+  ]
+}

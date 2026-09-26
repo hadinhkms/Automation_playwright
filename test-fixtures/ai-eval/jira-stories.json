@@ -1,0 +1,32 @@
+[
+  {
+    "id": "STORY-01",
+    "key": "PAY-101",
+    "title": "Tích hợp cổng thanh toán VNPay QR",
+    "rawMarkup": "h1. Tích hợp cổng thanh toán VNPay QR\nh2. Mô tả nghiệp vụ\nKhách hàng có thể chọn thanh toán qua *VNPay QR* trên màn hình thanh toán đơn hàng.\nh2. Tiêu chí nghiệm thu\n* Hệ thống hiển thị mã QR động có thời hạn 15 phút.\n* Khi thanh toán thành công, màn hình tự động chuyển sang trang Hoàn tất.\n{code:json}\n{\"orderId\": \"ORD-999\", \"amount\": 250000}\n{code}\nXem tài liệu tại [Cổng VNPay|https://sandbox.vnpayment.vn]."
+  },
+  {
+    "id": "STORY-02",
+    "key": "AUTH-402",
+    "title": "Đăng nhập bằng mã OTP qua SMS",
+    "rawMarkup": "h1. Đăng nhập qua SMS OTP\nNgười dùng có thể nhận mã *OTP 6 chữ số* qua tin nhắn điện thoại để đăng nhập an toàn.\n# Nhập số điện thoại hợp lệ\n# Nhận mã OTP trong vòng 60 giây\n# Bấm Xác nhận để vào hệ thống\n{quote}\nLưu ý: Chặn gửi lại OTP trong 60 giây đầu tiên.\n{quote}"
+  },
+  {
+    "id": "STORY-03",
+    "key": "CART-205",
+    "title": "Áp dụng mã giảm giá đơn hàng",
+    "rawMarkup": "h1. Voucher Giảm Giá\n||Mã voucher||Mức giảm||Điều kiện||\n|WELCOME10|10%|Đơn từ 100k|\n|FREESHIP|Toàn bộ phí ship|Đơn từ 200k|\nh2. Xử lý lỗi\n* Mã hết hạn: hiển thị thông báo _Mã giảm giá đã hết hiệu lực_.\n* Không đủ điều kiện: hiển thị thông báo lỗi màu đỏ."
+  },
+  {
+    "id": "STORY-04",
+    "key": "USER-303",
+    "title": "Cập nhật hồ sơ cá nhân",
+    "rawMarkup": "<h2>Cập nhật hồ sơ nhân viên</h2><p>Nhân viên có thể thay đổi <strong>họ tên</strong> và <em>địa chỉ liên hệ</em>.</p><ul><li>Bắt buộc nhập số CCCD</li><li>Tải lên ảnh thẻ định dạng PNG hoặc JPG</li></ul>"
+  },
+  {
+    "id": "STORY-05",
+    "key": "NOTIF-505",
+    "title": "Thông báo trạng thái giao hàng",
+    "rawMarkup": "h1. Push Notification đơn hàng\nbq. Gửi thông báo tự động khi đơn hàng chuyển sang trạng thái Đang giao.\n* Tần suất gửi: ngay khi shipper nhận đơn.\n* Hỗ trợ thiết bị: Android và iOS."
+  }
+]

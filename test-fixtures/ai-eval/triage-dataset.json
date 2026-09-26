@@ -1,0 +1,122 @@
+[
+  {
+    "id": "ERR-01",
+    "error": "Error: expect(received).toBe(expected) // Object.is equality\nExpected: 200\nReceived: 500",
+    "testTitle": "API checkout returns 200 OK",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "ERR-02",
+    "error": "Error: expect(locator).toHaveText(expected)\nExpected string: \"Thanh toán thành công\"\nReceived string: \"Có lỗi xảy ra khi xử lý đơn hàng\"",
+    "testTitle": "Payment success confirmation screen",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "ERR-03",
+    "error": "Error: expect(locator).toHaveValue(expected)\nExpected: \"150.000 đ\"\nReceived: \"0 đ\"",
+    "testTitle": "Cart total calculation with discount voucher",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "ERR-04",
+    "error": "Error: expect(received).toBeTruthy()\nReceived: false\nAssertion failed: order status should be COMPLETED but was CANCELLED",
+    "testTitle": "Order status lifecycle transition",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "ERR-05",
+    "error": "Error: expect(locator).toBeVisible()\nLocator: locator('div.invoice-download-link')\nActual: element never became visible because backend returned 404 invoice not found",
+    "testTitle": "Download invoice PDF after order",
+    "expectedCategory": "product_bug"
+  },
+  {
+    "id": "ERR-06",
+    "error": "locator.click: Error: strict mode violation: locator('button.submit') resolved to 3 elements",
+    "testTitle": "Submit user registration form",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "ERR-07",
+    "error": "locator.waitFor: Timeout 5000ms exceeded.\nwaiting for locator('#non-existent-button-id') to be visible",
+    "testTitle": "Click navigation tab button",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "ERR-08",
+    "error": "TypeError: Cannot read properties of undefined (reading 'token')\n    at authSetup (tests/fixtures/auth.js:15:32)",
+    "testTitle": "User logs in with fixture session",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "ERR-09",
+    "error": "page.fill: Error: element is not an <input>, <textarea> or [contenteditable] element",
+    "testTitle": "Fill search keyword into span element",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "ERR-10",
+    "error": "Error: locator.selectOption: Element is not a <select> element\nCall log: waiting for locator('div.custom-dropdown')",
+    "testTitle": "Select category from dropdown",
+    "expectedCategory": "test_bug"
+  },
+  {
+    "id": "ERR-11",
+    "error": "page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:4000/login",
+    "testTitle": "Navigate to login screen on local dev server",
+    "expectedCategory": "environment"
+  },
+  {
+    "id": "ERR-12",
+    "error": "page.goto: Timeout 30000ms exceeded.\nCall log: navigating to \"https://staging.app.example.com\", waiting until \"load\"",
+    "testTitle": "Staging server navigation timeout",
+    "expectedCategory": "environment"
+  },
+  {
+    "id": "ERR-13",
+    "error": "page.goto: net::ERR_NAME_NOT_RESOLVED at https://invalid-domain-service.internal",
+    "testTitle": "Connect to internal billing microservice",
+    "expectedCategory": "environment"
+  },
+  {
+    "id": "ERR-14",
+    "error": "Error: page.goto: 502 Bad Gateway while loading https://api.staging.internal/v1/health",
+    "testTitle": "Verify reverse proxy routing",
+    "expectedCategory": "environment"
+  },
+  {
+    "id": "ERR-15",
+    "error": "page.goto: net::ERR_NETWORK_CHANGED navigation failed",
+    "testTitle": "Navigate during network interface restart",
+    "expectedCategory": "environment"
+  },
+  {
+    "id": "ERR-16",
+    "error": "locator.click: Error: Element is not receiving click events, obscured by <div class=\"modal-backdrop fade show\">",
+    "testTitle": "Click confirm button while modal animation is running",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "ERR-17",
+    "error": "locator.click: Error: Element <button id=\"cta\"> is covered by overlay <div class=\"cookie-banner\">",
+    "testTitle": "Click call to action banner",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "ERR-18",
+    "error": "locator.click: Element is not receiving events because <div class=\"toast-notification\"> intercepts pointer events",
+    "testTitle": "Click save profile while toast alert is displayed",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "ERR-19",
+    "error": "TimeoutError: locator.waitFor: Timeout 1000ms exceeded due to CSS slide-in animation intercepting click",
+    "testTitle": "Rapid tab navigation before animation ends",
+    "expectedCategory": "flaky"
+  },
+  {
+    "id": "ERR-20",
+    "error": "locator.click: Error: Target element detached from DOM during re-render, retried on next attempt",
+    "testTitle": "Optimistic UI update race condition",
+    "expectedCategory": "flaky"
+  }
+]

@@ -1,31 +1,13 @@
 # Learning Candidates (Pending Gate 0.5 Review)
 
 > [!NOTE]
-> Đây là nơi chứa các bài học, quan sát, quy tắc mới được AI và các Role trích xuất sau khi hoàn thành Feature, Bug fix, Review hoặc QA.
-> - Các candidate ở đây CHƯA PHẢI LÀ STANDARD cho đến khi được Knowledge Curator duyệt qua Gate 0.5.
-> - Sau khi được duyệt (`PROMOTED`) hoặc từ chối (`REJECTED`), script `optimize-knowledge.ps1` sẽ tự động chuyển mục này sang `.ai/learning/archive/` để tiết kiệm Token Context.
-> - Quy tắc viết: Tối đa 15 dòng/candidate, súc tích theo chuẩn DO/DON'T.
+> Bài học trích xuất sau Feature/QA (chờ Gate 0.5 duyệt). Trần file < 50 dòng, chuẩn DO/DON'T.
 
 ### [LEARN-MP-001] Anti-Happy-Path & Multi-Target Verification in Hub-Spoke
-- **Nguồn trích xuất:** Plan 12 Master Process Dashboard Integration Audit
-- **Role quan sát:** Senior QA Engineer & Tooling Lead
-- **Quan sát (Observation):** Mutex bị hở ở direct endpoints; bỏ quên vệ tinh CarThings; sợ trần dòng 250 nên bỏ tính năng thay vì refactor; để sót mock string cứng.
-- **Bằng chứng (Evidence):** Plan 12 Re-audit findings (masterProcessHelper.js, masterProcessService.js)
-- **DO:** Bọc Mutex ở service logic cho 100% mutation actions; kiểm tra toàn bộ N vệ tinh; refactor trước khi file > 90% trần dòng; viết API Contract tests (403, 409, 400).
-- **DON'T:** Không để mock string trong code chính thức; không nghiệm thu đại diện 1 vệ tinh rồi suy diễn cho toàn bộ.
-- **Đề xuất phân loại:** APPROVED STANDARD
-- **Phạm vi đề xuất:** PROJECT
-- **Đề xuất Owner duyệt:** Technical Lead / Principal QA
-- **Trạng thái:** PENDING
+- **Quan sát/DO:** Bọc Mutex ở service logic cho 100% mutation; kiểm tra toàn bộ N vệ tinh; refactor trước khi file > 90% trần dòng; viết API Contract tests (403, 409, 400). Không để mock string trong code chính thức. **Trạng thái:** PENDING
 
 ### [LEARN-API-002] Mandatory End-to-End API Verification for New Pages & Features
-- **Nguồn trích xuất:** Plan 13 Settings & Doctor/Probes HTTP 400 Incident
-- **Role quan sát:** Senior QA Engineer & Backend Web Developer
-- **Quan sát (Observation):** Nút Doctor/Probes bấm trả về HTTP 400 vì backend nhầm exit code 1 của công cụ chẩn đoán (có cảnh báo) thành Bad Request (400); thiếu test click thực tế cho toàn bộ API endpoints của tính năng mới.
-- **Bằng chứng (Evidence):** masterProcessRoutes.js line 72 (res.ok ? 200 : 400), masterProcessHelper.js
-- **DO:** Luôn test 100% API endpoints của page/tính năng mới (cả API trực tiếp lẫn click UI trên browser); lệnh chẩn đoán/quét hoàn thành phải trả về HTTP 200 kèm payload kết quả, không trả về 400 khi tool có exit code 1 do phát hiện lỗi.
-- **DON'T:** Không nghiệm thu tính năng mới khi chưa click thử và assert 200 cho toàn bộ nút bấm/endpoint trên giao diện thực tế.
-- **Đề xuất phân loại:** APPROVED STANDARD
+- **Quan sát/DO:** Test 100% API endpoints của tính năng mới (cả API trực tiếp lẫn click UI); lệnh chẩn đoán có exit code 1 vẫn trả về HTTP 200 kèm kết quả, không trả về 400. **Trạng thái:** PENDING
 - **Phạm vi đề xuất:** PROJECT & DASHBOARD
 - **Đề xuất Owner duyệt:** Lead QA / Framework Architect
 - **Trạng thái:** PENDING
@@ -46,4 +28,8 @@
 - **Trạng thái:** PENDING
 
 ### [LEARN-QA-006] Mutation từ finding: tính lại từ file thật, đồng bộ cả tập, kiểm chứng rồi mới giữ
-- **Quan sát/DO:** Conflict Studio từng tin AC client gửi + chỉ lấy AC đầu → sync "thành công" mà xung đột vẫn còn. Server phải tự tính lại bằng chính analyzer, sửa cả TẬP AC, chạy lại analyzer sau khi ghi và hoàn tác nếu còn lệch; token CSS mới phải thêm vào tokens.css (parity test chặn biến cục bộ). **Trạng thái:** PENDING
+- **Quan sát/DO:** Server phải tự tính lại bằng chính analyzer, sửa cả TẬP AC, hoàn tác nếu còn lệch; token CSS mới phải thêm vào tokens.css. **Trạng thái:** PENDING
+
+### [LEARN-AI-007] Jira Markup Parser Order & Vietnamese Diacritics in Slugs
+- **Quan sát:** (1) Jira numbered list `# item` nếu parse sau `h1.` -> `# Title` sẽ vô tình biến `# Title` thành `1. Title`. (2) `đ/Đ` tiếng Việt không bị tách bởi `normalize('NFD')` nên regex `[^a-z0-9]` sẽ nuốt mất hoặc biến thành gạch ngang đôi.
+- **DO:** Luôn parse numbered list `#` TRƯỚC heading `h1..h6`; thay thế `[đĐ] -> d` trước khi `normalize('NFD')`. **Trạng thái:** PENDING

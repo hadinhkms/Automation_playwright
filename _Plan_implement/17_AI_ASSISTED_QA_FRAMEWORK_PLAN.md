@@ -319,7 +319,7 @@ Mỗi chặng theo Master Process: contract AC/TC → implement → Gate 3 → G
 - [x] F3 Nhật ký AI (audit log) — bản gọn, chưa có trang xem → 17a
 - [ ] F4 Context Builder
 - [x] F5 Bộ component AI dùng chung → 17a (`aiDiffReview` chờ D2 của 17a)
-- [ ] F6 Eval harness
+- [x] F6 Eval harness → [17b](17b_TRIAGE_AND_JIRA_STORY_PLAN.md) (đạt 90% trên 20 test cases mẫu)
 - [ ] F6a Bộ dữ liệu mẫu từ CarThings (nằm lại trong repo CarThings)
 - [ ] F7 Siết an toàn Agent
 - [x] F8 Ngân sách token 5 giờ → 17a
@@ -330,7 +330,7 @@ Mỗi chặng theo Master Process: contract AC/TC → implement → Gate 3 → G
 - [ ] BA-1 Soát độ rõ requirement ⭐
 - [ ] BA-2 Viết AC Given/When/Then
 - [ ] BA-3 Ảnh hưởng khi REQ đổi
-- [ ] BA-4 Dán story từ Jira/Confluence ⭐
+- [x] BA-4 Dán story từ Jira/Confluence ⭐ → [17b](17b_TRIAGE_AND_JIRA_STORY_PLAN.md)
 - [ ] BA-5 Copy để dán lên Jira
 - [ ] PO-1 Bản tin sẵn sàng phát hành ⭐
 - [ ] PO-2 Ưu tiên test theo rủi ro
@@ -340,7 +340,7 @@ Mỗi chặng theo Master Process: contract AC/TC → implement → Gate 3 → G
 ### 9.5. QA
 - [ ] QA-1 Sinh TC từ AC (nâng cấp)
 - [ ] QA-2 Sinh Playwright spec từ TC ⭐
-- [ ] QA-3 Triage lỗi test ⭐
+- [x] QA-3 Triage lỗi test ⭐ → [17b](17b_TRIAGE_AND_JIRA_STORY_PLAN.md) (dual-engine: regex trước, AI sau)
 - [ ] QA-4 Bug report nháp
 - [ ] QA-5 Gợi ý sửa locator ⭐
 - [ ] QA-6 Phát hiện test flaky
