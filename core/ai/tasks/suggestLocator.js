@@ -1,10 +1,8 @@
 /**
  * core/ai/tasks/suggestLocator.js
- * AI task: Analyzes failed locator and DOM snippet to suggest resilient Playwright locators (QA-5).
+ * Deterministic task (0 token, no AI call): Analyzes failed locator and DOM snippet to suggest resilient Playwright locators (QA-5).
  * Strict ceiling <= 150 lines.
  */
-const { callAi } = require('../gateway/index');
-const { loadVersionedPrompt } = require('../prompts/promptLoader');
 
 const SCHEMA = {
   type: 'object',

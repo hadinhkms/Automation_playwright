@@ -80,12 +80,14 @@ test('Plan-17d Core Productivity Suite', async (t) => {
     assert.ok(res.changedAcs.some((a) => a.acId === 'AC-02' && a.changeType === 'added'));
   });
 
-  await t.test('P17D-TC-08: runGeneratePlaywrightSpec produces valid syntax spec with tags', async () => {
+  await t.test('P17D-TC-08: runGeneratePlaywrightSpec produces valid syntax spec with traceable titles', async () => {
     const tcList = [{ id: 'TC-01', title: 'Đăng nhập thành công', acId: 'AC-01' }];
     const res = await runGeneratePlaywrightSpec({ reqId: 'REQ-01', tcList });
     assert.equal(res.syntaxValid, true);
-    assert.ok(res.specCode.includes('@TC-01'));
-    assert.ok(res.specCode.includes('@AC-01'));
+    assert.ok(res.specCode.includes("'TC-01 - AC-01 Đăng nhập thành công'"));
+    assert.ok(res.specCode.includes('@REQ-01'));
+    // No step at all means nothing proves the AC: the test must not be able to pass.
+    assert.ok(res.specCode.includes('test.fixme('));
   });
 
   await t.test('P17D-TC-09: handleAiProductivityRoutes handles POST /api/ai/release-briefing', async () => {

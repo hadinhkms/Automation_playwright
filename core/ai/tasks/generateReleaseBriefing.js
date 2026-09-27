@@ -1,9 +1,8 @@
 /**
  * core/ai/tasks/generateReleaseBriefing.js
- * AI task: Generates release readiness briefing and Go / No-Go verdict for PO (PO-1).
+ * Deterministic task (0 token, no AI call): Generates release readiness briefing and Go / No-Go verdict for PO (PO-1).
  * Strict ceiling <= 150 lines.
  */
-const { callAi } = require('../gateway/index');
 
 const SCHEMA = {
   type: 'object',

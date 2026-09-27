@@ -29,7 +29,7 @@ test.describe('Plan-17d: Core Productivity UI E2E Suite', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          source: 'ai',
+          source: 'rule',
           verdict: 'GO_WITH_CAUTION',
           readinessScore: 88,
           headline: 'Đánh giá phát hành: GO WITH CAUTION',
@@ -67,21 +67,7 @@ test.describe('Plan-17d: Core Productivity UI E2E Suite', () => {
     await expect(modal).not.toBeVisible();
   });
 
-  test('P17D-TC-11: QA-2 Playwright Spec Generator produces valid code within Requirement modal', async ({ page }) => {
-    await page.route('**/api/ai/generate-spec', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          source: 'ai',
-          fileName: 'user_profile.spec.js',
-          specCode: `// @ts-check\nconst { test, expect } = require('@playwright/test');\ntest.describe('Profile Suite', () => {\n  test('TC-01: Edit profile @AC-01', async ({ page }) => {\n    await expect(page.locator('h1')).toBeVisible();\n  });\n});`,
-          usedPageObjects: ['profilePage.js'],
-          summary: 'Playwright spec sinh thành công với Level 1 Sandbox.'
-        })
-      });
-    });
-
+  test('P17D-TC-11: QA-2 Playwright Spec Generator turns quoted AC steps into runnable spec code', async ({ page }) => {
     await page.goto(harness.url);
     await page.waitForLoadState('domcontentloaded');
 
@@ -97,17 +83,24 @@ test.describe('Plan-17d: Core Productivity UI E2E Suite', () => {
     await openBtn.click();
 
     const textarea = page.locator('#qa-req-analyzer-text');
-    await textarea.fill('Yêu cầu: Người dùng cập nhật hồ sơ cá nhân và lưu thành công.');
+    await textarea.fill([
+      '## AC-001: Cập nhật hồ sơ',
+      '**Given** người dùng mở trang "/profile"',
+      '**When** nhập "Nguyễn Văn A" vào "Họ tên" và bấm nút "Lưu"',
+      '**Then** hiển thị "Đã lưu hồ sơ"'
+    ].join('\n'));
 
     const genSpecBtn = page.locator('#qa-req-btn-generate-spec');
     await expect(genSpecBtn).toBeVisible();
     await genSpecBtn.click();
 
-    // Spec tab should become active and display code
     const specResult = page.locator('#qa-req-spec-result');
     await expect(specResult).toBeVisible({ timeout: 10000 });
-    await expect(specResult).toContainText('user_profile.spec.js');
-    await expect(specResult).toContainText('Profile Suite');
+    await expect(specResult).toContainText('tests/e2e/req-001.spec.js');
+    await expect(specResult).toContainText('1/1 test chạy được');
+    await expect(specResult).toContainText("await basePage.navigate('/profile');");
+    await expect(specResult).toContainText("TC-001 - AC-001");
+    await expect(specResult).not.toContainText('page.getBy');
   });
 
   test('P17D-TC-12: QA-5 Locator Repair button suggests resilient locator in diagnostics panel', async ({ page }) => {

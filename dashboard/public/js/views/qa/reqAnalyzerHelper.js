@@ -13,6 +13,7 @@ export class ReqAnalyzerHelper {
     this.qaSlice = qaSlice;
     this.disposers = [];
     this.currentResult = null;
+    this.currentTestCases = [];
     this.currentRawText = '';
   }
 
@@ -98,13 +99,13 @@ export class ReqAnalyzerHelper {
     // Bắt đầu phân tích
     addEvt(submitBtn, 'click', () => this.runAnalysis(root));
 
-    // BA-1: Soát độ rõ requirement (AI)
+    // BA-1: Soát độ rõ requirement
     addEvt(clarityBtn, 'click', () => this.runClarityCheck(root));
 
-    // QA-1: Sinh test case từ AC (AI)
+    // QA-1: Sinh test case từ AC
     addEvt(generateTcBtn, 'click', () => this.runGenerateTestCases(root));
 
-    // QA-2: Sinh Playwright spec từ test cases (AI)
+    // QA-2: Sinh Playwright spec từ test cases
     const generateSpecBtn = root.querySelector('#qa-req-btn-generate-spec');
     if (generateSpecBtn) {
       addEvt(generateSpecBtn, 'click', () => this.runGenerateSpec(root));
@@ -176,12 +177,12 @@ export class ReqAnalyzerHelper {
     const scoreColors = {
       clear: '#10b981',
       needs_clarification: '#f59e0b',
-      highly_ambiguous: '#ef4444'
+      ambiguous: '#ef4444'
     };
     const statusLabels = {
       clear: 'Rõ ràng (Đạt chuẩn)',
       needs_clarification: 'Cần làm rõ thêm',
-      highly_ambiguous: 'Quá mơ hồ / Thiếu tiêu chí'
+      ambiguous: 'Quá mơ hồ / Thiếu tiêu chí'
     };
     const color = scoreColors[res.status] || '#f59e0b';
     const label = statusLabels[res.status] || res.status;
@@ -229,7 +230,7 @@ export class ReqAnalyzerHelper {
       ${res.clarifiedDraft ? `
         <div style="background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <strong style="font-size: 12.5px; color: var(--accent);"><i class="ph-bold ph-sparkle"></i> Đề xuất viết lại theo chuẩn BDD (Given-When-Then):</strong>
+            <strong style="font-size: 12.5px; color: var(--accent);"><i class="ph-bold ph-note-pencil"></i> Bản nháp BDD (Given-When-Then) — điền các chỗ &lt;…&gt;:</strong>
             <button type="button" class="btn-text-sm" id="btn-copy-bdd-draft" style="color: var(--accent); font-size: 11.5px; cursor: pointer; border: none; background: transparent;">
               <i class="ph-bold ph-copy"></i> Sao chép BDD
             </button>
@@ -275,8 +276,6 @@ export class ReqAnalyzerHelper {
       const reqId = jiraKeyInput?.value.trim() || this.extractJiraKey(rawText) || 'REQ-001';
 
       const res = await apiClient.post('/api/ai/generate-tc', {
-        reqId,
-        reqTitle: 'Yêu cầu tính năng',
         criteriaText: rawText,
         startTcNumber: 1
       });
@@ -286,18 +285,21 @@ export class ReqAnalyzerHelper {
       if (loadingSection) loadingSection.style.display = 'none';
       if (resultsSection) resultsSection.style.display = 'flex';
 
+      const typeLabels = { positive: 'Positive', negative: 'Negative', boundary: 'Boundary' };
       const formattedTcs = (res.testCases || []).map((tc) => ({
         suggestedId: tc.tcId,
+        acId: tc.acId,
         title: tc.title,
-        type: tc.type === 'positive' ? 'Positive' : tc.type === 'negative' ? 'Negative' : tc.type === 'boundary' ? 'Boundary' : 'Security',
-        priority: 'P1',
+        type: typeLabels[tc.type] || 'Positive',
+        priority: tc.priority || 'P1',
         precondition: tc.given,
-        steps: [
-          { step: 1, action: tc.when, expected: tc.then }
-        ],
-        testData: tc.tags ? tc.tags.join(', ') : ''
+        steps: Array.isArray(tc.steps) && tc.steps.length
+          ? tc.steps
+          : [{ step: 1, action: tc.when, expected: tc.then }],
+        testData: tc.testData || ''
       }));
 
+      this.currentTestCasesText = rawText;
       this.renderTestCases(root, formattedTcs);
       const tabTcCount = root.querySelector('#qa-req-tab-tc-count');
       const statTc = root.querySelector('#qa-req-stat-tc');
@@ -305,7 +307,7 @@ export class ReqAnalyzerHelper {
       if (statTc) statTc.textContent = `${formattedTcs.length} TCs`;
 
       this.switchTab(root, 'tc');
-      toast.success(`Đã sinh thành công ${formattedTcs.length} Test Cases bằng AI!`);
+      toast.success(`Đã sinh ${formattedTcs.length} test case. ${res.coverageNotes || ''}`.trim());
     } catch (err) {
       if (loadingSection) loadingSection.style.display = 'none';
       if (inputSection) inputSection.style.display = 'flex';
@@ -337,14 +339,11 @@ export class ReqAnalyzerHelper {
 
       const res = await apiClient.post('/api/ai/generate-spec', {
         reqId,
-        requirementTitle: 'Yêu cầu tự động hóa',
-        tcList: [
-          { id: `${reqId}-TC-01`, title: 'Xác thực luồng chính', acId: 'AC-01' },
-          { id: `${reqId}-TC-02`, title: 'Xác thực trường hợp biên', acId: 'AC-02' }
-        ]
+        tcList: this.currentTestCasesText === rawText ? (this.currentTestCases || []) : [],
+        criteriaText: rawText
       });
 
-      if (!res.specCode) throw new Error('Không nhận được mã nguồn spec từ AI.');
+      if (!res.specCode) throw new Error(res.error || 'Không sinh được mã nguồn spec.');
 
       if (loadingSection) loadingSection.style.display = 'none';
       if (resultsSection) resultsSection.style.display = 'flex';
@@ -373,7 +372,7 @@ export class ReqAnalyzerHelper {
             <i class="ph-bold ph-file-code" style="color: #6366f1; font-size: 18px;"></i>
             <strong style="font-family: var(--font-mono, monospace); font-size: 13px;">${this._escape(res.fileName || 'spec.js')}</strong>
             <span style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(99, 102, 241, 0.15); color: #6366f1; font-weight: 600;">
-              ${res.source === 'ai' ? '✦ AI Đề xuất (với Level 1 Sandbox)' : '⚙ Heuristic Skeleton'}
+              ${(res.tests || []).filter((t) => t.runnable).length}/${(res.tests || []).length} test chạy được
             </span>
           </div>
           <button type="button" class="btn-secondary-sm" id="btn-copy-spec-code" style="font-size: 11.5px;">
@@ -461,7 +460,7 @@ export class ReqAnalyzerHelper {
     }
 
     this.currentRawText = rawText;
-    const mode = root.querySelector('input[name="qa-req-mode"]:checked')?.value || 'ai';
+    const mode = root.querySelector('input[name="qa-req-mode"]:checked')?.value || 'heuristic';
     const scanExisting = Boolean(root.querySelector('#qa-req-analyzer-scan-ctx')?.checked);
 
     const inputSection = root.querySelector('#qa-req-analyzer-input-section');
@@ -494,7 +493,7 @@ export class ReqAnalyzerHelper {
     }
 
     if (this._statusBar) {
-      this._statusBar.setPending('Đang chờ AI phân tích requirement…', { showCancel: true });
+      this._statusBar.setPending(mode === 'ai' ? 'Đang chờ AI phân tích requirement…' : 'Đang phân tích requirement…', { showCancel: true });
     }
 
     const startAi = window.AiRequest && typeof window.AiRequest.startAiRequest === 'function';
@@ -525,6 +524,7 @@ export class ReqAnalyzerHelper {
       if (loadingSection) loadingSection.style.display = 'none';
       if (resultsSection) resultsSection.style.display = 'flex';
 
+      this.currentTestCasesText = rawText;
       this.renderResults(root, res);
       toast.success('Phân tích requirement thành công!');
     } catch (err) {
@@ -612,6 +612,8 @@ export class ReqAnalyzerHelper {
   }
 
   renderTestCases(root, testCases) {
+    // "Sinh Spec" đọc lại đúng danh sách đang hiển thị (từ Phân tích hoặc Sinh Test Case).
+    this.currentTestCases = testCases;
     const container = root.querySelector('#qa-req-tc-list');
     if (!container) return;
     container.innerHTML = '';
@@ -963,8 +965,9 @@ export class ReqAnalyzerHelper {
 
   extractJiraKey(text) {
     if (!text) return null;
-    const match = String(text).match(/\b([A-Z][A-Z0-9]+-\d+)\b/);
-    return match ? match[1] : null;
+    // AC-xxx / TC-xxx là mã truy vết của framework, không phải issue Jira (giống core/ai/tasks/jiraStoryParser.js).
+    const keys = String(text).match(/\b[A-Z][A-Z0-9]+-\d+\b/g) || [];
+    return keys.find((key) => !['AC', 'TC'].includes(key.split('-')[0])) || null;
   }
 
   _escape(str) {

@@ -1,9 +1,8 @@
 /**
  * core/ai/tasks/analyzeRequirementChange.js
- * AI task: Analyzes diff between old and new requirement markdown (BA-3).
+ * Deterministic task (0 token, no AI call): Analyzes diff between old and new requirement markdown (BA-3).
  * Strict ceiling <= 150 lines.
  */
-const { callAi } = require('../gateway/index');
 
 const SCHEMA = {
   type: 'object',

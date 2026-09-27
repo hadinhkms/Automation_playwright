@@ -8,7 +8,7 @@ const { createCopilotService } = require('../../core/ai/copilotService');
 const { analyzeDiagnostics } = require('../../core/diagnostics/diagnosticsAnalyzer');
 const { sendJson, parseBody, abortSignalFor } = require('./routeUtils');
 const { getUsageStatus } = require('../../core/ai/gateway/usage');
-const { runTriageFailure } = require('../../core/ai/tasks/triageFailure');
+const { heuristicTriage } = require('../../core/ai/tasks/triageFailure');
 const {
   isCrossSiteRequest, resolveModelsRequest, resolveTestConnection, validateConfigBody,
 } = require('../services/aiEndpointPolicy');
@@ -133,17 +133,6 @@ async function handleAiRoutes(request, response, url, context = {}) {
     return sendJson(response, 200, usage) || true;
   }
 
-  if (request.method === 'GET' && url.pathname === '/api/ai/audit') {
-    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50', 10)));
-    const records = readRecentAuditRecords({ root, limit });
-    return sendJson(response, 200, { success: true, count: records.length, records }) || true;
-  }
-
-  if (request.method === 'POST' && url.pathname === '/api/ai/audit/clear') {
-    clearAuditLogs({ root });
-    return sendJson(response, 200, { success: true, message: 'Đã xóa nhật ký AI.' }) || true;
-  }
-
   if (request.method === 'POST' && url.pathname === '/api/ai/inline-suggest') {
     try {
       const body = await parseBody(request, 64 * 1024);
@@ -177,67 +166,17 @@ async function handleAiRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/diagnostics/triage') {
     try {
       const body = await parseBody(request, 128 * 1024);
-      const ruleResult = analyzeDiagnostics(body);
-      const mode = body.mode || 'auto';
-
-      if (mode !== 'ai' && ruleResult.topCategory !== 'unknown' && (ruleResult.findings[0]?.confidence || 0) >= 0.85) {
-        sendJson(response, 200, {
-          ok: true,
-          source: 'rule',
-          category: ruleResult.topCategory,
-          confidence: Math.round((ruleResult.findings[0]?.confidence || 0.8) * 100),
-          summary: ruleResult.findings[0]?.message || 'Lỗi kiểm thử.',
-          evidence: ruleResult.findings[0]?.evidence?.map((e) => e.value).join('\n') || '',
-          suggestedFix: ruleResult.findings[0]?.suggestedFix?.preview || '',
-          findings: ruleResult.findings
-        });
-        return true;
-      }
-
-      const errorText = [body.error, body.message, body.stack].filter(Boolean).join('\n');
-      let clientConfig = null;
-      try {
-        const rawHeader = request.headers['x-ai-config'];
-        if (rawHeader) clientConfig = JSON.parse(rawHeader);
-      } catch (_) {}
-
-      const triageRes = await runTriageFailure({
-        errorText,
+      const result = heuristicTriage({
+        errorText: [body.error, body.message, body.stack].filter(Boolean).join('\n'),
         testTitle: body.testTitle || '',
         locator: body.locator || '',
         snippet: body.snippet || '',
         consoleLogs: body.consoleLogs || '',
         url: body.url || '',
-        clientConfig,
-        signal: abortSignalFor(request, response)
+        status: body.status || '',
+        retry: body.retry || 0,
       });
-
-      if (triageRes.ok) {
-        sendJson(response, 200, {
-          ok: true,
-          source: 'ai',
-          category: triageRes.category,
-          confidence: triageRes.confidence,
-          summary: triageRes.summary,
-          evidence: triageRes.evidence,
-          suggestedFix: triageRes.suggestedFix,
-          model: triageRes.model,
-          requestId: triageRes.requestId,
-          findings: ruleResult.findings
-        });
-      } else {
-        sendJson(response, 200, {
-          ok: true,
-          source: 'rule',
-          fallbackNotice: 'AI không khả dụng, sử dụng luật chẩn đoán tĩnh.',
-          category: ruleResult.topCategory,
-          confidence: Math.round((ruleResult.findings[0]?.confidence || 0.5) * 100),
-          summary: ruleResult.findings[0]?.message || 'Lỗi kiểm thử Playwright.',
-          evidence: errorText.slice(0, 1000),
-          suggestedFix: ruleResult.findings[0]?.suggestedFix?.preview || 'Kiểm tra lại kịch bản test.',
-          findings: ruleResult.findings
-        });
-      }
+      sendJson(response, 200, result);
     } catch (e) { sendJson(response, 422, { error: e.message }); }
     return true;
   }

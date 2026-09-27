@@ -15157,12 +15157,12 @@ function initVisualBuilderControls() {
 }
 
 async function initPlanThreeControls() {
-  const runTriage = async (mode = 'auto') => {
+  const runTriage = async () => {
     const input = document.getElementById('diagnostics-error-input');
     const results = document.getElementById('diagnostics-results');
     if (!input?.value.trim()) return notify('Vui lòng dán lỗi hoặc stack trace.');
 
-    results.innerHTML = `<div style="padding: 12px; color: var(--muted);"><i class="ph-bold ph-spinner" style="animation: spin 1s linear infinite;"></i> Đang phân tích nguyên nhân lỗi (${mode === 'ai' ? 'AI Gateway RCA' : 'Luật suy luận & AI'})...</div>`;
+    results.innerHTML = `<div style="padding: 12px; color: var(--muted);"><i class="ph-bold ph-spinner" style="animation: spin 1s linear infinite;"></i> Đang phân tích nguyên nhân lỗi...</div>`;
 
     try {
       const res = await request('/api/diagnostics/triage', {
@@ -15170,8 +15170,7 @@ async function initPlanThreeControls() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           error: input.value,
-          testTitle: currentRun?.options?.spec || '',
-          mode
+          testTitle: currentRun?.options?.spec || ''
         }),
       });
 
@@ -15179,33 +15178,29 @@ async function initPlanThreeControls() {
         product_bug: { label: 'Lỗi sản phẩm (Product Bug)', color: 'var(--danger, #ef4444)' },
         test_bug: { label: 'Lỗi kịch bản test (Test Bug)', color: 'var(--warning, #f59e0b)' },
         environment: { label: 'Lỗi hạ tầng / mạng (Environment)', color: 'var(--muted, #6b7280)' },
-        flaky: { label: 'Lỗi chập chờn / Flaky (Timing)', color: 'var(--accent, #8b5cf6)' }
+        flaky: { label: 'Lỗi chập chờn / Flaky (Timing)', color: 'var(--accent, #8b5cf6)' },
+        unknown: { label: 'Chưa xác định được nguyên nhân', color: 'var(--muted, #6b7280)' }
       };
 
-      const catInfo = catLabels[res.category] || { label: res.category || 'Chưa rõ', color: 'var(--text)' };
-      const sourceBadge = res.source === 'ai'
-        ? `<span style="font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: rgba(139, 92, 246, 0.15); color: #8b5cf6; font-weight: 600;">AI · triage (${escapeHtml(res.model || 'fast')})</span>`
-        : `<span style="font-size: 10.5px; padding: 2px 7px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 600;">Luật suy luận (0 token)</span>`;
+      const catInfo = catLabels[res.category] || catLabels.unknown;
 
       results.innerHTML = `
         <article class="diagnostic-finding" style="display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--surface-2);">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <strong style="color: ${catInfo.color}; font-size: 13.5px;">${catInfo.label}</strong>
-              <small style="color: var(--muted); font-size: 11.5px;">(Độ tin cậy: ${res.confidence || 75}%)</small>
+              <small style="color: var(--muted); font-size: 11.5px;">(Độ tin cậy: ${Number(res.confidence) || 0}%)</small>
             </div>
-            ${sourceBadge}
           </div>
           <p style="margin: 0; font-size: 13px; line-height: 1.45; color: var(--text);">${escapeHtml(res.summary || '')}</p>
           ${res.evidence ? `<pre style="margin: 0; padding: 8px; font-size: 11.5px; background: var(--surface); border-radius: 6px; overflow-x: auto; color: var(--muted); max-height: 120px;"><code>${escapeHtml(res.evidence)}</code></pre>` : ''}
           ${res.suggestedFix ? `<div class="diagnostic-fix-preview" style="font-size: 12px; padding: 8px 10px; border-radius: 6px; background: rgba(139, 92, 246, 0.08); border-left: 3px solid #8b5cf6;"><strong>Gợi ý khắc phục:</strong> ${escapeHtml(res.suggestedFix)}</div>` : ''}
-          ${res.fallbackNotice ? `<small style="color: var(--warning); font-size: 11px;">${escapeHtml(res.fallbackNotice)}</small>` : ''}
           <div style="display: flex; gap: 8px; margin-top: 6px;">
             <button type="button" class="btn-secondary-sm" id="btn-diagnostics-draft-bug" style="font-size: 11.5px; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);" title="Soạn thảo Bug Report chi tiết chuẩn Jira từ kết quả chẩn đoán lỗi">
-              <i class="ph-bold ph-bug"></i> ✦ Soạn Bug nháp (Jira/Markdown)
+              <i class="ph-bold ph-bug"></i> Soạn Bug nháp (Jira/Markdown)
             </button>
-            <button type="button" class="btn-secondary-sm" id="btn-diagnostics-suggest-locator" style="font-size: 11.5px; color: #3b82f6; border-color: rgba(59, 130, 246, 0.4);" title="Đề xuất locator Playwright bền vững từ DOM (QA-5)">
-              <i class="ph-bold ph-crosshair"></i> ✦ Sửa Locator (AI)
+            <button type="button" class="btn-secondary-sm" id="btn-diagnostics-suggest-locator" style="font-size: 11.5px; color: #3b82f6; border-color: rgba(59, 130, 246, 0.4);" title="Đề xuất locator Playwright bền vững từ locator lỗi và DOM (QA-5)">
+              <i class="ph-bold ph-crosshair"></i> Đề xuất locator
             </button>
           </div>
           <div id="diagnostics-bug-report-container" style="display: none; margin-top: 8px;"></div>
@@ -15233,7 +15228,6 @@ async function initPlanThreeControls() {
             <div style="border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: var(--surface); display: flex; flex-direction: column; gap: 6px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <strong style="font-size: 12.5px; color: var(--accent);"><i class="ph-bold ph-crosshair"></i> ${escapeHtml(sug.type || 'Locator')} (Độ tin cậy: ${Math.round((sug.confidence || 0.8) * 100)}%)</strong>
-                <span style="font-size: 10.5px; padding: 2px 6px; border-radius: 4px; background: rgba(59, 130, 246, 0.15); color: #3b82f6; font-weight: 700;">${escapeHtml(locRes.source === 'ai' ? '✦ AI' : '⚙ Heuristic')}</span>
               </div>
               <pre style="margin: 0; padding: 8px; font-size: 12px; font-family: var(--font-mono, monospace); background: var(--surface-2); border-radius: 4px; color: #10b981; white-space: pre-wrap;"><code>${escapeHtml(sug.code || '')}</code></pre>
               <small style="color: var(--muted); font-size: 11px;">${escapeHtml(sug.rationale || '')}</small>
@@ -15269,7 +15263,7 @@ async function initPlanThreeControls() {
               errorText: input.value,
               triageCategory: res.category,
               triageSummary: res.summary,
-              snippet: res.evidence,
+              suggestedFix: res.suggestedFix || '',
               locator: res.locator || '',
             })
           }).then(r => r.json());
@@ -15305,8 +15299,7 @@ async function initPlanThreeControls() {
     }
   };
 
-  document.getElementById('diagnostics-analyze-btn')?.addEventListener('click', () => runTriage('auto'));
-  document.getElementById('diagnostics-ai-btn')?.addEventListener('click', () => runTriage('ai'));
+  document.getElementById('diagnostics-analyze-btn')?.addEventListener('click', () => runTriage());
 }
 
 let builderLoadedFixtures = [];

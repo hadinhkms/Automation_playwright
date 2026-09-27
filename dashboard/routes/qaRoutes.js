@@ -33,7 +33,7 @@ const {
 const {
   getConflictContext,
   resolveConflict,
-  arbitrateWithAi,
+  arbitrateConflict,
   escalateConflictToDecision,
 } = require('../services/qaConflictService');
 const { withWriteLock } = require('../services/qaBatchSessionStore');
@@ -288,7 +288,7 @@ async function handleQaRoutes(request, response, url, context = {}) {
       const result = await analyzeRequirement({
         root,
         rawText: body.rawText,
-        mode: body.mode || 'ai',
+        mode: body.mode === 'ai' ? 'ai' : 'heuristic',
         scanExisting: body.scanExisting !== false,
         clientConfig,
         signal,
@@ -361,18 +361,7 @@ async function handleQaRoutes(request, response, url, context = {}) {
   if (request.method === 'POST' && url.pathname === '/api/qa/conflict/arbitrate') {
     try {
       const body = await parseBody(request, 64 * 1024);
-      const signal = abortSignalFor(request, response);
-      let clientConfig = body.clientConfig || null;
-      if (!clientConfig && request.headers['x-ai-config']) {
-        try { clientConfig = JSON.parse(Buffer.from(request.headers['x-ai-config'], 'base64').toString('utf8')); } catch {}
-      }
-      sendJson(response, 200, await arbitrateWithAi({
-        root,
-        tcId: body.tcId,
-        specFile: body.specFile,
-        clientConfig,
-        signal,
-      }));
+      sendJson(response, 200, arbitrateConflict({ root, tcId: body.tcId, specFile: body.specFile }));
     } catch (error) {
       sendConflictError(error);
     }

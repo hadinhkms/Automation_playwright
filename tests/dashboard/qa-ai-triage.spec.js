@@ -34,22 +34,23 @@ test.describe('Plan-17b: Failure Triage & Jira Story E2E Suite', () => {
 
     const input = page.locator('#diagnostics-error-input');
     const analyzeBtn = page.locator('#diagnostics-analyze-btn');
-    const aiBtn = page.locator('#diagnostics-ai-btn');
 
     await expect(analyzeBtn).toBeVisible();
-    await expect(aiBtn).toBeVisible();
+    // Triage chạy hoàn toàn bằng luật: không còn nút hay nhãn AI trong panel.
+    await expect(page.locator('#diagnostics-ai-btn')).toHaveCount(0);
 
-    // 1. Phân tích tự động bằng luật tĩnh (Rule-based, 0 token)
     await input.fill('Error: expect(received).toBe(expected)\nExpected: 200\nReceived: 500');
     await analyzeBtn.click();
 
     const results = page.locator('#diagnostics-results');
     await expect(results).toContainText('Lỗi sản phẩm (Product Bug)', { timeout: 5000 });
-    await expect(results).toContainText('Luật suy luận (0 token)');
+    await expect(results).toContainText('Độ tin cậy: 95%');
+    await expect(page.locator('.diagnostics-panel')).not.toContainText(/\bAI\b|✦/);
 
-    // 2. Chẩn đoán chuyên sâu qua AI RCA button
-    await aiBtn.click();
-    await expect(results).toBeVisible();
+    // Lỗi kết nối được xếp vào môi trường, không bị đoán là lỗi kịch bản.
+    await input.fill('Error: connect ECONNREFUSED 127.0.0.1:3000');
+    await analyzeBtn.click();
+    await expect(results).toContainText('Lỗi hạ tầng / mạng (Environment)', { timeout: 5000 });
   });
 
   test('P17B-TC-09: Requirement Studio modal supports Jira key and cleans markup (UI-04)', async ({ page }) => {

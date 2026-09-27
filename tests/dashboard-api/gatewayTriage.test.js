@@ -37,15 +37,8 @@ test('Plan-17b Failure Triage & Jira Parser Suite', async (t) => {
     assert.equal(res.findings[0].confidence >= 0.9, true);
   });
 
-  await t.test('P17B-TC-02 & 03: runTriageFailure classifies root cause via AI gateway', async () => {
-    const aiPayload = {
-      category: 'product_bug',
-      confidence: 88,
-      summary: 'Backend trả về mã lỗi 500 khi submit form thanh toán.',
-      evidence: 'Expected: 200\nReceived: 500',
-      suggestedFix: 'Kiểm tra backend API /api/checkout xử lý ngoại lệ.'
-    };
-    fakeServer.options.responseText = JSON.stringify(aiPayload);
+  await t.test('P17B-TC-02 & 03: runTriageFailure classifies root cause by rules only, even with an AI key', async () => {
+    fakeServer.options.responseText = JSON.stringify({ category: 'flaky', confidence: 99 });
 
     const clientConfig = { provider: '9router', apiKey: 'test-key', baseURL: fakeServer.getBaseUrl() };
     const res = await runTriageFailure({
@@ -56,10 +49,15 @@ test('Plan-17b Failure Triage & Jira Parser Suite', async (t) => {
     });
 
     assert.equal(res.ok, true);
+    assert.equal(res.source, 'rule');
     assert.equal(res.category, 'product_bug');
-    assert.equal(res.confidence, 88);
-    assert.match(res.summary, /Backend/);
-    assert.equal(['product_bug', 'test_bug', 'environment', 'flaky'].includes(res.category), true);
+    assert.equal(res.confidence, 93);
+    assert.match(res.summary, /500/);
+    assert.equal(fakeServer.requests.length, 0);
+
+    const unknown = await runTriageFailure({ errorText: 'Some random failure log' });
+    assert.equal(unknown.category, 'unknown');
+    assert.equal(['product_bug', 'test_bug', 'environment', 'flaky', 'unknown'].includes(unknown.category), true);
   });
 
   await t.test('P17B-TC-04: Diagnostics detects flaky and locator issues correctly', async () => {

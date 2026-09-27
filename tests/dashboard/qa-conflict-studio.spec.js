@@ -201,10 +201,11 @@ test.describe('QA: Traceability Conflict Studio', () => {
     await openFindings(page, harness.url);
     await openGroup(page, 'tests/e2e/login.spec.js');
     const c = card(page, 'TC-011');
-    await c.getByRole('button', { name: 'Trọng tài AI' }).click();
+    await c.getByRole('button', { name: 'Đề xuất phân xử' }).click();
     const verdict = c.locator('.qa-conflict-verdict');
     await expect(verdict).toContainText('Đề xuất:');
     await expect(verdict).toContainText(/Độ tin cậy \d+%/);
+    await expect(verdict).not.toContainText(/\bAI\b|✦/);
     await expect(verdict.locator('.qa-conflict-verdict-reason')).not.toBeEmpty();
     await verdict.getByRole('button', { name: 'Áp dụng đề xuất' }).click();
     await expect(card(page, 'TC-011')).toHaveCount(0);

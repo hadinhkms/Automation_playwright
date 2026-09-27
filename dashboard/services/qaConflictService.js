@@ -20,10 +20,9 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { parseEnvFile } = require('../routes/aiRoutes');
+const { spawnSync } = require('node:child_process');
 const { createBackup } = require('./resourceService');
 const { resolveSafePath } = require('./qaFindingFixerService');
-const { mayUseServerKey } = require('./aiEndpointPolicy');
 
 // qaService nạp module này để gắn dữ liệu xung đột vào finding, nên phải nạp ngược lại một
 // cách lười (lúc gọi hàm) để tránh vòng require trả về exports rỗng.
@@ -43,7 +42,6 @@ const RE_TEST_TITLE = /(?<!\.)\btest\s*\(\s*(['"`])([\s\S]*?)\1/g; // khớp par
 const RE_SPEC_FILE = /\.spec\.(js|ts)$/;
 const RE_AC_GAP = /^[\s,;/&+@]*(?:(?:và|and)[\s,;/&+@]*)?$/i;
 const MAX_DECISIONS_BYTES = 1_048_576;
-const AI_TIMEOUT_MS = 45000;
 
 function httpError(message, status, extra = {}) {
   return Object.assign(new Error(message), { status }, extra);
@@ -476,7 +474,7 @@ function getConflictContext(root, payload = {}) {
 // Trọng tài
 // ---------------------------------------------------------------------------
 
-function heuristicVerdict(ctx) {
+function heuristicVerdict(ctx, recency = {}) {
   const defined = (ac) => Boolean(ctx.acDefinitions[ac]);
   const hasAnyDefinition = Object.keys(ctx.acDefinitions).length > 0;
   const undefinedSpec = ctx.specOnly.filter((ac) => !defined(ac));
@@ -504,6 +502,21 @@ function heuristicVerdict(ctx) {
       reason: `Tài liệu khai ${undefinedDoc.join(', ')} nhưng requirement không định nghĩa AC này, trong khi spec có assertion thật.`,
     };
   }
+  const { spec, doc } = recency;
+  if (spec && doc && spec !== doc) {
+    const fmt = (ms) => new Date(ms).toISOString().slice(0, 10);
+    return spec > doc
+      ? {
+        recommendation: 'sync_doc_to_spec',
+        confidence: 75,
+        reason: `Spec được sửa sau tài liệu (spec ${fmt(spec)}, tài liệu ${fmt(doc)}) và có assertion thật — nhiều khả năng tài liệu chưa cập nhật theo ${ctx.specAcs.join(', ')}.`,
+      }
+      : {
+        recommendation: 'sync_spec_to_doc',
+        confidence: 75,
+        reason: `Tài liệu được sửa sau spec (tài liệu ${fmt(doc)}, spec ${fmt(spec)}) — nhiều khả năng tag AC trong spec chưa cập nhật theo ${ctx.docAcs.join(', ')}.`,
+      };
+  }
   return {
     recommendation: 'sync_doc_to_spec',
     confidence: 60,
@@ -511,48 +524,42 @@ function heuristicVerdict(ctx) {
   };
 }
 
-const { runArbitrateConflict } = require('../../core/ai/tasks/arbitrateConflict');
-
-function parseAiVerdict(text) {
-  const clean = String(text).replace(/```json\s*/gi, '').replace(/```/g, '').trim();
-  const start = clean.indexOf('{');
-  const end = clean.lastIndexOf('}');
-  const parsed = JSON.parse(start >= 0 && end > start ? clean.slice(start, end + 1) : clean);
-  if (!RESOLUTION_TYPES.includes(parsed.recommendation)) throw new Error('AI trả phương án không hợp lệ');
-  const confidence = Math.max(0, Math.min(100, Math.round(parseFloat(String(parsed.confidence).replace('%', '')) || 0)));
-  const reason = String(parsed.reason || '').trim().slice(0, 600);
-  if (!reason) throw new Error('AI không giải thích căn cứ');
-  return { recommendation: parsed.recommendation, confidence, reason };
+function runGit(root, args) {
+  const res = spawnSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true, timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] });
+  return res.status === 0 ? String(res.stdout || '') : null;
 }
 
-async function arbitrateWithAi({ root = process.cwd(), tcId, specFile, clientConfig, signal = null } = {}) {
+// Thời điểm sửa gần nhất của từng file: file đang sửa dở dùng mtime, file sạch dùng giờ commit cuối.
+// mtime một mình không tin được vì checkout/clone đặt lại mtime cho mọi file.
+function lastChangedAt(root, relPaths) {
+  // Porcelain lines are "XY path"; the leading status column may be a space, so never trim before slicing.
+  const dirty = new Set((runGit(root, ['status', '--porcelain=v1', '--', ...relPaths]) || '')
+    .split(/\r?\n/).filter((line) => line.trim()).map((line) => toPosix(line.slice(3).trim())));
+  const times = relPaths.map((rel) => {
+    if (dirty.has(toPosix(rel))) {
+      try { return fs.statSync(path.join(root, rel)).mtimeMs; } catch (_) { return null; }
+    }
+    const committed = Number(runGit(root, ['log', '-1', '--format=%ct', '--', rel]));
+    return committed > 0 ? committed * 1000 : null;
+  });
+  return times;
+}
+
+function arbitrateConflict({ root = process.cwd(), tcId, specFile } = {}) {
   const ctx = getConflictContext(root, { tcId, specFile });
   if (ctx.inSync) {
     throw httpError(`${ctx.tcId} đã khớp giữa spec và tài liệu — không còn gì để phân xử.`, 409);
   }
-  const base = {
+  const [specTime, ...docTimes] = lastChangedAt(root, [ctx.specFile, ...ctx.docFiles]);
+  const knownDocTimes = docTimes.filter(Boolean);
+  const recency = { spec: specTime, doc: knownDocTimes.length ? Math.max(...knownDocTimes) : null };
+  return {
     tcId: ctx.tcId,
     specFile: ctx.specFile,
     specAcs: ctx.specAcs,
     docAcs: ctx.docAcs,
-  };
-  const fallback = heuristicVerdict(ctx);
-
-  const res = await runArbitrateConflict({ ctx, clientConfig, root, signal });
-  if (!res.ok) {
-    const why = res.error?.message || 'lỗi không rõ';
-    return { ...base, ...fallback, engine: 'heuristic', engineNote: `AI không dùng được (${why}) — dùng luật suy luận tĩnh.` };
-  }
-
-  return {
-    ...base,
-    recommendation: res.recommendation,
-    confidence: res.confidence,
-    reason: res.reason,
-    engine: 'ai',
-    engineNote: `${res.model}`,
-    requestId: res.requestId,
-    usage: res.usage
+    ...heuristicVerdict(ctx, recency),
+    engine: 'heuristic',
   };
 }
 
@@ -674,12 +681,11 @@ module.exports = {
   getConflictState,
   getConflictContext,
   resolveConflict,
-  arbitrateWithAi,
+  arbitrateConflict,
   escalateConflictToDecision,
   // xuất cho unit test
   rewriteAcRun,
   rewriteDocText,
   rewriteSpecText,
   heuristicVerdict,
-  parseAiVerdict,
 };

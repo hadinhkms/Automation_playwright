@@ -4,7 +4,6 @@
  * Strict ceiling <= 150 lines.
  */
 const path = require('path');
-const { callAi } = require('../gateway/index');
 
 const SCHEMA = {
   type: 'object',

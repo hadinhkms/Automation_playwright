@@ -1167,9 +1167,10 @@ async function extractScaffoldFromRaw(root, payload = {}) {
     ? String(payload.domain).trim().toLowerCase()
     : inferDomainFromText(rawContent, existingDomains);
 
-  // Thử AI Semantic Engine nếu không bị vô hiệu hóa
+  // Test script đã có cấu trúc (test title, tag @TC/@AC, step) nên đọc bằng code là đủ và không bị
+  // viết lại spec. Chỉ văn bản spec thô mới thử AI Semantic Engine, và chỉ khi không bị vô hiệu hóa.
   let aiResult = null;
-  if (payload.useAi !== false) {
+  if (!isTestScript && payload.useAi !== false) {
     try {
       aiResult = await extractWithAi(root, rawContent, inputType, reqId, domain, payload);
     } catch (err) {

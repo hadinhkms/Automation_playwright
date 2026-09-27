@@ -92,12 +92,10 @@ async function handleAiProductivityRoutes(request, response, url, clientConfig) 
     const result = await runGeneratePlaywrightSpec({
       reqId: body.reqId || 'REQ-001',
       requirementTitle: body.requirementTitle || '',
-      tcList: body.tcList || [],
-      availablePageObjects: body.availablePageObjects || [],
-      signal,
-      clientConfig
+      tcList: Array.isArray(body.tcList) ? body.tcList : [],
+      criteriaText: typeof body.criteriaText === 'string' ? body.criteriaText : ''
     });
-    return sendJson(response, 200, result);
+    return sendJson(response, result.ok ? 200 : 400, result);
   }
 
   return false;

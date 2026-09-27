@@ -4,6 +4,7 @@
  * The .env key must never travel to an endpoint named by the request. Every QA service that
  * calls an AI provider takes a baseURL from the request (clientConfig or payload), so each one
  * is exercised against two fake providers: the saved endpoint and an attacker-chosen one.
+ * Features that run on rules (arbitration, test-script scaffolding, default analysis) must reach neither.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -13,7 +14,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { inferWithAi, extractScaffoldFromRaw } = require('./qaInferenceService');
 const { analyzeRequirement } = require('./qaRequirementAnalyzerService');
-const { arbitrateWithAi } = require('./qaConflictService');
+const { arbitrateConflict } = require('./qaConflictService');
 
 const SERVER_KEY = 'fixture-server-key';
 
@@ -106,17 +107,35 @@ test('analyzeRequirement: clientConfig.baseURL lạ thì rơi về heuristic, kh
   });
 });
 
-test('arbitrateWithAi: clientConfig.baseURL lạ thì dùng luật, không gọi ra ngoài', async () => {
-  await withRepo(CONFLICT_FILES, async (root) => {
-    const res = await arbitrateWithAi({ root, tcId: 'TC-011', specFile: 'tests/login.spec.js', clientConfig: { baseURL: other.base } });
-    assert.equal(res.engine, 'heuristic');
-    assert.equal(other.calls.length, 0);
+test('analyzeRequirement: mode ai với key .env gọi đúng endpoint đã lưu', async () => {
+  await withRepo({}, async (root) => {
+    await analyzeRequirement({ root, rawText: 'Đăng nhập bằng email', mode: 'ai', scanExisting: false });
+    assert.deepEqual(saved.calls.map((c) => c.authorization), [`Bearer ${SERVER_KEY}`]);
   });
 });
 
-test('arbitrateWithAi: không có clientConfig thì key .env đi tới endpoint đã lưu', async () => {
+test('analyzeRequirement: không nêu mode thì chạy luật, không gọi ra ngoài', async () => {
+  await withRepo({}, async (root) => {
+    const res = await analyzeRequirement({ root, rawText: 'Đăng nhập bằng email', scanExisting: false });
+    assert.equal(res.engine, 'heuristic');
+    assert.equal(saved.calls.length + other.calls.length, 0);
+  });
+});
+
+test('extractScaffoldFromRaw: test script được đọc bằng code, không gọi AI dù có key .env', async () => {
+  await withRepo({}, async (root) => {
+    const script = "const { test, expect } = require('@playwright/test');\ntest('TC-001 - AC-001 đăng nhập', async ({ page }) => { await expect(page).toHaveURL(/login/); });\n";
+    const res = await extractScaffoldFromRaw(root, { rawContent: script });
+    assert.equal(res.engine, 'heuristic');
+    assert.equal(saved.calls.length + other.calls.length, 0);
+  });
+});
+
+test('arbitrateConflict: phân xử bằng luật, không gọi provider nào dù có key .env', async () => {
   await withRepo(CONFLICT_FILES, async (root) => {
-    await arbitrateWithAi({ root, tcId: 'TC-011', specFile: 'tests/login.spec.js' });
-    assert.deepEqual(saved.calls.map((c) => c.authorization), [`Bearer ${SERVER_KEY}`]);
+    const res = arbitrateConflict({ root, tcId: 'TC-011', specFile: 'tests/login.spec.js' });
+    assert.equal(res.engine, 'heuristic');
+    assert.equal(res.recommendation, 'sync_spec_to_doc');
+    assert.equal(saved.calls.length + other.calls.length, 0);
   });
 });

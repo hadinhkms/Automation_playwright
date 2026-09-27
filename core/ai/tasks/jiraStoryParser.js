@@ -6,8 +6,9 @@
 
 function extractJiraKey(text = '') {
   if (!text) return null;
-  const match = String(text).match(/\b([A-Z][A-Z0-9]+-\d+)\b/);
-  return match ? match[1] : null;
+  // AC-xxx / TC-xxx are the framework's traceability IDs, not Jira issues.
+  const keys = String(text).match(/\b[A-Z][A-Z0-9]+-\d+\b/g) || [];
+  return keys.find((key) => !['AC', 'TC'].includes(key.split('-')[0])) || null;
 }
 
 function cleanConfluenceHtml(html = '') {

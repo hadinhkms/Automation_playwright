@@ -1,9 +1,8 @@
 /**
  * core/ai/tasks/reviewSpec.js
  * Automated Playwright spec code review (QA-9).
- * Static lint rules run first (0 token), AI provides logical audit. Strict ceiling <= 150 lines.
+ * Static lint rules only (0 token, no AI call). Strict ceiling <= 150 lines.
  */
-const { callAi } = require('../gateway/index');
 
 const SCHEMA = {
   type: 'object',

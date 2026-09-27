@@ -1,6 +1,7 @@
 /**
  * tests/dashboard-api/gatewayFastWins.test.js
  * Verifies Plan-17c Fast Wins: Requirement Clarity (BA-1), Bug Draft (QA-4), TC Gen (QA-1).
+ * All three are rule engines now; the fake provider only proves that no AI call is made.
  * Strict ceiling <= 150 lines.
  */
 const test = require('node:test');
@@ -35,16 +36,7 @@ test('Plan-17c Fast Wins Tasks Suite', async (t) => {
     assert.equal(detected.includes('nếu cần'), true);
   });
 
-  await t.test('P17C-TC-02: runCheckRequirementClarity returns clarity score, ambiguities and BDD draft', async () => {
-    fakeServer.options.responseText = JSON.stringify({
-      score: 65,
-      status: 'needs_clarification',
-      summary: 'Yêu cầu có tiêu chí nhưng chứa từ định tính thiếu mốc thời gian.',
-      ambiguities: [{ phrase: 'nhanh chóng', reason: 'Không có mốc SLA', suggestion: 'xử lý dưới 2000ms' }],
-      missingAspects: ['thiếu timeout', 'thiếu kịch bản mất mạng'],
-      clarifiedDraft: 'Given giỏ hàng hợp lệ When bấm thanh toán Then hoàn tất dưới 2 giây'
-    });
-
+  await t.test('P17C-TC-02: runCheckRequirementClarity scores clarity by rules and never calls AI, even with a key', async () => {
     const clientConfig = { provider: '9router', apiKey: 'test-key', baseURL: fakeServer.getBaseUrl() };
     const res = await runCheckRequirementClarity({
       requirementText: 'Hệ thống xử lý thanh toán nhanh chóng.',
@@ -54,55 +46,46 @@ test('Plan-17c Fast Wins Tasks Suite', async (t) => {
     });
 
     assert.equal(res.ok, true);
-    assert.equal(res.score, 65);
-    assert.equal(res.status, 'needs_clarification');
-    assert.equal(res.ambiguities.length >= 1, true);
-    assert.match(res.clarifiedDraft, /Given/);
+    assert.equal(res.source, 'rule');
+    assert.equal(res.status, 'ambiguous');
+    assert.deepEqual(res.ambiguities.map((a) => a.phrase), ['nhanh chóng']);
+    assert.match(res.clarifiedDraft, /Given[\s\S]*When[\s\S]*Then .*<nhanh chóng → /);
+    assert.equal(fakeServer.requests.length, 0);
   });
 
-  await t.test('P17C-TC-03: runDraftBugReport generates structured bug report from failure', async () => {
-    fakeServer.options.responseText = JSON.stringify({
-      title: '[Bug] Nút Thêm xe không thể bấm được do popup che khuất',
-      severity: 'Major',
-      stepsToReproduce: ['1. Đăng nhập học viên', '2. Mở tab Xe', '3. Bấm Thêm xe'],
-      expectedResult: 'Mở form thêm xe mới',
-      actualResult: 'TimeoutError: element obscured by backdrop',
-      environment: 'URL: https://carthings.vn, Chrome',
-      suggestedFix: 'Đóng modal trước khi bấm hoặc thêm timeout'
-    });
-
+  await t.test('P17C-TC-03: runDraftBugReport builds the report from failure artifacts only', async () => {
     const clientConfig = { provider: '9router', apiKey: 'test-key', baseURL: fakeServer.getBaseUrl() };
     const res = await runDraftBugReport({
       testTitle: 'Học viên đăng ký xe mới',
-      errorText: 'TimeoutError: locator.click obscured by backdrop',
+      errorText: "TimeoutError: locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Thêm xe' }) to be visible",
+      locator: "getByRole('button', { name: 'Thêm xe' })",
+      triageCategory: 'test_bug',
       clientConfig,
       root: ws.rootPath
     });
 
     assert.equal(res.ok, true);
-    assert.equal(res.severity, 'Major');
-    assert.match(res.title, /\[Bug\]/);
-    assert.equal(res.stepsToReproduce.length >= 1, true);
+    assert.equal(res.source, 'rule');
+    assert.equal(res.severity, 'Minor');
+    assert.match(res.title, /^\[Test\] Học viên đăng ký xe mới/);
+    assert.match(res.expectedResult, /5000ms/);
     assert.match(res.markdownReport, /### Steps to Reproduce/);
+    assert.match(res.markdownReport, /### Evidence:/);
+    assert.equal(fakeServer.requests.length, 0);
   });
 
-  await t.test('P17C-TC-04: runGenerateTestCases generates BDD test cases with tags from AC', async () => {
-    fakeServer.options.responseText = JSON.stringify({
-      testCases: [
-        { tcId: 'TC-001', acId: 'AC-001', title: 'Đăng ký xe hợp lệ', type: 'positive', given: 'Đã login', when: 'Gửi 29A-123.45', then: 'Lưu xe', tags: ['@smoke'] },
-        { tcId: 'TC-002', acId: 'AC-001', title: 'Báo lỗi trống', type: 'negative', given: 'Ở form xe', when: 'Gửi rỗng', then: 'Báo lỗi', tags: ['@bva'] }
-      ],
-      coverageNotes: 'Bao phủ cả happy path và negative path'
-    });
+  await t.test('P17C-TC-04: runGenerateTestCases maps every case to its AC with positive, negative and format cases', async () => {
     const clientConfig = { provider: '9router', apiKey: 'test-key', baseURL: fakeServer.getBaseUrl() };
     const res = await runGenerateTestCases({
-      reqId: 'REQ-013', reqTitle: 'Đăng ký xe học viên', criteriaText: 'AC-001: Biển số xe không được để trống.',
+      reqId: 'REQ-013', reqTitle: 'Đăng ký xe học viên', criteriaText: 'AC-001: Biển số xe không được để trống và theo định dạng chuẩn Việt Nam.',
       startTcNumber: 1, clientConfig, root: ws.rootPath
     });
     assert.equal(res.ok, true);
-    assert.equal(res.testCases.length, 2);
-    assert.equal(res.testCases[0].tcId, 'TC-001');
-    assert.equal(res.testCases[1].type, 'negative');
+    assert.equal(res.source, 'rule');
+    assert.deepEqual(res.testCases.map((tc) => tc.tcId), ['TC-001', 'TC-002', 'TC-003']);
+    assert.deepEqual(res.testCases.map((tc) => tc.type), ['positive', 'negative', 'negative']);
+    assert.ok(res.testCases.every((tc) => tc.acId === 'AC-001'));
+    assert.equal(fakeServer.requests.length, 0);
   });
 
   await t.test('P17C-TC-05: handleAiFastWinsRoutes dispatches fast wins API routes', async () => {

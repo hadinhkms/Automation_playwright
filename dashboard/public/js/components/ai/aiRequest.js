@@ -7,12 +7,13 @@
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.AiRequest = factory();
 })(typeof self !== 'undefined' ? self : this, function() {
+  // Same key and "enabled" rule as Settings → Cấu hình AI and agent.js; the old key was never written.
   function readClientConfigHeader() {
     try {
-      const saved = localStorage.getItem('qa_dashboard_ai_client_config');
+      const saved = localStorage.getItem('qa_studio_ai_personal_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed?.apiKey) return btoa(unescape(encodeURIComponent(JSON.stringify(parsed))));
+        if (parsed?.enabled && parsed?.apiKey) return btoa(unescape(encodeURIComponent(JSON.stringify(parsed))));
       }
     } catch (_) {}
     return null;
@@ -25,7 +26,7 @@
       return { code: 'RATE_LIMITED', message: `Chạm giới hạn tốc độ. Vui lòng chờ ${sec}s.` };
     }
     if (status === 401 || status === 403) return { code: 'AUTH', message: 'API key không hợp lệ hoặc không có quyền.' };
-    if (status === 409) return { code: 'BUSY', message: 'Hệ thống đang bận xử lý tác vụ AI khác.' };
+    if (status === 409) return { code: 'BUSY', message: (typeof data?.error === 'string' && data.error) || 'Hệ thống đang bận xử lý tác vụ AI khác.' };
     if (status === 413) return { code: 'TOO_LARGE', message: 'Dữ liệu quá dài, vui lòng rút gọn nội dung.' };
     return { code: 'PROVIDER_DOWN', message: data?.error?.message || data?.error || 'Lỗi kết nối tới nhà cung cấp AI.' };
   }
