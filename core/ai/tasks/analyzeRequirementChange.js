@@ -81,46 +81,8 @@ async function runAnalyzeRequirementChange({
   signal = null,
   clientConfig = null
 } = {}) {
-  const fallback = heuristicReqDiff(oldContent, newContent, reqId);
-
-  const system = `Bạn là Senior Business Analyst (BA) kiêm Quality Analyst.
-Hãy so sánh hai bản tài liệu Requirement (cũ vs mới) để phát hiện sự thay đổi về Acceptance Criteria (AC), đánh giá mức độ ảnh hưởng và chỉ rõ các Test Case/Spec bị tác động.
-Trả về JSON đúng schema.`;
-  const user = `Mã Requirement: ${reqId}
-Bản cũ:
-\`\`\`markdown
-${oldContent.slice(0, 3000)}
-\`\`\`
-Bản mới:
-\`\`\`markdown
-${newContent.slice(0, 3000)}
-\`\`\``;
-
-  try {
-    const result = await callAi({
-      task: 'analyzeRequirementChange',
-      system,
-      user,
-      schema: SCHEMA,
-      signal,
-      clientConfig
-    });
-
-    if (result && result.impactSeverity && Array.isArray(result.changedAcs)) {
-      return {
-        source: 'ai',
-        impactSeverity: result.impactSeverity,
-        summary: result.summary || fallback.summary,
-        changedAcs: result.changedAcs,
-        affectedTcIds: result.affectedTcIds || fallback.affectedTcIds,
-        suggestedActions: result.suggestedActions || fallback.suggestedActions
-      };
-    }
-  } catch (err) {
-    // Return fallback
-  }
-
-  return fallback;
+  // Pure deterministic text diffing & AC ID change detection (0 tokens, instantaneous)
+  return heuristicReqDiff(oldContent, newContent, reqId);
 }
 
 module.exports = {

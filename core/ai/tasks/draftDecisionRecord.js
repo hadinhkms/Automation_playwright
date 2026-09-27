@@ -66,44 +66,8 @@ async function runDraftDecisionRecord({
   signal = null,
   clientConfig = null
 } = {}) {
-  const fallback = heuristicDecisionRecord({ topic, contextText, proposedDecision, existingDecisions });
-
-  const system = `Bạn là Senior Technical Program Manager kiêm Enterprise Architect.
-Nhiệm vụ: Soạn thảo bản ghi quyết định kiến trúc (ADR) chuẩn mực, phát hiện các mâu thuẫn tiềm tàng với các quyết định đã có trong sổ quyết định.
-Trả về JSON đúng schema.`;
-  const user = `Chủ đề: ${topic}
-Bối cảnh: ${contextText}
-Quyết định đề xuất: ${proposedDecision}
-Danh sách quyết định hiện có:
-${JSON.stringify(existingDecisions.slice(0, 10), null, 2)}`;
-
-  try {
-    const result = await callAi({
-      task: 'draftDecisionRecord',
-      system,
-      user,
-      schema: SCHEMA,
-      signal,
-      clientConfig
-    });
-
-    if (result && result.title && result.decision) {
-      return {
-        source: 'ai',
-        decisionId: result.decisionId || fallback.decisionId,
-        title: result.title,
-        status: result.status || 'proposed',
-        context: result.context || fallback.context,
-        decision: result.decision,
-        consequences: result.consequences || fallback.consequences,
-        conflictWarning: result.conflictWarning || fallback.conflictWarning
-      };
-    }
-  } catch (err) {
-    // Return fallback
-  }
-
-  return fallback;
+  // Pure deterministic ADR templating & keyword contradiction detection (0 tokens, instantaneous)
+  return heuristicDecisionRecord({ topic, contextText, proposedDecision, existingDecisions });
 }
 
 module.exports = {

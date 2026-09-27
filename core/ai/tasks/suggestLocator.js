@@ -99,42 +99,8 @@ async function runSuggestLocator({
   signal = null,
   clientConfig = null
 } = {}) {
-  const fallback = heuristicLocatorRepair(brokenLocator, domSnippet);
-
-  const defaultSystem = 'Bạn là Senior Playwright Automation Architect. Đề xuất locator thay thế bền vững (getByRole, getByTestId, getByText). Trả về JSON đúng schema.';
-  const defaultUser = `Locator lỗi: ${brokenLocator}\nLỗi: ${errorMessage}\nURL: ${pageUrl}\nDOM:\n\`\`\`html\n${domSnippet.slice(0, 3000)}\n\`\`\``;
-
-  const { system, user } = loadVersionedPrompt({
-    task: 'suggestLocator',
-    vars: { brokenLocator, errorMessage, domSnippet: domSnippet.slice(0, 3000), pageUrl },
-    defaultSystem,
-    defaultUser
-  });
-
-  try {
-    const result = await callAi({
-      task: 'suggestLocator',
-      system,
-      user,
-      schema: SCHEMA,
-      signal,
-      clientConfig
-    });
-
-    if (result && result.primarySuggestion && result.primarySuggestion.code) {
-      return {
-        status: 'success',
-        source: 'ai',
-        primarySuggestion: result.primarySuggestion,
-        alternatives: result.alternatives || [],
-        rootCause: result.rootCause || 'Locator bị lệch do cấu trúc DOM thay đổi'
-      };
-    }
-  } catch (err) {
-    // Graceful fallback to heuristic
-  }
-
-  return fallback;
+  // Pure deterministic DOM attribute parser (getByTestId -> getByRole -> getByLabel, 0 tokens)
+  return heuristicLocatorRepair(brokenLocator, domSnippet);
 }
 
 module.exports = {

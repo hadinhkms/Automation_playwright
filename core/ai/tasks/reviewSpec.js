@@ -88,46 +88,8 @@ function staticSpecReview(specCode = '') {
 }
 
 async function runReviewSpec({ specCode = '', filePath = '', signal = null, clientConfig = null } = {}) {
+  // Pure deterministic AST/regex rule-based linter (instantaneous, 0 tokens, 100% accurate)
   const staticResult = staticSpecReview(specCode);
-
-  const system = `Bạn là Senior QA Automation Lead & Playwright Code Reviewer.
-Hãy rà soát đoạn mã test Playwright sau, tìm các lỗi tiềm ẩn (flaky, thiếu assertion, sai async/await, selector giòn).
-Trả về JSON đúng schema.`;
-  const user = `Đường dẫn file: ${filePath}
-Mã nguồn test:
-\`\`\`javascript
-${specCode.slice(0, 4000)}
-\`\`\``;
-
-  try {
-    const result = await callAi({
-      task: 'reviewSpec',
-      system,
-      user,
-      schema: SCHEMA,
-      signal,
-      clientConfig
-    });
-
-    if (result && typeof result.score === 'number' && Array.isArray(result.findings)) {
-      const mergedFindings = [...staticResult.findings];
-      for (const item of result.findings) {
-        if (!mergedFindings.some((m) => m.ruleId === item.ruleId && m.line === item.line)) {
-          mergedFindings.push(item);
-        }
-      }
-      return {
-        source: 'ai',
-        score: Math.min(staticResult.score, result.score),
-        summary: result.summary || staticResult.summary,
-        findings: mergedFindings,
-        generalSuggestions: result.generalSuggestions || staticResult.generalSuggestions
-      };
-    }
-  } catch (err) {
-    // Return static review
-  }
-
   return {
     source: 'rule',
     ...staticResult

@@ -75,43 +75,8 @@ async function runAnalyzeTestImpact({
   signal = null,
   clientConfig = null
 } = {}) {
-  const fallback = heuristicDiffAnalysis(changedFiles, diffText);
-
-  const system = `Bạn là Senior QA Test Architect kiêm CI/CD Impact Specialist.
-Hãy phân tích git diff và danh sách file thay đổi, xác định các file test Playwright bị ảnh hưởng và gợi ý các kịch bản kiểm thử biên cần bổ sung.
-Trả về JSON đúng schema.`;
-  const user = `Danh sách file thay đổi:
-${changedFiles.map((f) => '- ' + f).join('\n')}
-
-Git Diff:
-\`\`\`diff
-${(diffText || '').slice(0, 4000)}
-\`\`\``;
-
-  try {
-    const result = await callAi({
-      task: 'analyzeTestImpact',
-      system,
-      user,
-      schema: SCHEMA,
-      signal,
-      clientConfig
-    });
-
-    if (result && result.riskLevel && Array.isArray(result.affectedSpecs)) {
-      return {
-        source: 'ai',
-        riskLevel: result.riskLevel,
-        summary: result.summary || fallback.summary,
-        affectedSpecs: result.affectedSpecs,
-        recommendedNewTests: result.recommendedNewTests || fallback.recommendedNewTests
-      };
-    }
-  } catch (err) {
-    // Return fallback
-  }
-
-  return fallback;
+  // Pure deterministic git diff & page-object dependency mapping (0 tokens, instantaneous)
+  return heuristicDiffAnalysis(changedFiles, diffText);
 }
 
 module.exports = {

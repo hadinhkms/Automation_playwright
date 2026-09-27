@@ -74,43 +74,8 @@ async function runGenerateReleaseBriefing({
   signal = null,
   clientConfig = null
 } = {}) {
-  const fallback = heuristicReleaseBriefing({ testMetrics, uncoveredReqCount, openBlockersCount, releaseName });
-
-  const system = `Bạn là Senior QA Director & Release Manager.
-Hãy phân tích các chỉ số kiểm thử, độ phủ yêu cầu và lỗi tồn đọng để viết bản tin sẵn sàng phát hành sắc sảo (Executive Brief) kèm khuyến nghị Go/No-Go cho Product Owner.
-Trả về JSON đúng schema.`;
-  const user = `Phiên bản: ${releaseName}
-Chỉ số kiểm thử: ${JSON.stringify(testMetrics)}
-Requirement chưa phủ: ${uncoveredReqCount}
-Số lỗi Blocker mở: ${openBlockersCount}`;
-
-  try {
-    const result = await callAi({
-      task: 'generateReleaseBriefing',
-      system,
-      user,
-      schema: SCHEMA,
-      signal,
-      clientConfig
-    });
-
-    if (result && result.verdict && typeof result.readinessScore === 'number') {
-      return {
-        source: 'ai',
-        verdict: result.verdict,
-        readinessScore: result.readinessScore,
-        headline: result.headline || fallback.headline,
-        rationale: result.rationale || fallback.rationale,
-        blockers: result.blockers || fallback.blockers,
-        residualRisks: result.residualRisks || fallback.residualRisks,
-        highlights: result.highlights || fallback.highlights
-      };
-    }
-  } catch (err) {
-    // Return fallback
-  }
-
-  return fallback;
+  // Pure deterministic release readiness computation & Go/No-Go assessment (0 tokens)
+  return heuristicReleaseBriefing({ testMetrics, uncoveredReqCount, openBlockersCount, releaseName });
 }
 
 module.exports = {
