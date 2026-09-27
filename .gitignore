@@ -129,3 +129,18 @@ tests/dashboard/.tmp-workspace-*
 
 # Master Process Gate verification temporary artifacts & receipts
 /.gate-artifacts/
+
+# >>> master-process: AI scratch & caches (managed by Hub init/sync; edit outside this block) >>>
+_scratch/
+*.ai-test.*
+*.scratch.*
+.ai/learning/scratch/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.coverage.*
+.gate-artifacts/
+.DS_Store
+Thumbs.db
+# <<< master-process <<<

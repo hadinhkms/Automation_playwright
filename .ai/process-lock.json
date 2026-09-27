@@ -1,8 +1,8 @@
 {
   "version": "2.4.1",
-  "hub_commit": "bac11bee9b9d40f3ba9f8bbbbe501147323e439b",
+  "hub_commit": "2863a7cb2c167a629cc72e4642b92e7204cd4919",
   "hub_path": "D:/_Master_Process",
-  "installed_at": "2026-09-27T17:17:14.647037+00:00",
+  "installed_at": "2026-09-27T19:36:37.773752+00:00",
   "managed_files": [
     ".ai/learning/candidates.md",
     ".ai/knowledge/manifest.json",
@@ -32,6 +32,6 @@
     ".ai/learning/candidates.md": "2c7427b9197e37810a0084378b26973c5263b6f89f0515d43728028030f305f5",
     ".ai/learning/conflicts.md": "06152aa611ad9f9d7da5b993479d4559adbebc82ef595d6a6af7134100d9d76e",
     ".ai/learning/promotion-log.md": "708b20965ecad8496741ebab27df80b0fd1434f8843b35b12c8838c5a9a1da15",
-    "AGENTS.md": "e2fdaac8139359618f188a97f70ea4800cbd0bce97f4c9602beeab70660ba747"
+    "AGENTS.md": "4c217368a9a0b1a5d57d978f1ef2fa71ec746bec55a1663e90ff5375cd6316b7"
   }
 }

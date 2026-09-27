@@ -1,6 +1,7 @@
 # PLAN 11: SỬA SCAFFOLD & BỊT CÁC CỔNG FAIL-OPEN
 
 > **Phiên bản:** 1.0 — Ngày khởi tạo: 2026-09-21
+> **Trạng thái:** `HOÀN TẤT & ĐÃ TRIỂN KHAI (Khắc phục triệt để F-01..F-09, toàn bộ 224 unit test PASS 100%)`
 > **Phân loại triển khai:** L2 — Sửa lỗi mất dữ liệu, bịt fail-open ở cổng chất lượng, trả nợ Plan 10.
 > **Vị trí áp dụng:** `d:\_Script_automation` (`tools/scaffold`, `tools/qa`, `tools/boundary`, CI).
 > **Mục tiêu chất lượng:** Zero-Dependency Node core, unit test PASS 100%, `npm run qa:check` xanh, không phá ranh giới `sync-manifest.json`.

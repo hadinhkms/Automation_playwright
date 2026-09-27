@@ -1,7 +1,7 @@
 # Kế Hoạch 17a: Nền Tảng AI Tối Thiểu — AI Gateway, Tác Vụ, Component, Ngân Sách Token, Nhật Ký
 
 > **Mã kế hoạch:** `PLAN-17a` (Chặng 1 của [PLAN-17](17_AI_ASSISTED_QA_FRAMEWORK_PLAN.md) §6)
-> **Trạng thái:** `DRAFT v1 — CHỜ DUYỆT (mục 11 có 8 quyết định cần chốt trước khi soạn contract)`
+> **Trạng thái:** `HOÀN TẤT & ĐÃ NGHIỆM THU (100% PASS across 5 phases, commits 09a7140 -> c9a8de9, receipt plan-17a)`
 > **Phạm vi đã chọn (2026-09-26):** Option A · P3 (combo `qaFast`/`qaDeep`) · F1 AI Gateway · F9 `core/ai/tasks` · F5 component AI dùng chung · F8 ngân sách token 5 giờ · F3 nhật ký AI (bản gọn)
 > **Điều kiện đầu vào:** F0 đã xong (commit `45f85c2`, `216d35f`). Chủ dự án còn phải tạo key mới trong 9Router và cập nhật `.env`.
 > **Nhánh:** làm thẳng trên `main`, mỗi phase một commit có test xanh (PLAN-17 R7).
