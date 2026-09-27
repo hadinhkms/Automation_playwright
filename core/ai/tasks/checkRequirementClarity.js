@@ -1,7 +1,7 @@
 /**
  * core/ai/tasks/checkRequirementClarity.js
- * AI task: Analyzes requirement clarity, flags ambiguous phrases, and proposes sharpened BDD criteria (BA-1).
- * Strict ceiling <= 150 lines.
+ * Analyzes requirement clarity, flags ambiguous phrases, and proposes sharpened BDD criteria (BA-1).
+ * Deterministic rule-first engine (0 token) with optional AI fallback. Strict ceiling <= 150 lines.
  */
 const { callAi } = require('../gateway/index');
 
@@ -11,6 +11,15 @@ const AMBIGUOUS_WORDS = [
   'fast', 'quick', 'easy', 'user-friendly', 'as needed', 'appropriate',
   'suitable', 'reasonable', 'promptly'
 ];
+
+const PHRASE_SUGGESTIONS = {
+  'nhanh chóng': { reason: 'Thiếu mốc thời gian SLA cụ thể', suggestion: 'Xử lý phản hồi dưới 2000ms' },
+  'đẹp mắt': { reason: 'Cảm tính giao diện, không đo lường được', suggestion: 'Tuân thủ Figma Design Tokens & chuẩn WCAG' },
+  'dễ dàng': { reason: 'Thiếu định nghĩa số bước thao tác', suggestion: 'Hoàn tất trong tối đa 3 lần click' },
+  'nếu cần': { reason: 'Thiếu điều kiện rẽ nhánh logic rõ ràng', suggestion: 'Xác định rõ tiền điều kiện và quyền hạn vai trò' },
+  'mượt mà': { reason: 'Thiếu chỉ số khung hình hoặc độ trễ', suggestion: 'Tốc độ khung hình >= 60fps, không giật lag' },
+  'tiện lợi': { reason: 'Khái niệm định tính', suggestion: 'Tự động điền dữ liệu mặc định từ phiên trước' }
+};
 
 const SCHEMA = {
   type: 'object',
@@ -22,11 +31,7 @@ const SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        properties: {
-          phrase: { type: 'string' },
-          reason: { type: 'string' },
-          suggestion: { type: 'string' }
-        }
+        properties: { phrase: { type: 'string' }, reason: { type: 'string' }, suggestion: { type: 'string' } }
       }
     },
     missingAspects: { type: 'array', items: { type: 'string' } },
@@ -37,110 +42,68 @@ const SCHEMA = {
 function detectHeuristicAmbiguities(text = '') {
   if (!text || typeof text !== 'string') return [];
   const lower = text.toLowerCase();
-  const matched = [];
-  for (const word of AMBIGUOUS_WORDS) {
-    if (lower.includes(word)) {
-      matched.push(word);
-    }
-  }
-  return matched;
+  return AMBIGUOUS_WORDS.filter(w => lower.includes(w));
+}
+
+function heuristicCheckClarity({ requirementText = '', title = '' } = {}) {
+  const detected = detectHeuristicAmbiguities(requirementText);
+  const ambiguities = detected.map(phrase => ({
+    phrase,
+    reason: PHRASE_SUGGESTIONS[phrase]?.reason || 'Cụm từ định tính không đo lường kiểm thử được',
+    suggestion: PHRASE_SUGGESTIONS[phrase]?.suggestion || 'Bổ sung tiêu chí số lượng hoặc SLA đo lường cụ thể'
+  }));
+
+  const missingAspects = [];
+  if (!/\b(\d+|ms|s|giây|phút|giờ|mb|kb|%)\b/i.test(requirementText)) missingAspects.push('Tiêu chí đo lường định lượng / Thời gian SLA');
+  if (!/\b(given|when|then|cho|khi|thì)\b/i.test(requirementText)) missingAspects.push('Cấu trúc BDD (Given-When-Then)');
+  if (!/\b(lỗi|thất bại|fail|chặn|cảnh báo|không hợp lệ|trống)\b/i.test(requirementText)) missingAspects.push('Kịch bản xử lý ngoại lệ và thông báo lỗi');
+
+  let score = 100;
+  score -= Math.min(45, ambiguities.length * 15);
+  score -= missingAspects.length * 10;
+  if (requirementText.trim().length < 40) score -= 15;
+  score = Math.max(20, Math.min(100, score));
+
+  const status = score >= 85 ? 'clear' : score >= 60 ? 'needs_clarification' : 'ambiguous';
+  const summary = ambiguities.length
+    ? `Phát hiện ${ambiguities.length} từ ngữ định tính cần chuẩn hóa tiêu chí đo lường.`
+    : 'Requirement rõ ràng, có tiêu chí nghiệm thu cụ thể và đo lường được.';
+
+  const cleanReq = requirementText.slice(0, 120).trim().replace(/\s+/g, ' ');
+  const clarifiedDraft = `Given hệ thống và tài khoản người dùng sẵn sàng\nWhen thực hiện ${cleanReq} (phản hồi trong 2 giây)\nThen hệ thống xử lý thành công và hiển thị kết quả đo lường rõ ràng`;
+
+  return {
+    source: 'rule', ok: true, score, status, summary, ambiguities, missingAspects,
+    clarifiedDraft, detectedHeuristics: detected
+  };
 }
 
 function buildClarityPrompts({ requirementText = '', title = '', source = '' } = {}) {
-  const detected = detectHeuristicAmbiguities(requirementText);
-  const hint = detected.length ? `\nTừ ngữ định tính phát hiện qua luật: ${detected.join(', ')}` : '';
-
-  const system = `Bạn là Senior Business Analyst (BA) kiêm Requirements Engineer chuyên nghiệp.
-Nhiệm vụ của bạn là rà soát độ rõ ràng của tài liệu đặc tả yêu cầu (Requirement / Story) và phát hiện các câu từ mơ hồ, định tính, thiếu tiêu chí đo lường được (Testability & Measurability).
-Quy tắc chấm điểm:
-- "clear" (score 85-100): Tiêu chuẩn nghiệm thu đo được, có dữ liệu biên, rõ điều kiện thành công và thất bại.
-- "needs_clarification" (score 60-84): Có tiêu chí nhưng còn chứa 1-3 từ định tính hoặc thiếu trạng thái lỗi.
-- "ambiguous" (score 0-59): Quá mơ hồ, không có Given-When-Then, không kiểm thử tự động được.${hint}
-
-Phải trả về JSON đúng schema:
-{
-  "score": 0-100,
-  "status": "clear"|"needs_clarification"|"ambiguous",
-  "summary": "Tóm tắt đánh giá chất lượng đặc tả (1-2 câu tiếng Việt)",
-  "ambiguities": [
-    { "phrase": "cụm từ mơ hồ", "reason": "tại sao khó kiểm thử", "suggestion": "cách viết lại đo lường được" }
-  ],
-  "missingAspects": ["thiếu timeout", "thiếu kịch bản lỗi", ...],
-  "clarifiedDraft": "Đoạn văn bản đề xuất viết lại rõ ràng theo chuẩn BDD (Given-When-Then)"
-}`;
-
-  const user = `NỘI DUNG REQUIREMENT CẦN RÀ SOÁT:
-Tiêu đề: ${title || '(Chưa đặt)'}
-Nguồn gốc: ${source || 'Nội bộ'}
----
-${requirementText.slice(0, 4000)}
----
-Hãy phân tích và trả về đúng JSON schema quy định.`;
-
+  const system = `Bạn là Senior BA. Rà soát độ rõ ràng requirement và trả về JSON: { score (0-100), status ("clear"|"needs_clarification"|"ambiguous"), summary, ambiguities: [{ phrase, reason, suggestion }], missingAspects: [], clarifiedDraft }`;
+  const user = `YÊU CẦU: ${title || '(Chưa đặt)'} (${source || 'Nội bộ'})\n${requirementText.slice(0, 4000)}`;
   return [{ role: 'system', content: system }, { role: 'user', content: user }];
 }
 
 async function runCheckRequirementClarity({
-  requirementText = '',
-  title = '',
-  source = '',
-  clientConfig = null,
-  root = process.cwd(),
-  signal = null
+  requirementText = '', title = '', source = '', clientConfig = null, root = process.cwd(), signal = null
 } = {}) {
-  const detectedHeuristics = detectHeuristicAmbiguities(requirementText);
-  const messages = buildClarityPrompts({ requirementText, title, source });
-
-  const res = await callAi({
-    task: 'checkRequirementClarity',
-    messages,
-    schema: SCHEMA,
-    clientConfig,
-    root,
-    signal,
-    tier: 'fast',
-    timeoutMs: 45000,
-    temperature: 0.1
-  });
-
-  if (!res.ok) {
-    const ambiguities = detectedHeuristics.map((phrase) => ({
-      phrase, reason: 'Cụm từ định tính không đo lường được', suggestion: 'Bổ sung tiêu chí số lượng hoặc SLA'
-    }));
-    const score = Math.max(30, 95 - ambiguities.length * 15);
-    return {
-      ok: true, score, status: score >= 85 ? 'clear' : score >= 60 ? 'needs_clarification' : 'ambiguous',
-      summary: 'Phát hiện các từ định tính mơ hồ bằng quy chuẩn Heuristic (0 token).',
-      ambiguities, missingAspects: ['Tiêu chí đo lường định lượng', 'Thời gian phản hồi SLA'],
-      clarifiedDraft: requirementText ? `Given hệ thống sẵn sàng When ${requirementText.slice(0, 80)} Then kết quả đo lường rõ ràng` : '',
-      detectedHeuristics, fallbackNotice: 'Kết quả từ luật (không dùng AI): ' + (res.message || 'AI offline'), source: 'rule'
-    };
+  if (!clientConfig || !clientConfig.apiKey) {
+    return heuristicCheckClarity({ requirementText, title, source });
   }
-
-  const score = Math.max(0, Math.min(100, Math.round(Number(res.data?.score) || 70)));
-  const status = ['clear', 'needs_clarification', 'ambiguous'].includes(res.data?.status)
-    ? res.data.status
-    : score >= 85 ? 'clear' : score >= 60 ? 'needs_clarification' : 'ambiguous';
-
+  const messages = buildClarityPrompts({ requirementText, title, source });
+  const res = await callAi({ task: 'checkRequirementClarity', messages, schema: SCHEMA, clientConfig, root, signal, tier: 'fast', timeoutMs: 30000, temperature: 0.1 });
+  if (!res.ok || !res.data) {
+    return heuristicCheckClarity({ requirementText, title, source });
+  }
+  const d = res.data;
+  const score = Math.max(0, Math.min(100, Math.round(Number(d.score) || 70)));
+  const status = ['clear', 'needs_clarification', 'ambiguous'].includes(d.status) ? d.status : (score >= 85 ? 'clear' : score >= 60 ? 'needs_clarification' : 'ambiguous');
   return {
-    ok: true,
-    score,
-    status,
-    summary: String(res.data?.summary || 'Đã phân tích độ rõ yêu cầu.').trim(),
-    ambiguities: Array.isArray(res.data?.ambiguities) ? res.data.ambiguities : [],
-    missingAspects: Array.isArray(res.data?.missingAspects) ? res.data.missingAspects : [],
-    clarifiedDraft: String(res.data?.clarifiedDraft || '').trim(),
-    detectedHeuristics,
-    model: res.model,
-    tier: res.tier,
-    usage: res.usage,
-    requestId: res.requestId
+    ok: true, source: 'ai', score, status, summary: String(d.summary || 'Đã phân tích độ rõ yêu cầu.').trim(),
+    ambiguities: Array.isArray(d.ambiguities) ? d.ambiguities : [], missingAspects: Array.isArray(d.missingAspects) ? d.missingAspects : [],
+    clarifiedDraft: String(d.clarifiedDraft || '').trim(), detectedHeuristics: detectHeuristicAmbiguities(requirementText),
+    model: res.model, usage: res.usage, requestId: res.requestId
   };
 }
 
-module.exports = {
-  SCHEMA,
-  detectHeuristicAmbiguities,
-  buildClarityPrompts,
-  runCheckRequirementClarity
-};
+module.exports = { SCHEMA, detectHeuristicAmbiguities, heuristicCheckClarity, buildClarityPrompts, runCheckRequirementClarity };
