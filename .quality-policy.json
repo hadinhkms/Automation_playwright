@@ -1,0 +1,11 @@
+{
+  "code": {
+    "excludedFolders": [
+      "_backup_vieclam24h",
+      ".dashboard-backups",
+      ".dashboard-drafts",
+      ".tmp",
+      ".tmp-gate-runs"
+    ]
+  }
+}

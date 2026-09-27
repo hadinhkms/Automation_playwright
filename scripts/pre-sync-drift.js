@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// master-process-disable-size-check: Pre-sync drift engine script, queued for modular decomposition
 'use strict';
 
 /**

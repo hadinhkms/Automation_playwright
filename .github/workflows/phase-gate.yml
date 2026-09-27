@@ -1,5 +1,5 @@
-# .github/workflows/phase-gate.yml
-# Phase gate verification workflow for automated compliance reporting
+# Install as .github/workflows/phase-gate.yml in the child repository.
+# Protected repository variables must pin the Hub revision and the approved phase contract hash.
 name: Phase acceptance
 on:
   pull_request_review:
@@ -40,12 +40,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Prepare the actual application test environment
-        shell: pwsh
-        working-directory: project
-        run: |
-          pwsh -NoProfile -File ./.delivery/setup.ps1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Fetch authoritative review records
         shell: pwsh
         env:
@@ -64,7 +58,19 @@ jobs:
             $page++
           } while ($batch.Count -eq 100)
           ConvertTo-Json -InputObject $all -Depth 30 | Set-Content project/.gate-artifacts/scm.json -Encoding utf8
-      - name: Run regressions and an independent critical rerun
+      - name: Bind reviewed evidence to current execution
+        shell: pwsh
+        run: |
+          # Fails until the Gate 3 and the Gate 4 reviewer (two people) both approved this head.
+          python hub/scripts/prepare-gate-evidence.py --template project/.delivery/evidence.json --output project/.gate-artifacts/evidence.json --revision $env:HEAD_SHA --implementation-actor $env:PR_AUTHOR --session $env:SESSION --scm-reviews project/.gate-artifacts/scm.json
+          exit $LASTEXITCODE
+      - name: Prepare the actual application test environment
+        shell: pwsh
+        working-directory: project
+        run: |
+          pwsh -NoProfile -File ./.delivery/setup.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Run regressions and one independent critical rerun per signer
         shell: pwsh
         run: |
           $project = (Resolve-Path project).Path
@@ -72,17 +78,16 @@ jobs:
           # Child script must exit nonzero on any failure and produce named JUnit cases.
           python $runner --project $project --id ci --actor github-actions --session "ci:$env:SESSION" --junit .gate-artifacts/ci.xml --output .gate-artifacts/ci.json -- pwsh -NoProfile -File .delivery/run-regressions.ps1 -JunitPath .gate-artifacts/ci.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python $runner --project $project --id critical --actor $env:REVIEWER --session $env:SESSION --junit .gate-artifacts/critical.xml --output .gate-artifacts/critical.json -- pwsh -NoProfile -File .delivery/run-regressions.ps1 -JunitPath .gate-artifacts/critical.xml
-          exit $LASTEXITCODE
-      - name: Bind reviewed evidence to current execution
-        shell: pwsh
-        run: |
-          python hub/scripts/prepare-gate-evidence.py --template project/.delivery/evidence.json --output project/.gate-artifacts/evidence.json --revision $env:HEAD_SHA --implementation-actor $env:PR_AUTHOR --reviewer $env:REVIEWER --session $env:SESSION --scm-reviews project/.gate-artifacts/scm.json
-          exit $LASTEXITCODE
+          $reviews = (Get-Content project/.gate-artifacts/evidence.json -Raw | ConvertFrom-Json).reviews
+          foreach ($gate in 'gate3', 'gate4') {
+            $review = $reviews.$gate
+            python $runner --project $project --id "critical-$gate" --actor $review.actor --session $review.session --junit ".gate-artifacts/critical-$gate.xml" --output ".gate-artifacts/critical-$gate.json" -- pwsh -NoProfile -File .delivery/run-regressions.ps1 -JunitPath ".gate-artifacts/critical-$gate.xml"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - name: Enforce full phase exit criteria
         shell: pwsh
         run: |
-          python hub/scripts/verify-gate.py --project project --contract project/.delivery/contract.json --evidence project/.gate-artifacts/evidence.json --approved-contract-sha256 $env:APPROVED_HASH --revision $env:HEAD_SHA --gate 4 --run-record project/.gate-artifacts/ci.json --run-record project/.gate-artifacts/critical.json --scm-reviews project/.gate-artifacts/scm.json
+          python hub/scripts/verify-gate.py --project project --contract project/.delivery/contract.json --evidence project/.gate-artifacts/evidence.json --approved-contract-sha256 $env:APPROVED_HASH --revision $env:HEAD_SHA --gate 4 --run-record project/.gate-artifacts/ci.json --run-record project/.gate-artifacts/critical-gate3.json --run-record project/.gate-artifacts/critical-gate4.json --scm-reviews project/.gate-artifacts/scm.json
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         if: always()

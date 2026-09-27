@@ -1,4 +1,4 @@
-﻿# Cold Archive: 2026-09
+# Cold Archive: 2026-09
 
 > [!NOTE]
 > Processed candidates (Promoted/Rejected) archived during 2026-09.
@@ -227,3 +227,53 @@
   1. **Hủy Cache Ngay Khi Có Mutation:** Bất cứ khi nào có hành động tạo mới (`submitCreateDataset`), sửa đổi hoặc xóa (`data-delete-file-btn`) tệp dữ liệu, hệ thống BẮT BUỘC phải đồng bộ ngay lập tức các biến cache dùng chung giữa các phân hệ (`datasetsCache`, `wizardAvailableDatasets`).
   2. **Luôn Fetch Dữ Liệu Tươi (Fresh Data) Khi Mở Chế Độ Soạn Thảo:** Hàm `loadEditDatasets()` khi được gọi trong chế độ chỉnh sửa kịch bản phải luôn nạp danh sách tệp mới nhất từ `/api/data/datasets` thay vì tin tưởng vào mảng cache cũ trong bộ nhớ.
   3. **Lắng Nghe Sự Kiện Mở Rộng Khối (Accordion Expansion Trigger):** Khi người dùng mở rộng Khối 05 (Quản lý dữ liệu test), hệ thống chủ động gọi `loadEditDatasets(true)` để người dùng vừa tạo tệp ở tab khác quay lại là thấy ngay lập tức tệp vừa tạo.
+
+### [LEARN-MP-001] Anti-Happy-Path & Multi-Target Verification in Hub-Spoke
+- **DO:** Bọc Mutex ở service logic cho 100% mutation; kiểm tra toàn bộ N vệ tinh; refactor trước khi file > 90% trần dòng; viết API Contract tests (403, 409, 400). Không để mock string trong code chính thức.
+- **Enforced By:** tests/dashboard-api/qa.test.js
+- **Trạng thái:** AUTOMATED
+
+### [LEARN-API-002] Mandatory End-to-End API Verification for New Pages & Features
+- **DO:** Test 100% API endpoints của tính năng mới (cả API trực tiếp lẫn click UI); lệnh chẩn đoán có exit code 1 vẫn trả về HTTP 200 kèm kết quả, không trả về 400.
+- **Enforced By:** tests/dashboard-api/qa.test.js
+- **Trạng thái:** AUTOMATED
+
+### [LEARN-FE-003] Zero Missing ESM Imports to Prevent Blank Dashboard Views
+- **Quan sát/DO:** Quét đồ thị import; đảm bảo core utility (`toast.js`) luôn sẵn sàng; test switch tab thực tế.
+- **Moved To:** dashboard/public/js/views/qa/reqAnalyzerHelper.js
+- **Trạng thái:** LOCALIZED
+
+### [LEARN-AI-004] 9Router Gateway Integration & Multi-Satellite Sync
+- **DO:** Thêm preset 9router riêng; auto-detect & live model fetch; đồng bộ `.env` đa dự án.
+- **Moved To:** core/ai/gateway/adapters/openaiCompatible.js
+- **Trạng thái:** LOCALIZED
+
+### [LEARN-FIX-005] Windows Drive Letter & Safe Line Regex in Finding Fixers
+- **DO:** Dùng regex `/(.*?)(?::(\d+))?$/` bóc tách số dòng; chặn triệt để `^[a-zA-Z]:` và `..`.
+- **Enforced By:** dashboard/services/qaFindingFixerService.js
+- **Trạng thái:** AUTOMATED
+
+### [LEARN-QA-006] Mutation từ finding: tính lại từ file thật, đồng bộ cả tập, kiểm chứng rồi mới giữ
+- **DO:** Server phải tự tính lại bằng chính analyzer, sửa cả TẬP AC, hoàn tác nếu còn lệch; token CSS mới phải thêm vào tokens.css.
+- **Enforced By:** dashboard/services/qaConflictService.test.js
+- **Trạng thái:** AUTOMATED
+
+### [LEARN-AI-007] Jira Markup Parser Order & Vietnamese Diacritics in Slugs
+- **DO:** Luôn parse numbered list `#` TRƯỚC heading `h1..h6`; thay thế `[đĐ] -> d` trước khi `normalize('NFD')`.
+- **Enforced By:** core/ai/tasks/jiraStoryParser.js
+- **Trạng thái:** AUTOMATED
+
+### [LEARN-AI-008] Locator-Not-Found vs Assertion Priority & Strip ANSI in AI Triage
+- **DO:** Bóc tách `stripAnsi` trước khi regex; ưu tiên `locator-not-found` (`test_bug`) khi phần tử chưa từng xuất hiện; chỉ phán `product_bug` khi phần tử có thật nhưng dữ liệu/trạng thái sai.
+- **Enforced By:** test-fixtures/ai-eval/carthings-dataset.json
+- **Trạng thái:** AUTOMATED
+
+### [LEARN-AI-009] Safe AbortSignal Binding & Rule Fallback in AI Tasks
+- **DO:** Kiểm tra `res?.once`; luôn cấp rule fallback heuristic (0 token) cho task AI khi offline.
+- **Enforced By:** core/ai/tasks/index.js
+- **Trạng thái:** AUTOMATED
+
+### [LEARN-AI-010] Level 1 Safety Sandbox & Versioned Prompt Fallback
+- **DO:** Không auto-run headless trên live target (G15). Dùng `vm.Script` kiểm tra cú pháp tĩnh; nạp prompt theo thứ tự `prompts.local/` -> `prompts/` -> default.
+- **Enforced By:** core/ai/tasks/generatePlaywrightSpec.js
+- **Trạng thái:** AUTOMATED
