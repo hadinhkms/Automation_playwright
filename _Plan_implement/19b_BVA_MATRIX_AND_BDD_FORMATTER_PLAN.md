@@ -29,7 +29,7 @@
 
 ### 1.1. Mục tiêu đo được
 
-- **G1:** Trích ràng buộc đúng 100% câu trong corpus dương tính (Phụ lục A, 33 câu). Corpus âm tính (Phụ lục B, 10 câu) không sinh ràng buộc nào; câu nào có chữ số thì nằm trong `unrecognized` với đúng số dòng.
+- **G1:** Trích ràng buộc đúng 100% câu trong corpus dương tính (Phụ lục A, 34 câu). Corpus âm tính (Phụ lục B, 10 câu) không sinh ràng buộc nào; câu nào có chữ số thì nằm trong `unrecognized` với đúng số dòng.
 - **G2:** Mỗi ràng buộc có phân vùng tương đương (hợp lệ / không hợp lệ) và các điểm biên theo bảng 4.2.
 - **G3:** Ma trận biên tốn 0 token. Có test HTTP chứng minh không có lời gọi AI.
 - **G4:** BDD giữ nguyên 100% mã AC đầu vào. Markdown đầu ra được scanner `tools/qa/lib/sources.js` đọc đủ AC.
@@ -48,8 +48,8 @@
 
 | Sự thật (đã kiểm) | Hệ quả thiết kế |
 | --- | --- |
-| Modal phân tích REQ có các tab `tc`, `impact`, `logic`, `qa`, `clarity`, `spec` ([qa.html:860-990](../dashboard/public/templates/qa.html#L860-L990)). Nút "Soát độ rõ" nằm ở hàng công cụ phía input ([qa.html:836](../dashboard/public/templates/qa.html#L836)). `switchTab` ẩn/hiện theo id `qa-req-panel-<key>` ([reqAnalyzerHelper.js:799](../dashboard/public/js/views/qa/reqAnalyzerHelper.js#L799)) | Thêm tab `bva`, `bdd` và 2 nút theo đúng mẫu tab `clarity` |
-| `reqAnalyzerHelper.js` 993 dòng, đang có exemption | Chỉ thêm ≤ 15 dòng để gắn vào; logic mới nằm trong `views/qa/specStudio/` |
+| Modal phân tích REQ có các tab `tc`, `impact`, `logic`, `qa`, `clarity`, `spec` ([qa.html:860-990](../dashboard/public/templates/qa.html#L860-L990)). Nút "Soát độ rõ" nằm ở hàng công cụ phía input ([qa.html:836](../dashboard/public/templates/qa.html#L836)). `switchTab` ẩn/hiện theo id `qa-req-panel-<key>` ([reqAnalyzerHelper.js:799](../dashboard/public/js/views/qa/reqAnalyzerHelper.js#L799)). **Lưu ý:** `switchTab` hiện tại chưa set `aria-selected`, `tabindex` hay `role="tab"` — cần thêm vào `specStudioPanels.js` hoặc sửa trực tiếp `switchTab` (để TC-31…38 UI-03 pass) | Thêm tab `bva`, `bdd` và 2 nút theo đúng mẫu tab `clarity`. `specStudioPanels.js` gọi `switchTab` rồi bổ sung `aria-selected` và `tabindex="0"/"-1"` cho tất cả tab trong modal |
+| `reqAnalyzerHelper.js` 997 dòng, đã có exemption `master-process-disable-size-check` (file legacy) | Chỉ thêm ≤ 15 dòng glue code (import + init/destroy + confirmClose); mọi logic mới nằm trong `views/qa/specStudio/`. File đã có exemption nên không cần xin thêm |
 | Heuristic BVA cũ ([qaRequirementAnalyzerService.js:325-390](../dashboard/services/qaRequirementAnalyzerService.js#L325-L390)) dùng `match` không cờ `g`: chỉ bắt khoảng đầu tiên, không có biên mở, không tách nhiều trường | Viết module mới độc lập, không sửa bản cũ (D6) |
 | BA-1 (`/api/ai/req-clarity`) đã trả `clarifiedDraft` dạng Given-When-Then văn xuôi | BA-2 khác ở 3 điểm: có cấu trúc theo từng AC, được kiểm bằng luật, và giữ mã AC |
 | Scanner nhận AC qua heading `^#{2,6}\s*AC-\d{3}` kèm `:`/`-` ([sources.js:30](../tools/qa/lib/sources.js#L30)); ID viết gần đúng bị báo near-miss | Renderer xuất `### AC-001: <tiêu đề>`, dùng cùng regex khi đọc AC từ đầu vào |
@@ -185,7 +185,7 @@ Mỗi ràng buộc có dạng:
 
 ### 4.4. API
 
-**`POST /api/qa/boundary-matrix`** — file mới `dashboard/routes/qaSpecRoutes.js` (≤ 100 dòng), đăng ký trong `server.js` trước `handleQaBatchRoutes`. Không gọi AI.
+**`POST /api/qa/boundary-matrix`** — file mới `dashboard/routes/qaSpecRoutes.js` (≤ 100 dòng), đăng ký trong `server.js` trước `handleQaBatchRoutes`. `qaSpecRoutes` chỉ match **đúng** `POST /api/qa/boundary-matrix`, mọi URL khác trả `false` để không nuốt request của các handler phía sau. Không gọi AI.
 
 - Body: `{ requirementText }`.
 - **200:** `{ ok: true, source: 'rule', constraints: [{ …constraint, matrix }], unrecognized }`
@@ -228,6 +228,8 @@ Mỗi ràng buộc có dạng:
   - `bvaPanel.js`: gọi API và vẽ panel BVA.
   - `bddPanel.js`: gọi AI và vẽ panel BDD.
 - **Sửa `reqAnalyzerHelper.js`** (≤ 15 dòng): `import`; trong `init` gọi `this.specPanels = mountSpecPanels(root, { switchTab, showResults, showInput })`; trong `destroy` gọi `this.specPanels?.destroy()`; `closeModal` chờ `await this.specPanels?.confirmClose()`; chặn `cancel` của dialog.
+
+> **Quan trọng:** `destroy()` của `specStudioPanels` phải huỷ **cả** `bvaAbort` (AbortController của apiClient) lẫn `bddAbort` (của aiRequest). Nếu không, response BVA/BDD muộn sẽ cập nhật panel sau khi modal đóng.
 - **Style** trong `styles/views/qa.css`, chỉ dùng token có sẵn. Hàng 8 tab cuộn ngang bên trong modal ở 390px.
 
 ---
@@ -259,7 +261,7 @@ Mỗi TC ứng với đúng 1 test. Level: gọi hàm = `unit`, HTTP = `integrat
 
 | TC | Nội dung | Level |
 | --- | --- | --- |
-| TC-01 ★ | Corpus dương tính Phụ lục A (33 câu): đúng `field`, `kind`, `unit`, `min`, `max`, `needsReview`; biên mở được đổi sang biên đóng | unit |
+| TC-01 ★ | Corpus dương tính Phụ lục A (34 câu): đúng `field`, `kind`, `unit`, `min`, `max`, `needsReview`; biên mở được đổi sang biên đóng | unit |
 | TC-02 ★ | Corpus âm tính Phụ lục B (10 câu): 0 ràng buộc; 8 câu có chữ số nằm trong `unrecognized` với đúng số dòng; 2 câu không có số thì không có trong đó | unit |
 | TC-03 | Đoạn nhiều dòng: số dòng nguồn đúng; `1.000` → 1000; đầu vào NFC và NFD cho cùng kết quả; `≥ ≤ – —` được chuẩn hoá | unit |
 
@@ -282,7 +284,7 @@ Mỗi TC ứng với đúng 1 test. Level: gọi hàm = `unit`, HTTP = `integrat
 
 | TC | Nội dung | Level |
 | --- | --- | --- |
-| TC-09 | `buildBddPrompts` có danh sách mã AC, luật giữ mã và schema | unit |
+| TC-09 | `buildBddPrompts` có danh sách mã AC, luật giữ mã và schema; prompt text chứa cụm từ "giữ nguyên mã AC" hoặc tương đương (nếu prompt bị sửa vô tình xóa luật, test sẽ bắt) | unit |
 | TC-10 ★ | `/api/ai/format-bdd` với FakeAiProvider trả JSON hợp lệ → 200, có `markdown`, `model`, `usage` | integration |
 | TC-11 ★ | Provider trả thiếu AC-002 → 502 `BDD_MISSING_AC`, không có `markdown` | integration |
 | TC-12 | Provider trả 500, timeout, hoặc JSON hỏng → 502 kèm `code` của gateway; không có `markdown`, không có `source: 'rule'` | integration |
@@ -329,7 +331,7 @@ Mỗi TC ứng với đúng 1 test. Level: gọi hàm = `unit`, HTTP = `integrat
 
 | Gate | TC |
 | --- | --- |
-| ASYNC-01 | TC-22 |
+| ASYNC-01 | TC-22 (**lưu ý:** 19b không có luồng save; ASYNC-01 được ánh xạ sang "edit textarea while AI load is pending" — kết quả về kèm banner stale, textarea giữ nguyên bản đã sửa. Nếu reviewer yêu cầu save: luồng "sao chép clipboard while đang chờ AI" — sao chép xong thì dirty=false, nhưng nếu textarea đã đổi thì vẫn dirty) |
 | ASYNC-02 | TC-23 (API: TC-13) |
 | ASYNC-03 | TC-24 |
 | ASYNC-04 | TC-25 |
@@ -375,7 +377,7 @@ Mỗi TC ứng với đúng 1 test. Level: gọi hàm = `unit`, HTTP = `integrat
 - [ ] 1.1 Viết `qaBoundaryExtract.js` và `qaBoundaryMatrix.js` kèm test (TC-01…TC-06).
 - [ ] 1.2 Viết `qaSpecRoutes.js` và đăng ký trong `server.js`; test API TC-07, TC-08.
 - **Exit:**
-  - `node --test dashboard/services/qaBoundary*.test.js` pass (corpus 43/43).
+  - `node --test dashboard/services/qaBoundary*.test.js` pass (corpus 44/44).
   - `npm run test:dashboard:api` pass.
   - `npm run check:dashboard-features` pass.
 
@@ -414,7 +416,7 @@ Mỗi TC ứng với đúng 1 test. Level: gọi hàm = `unit`, HTTP = `integrat
 ## 9. Định Nghĩa Hoàn Thành
 
 - [ ] 38/38 TC PASS trong JUnit; 16/16 gate scenario có bằng chứng.
-- [ ] Corpus A 33/33 đúng, corpus B 10/10 không có ràng buộc giả.
+- [ ] Corpus A 34/34 đúng, corpus B 10/10 không có ràng buộc giả.
 - [ ] BVA tốn 0 token (TC-07). BDD không trả kết quả giả (TC-11, TC-12). Mã AC được giữ nguyên (TC-15, TC-18).
 - [ ] 19b không ghi file nào; hiển thị an toàn (TC-30).
 - [ ] 4 viewport × 2 theme đã soát; 0 lỗi console; không có vi phạm modularity mới.
@@ -472,6 +474,7 @@ Cột "Kind": `length` không ghi đơn vị thì `unit` lấy nguyên văn từ
 | 31 | `Số lượng sản phẩm trong giỏ >= 1 và <= 99.` | Số lượng sản phẩm trong giỏ | number | 1 | 99 | gộp, ký hiệu |
 | 32 | `Tuổi từ 18 đến 60, mật khẩu từ 8 đến 32 ký tự.` | Tuổi / Mật khẩu | number / length | 18 / 8 | 60 / 32 | 2 ràng buộc |
 | 33 | `Thời gian chờ trên 30 giây sẽ báo lỗi.` | Thời gian chờ | number (giây) | 31 | – | `needsReview: true` |
+| 34 | `Độ ẩm trong khoảng 40 đến 80.` | Độ ẩm | number | 40 | 80 | mẫu "trong khoảng" |
 
 ## Phụ Lục B — Corpus âm tính (kỳ vọng của TC-02)
 

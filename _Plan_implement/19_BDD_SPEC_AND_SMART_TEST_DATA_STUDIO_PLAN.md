@@ -3,7 +3,7 @@
 > **Mã kế hoạch:** `PLAN-19`  
 > **Phiên bản:** `v2.0` — 2026-09-28. Bản v1 (DRAFT, cùng ngày) nằm trong git history, commit `db3d741`.  
 > **Trạng thái:** `ĐÃ TÁCH thành PLAN-19a và PLAN-19b — file này chỉ còn là mục lục và quyết định chung`  
-> **Tham chiếu:** [AGENTS.md](../AGENTS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json), [PLAN-17](17_AI_ASSISTED_QA_FRAMEWORK_PLAN.md) (BA-2, QA-7 là 2 hạng mục còn bỏ ngỏ), [PLAN-18](18_QA_STATIC_FINDINGS_BATCH_PROCESSING_PLAN.md) (mẫu contract/evidence).
+> **Tham chiếu:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json), [PLAN-17](17_AI_ASSISTED_QA_FRAMEWORK_PLAN.md) (BA-2, QA-7 là 2 hạng mục còn bỏ ngỏ), [PLAN-18](18_QA_STATIC_FINDINGS_BATCH_PROCESSING_PLAN.md) (mẫu contract/evidence).
 
 ---
 
@@ -21,7 +21,7 @@ Nếu gộp, Gate 4 phải chờ phần AI xong mới đóng được phần d�
 | Plan | Phạm vi | AI | Ước lượng | Thứ tự |
 | --- | --- | --- | --- | --- |
 | [PLAN-19a](19a_VN_TEST_DATA_GENERATOR_PLAN.md) | Bộ sinh CCCD / MST / SĐT / họ tên / persona theo seed; thư viện payload biên; placeholder `{{vn_*}}`; export `commonUtils`; modal sinh dữ liệu ở `#/data` | Không (0 token) | ~4 ngày | Làm trước |
-| [PLAN-19b](19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md) | Ma trận biên theo luật (0 token, corpus 43 câu); chuẩn hoá AC sang Given-When-Then qua AI gateway, giữ nguyên mã AC, chỉ sao chép Markdown | Chỉ phần BDD | ~4.5 ngày | Làm sau 19a |
+| [PLAN-19b](19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md) | Ma trận biên theo luật (0 token, corpus 44 câu); chuẩn hoá AC sang Given-When-Then qua AI gateway, giữ nguyên mã AC, chỉ sao chép Markdown | Chỉ phần BDD | ~4.5 ngày | Làm sau 19a |
 
 Hai plan không dùng code của nhau. Làm tuần tự để mỗi lần trên `main` chỉ có một phase chờ gate (verifier yêu cầu HEAD sạch).
 
@@ -54,6 +54,12 @@ Hai plan không dùng code của nhau. Làm tuần tự để mỗi lần trên 
 ## 5. Tiến Độ
 
 - [ ] PLAN-19a — Phase 0 (chốt D1–D6, contract)
-- [ ] PLAN-19a — Gate 4 PASS
+- [ ] PLAN-19a — Phase 1 (lõi sinh dữ liệu + unit tests)
+- [ ] PLAN-19a — Phase 2 (API + integration tests)
+- [ ] PLAN-19a — Phase 3 (giao diện + E2E tests)
+- [ ] PLAN-19a — Phase 4 / Gate 4 PASS
 - [ ] PLAN-19b — Phase 0 (chốt D1–D7, duyệt corpus, contract)
-- [ ] PLAN-19b — Gate 4 PASS
+- [ ] PLAN-19b — Phase 1 (ma trận biên, 0 token)
+- [ ] PLAN-19b — Phase 2 (BDD qua gateway)
+- [ ] PLAN-19b — Phase 3 (giao diện + E2E tests)
+- [ ] PLAN-19b — Phase 4 / Gate 4 PASS

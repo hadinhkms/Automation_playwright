@@ -49,13 +49,13 @@
 | Sự thật (đã kiểm) | Hệ quả thiết kế |
 | --- | --- |
 | Hub đã có `{{random_phone}}`, `{{random_email}}`, `{{random_name}}` trong `generateDynamicValue` ([dataManager.js:20-45](../core/utils/dataManager.js#L20-L45)); regex placeholder chỉ nhận `[a-zA-Z0-9_]` | Thêm `{{vn_*}}` bằng cách gọi sang module mới ở nhánh `default`, không viết lại hàm |
-| `dataManager.js` 316 dòng, đang có exemption size-check | Chỉ thêm ≤ 3 dòng, mọi logic mới nằm trong `core/utils/vnData/` |
+| `dataManager.js` 316 dòng, đang có exemption size-check | Chỉ thêm ≤ 3 dòng (1 `require` + 2 dòng case `vn_*` gọi `resolveVnPlaceholder`), mọi logic mới nằm trong `core/utils/vnData/` |
 | Spec `require` JSON trực tiếp (`tests/e2e/desktop/*.spec.js`), không tự resolve placeholder | Muốn giá trị mới mỗi lần chạy thì gọi hàm trong spec (như CarThings đang làm với `generateRandomVNIDCard`). Placeholder dùng cho dataset nào đi qua `resolveDynamicValues` |
 | CarThings có `generateRandomVNIDCard` trong `core/local`: mã tỉnh ngẫu nhiên 001–096 (có mã không tồn tại) và số thế kỷ 0–9 bất kỳ | Tên hàm mới khác (`generateVnCccd`) để không đụng override; `withLocalOverrides` cho bản local thắng |
 | `POST /api/data/create-dataset` nhận `content`, từ chối file đã tồn tại, có backup ([dataManager.js:245](../core/utils/dataManager.js#L245)) | Nút "Lưu thành dataset mới" dùng lại endpoint này. **Không tạo đường ghi file mới** |
 | `DATA_DIR` cố định ở `<framework>/data` (không theo root của harness) | Test API/E2E ghi file phải dùng tên riêng `plan19a-*` và xoá ở `after` |
 | `handleDataRoutes` trả `false` cho `/api/data/*` không khớp ([dataRoutes.js:18](../dashboard/routes/dataRoutes.js#L18)) | Route mới nằm ở file riêng, đăng ký ngay trước `handleDataRoutes` trong `server.js` |
-| Data view do `app.js` legacy điều khiển; `DataSlice.mount()` gọi `openDataManager()` rồi `return` sớm ([dataSlice.js:23-39](../dashboard/public/js/views/data/dataSlice.js#L23-L39)) | Khởi tạo controller modal **trước** lệnh `return` sớm, huỷ trong `unmount()`. `init()` phải idempotent (bài học 2026-09-22 về template nạp động) |
+| Data view do `app.js` legacy điều khiển; `DataSlice.mount()` gọi `openDataManager()` rồi `return` sớm ([dataSlice.js:23-39](../dashboard/public/js/views/data/dataSlice.js#L23-L39)) | Khởi tạo controller modal **bên trong nhánh `try`, sau `await window.openDataManager()` đã resolve và trước `return`** (tức dòng 29), vì nút `#data-vn-gen-open-btn` chỉ tồn tại sau khi legacy render xong. Huỷ trong `unmount()`. `init()` phải idempotent (bài học 2026-09-22 về template nạp động). Nếu nút chưa tồn tại (fallback khi legacy thay đổi), dùng guard `if (!root.querySelector('#data-vn-gen-open-btn')) return;` |
 | `dataSlice.js` 312 dòng, là vi phạm modularity có sẵn | Chỉ thêm ≤ 6 dòng. Không tạo vi phạm mới |
 | `confirmDialog()` dùng chung đã có ở [batchConfirm.js](../dashboard/public/js/views/qa/batch/batchConfirm.js) | Dùng lại cho chặn đóng modal (UI-05); không viết hộp xác nhận thứ hai |
 | `apiClient.post(path, body, { signal })` hỗ trợ huỷ ([apiClient.js:33](../dashboard/public/js/core/apiClient.js#L33)) | Modal dùng `AbortController` + `apiClient` |
@@ -151,7 +151,7 @@ Mỗi payload có dạng `{ id, category, value, description }`. `id` ổn đị
 - **200:** `{ "ok": true, "categories": [...6], "payloads": [...] }`
 - **400:** nhóm không tồn tại.
 
-**`GET /api/data/dynamic-preview`** (đã có): thêm các khoá `vn_cccd`, `vn_mst`, `vn_phone`, `vn_name`, `vn_email`.
+**`GET /api/data/dynamic-preview`** (đã có, [`dataRoutes.js:152-166`](../dashboard/routes/dataRoutes.js#L152-L166)): thêm các khoá `vn_cccd`, `vn_mst`, `vn_phone`, `vn_name`, `vn_email`. Cách thực hiện: import `resolveVnPlaceholder` từ `core/utils/vnData/index.js` vào `dataRoutes.js`, gọi 5 lần trong handler `dynamic-preview` (+≤ 6 dòng đã khai ở mục 5).
 
 ### 4.5. UI — modal "Sinh dữ liệu kiểm thử Việt Nam" (`#/data`)
 
@@ -232,7 +232,7 @@ Mỗi TC ứng với đúng 1 test. Level ghi đúng cách test chạy: gọi h�
 | TC-06 | 1.000 SĐT khớp `^0\d{9}$`, đầu số thuộc Phụ lục B đúng nhà mạng; `carrier` lạ → lỗi | unit |
 | TC-07 | Họ tên ở dạng NFC; tên đệm/tên đúng giới tính; `diacritics:false` chỉ còn `[A-Za-z ]`; `Đ` thành `D` | unit |
 | TC-08 | Persona: giới tính khớp `C`, năm sinh khớp `YY` và `birthDate`; email `@example.com`, phần trước `@` chỉ ASCII; 500 persona không trùng CCCD/SĐT/email | unit |
-| TC-09 | `generateRecords` BVA `count`: 0, 1, 500, 501, 1.5, `"10"`, `null`; `type` lạ; cùng seed → `records` giống hệt | unit |
+| TC-09 | `generateRecords` BVA `count`: 0, 1, 500, 501, 1.5, `"10"`, `null`; `type` lạ; cùng seed → `records` giống hệt; seed edge cases: `""` → `VnDataError`, `"Café"` (unicode) → hành vi xác định, chuỗi 1000 ký tự → hành vi xác định | unit |
 
 ### P19A-AC-04 — Payload biên
 
@@ -257,6 +257,8 @@ Mỗi TC ứng với đúng 1 test. Level ghi đúng cách test chạy: gọi h�
 | TC-16 | `GET /api/data/payloads`: `xss` chỉ trả xss; không truyền → đủ 6 nhóm; nhóm lạ → 400 | integration |
 | TC-17 | `GET /api/data/dynamic-preview` có 5 khoá `vn_*` đúng định dạng | integration |
 | TC-18 | Sinh không ghi đĩa: danh sách `data/` trước và sau giống nhau; `GET /api/ai/audit` không tăng | integration |
+
+> **Ghi chú concurrent:** Test API ghi file (`TC-19`) dùng tên `plan19a-<workerID>-<ts>` và chạy `--workers=1` để tránh race condition trên `DATA_DIR` cố định.
 | TC-19 ★ | LIFE-01: sinh persona → `create-dataset` với `content` → `GET /api/data/dataset` đọc lại y hệt → tạo lại cùng tên bị 400 và file không đổi → xoá | integration |
 
 ### P19A-AC-07 — Giao diện
@@ -272,7 +274,7 @@ Mỗi TC ứng với đúng 1 test. Level ghi đúng cách test chạy: gọi h�
 | TC-26 | ASYNC-05: chỉ báo thành công sau 200; route trả 500 → không có toast thành công, badge "Chưa lưu" còn | e2e |
 | TC-27 ★ | UI-05: đóng khi dirty → hộp xác nhận; "Ở lại" giữ dữ liệu; "Bỏ và đóng" xoá; sau khi lưu thì đóng không hỏi | e2e |
 | TC-28 | UI-04: đổi chế độ nhanh Định danh → Payload → Định danh → chỉ panel định danh hiện, `aria-selected` đúng | e2e |
-| TC-29 ★ | OWN-01..04: 20 vòng chuyển `#/data` ↔ view khác, mở modal, bấm sinh 1 lần → đúng 1 request. Qua `import()` module: `init` ×2, `destroy` ×2, disposer cũ không gỡ listener mới | e2e |
+| TC-29 ★ | OWN-01..04: (a) OWN-01: gọi `init()` 2 lần liên tiếp → listener count không tăng gấp đôi (idempotent); gọi `init()` rồi `init()` với instance khác → mỗi instance có disposer riêng. (b) OWN-02: disposer của lần mount cũ không gỡ được listener của lần mount mới. (c) OWN-03: gọi `destroy()` 2 lần → không lỗi. (d) OWN-04: 20 vòng chuyển `#/data` ↔ view khác, mở modal, bấm sinh 1 lần → đúng 1 request, không tích luỹ listener | e2e |
 | TC-30 | OWN-05: rời view khi request sinh đang chờ → phản hồi về không sửa DOM, 0 lỗi console | e2e |
 | TC-31 ★ | An toàn hiển thị: xem nhóm `xss` → không có sự kiện `dialog`, không có `img[onerror]` trong DOM, chuỗi hiện đúng nguyên văn | e2e |
 | TC-32…39 | UI-03: 1920×1080, 1440×900, 1280×800, 390×844 × Light/Dark. Không tràn ngang; bảng cuộn bên trong; focus tiêu đề khi mở; Esc kích hoạt chặn đóng; 0 lỗi console; không có `undefined`/`null`/TODO trên UI | e2e |
@@ -362,7 +364,8 @@ Mỗi TC ứng với đúng 1 test. Level ghi đúng cách test chạy: gọi h�
   - reviewer độc lập điền `reviews.gate3/gate4` và chạy lại 10 TC ★ trên cùng SHA;
   - chạy `master.ps1 gate`.
 - [ ] 4.4 `npm run presync:drift:strict` trước khi sync vệ tinh (D3 làm đổi `commonUtils.js`).
-- [ ] 4.5 Chỉ ghi bài học mới đã xác nhận vào `ai/dashboard/AI_LESSONS.md`, hoặc `.ai/learning/candidates.md` nếu còn chỗ dưới trần 50 dòng.
+- [ ] 4.5 **Kiểm tra ảnh hưởng D3 trên vệ tinh:** `grep -rn 'generateRandomVNPhone\|0[3578]\\d{8}\|prefixes.*09.*03.*07' tests/` trong mỗi repo vệ tinh; liệt kê test bị ảnh hưởng và ghi vào release notes.
+- [ ] 4.6 Chỉ ghi bài học mới đã xác nhận vào `ai/dashboard/AI_LESSONS.md`, hoặc `.ai/learning/candidates.md` nếu còn chỗ dưới trần 50 dòng.
 
 ---
 
