@@ -1,13 +1,22 @@
 # Kế Hoạch 19a: Bộ Sinh Dữ Liệu Kiểm Thử Việt Nam & Thư Viện Payload Biên (QA-7)
 
 > **Mã kế hoạch:** `PLAN-19a` — tách từ [PLAN-19](19_BDD_SPEC_AND_SMART_TEST_DATA_STUDIO_PLAN.md) v1  
-> **Phiên bản:** `v1.1` — 2026-09-28  
-> **Trạng thái:** `DRAFT — CHỜ CHỐT D1–D6 (mục 0) VÀ BA DUYỆT HASH CONTRACT (Phase 0)`  
+> **Phiên bản:** `v1.2` — 2026-09-29  
+> **Trạng thái:** `READY FOR IMPLEMENTATION — ĐÃ LẬP HỢP ĐỒNG .delivery/phases/plan-19a.json (SHA256: f47e87d41e74e65ef211d4a0cc5bcde05f5c4377747cf72d8c7f7ab245546c36, 39/39 TC, VALID) — CHỜ CHỐT D1–D6 & BA DUYỆT HASH`  
 > **Phân loại:** L2/L3. **Không dùng AI**, 0 token.  
 > **Phạm vi:** `core/utils/vnData/` (mới), `core/utils/dataManager.js`, `core/utils/commonUtils.js`, `dashboard/routes/`, view **Test Data Studio** (`#/data`).  
 > **Phụ thuộc:** không phụ thuộc PLAN-19b. Làm trước 19b (rủi ro thấp, đóng gate nhanh).  
-> **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json), [PLAN-18](18_QA_STATIC_FINDINGS_BATCH_PROCESSING_PLAN.md) (mẫu contract/evidence).  
+> **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json), [PLAN-18](18_QA_STATIC_FINDINGS_BATCH_PROCESSING_PLAN.md).  
 > **Nhánh:** trunk-based trên `main`. Commit code **trước** khi ghi receipts (verifier yêu cầu evidence.revision == HEAD và tree sạch).
+
+### Thực thi bằng Master Prompt 12:
+```markdown
+PROJECT_ROOT: .
+PLAN_PATH: _Plan_implement/19a_VN_TEST_DATA_GENERATOR_PLAN.md
+EXECUTION_SCOPE: Phase 0 .. Phase 4
+CONTRACT_PATH: .delivery/phases/plan-19a.json
+APPROVED_CONTRACT_SHA256: f47e87d41e74e65ef211d4a0cc5bcde05f5c4377747cf72d8c7f7ab245546c36
+```
 
 ---
 
@@ -106,6 +115,8 @@
 
 **Export công khai** (thêm vào `baseExports` của `commonUtils.js`): `generateVnCccd(opts)`, `generateVnMst(opts)`, `generateVnPhone(opts)`, `generateVnFullName(opts)`, `generateVnPersona(opts)`. Mỗi hàm trả 1 giá trị; `opts.seed` là tuỳ chọn.
 
+**Quy ước Seed:** `seed` là chuỗi tuỳ chọn. Nếu `seed` rỗng `""` hoặc `undefined`/`null`, hệ thống tự sinh seed ngẫu nhiên (`newSeed()`), không ném lỗi (tương thích UX khi người dùng để trống ô Seed trên UI). Nếu `seed` được truyền nhưng không phải kiểu chuỗi (ví dụ: number, object, array), ném `VnDataError` (`code: 'INVALID_INPUT'`, `field: 'seed'`). Cùng seed và tham số đảm bảo 100% kết quả lặp lại nhất quán.
+
 ### 4.2. Quy tắc định danh
 
 - **CCCD (12 số):** `PPP` + `C` + `YY` + `NNNNNN`.
@@ -176,7 +187,7 @@ Mỗi payload có dạng `{ id, category, value, description }`. `id` ổn đị
 
 - **Chưa lưu (dirty):** có bản ghi định danh chưa lưu và chưa sao chép thành công. Esc, nút Đóng hoặc ✕ khi đang dirty sẽ mở `dialog#data-vn-confirm`. Hộp này dùng `confirmDialog()` với 2 nút "Ở lại" / "Bỏ và đóng".
 - **Chống phản hồi muộn:** `const seq = ++this.seq`, và kết quả chỉ được áp khi `this.alive && seq === this.seq`. Đóng modal, đổi `type`/chế độ hoặc `destroy()` đều huỷ request (`AbortController`).
-- **Sau khi lưu:** gọi lại hàm nạp danh sách dataset đang dùng (Phase 0 xác định tên hàm legacy) và phát `STUDIO_EVENTS:DATASET_UPDATED`.
+- **Sau khi lưu:** gọi lại hàm nạp danh sách dataset `window.loadDataFilesList()` và phát `STUDIO_EVENTS:DATASET_UPDATED`.
 - **File JS:**
   - `vnDataGeneratorModal.js` (vòng đời, sự kiện, request, dirty, seq; ≤ 150 dòng)
   - `vnDataPreview.js` (dựng option theo type, bảng xem trước, bảng payload; ≤ 150 dòng)
@@ -277,7 +288,14 @@ Mỗi TC ứng với đúng 1 test. Level ghi đúng cách test chạy: gọi h�
 | TC-29 ★ | OWN-01..04: (a) OWN-01: gọi `init()` 2 lần liên tiếp → listener count không tăng gấp đôi (idempotent); gọi `init()` rồi `init()` với instance khác → mỗi instance có disposer riêng. (b) OWN-02: disposer của lần mount cũ không gỡ được listener của lần mount mới. (c) OWN-03: gọi `destroy()` 2 lần → không lỗi. (d) OWN-04: 20 vòng chuyển `#/data` ↔ view khác, mở modal, bấm sinh 1 lần → đúng 1 request, không tích luỹ listener | e2e |
 | TC-30 | OWN-05: rời view khi request sinh đang chờ → phản hồi về không sửa DOM, 0 lỗi console | e2e |
 | TC-31 ★ | An toàn hiển thị: xem nhóm `xss` → không có sự kiện `dialog`, không có `img[onerror]` trong DOM, chuỗi hiện đúng nguyên văn | e2e |
-| TC-32…39 | UI-03: 1920×1080, 1440×900, 1280×800, 390×844 × Light/Dark. Không tràn ngang; bảng cuộn bên trong; focus tiêu đề khi mở; Esc kích hoạt chặn đóng; 0 lỗi console; không có `undefined`/`null`/TODO trên UI | e2e |
+| TC-32 | UI-03: Bố cục modal 1920×1080 theme tối: không tràn ngang, bảng cuộn bên trong, focus tiêu đề, 0 lỗi console | e2e |
+| TC-33 | UI-03: Bố cục modal 1440×900 theme tối: không tràn ngang, bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-34 | UI-03: Bố cục modal 1280×800 theme tối: không tràn ngang, bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-35 | UI-03: Bố cục modal 390×844 theme tối: không tràn ngang, cuộn bên trong, 0 lỗi console | e2e |
+| TC-36 | UI-03: Bố cục modal 1920×1080 theme sáng: không tràn ngang, bảng cuộn bên trong, focus tiêu đề, 0 lỗi console | e2e |
+| TC-37 | UI-03: Bố cục modal 1440×900 theme sáng: không tràn ngang, bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-38 | UI-03: Bố cục modal 1280×800 theme sáng: không tràn ngang, bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-39 | UI-03: Bố cục modal 390×844 theme sáng: không tràn ngang, cuộn bên trong, 0 lỗi console | e2e |
 
 **Cộng:** 7 AC, 39 TC (13 unit, 6 integration, 20 e2e), 10 critical.
 
@@ -296,7 +314,7 @@ Mỗi TC ứng với đúng 1 test. Level ghi đúng cách test chạy: gọi h�
 | OWN-05 | TC-30 | integration ✓ |
 | UI-01 | TC-21 | e2e ✓ |
 | UI-02 | TC-20 | e2e ✓ |
-| UI-03 | TC-32…39 | e2e ✓ |
+| UI-03 | TC-32…TC-39 | e2e ✓ |
 | UI-04 | TC-28 | e2e ✓ |
 | UI-05 | TC-27 | e2e ✓ |
 | LIFE-01 | TC-19, TC-20 | integration ✓ |
@@ -324,9 +342,9 @@ Mỗi TC ứng với đúng 1 test. Level ghi đúng cách test chạy: gọi h�
   - `npx playwright test -c playwright.dashboard.config.js`
   - `npm run check:framework`
   - `npm run check:dashboard-features`
-- [ ] 0.3 Tìm hàm legacy dùng để nạp lại danh sách dataset sau khi lưu (trong `app.js`, quanh `openDataManager`). Ghi tên hàm vào mục 4.5.
-- [ ] 0.4 Soạn `.delivery/phases/plan-19a.json` (7 AC, 39 TC, 16 scenario; chạy `gates/contract.py`) và khung `plan-19a-evidence-map.json`. **BA duyệt hash, không tự duyệt.**
-- **Exit:** D1–D6 đã chốt; baseline đã ghi; contract đã nộp duyệt.
+- [x] 0.3 Đã xác định hàm legacy dùng để nạp lại danh sách dataset: `window.loadDataFilesList()`.
+- [x] 0.4 Đã lập hợp đồng `.delivery/phases/plan-19a.json` (7 AC, 39 TC, 16 scenario) và khung `.delivery/phases/plan-19a-evidence-map.json`. Đã kiểm định hợp lệ qua `contract.py` (`cases=39, waivers=0`), SHA256: `f47e87d41e74e65ef211d4a0cc5bcde05f5c4377747cf72d8c7f7ab245546c36`. **Chờ BA duyệt hash.**
+- **Exit:** D1–D6 đã chốt; baseline đã ghi; contract đã lập và sẵn sàng nghiệm thu.
 
 ### Phase 1 — Lõi sinh dữ liệu (1 ngày)
 

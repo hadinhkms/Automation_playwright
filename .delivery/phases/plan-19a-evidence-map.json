@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "phase": "plan-19a",
+  "contract": ".delivery/phases/plan-19a.json",
+  "implementation": {
+    "actor": "claude-implementation",
+    "session": "plan19a-impl"
+  },
+  "regression_default": {
+    "status": "NOT_FEASIBLE",
+    "reason": "Hành vi mới do PLAN-19a bổ sung: sinh dữ liệu VN và thư viện payload biên; test được viết cùng tính năng."
+  },
+  "design": {
+    "async_state": {
+      "capture_identity": {
+        "path": "dashboard/public/js/views/data/vnDataGeneratorModal.js",
+        "snippet": "const seq = ++this.seq;"
+      },
+      "completion_guard": {
+        "path": "dashboard/public/js/views/data/vnDataGeneratorModal.js",
+        "snippet": "if (!this.alive || seq !== this.seq) return;"
+      }
+    },
+    "ownership_lifecycle": {
+      "registration_identity": {
+        "path": "dashboard/public/js/views/data/vnDataGeneratorModal.js",
+        "snippet": "const { modal, preview, form } = this;"
+      },
+      "disposer_guard": {
+        "path": "dashboard/public/js/views/data/vnDataGeneratorModal.js",
+        "snippet": "if (this.disposed) return;"
+      }
+    },
+    "router_ui": {
+      "registry": {
+        "path": "dashboard/public/js/views/data/vnDataPreview.js",
+        "snippet": "const MODES"
+      },
+      "navigation": {
+        "path": "dashboard/public/js/views/data/vnDataGeneratorModal.js",
+        "snippet": "this.openModal();"
+      },
+      "inventory": {
+        "path": "_Plan_implement/19a_VN_TEST_DATA_GENERATOR_PLAN.md",
+        "origin": "approved_spec",
+        "derivation": "Mục 4.1 và 4.3 của PLAN-19a; E2E so DOM thật với danh sách type, carrier và nhóm payload viết tay theo bảng này, không đọc từ MODES."
+      }
+    },
+    "lifecycle_integration": {
+      "public_entrypoint": {
+        "path": "dashboard/routes/dataGenerateRoutes.js",
+        "snippet": "'POST /api/data/generate'"
+      }
+    }
+  },
+  "cases": {
+    "P19A-TC-01": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/seededRandom.test.js" },
+    "P19A-TC-02": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/vnIdentity.test.js" },
+    "P19A-TC-03": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/vnIdentity.test.js" },
+    "P19A-TC-04": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/vnIdentity.test.js" },
+    "P19A-TC-05": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/vnIdentity.test.js" },
+    "P19A-TC-06": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/vnIdentity.test.js" },
+    "P19A-TC-07": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/vnNames.test.js" },
+    "P19A-TC-08": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/index.test.js" },
+    "P19A-TC-09": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/index.test.js" },
+    "P19A-TC-10": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/edgePayloads.test.js" },
+    "P19A-TC-11": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/dataManager.test.js" },
+    "P19A-TC-12": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/commonUtils.test.js" },
+    "P19A-TC-13": { "run": "plan19a-node", "entrypoint": "function", "source": "core/utils/vnData/index.test.js" },
+    "P19A-TC-14": { "run": "plan19a-node", "entrypoint": "http", "source": "tests/dashboard-api/data-generate.test.js" },
+    "P19A-TC-15": { "run": "plan19a-node", "entrypoint": "http", "source": "tests/dashboard-api/data-generate.test.js" },
+    "P19A-TC-16": { "run": "plan19a-node", "entrypoint": "http", "source": "tests/dashboard-api/data-generate.test.js" },
+    "P19A-TC-17": { "run": "plan19a-node", "entrypoint": "http", "source": "tests/dashboard-api/data-generate.test.js" },
+    "P19A-TC-18": { "run": "plan19a-node", "entrypoint": "http", "source": "tests/dashboard-api/data-generate.test.js" },
+    "P19A-TC-19": { "run": "plan19a-node", "entrypoint": "http", "source": "tests/dashboard-api/data-generate.test.js" },
+    "P19A-TC-20": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-21": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-22": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-23": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-24": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-25": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-26": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-27": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-28": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-29": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-30": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-31": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator.spec.js" },
+    "P19A-TC-32": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator-layout.spec.js" },
+    "P19A-TC-33": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator-layout.spec.js" },
+    "P19A-TC-34": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator-layout.spec.js" },
+    "P19A-TC-35": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator-layout.spec.js" },
+    "P19A-TC-36": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator-layout.spec.js" },
+    "P19A-TC-37": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator-layout.spec.js" },
+    "P19A-TC-38": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator-layout.spec.js" },
+    "P19A-TC-39": { "run": "plan19a-e2e", "entrypoint": "playwright", "source": "tests/dashboard/data-vn-generator-layout.spec.js" }
+  }
+}

@@ -1,0 +1,378 @@
+{
+  "schema_version": 1,
+  "phase": "plan-19b",
+  "groups": {
+    "async_state": {
+      "applies": true,
+      "reason": ""
+    },
+    "ownership_lifecycle": {
+      "applies": true,
+      "reason": ""
+    },
+    "router_ui": {
+      "applies": true,
+      "reason": ""
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "P19B-AC-01",
+      "text": "Trích ràng buộc đúng, không đoán",
+      "cases": [
+        {
+          "id": "P19B-TC-01",
+          "intent": "Corpus dương tính Phụ lục A (34 câu): đúng field, kind, unit, min, max, needsReview; biên mở được đổi sang biên đóng",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-02",
+          "intent": "Corpus âm tính Phụ lục B (10 câu): 0 ràng buộc; 8 câu có chữ số nằm trong unrecognized với đúng số dòng; 2 câu không có số thì không có trong đó",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-03",
+          "intent": "Đoạn nhiều dòng: số dòng nguồn đúng; 1.000 -> 1000; đầu vào NFC và NFD cho cùng kết quả; >= <= - - được chuẩn hoá",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19B-AC-02",
+      "text": "Ma trận phân vùng và điểm biên",
+      "cases": [
+        {
+          "id": "P19B-TC-04",
+          "intent": "[18,60] -> 17, 18, 19, 39, 59, 60, 61 với cờ hợp lệ đúng; [1,2] khử trùng; [5,5] -> 4, 5, 6",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-05",
+          "intent": "Một phía: max 50 ký tự -> 0 (implicit), 49, 50, 51; min 8 -> 7, 8, 9; length không có giá trị âm; number min 0 vẫn giữ -1; phân vùng đúng",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-06",
+          "intent": "invalidTypes theo kind; sample đúng độ dài; không có sample khi > 1024",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19B-AC-03",
+      "text": "BVA qua API, 0 token",
+      "cases": [
+        {
+          "id": "P19B-TC-07",
+          "intent": "POST /api/qa/boundary-matrix văn bản mẫu -> 200, source: 'rule', ràng buộc kèm matrix; GET /api/ai/audit không tăng; FakeAiProvider không nhận request nào",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-08",
+          "intent": "400 khi rỗng hoặc body không phải JSON; 413 khi > 20.000 ký tự",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19B-AC-04",
+      "text": "BDD qua gateway, không có kết quả giả",
+      "cases": [
+        {
+          "id": "P19B-TC-09",
+          "intent": "buildBddPrompts có danh sách mã AC, luật giữ mã và schema; prompt text chứa cụm từ 'giữ nguyên mã AC'",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-10",
+          "intent": "/api/ai/format-bdd với FakeAiProvider trả JSON hợp lệ -> 200, có markdown, model, usage",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-11",
+          "intent": "Provider trả thiếu AC-002 -> 502 BDD_MISSING_AC, không có markdown",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-12",
+          "intent": "Provider trả 500, timeout, hoặc JSON hỏng -> 502 kèm code của gateway; không có markdown, không có source: 'rule'",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-13",
+          "intent": "Client huỷ request -> provider ghi nhận abort (abortedRequests)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-02"
+          ]
+        },
+        {
+          "id": "P19B-TC-14",
+          "intent": "Header Origin khác -> 403",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19B-AC-05",
+      "text": "Giữ nguyên mã AC",
+      "cases": [
+        {
+          "id": "P19B-TC-15",
+          "intent": "validateScenarios: dữ liệu hợp lệ; thiếu when/then; acId lạ -> BDD_UNKNOWN_AC; thiếu hoặc lặp -> BDD_MISSING_AC; bước > 300 ký tự; > 30 scenario; bỏ từ khoá đầu bước; title trống thì lấy từ đầu vào",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-16",
+          "intent": "extractAcBlocks: nhận ### AC-001 - t, ### AC-002: t, AC-003: t ở đầu dòng, **AC-004**; AC-8, AC_012 vào warnings, không được nhận",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19B-AC-06",
+      "text": "Markdown tương thích scanner",
+      "cases": [
+        {
+          "id": "P19B-TC-17",
+          "intent": "renderBddMarkdown khớp chuỗi mong đợi viết tay (2 AC + 1 đề xuất)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-18",
+          "intent": "LIFE-01 (API): format-bdd (fake provider) -> ghép markdown vào REQ fixture qua PUT /api/qa/document -> GET /api/qa/summary thấy đủ AC đầu vào; không có near-miss mới; không có AC nào từ phần đề xuất",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P19B-AC-07",
+      "text": "Giao diện modal Phân tích Yêu cầu (tab BVA & BDD)",
+      "cases": [
+        {
+          "id": "P19B-TC-19",
+          "intent": "UI-02 / LIFE-01: mở modal, nạp mẫu, bấm \"Ma trận biên\" -> tab bva được chọn, có thẻ ràng buộc; bấm \"Chuẩn hoá BDD\" (stub) -> tab bdd, hiện markdown",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-02",
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "P19B-TC-20",
+          "intent": "UI-01: danh sách tab viết tay [tc, impact, logic, qa, clarity, spec, bva, bdd] khớp DOM",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-01"
+          ]
+        },
+        {
+          "id": "P19B-TC-21",
+          "intent": "UI-04: chuyển tab nhanh bva -> bdd -> bva -> chỉ panel bva hiện",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-04"
+          ]
+        },
+        {
+          "id": "P19B-TC-22",
+          "intent": "ASYNC-01: sửa textarea khi BDD đang chờ -> kết quả về kèm banner stale; phần đã sửa trong textarea giữ nguyên",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-01"
+          ]
+        },
+        {
+          "id": "P19B-TC-23",
+          "intent": "ASYNC-02: đóng modal khi BDD đang chờ -> request bị huỷ; mở lại không thấy kết quả cũ",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-02"
+          ]
+        },
+        {
+          "id": "P19B-TC-24",
+          "intent": "ASYNC-03: chạy 2 lần, lần 1 trễ -> chỉ hiện kết quả lần 2",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-03"
+          ]
+        },
+        {
+          "id": "P19B-TC-25",
+          "intent": "ASYNC-04: stub 502 -> báo lỗi + Thử lại; thử lại với stub 200 -> có kết quả; textarea giữ nguyên",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-04"
+          ]
+        },
+        {
+          "id": "P19B-TC-26",
+          "intent": "ASYNC-05: \"Đã sao chép\" chỉ hiện sau khi clipboard resolve; clipboard từ chối -> báo lỗi, vẫn dirty",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-05"
+          ]
+        },
+        {
+          "id": "P19B-TC-27",
+          "intent": "UI-05: đóng khi có BDD chưa sao chép -> hộp xác nhận; \"Ở lại\" / \"Bỏ và đóng\"; sau khi sao chép thì đóng không hỏi",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "UI-05"
+          ]
+        },
+        {
+          "id": "P19B-TC-28",
+          "intent": "OWN-01..04: 20 vòng chuyển #/qa ↔ view khác, mở modal, bấm BVA 1 lần -> đúng 1 request. Qua import() module: mount x2, destroy x2, disposer cũ an toàn",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "OWN-01",
+            "OWN-02",
+            "OWN-03",
+            "OWN-04"
+          ]
+        },
+        {
+          "id": "P19B-TC-29",
+          "intent": "OWN-05: rời view khi BDD đang chờ -> không sửa DOM, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "OWN-05"
+          ]
+        },
+        {
+          "id": "P19B-TC-30",
+          "intent": "An toàn hiển thị: requirement có <img src=x onerror=alert(1)> và <script> -> BVA/BDD hiện nguyên văn; không có sự kiện dialog, không có img[onerror]",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19B-TC-31",
+          "intent": "UI-03: Bố cục modal 1920×1080 theme tối: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19B-TC-32",
+          "intent": "UI-03: Bố cục modal 1440×900 theme tối: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19B-TC-33",
+          "intent": "UI-03: Bố cục modal 1280×800 theme tối: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19B-TC-34",
+          "intent": "UI-03: Bố cục modal 390×844 theme tối: hàng 8 tab cuộn ngang bên trong modal, không vỡ layout, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19B-TC-35",
+          "intent": "UI-03: Bố cục modal 1920×1080 theme sáng: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19B-TC-36",
+          "intent": "UI-03: Bố cục modal 1440×900 theme sáng: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19B-TC-37",
+          "intent": "UI-03: Bố cục modal 1280×800 theme sáng: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19B-TC-38",
+          "intent": "UI-03: Bố cục modal 390×844 theme sáng: hàng 8 tab cuộn ngang bên trong modal, không vỡ layout, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        }
+      ]
+    }
+  ]
+}

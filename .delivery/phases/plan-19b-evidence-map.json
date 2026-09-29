@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "phase": "plan-19b",
+  "contract": ".delivery/phases/plan-19b.json",
+  "implementation": {
+    "actor": "claude-implementation",
+    "session": "plan19b-impl"
+  },
+  "regression_default": {
+    "status": "NOT_FEASIBLE",
+    "reason": "Hành vi mới do PLAN-19b bổ sung: ma trận giá trị biên và chuẩn hóa BDD AC; test được viết cùng tính năng."
+  },
+  "design": {
+    "async_state": {
+      "capture_identity": {
+        "path": "dashboard/public/js/views/qa/specStudio/bvaPanel.js",
+        "snippet": "const seq = ++this.seq;"
+      },
+      "completion_guard": {
+        "path": "dashboard/public/js/views/qa/specStudio/bvaPanel.js",
+        "snippet": "if (!this.alive || seq !== this.seq) return;"
+      }
+    },
+    "ownership_lifecycle": {
+      "registration_identity": {
+        "path": "dashboard/public/js/views/qa/specStudio/specStudioPanels.js",
+        "snippet": "const { root, hooks } = this;"
+      },
+      "disposer_guard": {
+        "path": "dashboard/public/js/views/qa/specStudio/specStudioPanels.js",
+        "snippet": "if (this.disposed) return;"
+      }
+    },
+    "router_ui": {
+      "registry": {
+        "path": "dashboard/public/js/views/qa/specStudio/specStudioPanels.js",
+        "snippet": "const SPEC_TABS"
+      },
+      "navigation": {
+        "path": "dashboard/public/js/views/qa/specStudio/specStudioPanels.js",
+        "snippet": "hooks.switchTab(tabId);"
+      },
+      "inventory": {
+        "path": "_Plan_implement/19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md",
+        "origin": "approved_spec",
+        "derivation": "Mục 4.5 của PLAN-19b; E2E so DOM thật với danh sách tab viết tay, không đọc từ SPEC_TABS."
+      }
+    },
+    "lifecycle_integration": {
+      "public_entrypoint": {
+        "path": "dashboard/routes/qaSpecRoutes.js",
+        "snippet": "'POST /api/qa/boundary-matrix'"
+      }
+    }
+  },
+  "cases": {
+    "P19B-TC-01": { "run": "plan19b-node", "entrypoint": "function", "source": "dashboard/services/qaBoundaryExtract.test.js" },
+    "P19B-TC-02": { "run": "plan19b-node", "entrypoint": "function", "source": "dashboard/services/qaBoundaryExtract.test.js" },
+    "P19B-TC-03": { "run": "plan19b-node", "entrypoint": "function", "source": "dashboard/services/qaBoundaryExtract.test.js" },
+    "P19B-TC-04": { "run": "plan19b-node", "entrypoint": "function", "source": "dashboard/services/qaBoundaryMatrix.test.js" },
+    "P19B-TC-05": { "run": "plan19b-node", "entrypoint": "function", "source": "dashboard/services/qaBoundaryMatrix.test.js" },
+    "P19B-TC-06": { "run": "plan19b-node", "entrypoint": "function", "source": "dashboard/services/qaBoundaryMatrix.test.js" },
+    "P19B-TC-07": { "run": "plan19b-node", "entrypoint": "http", "source": "tests/dashboard-api/qa-spec-studio.test.js" },
+    "P19B-TC-08": { "run": "plan19b-node", "entrypoint": "http", "source": "tests/dashboard-api/qa-spec-studio.test.js" },
+    "P19B-TC-09": { "run": "plan19b-node", "entrypoint": "function", "source": "core/ai/tasks/formatBddCriteria.test.js" },
+    "P19B-TC-10": { "run": "plan19b-node", "entrypoint": "http", "source": "tests/dashboard-api/qa-spec-studio.test.js" },
+    "P19B-TC-11": { "run": "plan19b-node", "entrypoint": "http", "source": "tests/dashboard-api/qa-spec-studio.test.js" },
+    "P19B-TC-12": { "run": "plan19b-node", "entrypoint": "http", "source": "tests/dashboard-api/qa-spec-studio.test.js" },
+    "P19B-TC-13": { "run": "plan19b-node", "entrypoint": "http", "source": "tests/dashboard-api/qa-spec-studio.test.js" },
+    "P19B-TC-14": { "run": "plan19b-node", "entrypoint": "http", "source": "tests/dashboard-api/qa-spec-studio.test.js" },
+    "P19B-TC-15": { "run": "plan19b-node", "entrypoint": "function", "source": "core/ai/tasks/bddCriteriaRules.test.js" },
+    "P19B-TC-16": { "run": "plan19b-node", "entrypoint": "function", "source": "core/ai/tasks/bddCriteriaRules.test.js" },
+    "P19B-TC-17": { "run": "plan19b-node", "entrypoint": "function", "source": "core/ai/tasks/bddCriteriaRules.test.js" },
+    "P19B-TC-18": { "run": "plan19b-node", "entrypoint": "http", "source": "tests/dashboard-api/qa-spec-studio.test.js" },
+    "P19B-TC-19": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-20": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-21": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-22": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-23": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-24": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-25": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-26": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-27": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-28": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-29": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-30": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio.spec.js" },
+    "P19B-TC-31": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio-layout.spec.js" },
+    "P19B-TC-32": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio-layout.spec.js" },
+    "P19B-TC-33": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio-layout.spec.js" },
+    "P19B-TC-34": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio-layout.spec.js" },
+    "P19B-TC-35": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio-layout.spec.js" },
+    "P19B-TC-36": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio-layout.spec.js" },
+    "P19B-TC-37": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio-layout.spec.js" },
+    "P19B-TC-38": { "run": "plan19b-e2e", "entrypoint": "playwright", "source": "tests/dashboard/qa-spec-studio-layout.spec.js" }
+  }
+}
