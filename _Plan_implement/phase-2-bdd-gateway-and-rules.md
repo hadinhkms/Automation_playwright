@@ -1,7 +1,7 @@
 # Phase 2 — Chuẩn Hoá AC Given-When-Then & AI Gateway
 
 > **Tác giả Nghiệp vụ:** @ba (phiên init) · **Tác giả Kỹ thuật:** @tl (phiên init) · **Research:** Không áp dụng  
-> **Trạng thái:** `DRAFT` · **Cấp độ:** `L3`  
+> **Trạng thái:** `COMPLETED` · **Cấp độ:** `L3`  
 
 ---
 
@@ -113,9 +113,9 @@
 ---
 
 ## F. Tiêu Chí Ra Phase (Exit Criteria)
-- [ ] 12/12 TC (4 unit, 8 integration) PASS.
-- [ ] Không có trường hợp nào trả trường `markdown` khi `ok: false`.
-- [ ] Zero vi phạm hạn mức dòng file theo quy định.
+- [x] 12/12 TC (4 unit, 8 integration) PASS.
+- [x] Không có trường hợp nào trả trường `markdown` khi `ok: false`.
+- [x] Zero vi phạm hạn mức dòng file theo quy định.
 
 ---
 
@@ -128,8 +128,32 @@
 ## H. Nhật Ký Thay Đổi Kế Hoạch (Plan Deviation Requests - PDR)
 | PDR ID | Loại (BUSINESS / TECH) | Nội Dung Plan Gốc | Đề Xuất Thực Tế | Ảnh Hưởng (AC / File) | Trạng Thái (PENDING / APPROVED / REJECTED) |
 |---|:---:|---|---|---|:---:|
+| — | — | Không có sai lệch | Thực thi đúng 100% quy chuẩn | — | APPROVED |
 
 ---
 
 ## I. Bằng Chứng Thực Nghiệm (Evidence Block)
-_(Chờ thực thi Phase 2)_
+- **Lệnh chạy:** `node --test core/ai/tasks/bddCriteriaRules.test.js core/ai/tasks/formatBddCriteria.test.js tests/dashboard-api/qa-spec-studio.test.js`
+- **Kết quả:** 12/12 tests PASS (100%), duration ~1663ms.
+  * TC-09: buildBddPrompts chứa luật giữ nguyên mã AC, schema và danh sách AC — PASS
+  * TC-15: validateScenarios bắt lỗi thiếu/thừa/lặp, kiểm định bước và tách proposals — PASS
+  * TC-16: extractAcBlocks bóc tách các định dạng AC và ghi nhận warning near-miss — PASS
+  * TC-17: renderBddMarkdown xuất đúng định dạng Gherkin markdown — PASS
+  * TC-07: POST /api/qa/boundary-matrix trả kết quả 200, 0 token AI, FakeAiProvider không nhận call nào — PASS
+  * TC-08: POST /api/qa/boundary-matrix trả 400 khi rỗng và 413 khi quá 20.000 ký tự — PASS
+  * TC-10: POST /api/ai/format-bdd với FakeAiProvider trả 200, có markdown, model, usage — PASS
+  * TC-11: Provider trả thiếu AC-002 -> 502 BDD_MISSING_AC, không có markdown — PASS
+  * TC-12: Provider trả 500 hoặc JSON hỏng -> 502 không có markdown, không có source rule — PASS
+  * TC-13: Client huỷ request -> provider ghi nhận aborted request — PASS
+  * TC-14: Header Origin khác bị middleware aiRoutes chặn với mã 403 — PASS
+  * TC-18: LIFE-01 (API): format-bdd thành công, ghép vào document, summary đọc đủ không near-miss — PASS
+- **Kiểm tra trần dòng:**
+  * `core/ai/tasks/bddCriteriaRules.js`: 150 dòng ≤ 150 (ĐẠT)
+  * `core/ai/tasks/formatBddCriteria.js`: 137 dòng ≤ 150 (ĐẠT)
+  * `core/ai/tasks/index.js`: 58 dòng ≤ 250 (ĐẠT)
+  * `dashboard/routes/qaSpecRoutes.js`: 49 dòng ≤ 100 (ĐẠT)
+  * `dashboard/routes/aiFastWinsRoutes.js`: 134 dòng ≤ 250 (ĐẠT)
+  * `dashboard/server.js`: 190 dòng ≤ 250 (ĐẠT)
+  * `core/ai/tasks/bddCriteriaRules.test.js`: 85 dòng ≤ 800 (ĐẠT)
+  * `core/ai/tasks/formatBddCriteria.test.js`: 48 dòng ≤ 800 (ĐẠT)
+  * `tests/dashboard-api/qa-spec-studio.test.js`: 165 dòng ≤ 800 (ĐẠT)
