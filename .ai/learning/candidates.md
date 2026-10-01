@@ -10,3 +10,7 @@
 - **CANDIDATE-02 (Engine Label = Code Path, Test "No AI" With a Key):**
   - **DO:** Gắn nhãn `source`/`engine` tại đúng nhánh code tạo ra kết quả; mọi tính năng tuyên bố "không dùng AI" phải có test chạy với key đã cấu hình và khẳng định fake provider nhận 0 request.
   - **DON'T:** Không suy ra "AI" từ `res.ok` khi wrapper có thể tự trả `ok: true` từ nhánh luật; không để UI giữ nhãn "(AI)"/✦ cho tính năng chạy luật.
+
+- **CANDIDATE-03 (Dynamic QA_PROJECT_ROOT for Test Isolation):**
+  - **DO:** Luôn giải quyết đường dẫn thư mục lưu trữ (`data/`, `reports/`) thông qua hàm getter kiểm tra `process.env.QA_PROJECT_ROOT || process.cwd()` để các harness kiểm thử E2E chạy trên workspace tạm cô lập hoàn toàn với thư mục gốc của repository.
+  - **DON'T:** Không gán cứng `path.join(__dirname, '../..', 'data')` ở cấp module scope (tĩnh lúc nạp file) khiến các test suite ghi đè dữ liệu thật hoặc thất bại kiểm thử đĩa.
