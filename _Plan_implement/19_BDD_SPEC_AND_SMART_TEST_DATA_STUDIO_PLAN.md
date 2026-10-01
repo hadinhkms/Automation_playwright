@@ -21,7 +21,7 @@ Nếu gộp, Gate 4 phải chờ phần AI xong mới đóng được phần d�
 | Plan | Phạm vi | AI | Ước lượng | Thứ tự |
 | --- | --- | --- | --- | --- |
 | [PLAN-19a](19a_VN_TEST_DATA_GENERATOR_PLAN.md) | Bộ sinh CCCD / MST / SĐT / họ tên / persona theo seed; thư viện payload biên; placeholder `{{vn_*}}`; export `commonUtils`; modal sinh dữ liệu ở `#/data` | Không (0 token) | ~4 ngày | Làm trước |
-| [PLAN-19b](19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md) | Ma trận biên theo luật (0 token, corpus 44 câu); chuẩn hoá AC sang Given-When-Then qua AI gateway, giữ nguyên mã AC, chỉ sao chép Markdown | Chỉ phần BDD | ~4.5 ngày | Làm sau 19a |
+| [PLAN-19b](19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md) · [Overview](plan-19b-overview.md) | Ma trận biên theo luật (0 token, corpus 44 câu); chuẩn hoá AC sang Given-When-Then qua AI gateway, giữ nguyên mã AC, chỉ sao chép Markdown | Chỉ phần BDD | ~4.5 ngày | Làm sau 19a |
 
 Hai plan không dùng code của nhau. Làm tuần tự để mỗi lần trên `main` chỉ có một phase chờ gate (verifier yêu cầu HEAD sạch).
 
