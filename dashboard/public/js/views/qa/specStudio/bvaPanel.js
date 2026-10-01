@@ -1,7 +1,7 @@
 /**
  * dashboard/public/js/views/qa/specStudio/bvaPanel.js
  * Hiển thị ma trận phân vùng tương đương và điểm biên (BVA) 0 token AI.
- * Toàn bộ DOM render an toàn qua textContent (INV-6 chống XSS). Ngân sách dòng <= 150.
+ * Toàn bộ DOM render an toàn qua textContent (INV-6), tối ưu DocumentFragment, ngân sách dòng <= 150.
  */
 
 import { apiClient } from '../../../core/apiClient.js';
@@ -21,7 +21,6 @@ export async function runBva({ root, hooks, setAbort }) {
 
   hooks.showResults();
   hooks.switchTab('bva');
-
   const container = root.querySelector('#qa-req-bva-result');
   if (!container) return;
   container.replaceChildren();
@@ -65,6 +64,7 @@ export async function runBva({ root, hooks, setAbort }) {
 
 function renderBvaResult(container, res) {
   container.replaceChildren();
+  const frag = document.createDocumentFragment();
 
   const toolbar = document.createElement('div');
   toolbar.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;';
@@ -85,13 +85,13 @@ function renderBvaResult(container, res) {
     }
   });
   toolbar.append(title, copyBtn);
-  container.append(toolbar);
+  frag.append(toolbar);
 
   if (!res.constraints.length) {
     const empty = document.createElement('p');
     empty.style.cssText = 'padding: 24px; text-align: center; color: var(--muted); font-size: 13px;';
     empty.textContent = 'Không tìm thấy ràng buộc số hoặc độ dài nào trong văn bản.';
-    container.append(empty);
+    frag.append(empty);
   }
 
   res.constraints.forEach((c, idx) => {
@@ -151,7 +151,7 @@ function renderBvaResult(container, res) {
     });
     table.append(tbody);
     card.append(table);
-    container.append(card);
+    frag.append(card);
   });
 
   if (res.unrecognized?.length > 0) {
@@ -170,6 +170,8 @@ function renderBvaResult(container, res) {
       ul.append(li);
     });
     unrecBox.append(ul);
-    container.append(unrecBox);
+    frag.append(unrecBox);
   }
+
+  container.append(frag);
 }

@@ -14,6 +14,7 @@ function extractAcBlocks(text) {
   const acs = [];
   const warnings = [];
   const seenIds = new Set();
+  const seenWarnings = new Set();
 
   for (let i = 0; i < lines.length; i++) {
     const rawLine = lines[i];
@@ -24,7 +25,11 @@ function extractAcBlocks(text) {
     RE_NEAR_MISS.lastIndex = 0;
     while ((nearMatch = RE_NEAR_MISS.exec(line)) !== null) {
       if (!RE_CANONICAL_AC.test(nearMatch[1])) {
-        warnings.push(`Mã AC gần đúng nhưng không chuẩn quy cách: ${nearMatch[1]}`);
+        const warnMsg = `Mã AC gần đúng nhưng không chuẩn quy cách: ${nearMatch[1]}`;
+        if (!seenWarnings.has(warnMsg)) {
+          seenWarnings.add(warnMsg);
+          warnings.push(warnMsg);
+        }
       }
     }
 
@@ -114,7 +119,7 @@ function validateScenarios(data, inputAcs = []) {
   }
 
   const rawQuestions = Array.isArray(data.openQuestions) ? data.openQuestions : [];
-  const openQuestions = rawQuestions.filter((q) => typeof q === 'string' && q.trim()).slice(0, 10);
+  const openQuestions = Array.from(new Set(rawQuestions.filter((q) => typeof q === 'string' && q.trim()))).slice(0, 10);
 
   return { ok: true, scenarios, proposals, openQuestions };
 }

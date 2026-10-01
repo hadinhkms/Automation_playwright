@@ -1,8 +1,7 @@
 /**
  * dashboard/public/js/views/qa/specStudio/bddPanel.js
  * Quản lý giao diện Chuẩn hoá BDD qua AI Gateway.
- * TextContent 100% an toàn chống XSS (INV-6), quản lý cờ dirty và cảnh báo stale.
- * Ngân sách dòng <= 150.
+ * TextContent 100% an toàn chống XSS (INV-6), tối ưu DocumentFragment, ngân sách dòng <= 150.
  */
 
 import { apiClient } from '../../../core/apiClient.js';
@@ -64,7 +63,7 @@ export async function runBdd({ root, hooks, getRev, setDirty, setAbort }) {
     const badge = root.querySelector('#qa-req-tab-bdd-status');
     if (badge) badge.textContent = `${res.acIds?.length || 0} AC`;
 
-    renderBddResult({ root, container, res, reqRev, getRev, setDirty, onRetry: () => runBdd({ root, hooks, getRev, setDirty, setAbort }) });
+    renderBddResult({ container, res, reqRev, getRev, setDirty });
     toast.success('Chuẩn hoá kịch bản BDD thành công!');
   } catch (err) {
     if (seq !== currentBddSeq) return;
@@ -92,13 +91,14 @@ export async function runBdd({ root, hooks, getRev, setDirty, setAbort }) {
 
 function renderBddResult({ container, res, reqRev, getRev, setDirty }) {
   container.replaceChildren();
+  const frag = document.createDocumentFragment();
 
   if (getRev() !== reqRev) {
     const stale = document.createElement('div');
     stale.id = 'qa-req-bdd-stale';
     stale.className = 'qa-bdd-stale-banner';
     stale.textContent = '⚠️ Văn bản đã thay đổi — kịch bản bên dưới có thể đã cũ, hãy chạy lại khi cần.';
-    container.append(stale);
+    frag.append(stale);
   }
 
   const bar = document.createElement('div');
@@ -122,12 +122,12 @@ function renderBddResult({ container, res, reqRev, getRev, setDirty }) {
     }
   });
   bar.append(title, copyBtn);
-  container.append(bar);
+  frag.append(bar);
 
   const guide = document.createElement('p');
   guide.style.cssText = 'font-size: 12px; color: var(--muted); margin: 0 0 8px;';
   guide.textContent = '💡 Hướng dẫn: Bấm "Sao chép Markdown", dán vào tài liệu REQ qua Document Reader rồi bấm Lưu.';
-  container.append(guide);
+  frag.append(guide);
 
   const pre = document.createElement('pre');
   pre.id = 'qa-req-bdd-markdown';
@@ -135,7 +135,7 @@ function renderBddResult({ container, res, reqRev, getRev, setDirty }) {
   const code = document.createElement('code');
   code.textContent = res.markdown || '';
   pre.append(code);
-  container.append(pre);
+  frag.append(pre);
 
   const appendList = (titleText, items, isWarn = false) => {
     if (!items || !items.length) return;
@@ -154,9 +154,10 @@ function renderBddResult({ container, res, reqRev, getRev, setDirty }) {
       ul.append(li);
     });
     box.append(ul);
-    container.append(box);
+    frag.append(box);
   };
 
   appendList('Cảnh báo mã AC chưa chuẩn quy cách:', res.warnings, true);
   appendList(`Câu hỏi làm rõ logic (${res.openQuestions?.length || 0}):`, res.openQuestions);
+  container.append(frag);
 }
