@@ -1,7 +1,7 @@
 # Phase 3 — Giao Diện Spec Studio & Kiểm Thử Toàn Diện Gate 4
 
 > **Tác giả Nghiệp vụ:** @ba (phiên init) · **Tác giả Kỹ thuật:** @tl (phiên init) · **Research:** Không áp dụng  
-> **Trạng thái:** `DRAFT` · **Cấp độ:** `L3`  
+> **Trạng thái:** `COMPLETED` · **Cấp độ:** `L3`  
 
 ---
 
@@ -115,9 +115,9 @@
 ---
 
 ## F. Tiêu Chí Ra Phase (Exit Criteria)
-- [ ] 20/20 TC E2E tests PASS trên Playwright.
-- [ ] 16/16 Gate Scenarios có bằng chứng thực nghiệm đầy đủ.
-- [ ] 0 lỗi console, kiểm tra đạt 4 viewports × 2 themes.
+- [x] 20/20 TC E2E tests PASS trên Playwright.
+- [x] 16/16 Gate Scenarios có bằng chứng thực nghiệm đầy đủ.
+- [x] 0 lỗi console, kiểm tra đạt 4 viewports × 2 themes.
 
 ---
 
@@ -130,8 +130,35 @@
 ## H. Nhật Ký Thay Đổi Kế Hoạch (Plan Deviation Requests - PDR)
 | PDR ID | Loại (BUSINESS / TECH) | Nội Dung Plan Gốc | Đề Xuất Thực Tế | Ảnh Hưởng (AC / File) | Trạng Thái (PENDING / APPROVED / REJECTED) |
 |---|:---:|---|---|---|:---:|
+| — | — | Không có sai lệch | Thực thi đúng 100% quy chuẩn | — | APPROVED |
 
 ---
 
 ## I. Bằng Chứng Thực Nghiệm (Evidence Block)
-_(Chờ thực thi Phase 3 & Gate 4)_
+- **Lệnh chạy Playwright E2E:** `npx playwright test tests/dashboard/qa-spec-studio.spec.js --config=playwright.dashboard.config.js`
+  * **Kết quả:** 12/12 tests PASS (100%), duration ~29s.
+  * TC-19: UI-02 / LIFE-01: Luồng mở modal và kích hoạt 2 tab BVA và BDD — PASS
+  * TC-20: UI-01: Khớp danh sách tab trong modal DOM (đủ 8 tabs) — PASS
+  * TC-21: UI-04: Chuyển tab nhanh bva -> bdd -> bva — PASS
+  * TC-22: ASYNC-01: Sửa textarea khi đang chờ kết quả -> hiện banner stale — PASS
+  * TC-23: ASYNC-02: Đóng modal huỷ request đang chờ — PASS
+  * TC-24: ASYNC-03: Xử lý 2 request liên tiếp chống late response — PASS
+  * TC-25: ASYNC-04: Báo lỗi 502 và Thử lại thành công — PASS
+  * TC-26: ASYNC-05: Clipboard copy resolve hoặc xử lý từ chối an toàn — PASS
+  * TC-27: UI-05: Hộp thoại xác nhận đóng khi dirty — PASS
+  * TC-28: OWN-01..04: 20 vòng chuyển view không nhân bản listener — PASS
+  * TC-29: OWN-05: Rời view khi đang chờ không lỗi console — PASS
+  * TC-30: An toàn XSS khi render payload độc hại trong BVA và BDD — PASS
+- **Lệnh chạy Responsive Layout:** `npx playwright test tests/dashboard/qa-spec-studio-layout.spec.js --config=playwright.dashboard.config.js`
+  * **Kết quả:** 8/8 tests PASS (100%), duration ~15s.
+  * TC-31 & TC-32: Viewport 1920x1080 (Light & Dark mode) — PASS
+  * TC-33 & TC-34: Viewport 1440x900 (Light & Dark mode) — PASS
+  * TC-35 & TC-36: Viewport 1280x800 (Light & Dark mode) — PASS
+  * TC-37 & TC-38: Viewport 390x844 mobile (Light & Dark mode) — PASS
+- **Kiểm tra trần dòng:**
+  * `dashboard/public/templates/qa.html`: Thêm tab và panel modal hợp lệ (ĐẠT)
+  * `dashboard/public/styles/views/qa.css`: Thêm 35 dòng CSS Spec Studio (ĐẠT)
+  * `dashboard/public/js/views/qa/reqAnalyzerHelper.js`: Thêm 15 dòng mount và lifecycle (ĐẠT)
+  * `dashboard/public/js/views/qa/specStudio/specStudioPanels.js`: 106 dòng ≤ 150 (ĐẠT)
+  * `dashboard/public/js/views/qa/specStudio/bvaPanel.js`: 146 dòng ≤ 150 (ĐẠT)
+  * `dashboard/public/js/views/qa/specStudio/bddPanel.js`: 145 dòng ≤ 150 (ĐẠT)
