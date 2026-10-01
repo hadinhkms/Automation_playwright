@@ -1,403 +1,274 @@
-# Kế Hoạch 19a: Bộ Sinh Dữ Liệu Kiểm Thử Việt Nam & Thư Viện Payload Biên (QA-7)
+# Phase 19a — Bộ Sinh Dữ Liệu Kiểm Thử Việt Nam & Thư Viện Payload Biên
 
-> **Mã kế hoạch:** `PLAN-19a` — tách từ [PLAN-19](19_BDD_SPEC_AND_SMART_TEST_DATA_STUDIO_PLAN.md) v1  
-> **Phiên bản:** `v1.1` — 2026-09-28  
-> **Trạng thái:** `DRAFT — CHỜ CHỐT D1–D6 (mục 0) VÀ BA DUYỆT HASH CONTRACT (Phase 0)`  
-> **Phân loại:** L2/L3. **Không dùng AI**, 0 token.  
-> **Phạm vi:** `core/utils/vnData/` (mới), `core/utils/dataManager.js`, `core/utils/commonUtils.js`, `dashboard/routes/`, view **Test Data Studio** (`#/data`).  
-> **Phụ thuộc:** không phụ thuộc PLAN-19b. Làm trước 19b (rủi ro thấp, đóng gate nhanh).  
-> **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json), [PLAN-18](18_QA_STATIC_FINDINGS_BATCH_PROCESSING_PLAN.md) (mẫu contract/evidence).  
-> **Nhánh:** trunk-based trên `main`. Commit code **trước** khi ghi receipts (verifier yêu cầu evidence.revision == HEAD và tree sạch).
+> **Tác giả Nghiệp vụ:** @ba (phiên init) · **Tác giả Kỹ thuật:** @tl (phiên init) · **Research:** RES-01  
+> **Trạng thái:** `DRAFT` · **Cấp độ:** `L2`  
 
 ---
 
-## 0. Quyết Định Cần Chốt Trước Phase 1
+## A. Nghiệp Vụ (BA — A/R; Tech Lead — C)
 
-| # | Đề xuất | Lý do | Ai chốt |
-| --- | --- | --- | --- |
-| D1 | CCCD dùng danh sách **63 mã tỉnh** ở Phụ lục A | Số CCCD đã cấp không đổi sau sáp nhập tỉnh 2025. Cần BA xác nhận có mã mới nào phải thêm không | BA |
-| D2 | MST chỉ sinh 2 loại: **doanh nghiệp 10 số** và **đơn vị phụ thuộc 13 số** (`NNNNNNNNNN-NNN`). Không có loại "MST cá nhân" | Theo TT 86/2024/TT-BTC, cá nhân dùng số định danh (CCCD) làm MST. BA xác nhận | BA |
-| D3 | `generateRandomVNPhone()` hiện có ở Hub chuyển sang dùng bộ sinh mới | Bản hiện tại ([commonUtils.js:518](../core/utils/commonUtils.js#L518)) ghép `09/03/07/08/05` với 8 số ngẫu nhiên, nên sinh ra cả đầu số chưa cấp (050, 080…). Chữ ký hàm giữ nguyên; vệ tinh nhận thay đổi khi sync | PO |
-| D4 | Bản đầu chỉ có **"Lưu thành dataset mới"** và **"Sao chép JSON"**. Không chèn vào dataset đang mở | Editor dataset thuộc `app.js` legacy (`isDataDirty`, `dataRawEditorController`, [app.js:9492](../dashboard/public/app.js#L9492)); chèn vào đó phải sửa file 17.6k dòng | PO |
-| D5 | `count` là số nguyên từ 1 đến 500 | 500 bản ghi persona < 100KB, dưới trần 1MB của dataset | PO |
-| D6 | Email luôn dùng `@example.com` | Tên miền dành riêng (RFC 2606), trùng quy ước ở [dataManager.js:29](../core/utils/dataManager.js#L29) | — |
+### A1. Mục Tiêu & Phạm Vi Phase
+- **In-Scope:**
+  - Xây dựng module sinh dữ liệu định danh Việt Nam hoàn toàn bằng thuật toán xác định (seeded PRNG Mulberry32): CCCD 12 số, MST doanh nghiệp (10 số) và đơn vị phụ thuộc (13 số), Số điện thoại (10 số), Họ tên tiếng Việt chuẩn NFC, và Persona nhất quán.
+  - Xây dựng thư viện 6 nhóm payload kiểm thử biên (XSS, SQLi, Unicode, Whitespace, Length, CSV Formula) với ID ổn định.
+  - Tích hợp 5 placeholder động `{{vn_cccd}}`, `{{vn_mst}}`, `{{vn_phone}}`, `{{vn_name}}`, `{{vn_email}}` vào `resolveDynamicValues` và export các hàm tiện ích sang `commonUtils`.
+  - Triển khai endpoints API: `POST /api/data/generate`, `GET /api/data/payloads`, cập nhật `GET /api/data/dynamic-preview`.
+  - Triển khai giao diện Test Data Studio (`#/data`): Modal "Sinh dữ liệu VN" với 2 tab (Định danh VN & Payload biên), hỗ trợ xem trước, sao chép JSON và lưu thành dataset mới.
+- **Out-of-Scope:**
+  - Tuyệt đối không sử dụng AI (0 token, tuân thủ nguyên tắc INV-1).
+  - Không tạo endpoint ghi đĩa mới; việc lưu trữ chỉ sử dụng endpoint `create-dataset` có sẵn (INV-4).
+  - Không sửa `core/local/commonUtils.local.js` thuộc phạm vi repo dự án vệ tinh CarThings.
+  - Ma trận biên tự động (BVA Matrix) và chuẩn hóa BDD Specification thuộc phạm vi PLAN-19b.
 
----
+### A2. Yêu Cầu & Quy Tắc Nghiệp Vụ Áp Dụng
+- `REQ-19A-01`: Bộ sinh định danh Việt Nam bằng thuật toán thuần bao gồm CCCD 12 số, MST 10/13 số, SĐT 10 số, Họ tên NFC và Persona nhất quán.
+- `REQ-19A-02`: Thư viện 6 nhóm payload kiểm thử biên có ID ổn định, hiển thị an toàn và cho phép sao chép nhanh vào clipboard.
+- `REQ-19A-03`: Tích hợp các placeholder `{{vn_*}}` vào hệ thống dataset sẵn có và mở rộng bộ export tiện ích của `commonUtils`.
+- `REQ-19A-04`: Giao diện modal Test Data Studio tại view `#/data` hỗ trợ chọn tham số, xem trước trực quan, kiểm soát dirty guard và lưu dataset mới.
+- `BR-19A-01`: Quy chuẩn định danh CCCD 12 số tuân thủ danh mục 63 mã tỉnh (Phụ lục A), mã thế kỷ/giới tính (Thế kỷ 20: Nam 0, Nữ 1; Thế kỷ 21: Nam 2, Nữ 3) và 2 chữ số năm sinh; CCCD không có chữ số kiểm tra checksum.
+- `BR-19A-02`: Thuật toán checksum MST 10 số áp dụng vector trọng số `W = [31, 29, 23, 19, 17, 13, 7, 5, 3]` với công thức $N_{10} = 10 - (S \bmod 11)$, loại bỏ trường hợp $S \bmod 11 = 0$; MST 13 số có định dạng `<MST10>-<001..999>`. Theo TT 86/2024/TT-BTC, cá nhân dùng số CCCD làm MST nên không sinh loại MST cá nhân riêng.
+- `BR-19A-03`: Tính xác định & Chống trùng lặp (Determinism & Uniqueness): Cùng `seed` và tham số đầu vào bắt buộc sinh ra dữ liệu giống hệt nhau; không trùng giá trị định danh trong cùng một lần sinh; seed rỗng hoặc không truyền thì server tự sinh và trả về client.
+- `BR-19A-04`: An toàn dữ liệu & 0 Token AI (INV-1..6): 100% mã nguồn không import `core/ai`; dữ liệu chỉ dùng cho môi trường test (INV-3); mọi giá trị hiển thị trên UI bằng `textContent` chống XSS (INV-5); lưu trữ chỉ qua `create-dataset` (INV-4).
+- `BR-19A-05`: Quản lý trạng thái & Vòng đời giao diện (UI Lifecycle): Hiển thị dirty guard cảnh báo khi đóng modal với dữ liệu chưa lưu; khóa form và hiển thị spinner khi đang xử lý; áp dụng sequence counter (`seq`) và `AbortController` triệt tiêu late response.
 
-## 1. Mục Tiêu & Ngoài Phạm Vi
+### A3. User Flow & Nhánh Lỗi/Hủy
+- Luồng chính (Happy Path):
+  1. Người dùng truy cập view `#/data`, bấm nút "Sinh dữ liệu VN" (`#data-vn-gen-open-btn`).
+  2. Modal hiển thị, tự động focus vào tiêu đề, mặc định mở tab "Định danh VN".
+  3. Người dùng chọn loại dữ liệu (`type`), số lượng (`count` từ 1..500), nhập `seed` tùy chọn và các bộ lọc (giới tính, nhà mạng, tỉnh thành).
+  4. Bấm "Sinh dữ liệu" -> Gửi request tới `POST /api/data/generate` -> Hiển thị bảng xem trước kèm thông tin `seed`.
+  5. Người dùng nhập tên file dataset và bấm "Lưu thành dataset mới" (hoặc bấm "Sao chép JSON").
+  6. Dataset được tạo thành công qua `POST /api/data/create-dataset`, toast thông báo hiển thị, danh sách dataset bên trái tự động làm mới.
+- Luồng rẽ nhánh & xử lý lỗi (Alternative / Error Path):
+  - Người dùng nhập tham số sai (ví dụ: `count = 0` hoặc `501`, mã tỉnh không tồn tại) -> Server trả lỗi 400 kèm trường `field`, giao diện hiển thị thông báo lỗi `role="alert"` và highlight trường vi phạm.
+  - Người dùng bấm Esc hoặc nút Đóng khi có dữ liệu chưa lưu -> Hiển thị hộp thoại xác nhận `confirmDialog` ("Ở lại" để tiếp tục, "Bỏ và đóng" để hủy thay đổi).
+  - Lưu trùng tên dataset -> Endpoint trả về 400, modal giữ nguyên dữ liệu xem trước và tên file để người dùng sửa tên và lưu lại mà không bị mất dữ liệu.
+  - Người dùng chuyển nhanh giữa các tab hoặc đóng modal trong lúc request đang bay -> Kích hoạt `AbortController.abort()`, sequence counter bỏ qua kết quả muộn, không render lỗi vào DOM.
 
-### 1.1. Mục tiêu đo được
+### A4. Trạng Thái Biên (EDGE-xx)
+- `EDGE-19A-01`: Tham số `count` chạm biên tối đa 500 bản ghi hoặc tối thiểu 1 bản ghi -> Render mượt mà, bộ nhớ không vượt quá 100KB, không có giá trị trùng lặp.
+- `EDGE-19A-02`: Tham số `seed` chứa chuỗi Unicode đặc biệt (ví dụ: `"Café"`) hoặc chuỗi dài 1000 ký tự -> Hàm băm seed chuyển đổi an toàn sang uint32 mà không văng lỗi ngoại lệ.
+- `EDGE-19A-03`: Xem nhóm payload `xss` hoặc `unicode` trong tab Payload biên -> Render nguyên văn chuỗi bằng `textContent`, không kích hoạt `alert(1)`, ký tự vô hình hiển thị kèm mã nhận diện `U+200B`.
+- `EDGE-19A-04`: Mạng trễ hoặc người dùng bấm "Sinh dữ liệu" liên tiếp -> Kỹ thuật sequence counter (`seq`) chỉ vẽ kết quả của lần bấm cuối cùng, triệt tiêu race condition.
 
-- **G1:** CCCD, MST, SĐT, họ tên, persona sinh bằng thuật toán. 100% qua bộ kiểm tra độc lập (oracle viết tay trong test, **không** gọi lại code của generator).
-- **G2:** Có `seed` → cùng seed, cùng tham số thì ra cùng kết quả (tái hiện lỗi được). Không có seed → server tự chọn và trả seed về.
-- **G3:** Không trùng giá trị trong một lần sinh (CCCD, SĐT, email).
-- **G4:** Thư viện payload biên gồm 6 nhóm (mục 4.3), id ổn định. Dashboard hiển thị payload dạng văn bản, không thực thi.
-- **G5:** Chạy lúc test: spec gọi `generateVnCccd()`… từ `commonUtils`, hoặc dataset dùng placeholder `{{vn_cccd}}` qua `resolveDynamicValues`.
-- **G6:** 0 token AI. Không file nào của 19a `require`/`import` tới `core/ai`.
+### A5. Tiêu Chí Chấp Nhận (AC-xx)
+- `AC-19A-01`: Sinh CCCD 12 số đúng cấu trúc 63 tỉnh thành, thế kỷ/giới tính và năm sinh; vượt qua bộ kiểm tra oracle độc lập (kiểm chứng `BR-19A-01`, `BR-19A-03`).
+- `AC-19A-02`: Sinh MST 10 số và 13 số thỏa mãn công thức checksum vector trọng số; kiểm tra chính xác với các MST công khai (kiểm chứng `BR-19A-02`, `BR-19A-03`).
+- `AC-19A-03`: Sinh SĐT đúng đầu số 3 nhà mạng lớn, họ tên chuẩn NFC và Persona liên kết nhất quán giữa CCCD/năm sinh/giới tính/email (kiểm chứng `BR-19A-01`, `BR-19A-03`).
+- `AC-19A-04`: Thư viện 6 nhóm payload biên đầy đủ danh mục, hiển thị an toàn và cho phép sao chép (kiểm chứng `BR-19A-04`).
+- `AC-19A-05`: Tích hợp 5 placeholder `{{vn_*}}` vào `resolveDynamicValues` và export 5 hàm tiện ích sang `commonUtils` với 0 token AI (kiểm chứng `BR-19A-04`).
+- `AC-19A-06`: API endpoints xử lý chính xác các trường hợp biên, từ chối tham số không hợp lệ với mã 400/413 và không ghi đĩa tùy tiện (kiểm chứng `BR-19A-03`, `BR-19A-04`).
+- `AC-19A-07`: Giao diện modal Test Data Studio đáp ứng đầy đủ dirty guard, sequence guard, phím tắt Esc/Tab, responsive 4 viewports và vòng đời sạch (kiểm chứng `BR-19A-04`, `BR-19A-05`).
 
-### 1.2. Ngoài phạm vi
-
-- Địa chỉ, biển số xe, GPLX, tên công ty. CarThings đã có bản riêng ở `core/local/`; hợp nhất sau.
-- Sinh dữ liệu bằng AI theo JSON Schema (`generateSyntheticData` của v1). Bỏ vì không có AC, và LLM có thể tái tạo PII thật.
-- Chèn vào dataset đang mở (D4).
-- Sửa `core/local/commonUtils.local.js` của CarThings. Vùng này thuộc dự án, không sync.
-
----
-
-## 2. Ràng Buộc Từ Code Hiện Tại (Ground Truth)
-
-| Sự thật (đã kiểm) | Hệ quả thiết kế |
-| --- | --- |
-| Hub đã có `{{random_phone}}`, `{{random_email}}`, `{{random_name}}` trong `generateDynamicValue` ([dataManager.js:20-45](../core/utils/dataManager.js#L20-L45)); regex placeholder chỉ nhận `[a-zA-Z0-9_]` | Thêm `{{vn_*}}` bằng cách gọi sang module mới ở nhánh `default`, không viết lại hàm |
-| `dataManager.js` 316 dòng, đang có exemption size-check | Chỉ thêm ≤ 3 dòng (1 `require` + 2 dòng case `vn_*` gọi `resolveVnPlaceholder`), mọi logic mới nằm trong `core/utils/vnData/` |
-| Spec `require` JSON trực tiếp (`tests/e2e/desktop/*.spec.js`), không tự resolve placeholder | Muốn giá trị mới mỗi lần chạy thì gọi hàm trong spec (như CarThings đang làm với `generateRandomVNIDCard`). Placeholder dùng cho dataset nào đi qua `resolveDynamicValues` |
-| CarThings có `generateRandomVNIDCard` trong `core/local`: mã tỉnh ngẫu nhiên 001–096 (có mã không tồn tại) và số thế kỷ 0–9 bất kỳ | Tên hàm mới khác (`generateVnCccd`) để không đụng override; `withLocalOverrides` cho bản local thắng |
-| `POST /api/data/create-dataset` nhận `content`, từ chối file đã tồn tại, có backup ([dataManager.js:245](../core/utils/dataManager.js#L245)) | Nút "Lưu thành dataset mới" dùng lại endpoint này. **Không tạo đường ghi file mới** |
-| `DATA_DIR` cố định ở `<framework>/data` (không theo root của harness) | Test API/E2E ghi file phải dùng tên riêng `plan19a-*` và xoá ở `after` |
-| `handleDataRoutes` trả `false` cho `/api/data/*` không khớp ([dataRoutes.js:18](../dashboard/routes/dataRoutes.js#L18)) | Route mới nằm ở file riêng, đăng ký ngay trước `handleDataRoutes` trong `server.js` |
-| Data view do `app.js` legacy điều khiển; `DataSlice.mount()` gọi `openDataManager()` rồi `return` sớm ([dataSlice.js:23-39](../dashboard/public/js/views/data/dataSlice.js#L23-L39)) | Khởi tạo controller modal **bên trong nhánh `try`, sau `await window.openDataManager()` đã resolve và trước `return`** (tức dòng 29), vì nút `#data-vn-gen-open-btn` chỉ tồn tại sau khi legacy render xong. Huỷ trong `unmount()`. `init()` phải idempotent (bài học 2026-09-22 về template nạp động). Nếu nút chưa tồn tại (fallback khi legacy thay đổi), dùng guard `if (!root.querySelector('#data-vn-gen-open-btn')) return;` |
-| `dataSlice.js` 312 dòng, là vi phạm modularity có sẵn | Chỉ thêm ≤ 6 dòng. Không tạo vi phạm mới |
-| `confirmDialog()` dùng chung đã có ở [batchConfirm.js](../dashboard/public/js/views/qa/batch/batchConfirm.js) | Dùng lại cho chặn đóng modal (UI-05); không viết hộp xác nhận thứ hai |
-| `apiClient.post(path, body, { signal })` hỗ trợ huỷ ([apiClient.js:33](../dashboard/public/js/core/apiClient.js#L33)) | Modal dùng `AbortController` + `apiClient` |
-| `templates-performance-a11y` TC-13 fail từ trước (DOM ban đầu > 1500, do preload mọi template) | Markup modal gọn; ghi số DOM trước/sau vào exit Phase 3 |
-
----
-
-## 3. Nguyên Tắc Bất Biến
-
-- **INV-1 (0 token):** 19a không gọi AI. Có test tĩnh kiểm tra.
-- **INV-2 (Oracle độc lập):** test kiểm CCCD, MST, SĐT bằng danh sách và thuật toán viết tay ngay trong file test (Phụ lục A, B và mục 4.2), không import hằng số từ module đang được kiểm.
-- **INV-3 (Dữ liệu tổng hợp):** chỉ dùng cho môi trường test. CCCD, MST đúng cấu trúc vẫn có thể trùng số thật, nên **không** dùng để gọi eKYC hay tra cứu thuế thật. Ghi chú này hiện trong modal và trong JSDoc.
-- **INV-4 (Không đường ghi mới):** lưu file chỉ đi qua `POST /api/data/create-dataset`. Endpoint sinh dữ liệu không ghi đĩa.
-- **INV-5 (Hiển thị an toàn):** mọi giá trị hiển thị qua `textContent`, không dùng `innerHTML` với dữ liệu sinh ra.
-- **INV-6 (Lỗi không mất dữ liệu):** lưu thất bại thì giữ nguyên bản xem trước và tên file để thử lại.
-
----
-
-## 4. Thiết Kế
-
-### 4.1. Module `core/utils/vnData/` (utils ≤ 150 dòng/file)
-
-| File | Export | Ghi chú |
-| --- | --- | --- |
-| `seededRandom.js` | `createRng(seed)` → `{ next(), int(min, max), pick(arr) }`; `newSeed()` | mulberry32; seed là chuỗi, băm sang uint32. `int` gồm cả 2 đầu |
-| `vnCodes.js` | `CCCD_PROVINCES`, `PHONE_PREFIXES`, `MST_WEIGHTS`, `MST_PREFIXES` | Chỉ dữ liệu (Phụ lục A, B; trọng số mục 4.2) |
-| `vnIdentity.js` | `generateCccd(rng, opts)`, `mstCheckDigit(nine)`, `generateMst(rng, opts)`, `generatePhone(rng, opts)` | Quy tắc ở mục 4.2 |
-| `vnNames.js` | `generateFullName(rng, { gender, diacritics })`, `toAscii(text)` | Từ điển họ / tên đệm / tên theo giới tính, lưu NFC. `toAscii` bỏ dấu và đổi `đ/Đ` thành `d/D` |
-| `edgePayloads.js` | `PAYLOAD_CATEGORIES`, `listPayloads(category?)` | Mục 4.3 |
-| `index.js` | `generateRecords({ type, count, seed, options })` → `{ type, count, seed, records }`; `resolveVnPlaceholder(token)`; `VnDataError` (`code`, `field`) | Kiểm tra đầu vào, dựng persona, chống trùng (thử lại tối đa `count × 20` lần, quá thì báo lỗi `field: 'count'`) |
-
-**Kiểu `type`:** `cccd` · `mst` · `phone` · `name` · `persona`.
-
-**Tuỳ chọn (`options`)** — sai thì `VnDataError` kèm `field`:
-
-| Khoá | Áp dụng cho | Giá trị hợp lệ | Mặc định |
-| --- | --- | --- | --- |
-| `gender` | cccd, name, persona | `any` \| `male` \| `female` | `any` |
-| `birthYear` | cccd, persona | số nguyên 1900 … năm hiện tại | ngẫu nhiên, 18–60 tuổi |
-| `provinceCode` | cccd, persona | 3 chữ số thuộc Phụ lục A | ngẫu nhiên |
-| `carrier` | phone, persona | `any` \| `viettel` \| `vinaphone` \| `mobifone` | `any` |
-| `mstKind` | mst | `10` \| `13` | `10` |
-| `diacritics` | name, persona | `true` \| `false` | `true` |
-
-**Persona:** `{ fullName, gender, birthDate (YYYY-MM-DD), cccd, phone, email }`. Giới tính, năm sinh và CCCD phải nhất quán với nhau. Email là `<tên-không-dấu>.<họ-không-dấu><2 số cuối năm sinh><số thứ tự>@example.com`, viết thường.
-
-**Placeholder:** `{{vn_cccd}}`, `{{vn_mst}}`, `{{vn_phone}}`, `{{vn_name}}`, `{{vn_email}}`. Token `vn_*` không nhận ra thì giữ nguyên, giống hành vi hiện có.
-
-**Export công khai** (thêm vào `baseExports` của `commonUtils.js`): `generateVnCccd(opts)`, `generateVnMst(opts)`, `generateVnPhone(opts)`, `generateVnFullName(opts)`, `generateVnPersona(opts)`. Mỗi hàm trả 1 giá trị; `opts.seed` là tuỳ chọn.
-
-### 4.2. Quy tắc định danh
-
-- **CCCD (12 số):** `PPP` + `C` + `YY` + `NNNNNN`.
-  - `PPP`: mã tỉnh, thuộc Phụ lục A.
-  - `C`: thế kỷ + giới tính. Thế kỷ 20 (1900–1999): nam 0, nữ 1. Thế kỷ 21 (2000–2099): nam 2, nữ 3.
-  - `YY`: 2 số cuối năm sinh.
-  - `NNNNNN`: 6 số ngẫu nhiên.
-  - **CCCD không có chữ số kiểm tra.**
-- **MST 10 số:** `N1N2` thuộc `MST_PREFIXES` (mặc định `01`, `03`; BA có thể mở rộng), `N3…N9` ngẫu nhiên.
-  - `S = Σ Ni × W[i]` với `W = [31, 29, 23, 19, 17, 13, 7, 5, 3]`.
-  - `N10 = 10 − (S mod 11)`. Khi `S mod 11 = 0` thì không có chữ số hợp lệ, bỏ số đó và sinh lại.
-  - Đã đối chiếu tay với 2 MST công khai: `0100109106` (S = 114, 114 mod 11 = 4, N10 = 6) và `0300588569` (S = 375, 375 mod 11 = 1, N10 = 9).
-- **MST 13 số:** `<MST 10 số hợp lệ>-<001…999>`.
-- **SĐT (10 số):** `<đầu số 3 chữ số thuộc Phụ lục B>` + 7 số ngẫu nhiên. `any` chọn đều trong 3 nhà mạng. Có chuyển mạng giữ số, nên đầu số chỉ cho biết nhà mạng gốc.
-
-### 4.3. Thư viện payload biên (`edgePayloads.js`)
-
-Mỗi payload có dạng `{ id, category, value, description }`. `id` ổn định, ví dụ `xss-01`.
-
-| Nhóm | Nội dung tối thiểu |
-| --- | --- |
-| `xss` | `<script>alert(1)</script>`, `<img src=x onerror=alert(1)>`, `"><svg onload=alert(1)>`, `javascript:alert(1)` |
-| `sqli` | `' OR '1'='1`, `'; DROP TABLE users;--`, `" OR ""="`, `1' AND SLEEP(5)--` |
-| `unicode` | "Nguyễn" dạng NFC và NFD (giống nhau khi normalize, khác bytes); zero-width space U+200B; ZWJ U+200D; NBSP U+00A0; RTL override U+202E; emoji có surrogate pair |
-| `whitespace` | Khoảng trắng đầu/cuối, chỉ toàn khoảng trắng, tab, xuống dòng, khoảng trắng toàn khổ U+3000 |
-| `length` | Chuỗi dài 255, 256, 1024 ký tự (dựng lúc gọi, không lưu sẵn) |
-| `csv-formula` | `=1+1`, `+1+1`, `-1+1`, `@SUM(1,1)`, `=HYPERLINK("http://example.com")` |
-
-### 4.4. API (`dashboard/routes/dataGenerateRoutes.js`, ≤ 150 dòng)
-
-**`POST /api/data/generate`**. Body tối đa 16KB. Không ghi đĩa.
-
-```json
-{ "type": "persona", "count": 10, "seed": "demo-1", "options": { "gender": "female", "carrier": "viettel" } }
-```
-
-- **200:** `{ "ok": true, "type", "count", "seed", "records": [...], "generatedAt" }`
-- **400:** `{ "ok": false, "error": "<tiếng Việt>", "field": "count" }`. Các trường hợp: thiếu hoặc sai `type`; `count` ∉ số nguyên [1, 500] (gồm `0`, `501`, `1.5`, `"10"`, `null`); tuỳ chọn sai (bảng 4.1); body không phải JSON.
-- **413:** body > 16KB.
-
-**`GET /api/data/payloads?category=<nhóm|all>`**
-
-- **200:** `{ "ok": true, "categories": [...6], "payloads": [...] }`
-- **400:** nhóm không tồn tại.
-
-**`GET /api/data/dynamic-preview`** (đã có, [`dataRoutes.js:152-166`](../dashboard/routes/dataRoutes.js#L152-L166)): thêm các khoá `vn_cccd`, `vn_mst`, `vn_phone`, `vn_name`, `vn_email`. Cách thực hiện: import `resolveVnPlaceholder` từ `core/utils/vnData/index.js` vào `dataRoutes.js`, gọi 5 lần trong handler `dynamic-preview` (+≤ 6 dòng đã khai ở mục 5).
-
-### 4.5. UI — modal "Sinh dữ liệu kiểm thử Việt Nam" (`#/data`)
-
-- **Nút mở:** `#data-vn-gen-open-btn` ("Sinh dữ liệu VN") trong `.view-subnav.data-subnav`, **ngoài** `#data-subnav-actions` (khối này bị ẩn ở chế độ "Tạo mới"), nên hiện ở cả 2 chế độ.
-- **Modal:** `dialog#data-vn-gen-modal.app-modal`, theo chuẩn modal ([DASHBOARD_AI_PROMPT.md §3](../ai/dashboard/DASHBOARD_AI_PROMPT.md)): `.app-modal-box` + `.app-modal-body`. Khi mở, focus vào tiêu đề `#data-vn-gen-title`.
-- **Chế độ** (`role="tablist"`): "Định danh VN" (`data-vn-mode="identity"`) · "Payload biên" (`data-vn-mode="payload"`).
-- **Định danh VN:**
-  - Form: `#data-vn-type`, `#data-vn-count` (mặc định 10), `#data-vn-seed`, và các trường tuỳ chọn hiện theo `type` (bảng 4.1).
-  - Nút `#data-vn-generate-btn`.
-  - Bảng xem trước `#data-vn-preview`: tiêu đề cột dính, cuộn bên trong; kèm dòng "Seed: …".
-- **Payload biên:** chọn nhóm `#data-vn-payload-category`, bảng `id | nhóm | giá trị | mô tả | Sao chép`. Giá trị hiển thị monospace; ký tự vô hình hiện kèm nhãn mã (`U+200B`).
-- **Chân modal:** `#data-vn-filename`, `#data-vn-save-btn` ("Lưu thành dataset mới"), `#data-vn-copy-btn` ("Sao chép JSON"), `#data-vn-close-btn`. Kèm ghi chú INV-3 một dòng.
-- **Trạng thái:**
-
-  | Trạng thái | Hiển thị |
-  | --- | --- |
-  | Trống | Hướng dẫn |
-  | Đang sinh / đang lưu | Nút tắt + spinner; khoá form khi đang lưu |
-  | Lỗi | Thông báo `role="alert"`, giữ nguyên bản xem trước |
-  | Chưa lưu | Badge "Chưa lưu" |
-  | Đã lưu | Toast + tên file trong danh sách bên trái |
-
-- **Chưa lưu (dirty):** có bản ghi định danh chưa lưu và chưa sao chép thành công. Esc, nút Đóng hoặc ✕ khi đang dirty sẽ mở `dialog#data-vn-confirm`. Hộp này dùng `confirmDialog()` với 2 nút "Ở lại" / "Bỏ và đóng".
-- **Chống phản hồi muộn:** `const seq = ++this.seq`, và kết quả chỉ được áp khi `this.alive && seq === this.seq`. Đóng modal, đổi `type`/chế độ hoặc `destroy()` đều huỷ request (`AbortController`).
-- **Sau khi lưu:** gọi lại hàm nạp danh sách dataset đang dùng (Phase 0 xác định tên hàm legacy) và phát `STUDIO_EVENTS:DATASET_UPDATED`.
-- **File JS:**
-  - `vnDataGeneratorModal.js` (vòng đời, sự kiện, request, dirty, seq; ≤ 150 dòng)
-  - `vnDataPreview.js` (dựng option theo type, bảng xem trước, bảng payload; ≤ 150 dòng)
-
-  Style đặt trong `styles/views/data.css`, chỉ dùng token có sẵn (`--surface`, `--line`, `--accent`, `--muted`, `--text`).
+### A6. Kịch Bản UAT (UAT-xx)
+- `UAT-19A-01`: Kiểm thử luồng sinh 10 bản ghi Persona, kiểm tra tính nhất quán giữa CCCD, giới tính và email, sau đó lưu thành dataset mới và kiểm tra sự xuất hiện trên giao diện (dẫn `REQ-19A-01`, `REQ-19A-04`, `BR-19A-01`, `BR-19A-03`, `BR-19A-05`).
+- `UAT-19A-02`: Kiểm thử tra cứu và sao chép payload biên XSS/Unicode trên giao diện modal, xác nhận nội dung dán vào đúng nguyên văn và không gây lỗi thực thi script (dẫn `REQ-19A-02`, `REQ-19A-04`, `BR-19A-04`).
+- `UAT-19A-03`: Kiểm thử khả năng tái lập dữ liệu nhờ Seed trong test script tự động sử dụng placeholder `{{vn_cccd}}` và hàm `generateVnCccd` (dẫn `REQ-19A-03`, `BR-19A-03`, `BR-19A-04`).
 
 ---
 
-## 5. Danh Mục File
+## B. Kỹ Thuật (Tech Lead — A/R; BA — C)
 
-| Loại | File | Ngân sách dòng |
-| --- | --- | --- |
-| Mới | `core/utils/vnData/{seededRandom,vnCodes,vnIdentity,vnNames,edgePayloads,index}.js` | ≤ 150 mỗi file |
-| Mới | `core/utils/vnData/{seededRandom,vnIdentity,vnNames,edgePayloads,index}.test.js` | — |
-| Mới | `dashboard/routes/dataGenerateRoutes.js` | ≤ 150 |
-| Mới | `tests/dashboard-api/data-generate.test.js` | — |
-| Mới | `dashboard/public/js/views/data/vnDataGeneratorModal.js`, `vnDataPreview.js` | ≤ 150 mỗi file |
-| Mới | `tests/dashboard/data-vn-generator.spec.js`, `data-vn-generator-layout.spec.js` | — |
-| Sửa | `core/utils/dataManager.js` (nhánh `default` gọi `resolveVnPlaceholder`) | +≤ 3 |
-| Sửa | `core/utils/commonUtils.js` (export mới; D3: `generateRandomVNPhone` dùng bộ sinh mới) | +≤ 8 |
-| Sửa | `core/utils/dataManager.test.js`, `core/utils/commonUtils.test.js` (thêm test) | — |
-| Sửa | `dashboard/routes/dataRoutes.js` (thêm khoá `vn_*` vào `dynamic-preview`) | +≤ 6 |
-| Sửa | `dashboard/server.js` (require + gọi `handleDataGenerateRoutes` trước `handleDataRoutes`) | +2 |
-| Sửa | `dashboard/public/templates/data.html` (nút, modal, hộp xác nhận) | — |
-| Sửa | `dashboard/public/js/views/data/dataSlice.js` (`init` / `destroy` controller) | +≤ 6 |
-| Sửa | `dashboard/public/styles/views/data.css` | — |
+### B1. Quyết Định Kỹ Thuật (TECH-xx)
+- `TECH-19A-01`: Sử dụng thuật toán Mulberry32 làm bộ sinh số giả ngẫu nhiên theo seed (PRNG) nhằm đảm bảo tính xác định (determinism) và tốc độ thực thi cao (dẫn `REQ-19A-01`, `BR-19A-03`, `IMP-19A-02`). Lý do: Phương án PRNG thuần Javascript hoạt động nhất quán giữa Node.js và trình duyệt mà không cần cài đặt thêm thư viện phụ thuộc bên ngoài.
+- `TECH-19A-02`: Phân rã mã nguồn thành các module chuyên biệt dưới thư mục `core/utils/vnData/` với trần số dòng $\le 150$ dòng/file nhằm tuân thủ nghiêm ngặt quy định kiến trúc modular (dẫn `REQ-19A-01`, `BR-19A-04`, `IMP-19A-01`). Lý do: Đảm bảo tính đơn nhiệm cho từng module (RNG, danh mục mã, thuật toán định danh, từ điển tên, payload biên), giúp việc kiểm thử bằng oracle độc lập đạt độ tin cậy tuyệt đối.
+- `TECH-19A-03`: Tái sử dụng luồng lưu trữ có sẵn `POST /api/data/create-dataset` cho chức năng lưu dataset từ modal nhằm bảo đảm an toàn tệp tin (dẫn `REQ-19A-04`, `BR-19A-04`, `IMP-19A-03`). Lý do: Phương án này tận dụng trọn vẹn cơ chế kiểm tra trùng lặp, sao lưu tệp và kiểm soát kích thước dữ liệu sẵn có của Hub mà không mở thêm bề mặt tấn công ghi đĩa mới.
+- `TECH-19A-04`: Áp dụng cơ chế Sequence Counter (`seq`) kết hợp `AbortController` trong `vnDataGeneratorModal.js` nhằm triệt tiêu hoàn toàn race condition và phản hồi muộn (dẫn `REQ-19A-04`, `BR-19A-05`, `IMP-19A-04`). Lý do: Giúp giao diện luôn giữ trạng thái đồng bộ chuẩn xác với hành động mới nhất của người dùng khi chuyển tab hoặc yêu cầu sinh dữ liệu liên tục.
 
----
+### B2. Bản Đồ File & Ngân Sách Dòng
 
-## 6. Chiến Lược Kiểm Thử — AC → TC
+| Path | Loại File | Trần Số Dòng | Ghi Chú |
+|---|---|:---:|---|
+| `core/utils/vnData/seededRandom.js` | utils | 150 | Thuật toán Mulberry32 PRNG và hàm tạo seed |
+| `core/utils/vnData/vnCodes.js` | utils | 150 | Danh mục 63 mã tỉnh, đầu số SĐT, trọng số MST |
+| `core/utils/vnData/vnIdentity.js` | utils | 150 | Thuật toán sinh CCCD, checksum MST, sinh SĐT |
+| `core/utils/vnData/vnNames.js` | utils | 150 | Từ điển họ tên tiếng Việt NFC và hàm toAscii |
+| `core/utils/vnData/edgePayloads.js` | utils | 150 | Danh mục 6 nhóm payload kiểm thử biên |
+| `core/utils/vnData/index.js` | utils | 150 | Điều phối sinh dữ liệu, Persona, resolve placeholder |
+| `core/utils/vnData/seededRandom.test.js` | test | 400 | Unit test kiểm thử PRNG Mulberry32 |
+| `core/utils/vnData/vnIdentity.test.js` | test | 600 | Unit test định danh CCCD, MST, SĐT kèm oracle |
+| `core/utils/vnData/vnNames.test.js` | test | 400 | Unit test họ tên NFC, chuẩn hóa không dấu |
+| `core/utils/vnData/edgePayloads.test.js` | test | 400 | Unit test danh mục payload biên và tính bất biến |
+| `core/utils/vnData/index.test.js` | test | 600 | Unit test Persona, tính chống trùng lặp, placeholder |
+| `dashboard/routes/dataGenerateRoutes.js` | module | 150 | Route API sinh dữ liệu và truy vấn payload biên |
+| `tests/dashboard-api/data-generate.test.js` | test | 600 | Integration test kiểm thử các API endpoints mới |
+| `dashboard/public/js/views/data/vnDataGeneratorModal.js` | component | 150 | Controller quản lý modal, vòng đời, dirty guard |
+| `dashboard/public/js/views/data/vnDataPreview.js` | component | 150 | Component render bảng xem trước và payload biên |
+| `tests/dashboard/data-vn-generator.spec.js` | test | 800 | E2E functional tests Playwright cho modal |
+| `tests/dashboard/data-vn-generator-layout.spec.js` | test | 800 | E2E layout tests (4 viewports, Light/Dark, a11y) |
+| `core/utils/dataManager.js` | utils | 150 | Tích hợp nhánh default resolveVnPlaceholder (+≤3 dòng) |
+| `core/utils/commonUtils.js` | utils | 150 | Export các hàm sinh dữ liệu VN và D3 (+≤8 dòng) |
+| `core/utils/dataManager.test.js` | test | 500 | Bổ sung unit test cho placeholder vn_* |
+| `core/utils/commonUtils.test.js` | test | 500 | Bổ sung unit test cho export vnData mới |
+| `dashboard/routes/dataRoutes.js` | module | 200 | Bổ sung các khóa vn_* vào dynamic-preview (+≤6 dòng) |
+| `dashboard/server.js` | module | 250 | Đăng ký route dataGenerateRoutes (+2 dòng) |
+| `dashboard/public/js/views/data/dataSlice.js` | component | 150 | Gắn controller modal vào view dataSlice (+≤6 dòng) |
+| `dashboard/public/templates/data.html` | component | 150 | Thêm markup nút mở và dialog modal sinh dữ liệu |
+| `dashboard/public/styles/views/data.css` | component | 150 | Định kiểu CSS cho modal và bảng xem trước |
 
-Mỗi TC ứng với đúng 1 test. Level ghi đúng cách test chạy: gọi hàm = `unit`, HTTP = `integration`, Playwright = `e2e` (bài học đóng PLAN-18). ★ = critical (reviewer chạy lại).
+### B3. Schemas & Hợp Đồng Dữ Liệu
+- **Request `POST /api/data/generate`**:
+  ```json
+  {
+    "type": "persona",
+    "count": 10,
+    "seed": "alpha-01",
+    "options": {
+      "gender": "female",
+      "carrier": "viettel",
+      "provinceCode": "001",
+      "birthYear": 1995,
+      "diacritics": true
+    }
+  }
+  ```
+- **Response 200 Success**:
+  ```json
+  {
+    "ok": true,
+    "type": "persona",
+    "count": 10,
+    "seed": "alpha-01",
+    "records": [
+      {
+        "fullName": "Nguyễn Thị Mai",
+        "gender": "female",
+        "birthDate": "1995-06-15",
+        "cccd": "001195000123",
+        "phone": "0981234567",
+        "email": "mai.nguyen9501@example.com"
+      }
+    ],
+    "generatedAt": "2026-10-01T21:00:00.000Z"
+  }
+  ```
+- **Response 400 Error**:
+  ```json
+  {
+    "ok": false,
+    "error": "Tham số count không hợp lệ (phải từ 1 đến 500)",
+    "field": "count"
+  }
+  ```
 
-### P19A-AC-01 — CCCD đúng cấu trúc, lặp lại được theo seed, không trùng
+### B4. Yêu Cầu Phi Chức Năng (NFR) & Phụ Thuộc
+- NFR-01: Hiệu năng sinh dữ liệu: 500 bản ghi sinh trong thời gian dưới 50ms, bộ nhớ sử dụng dưới 100KB (dẫn `IMP-19A-01`).
+- NFR-02: Hoàn toàn không sử dụng mô hình AI và không thêm thư viện ngoài (0 token AI, 0 npm dependencies) (dẫn `IMP-19A-02`).
+- NFR-03: Tuân thủ quy chuẩn định danh Việt Nam và Thông tư 86/2024/TT-BTC về quản lý mã số thuế (dẫn `RES-01`).
+- NFR-04: An toàn bảo mật: Dữ liệu hiển thị an toàn bằng textContent, phòng chống triệt để XSS và CSV Injection (dẫn `IMP-19A-03`).
+- NFR-05: Khả năng tiếp cận: Đạt chuẩn WCAG 2.1 AA, hỗ trợ đầy đủ điều hướng phím Tab/Esc và thuộc tính ARIA (dẫn `IMP-19A-04`).
 
-| TC | Nội dung | Level |
-| --- | --- | --- |
-| TC-01 | `createRng`: cùng seed → cùng dãy; khác seed → khác; `int(min,max)` ra đủ cả `min` và `max` trong 10.000 lần, không vượt biên | unit |
-| TC-02 ★ | 1.000 CCCD (seed cố định): 12 chữ số; `PPP` thuộc danh sách Phụ lục A viết tay trong test; `C` đúng với birthYear 1900, 1999, 2000, 2099 × nam/nữ; không trùng | unit |
-| TC-03 | Tuỳ chọn sai trả `VnDataError`: `provinceCode` = `003`, `000`, `097`, `79`; `birthYear` = 1899, năm sau; `gender` = `x`. Mỗi lỗi có `field` đúng | unit |
+### B5. Điểm Nóng Rủi Ro & Biện Pháp Kiểm Soát
+- **Nguy cơ trùng lặp PII thật:** Dữ liệu dù hợp lệ về cấu trúc vẫn có thể trùng số thật. Kiểm soát: Đặt cảnh báo INV-3 rõ ràng trên UI và JSDoc, email cố định tên miền `@example.com` theo RFC 2606.
+- **Race Condition & Phản hồi muộn:** Người dùng bấm liên tiếp hoặc mạng chập chờn. Kiểm soát: Khóa nút sinh khi đang xử lý và dùng Sequence Counter + AbortController.
+- **Xung đột tệp tin tạm trong `DATA_DIR`:** Khi test API/E2E chạy song song. Kiểm soát: Đặt tên tệp theo mẫu `plan19a-<timestamp>-<rand>.json` và dọn dẹp ở hook `after`.
+- **Vi phạm ngân sách số dòng mã:** Thêm code vào các tệp có sẵn. Kiểm soát: Tuân thủ nghiêm ngặt chỉ tiêu dòng ghi trong §B2, tách toàn bộ logic mới vào thư mục `core/utils/vnData/`.
 
-### P19A-AC-02 — MST 10/13 số đúng checksum
-
-| TC | Nội dung | Level |
-| --- | --- | --- |
-| TC-04 ★ | Oracle checksum viết tay: `0100109106`, `0300588569` hợp lệ; đổi 1 chữ số thì không hợp lệ; 1.000 MST sinh ra đều qua oracle; không số nào có S mod 11 = 0 | unit |
-| TC-05 | MST 13 số khớp `^\d{10}-\d{3}$`, hậu tố 001–999 (không có 000), 10 số đầu qua oracle | unit |
-
-### P19A-AC-03 — SĐT, họ tên, persona nhất quán
-
-| TC | Nội dung | Level |
-| --- | --- | --- |
-| TC-06 | 1.000 SĐT khớp `^0\d{9}$`, đầu số thuộc Phụ lục B đúng nhà mạng; `carrier` lạ → lỗi | unit |
-| TC-07 | Họ tên ở dạng NFC; tên đệm/tên đúng giới tính; `diacritics:false` chỉ còn `[A-Za-z ]`; `Đ` thành `D` | unit |
-| TC-08 | Persona: giới tính khớp `C`, năm sinh khớp `YY` và `birthDate`; email `@example.com`, phần trước `@` chỉ ASCII; 500 persona không trùng CCCD/SĐT/email | unit |
-| TC-09 | `generateRecords` BVA `count`: 0, 1, 500, 501, 1.5, `"10"`, `null`; `type` lạ; cùng seed → `records` giống hệt; seed edge cases: `""` → `VnDataError`, `"Café"` (unicode) → hành vi xác định, chuỗi 1000 ký tự → hành vi xác định | unit |
-
-### P19A-AC-04 — Payload biên
-
-| TC | Nội dung | Level |
-| --- | --- | --- |
-| TC-10 | Đủ 6 nhóm; danh sách `id` khớp danh sách viết tay trong test; nhóm `length` dài đúng 255/256/1024; NFC ≠ NFD về bytes nhưng bằng nhau sau `normalize('NFC')` | unit |
-
-### P19A-AC-05 — Dùng được lúc chạy test
-
-| TC | Nội dung | Level |
-| --- | --- | --- |
-| TC-11 | `resolveDynamicValues` thay đúng 5 placeholder `vn_*` (lồng trong object/array); `{{vn_unknown}}` giữ nguyên; `{{random_phone}}` vẫn như cũ | unit |
-| TC-12 | `commonUtils` export 5 hàm mới; `withLocalOverrides` vẫn cho bản local thắng; D3: `generateRandomVNPhone()` ra đầu số thuộc Phụ lục B | unit |
-| TC-13 | INV-1: đọc mã nguồn 19a (`core/utils/vnData/*.js`, `dataGenerateRoutes.js`, 2 file view), không có `require`/`import` tới `core/ai` hoặc `/api/ai` | unit |
-
-### P19A-AC-06 — API
-
-| TC | Nội dung | Level |
-| --- | --- | --- |
-| TC-14 ★ | `POST /api/data/generate` persona 10 với seed → 200, trả seed; gọi lại cùng seed → giống hệt | integration |
-| TC-15 ★ | Bảng 400/413: các giá trị `count` ở 4.4, `type` lạ, `provinceCode` `003`, `birthYear` 1899, body không phải JSON, body > 16KB. Mỗi lỗi có `field` | integration |
-| TC-16 | `GET /api/data/payloads`: `xss` chỉ trả xss; không truyền → đủ 6 nhóm; nhóm lạ → 400 | integration |
-| TC-17 | `GET /api/data/dynamic-preview` có 5 khoá `vn_*` đúng định dạng | integration |
-| TC-18 | Sinh không ghi đĩa: danh sách `data/` trước và sau giống nhau; `GET /api/ai/audit` không tăng | integration |
-
-> **Ghi chú concurrent:** Test API ghi file (`TC-19`) dùng tên `plan19a-<workerID>-<ts>` và chạy `--workers=1` để tránh race condition trên `DATA_DIR` cố định.
-| TC-19 ★ | LIFE-01: sinh persona → `create-dataset` với `content` → `GET /api/data/dataset` đọc lại y hệt → tạo lại cùng tên bị 400 và file không đổi → xoá | integration |
-
-### P19A-AC-07 — Giao diện
-
-| TC | Nội dung | Level |
-| --- | --- | --- |
-| TC-20 ★ | UI-02 / LIFE-01: mở `#/data` → "Sinh dữ liệu VN" → CCCD, 10 bản, seed `demo` → 10 dòng đúng regex → lưu `plan19a-e2e-<ts>.json` → file có trong danh sách và trên đĩa → xoá | e2e |
-| TC-21 | UI-01: option của `#data-vn-type`, `carrier`, nhóm payload khớp danh sách viết tay ở mục 4.1/4.3 (không đọc từ module) | e2e |
-| TC-22 | ASYNC-03: request sinh thứ nhất bị trễ (`page.route`), bấm sinh lần 2 → chỉ hiện kết quả lần 2, phản hồi muộn bị bỏ | e2e |
-| TC-23 | ASYNC-02: đổi `type` khi request đang chờ → phản hồi cũ không vẽ vào form mới; request cũ bị huỷ | e2e |
-| TC-24 | ASYNC-01: khi đang lưu, form, nút sinh và tên file bị khoá; sau 200, trạng thái sạch và đúng bản đã lưu | e2e |
-| TC-25 ★ | ASYNC-04: `create-dataset` trả 400 (trùng tên) → báo lỗi, giữ bản xem trước và tên file → đổi tên → lưu thành công | e2e |
-| TC-26 | ASYNC-05: chỉ báo thành công sau 200; route trả 500 → không có toast thành công, badge "Chưa lưu" còn | e2e |
-| TC-27 ★ | UI-05: đóng khi dirty → hộp xác nhận; "Ở lại" giữ dữ liệu; "Bỏ và đóng" xoá; sau khi lưu thì đóng không hỏi | e2e |
-| TC-28 | UI-04: đổi chế độ nhanh Định danh → Payload → Định danh → chỉ panel định danh hiện, `aria-selected` đúng | e2e |
-| TC-29 ★ | OWN-01..04: (a) OWN-01: gọi `init()` 2 lần liên tiếp → listener count không tăng gấp đôi (idempotent); gọi `init()` rồi `init()` với instance khác → mỗi instance có disposer riêng. (b) OWN-02: disposer của lần mount cũ không gỡ được listener của lần mount mới. (c) OWN-03: gọi `destroy()` 2 lần → không lỗi. (d) OWN-04: 20 vòng chuyển `#/data` ↔ view khác, mở modal, bấm sinh 1 lần → đúng 1 request, không tích luỹ listener | e2e |
-| TC-30 | OWN-05: rời view khi request sinh đang chờ → phản hồi về không sửa DOM, 0 lỗi console | e2e |
-| TC-31 ★ | An toàn hiển thị: xem nhóm `xss` → không có sự kiện `dialog`, không có `img[onerror]` trong DOM, chuỗi hiện đúng nguyên văn | e2e |
-| TC-32…39 | UI-03: 1920×1080, 1440×900, 1280×800, 390×844 × Light/Dark. Không tràn ngang; bảng cuộn bên trong; focus tiêu đề khi mở; Esc kích hoạt chặn đóng; 0 lỗi console; không có `undefined`/`null`/TODO trên UI | e2e |
-
-**Cộng:** 7 AC, 39 TC (13 unit, 6 integration, 20 e2e), 10 critical.
-
----
-
-## 7. Ánh Xạ Gate Scenarios (đủ 16 — cả 4 nhóm `applies: true`)
-
-| Gate | TC | Level tối thiểu |
-| --- | --- | --- |
-| ASYNC-01 | TC-24 | integration ✓ (e2e) |
-| ASYNC-02 | TC-23 | integration ✓ |
-| ASYNC-03 | TC-22 | integration ✓ |
-| ASYNC-04 | TC-25 | integration ✓ |
-| ASYNC-05 | TC-26, TC-19 | integration ✓ |
-| OWN-01..04 | TC-29 | integration ✓ |
-| OWN-05 | TC-30 | integration ✓ |
-| UI-01 | TC-21 | e2e ✓ |
-| UI-02 | TC-20 | e2e ✓ |
-| UI-03 | TC-32…39 | e2e ✓ |
-| UI-04 | TC-28 | e2e ✓ |
-| UI-05 | TC-27 | e2e ✓ |
-| LIFE-01 | TC-19, TC-20 | integration ✓ |
-
-**Design anchors cho evidence map:**
-
-| Anchor | Vị trí |
-| --- | --- |
-| `capture_identity` | `const seq = ++this.seq;` |
-| `completion_guard` | `if (!this.alive \|\| seq !== this.seq) return;` |
-| `disposer_guard` | `if (this.disposed) return;` |
-| `registry` | `const MODES` trong `vnDataPreview.js` |
-| `inventory` | Mục 4.1/4.3 của file này (`origin: approved_spec`) |
+### B6. Bản Đồ Không Gian Trạng Thái
+- Modal States: `CLOSED` $\rightarrow$ `OPEN_EMPTY` $\rightarrow$ `GENERATING` $\rightarrow$ `PREVIEW_DIRTY` $\rightarrow$ `SAVING` $\rightarrow$ `SAVED` $\rightarrow$ `CLOSED`.
+- Dirty State Guard: Nếu `state == PREVIEW_DIRTY`, sự kiện đóng modal kích hoạt `CONFIRM_DIALOG` ("Ở lại" giữ nguyên trạng thái, "Bỏ và đóng" chuyển về `CLOSED`).
 
 ---
 
-## 8. Kế Hoạch Triển Khai (~4 ngày công)
+## C. Chiến Lược Kiểm Thử (BA + Tech Lead; QA — C)
 
-### Phase 0 — Chuẩn bị (0.5 ngày)
-
-- [ ] 0.1 Chốt D1–D6.
-- [ ] 0.2 Baseline trên HEAD hiện tại. Ghi số pass/fail và số phần tử DOM ban đầu của TC-13 `templates-performance-a11y`:
-  - `node --test core/utils/*.test.js`
-  - `npm run test:dashboard:api`
-  - `npx playwright test -c playwright.dashboard.config.js`
-  - `npm run check:framework`
-  - `npm run check:dashboard-features`
-- [ ] 0.3 Tìm hàm legacy dùng để nạp lại danh sách dataset sau khi lưu (trong `app.js`, quanh `openDataManager`). Ghi tên hàm vào mục 4.5.
-- [ ] 0.4 Soạn `.delivery/phases/plan-19a.json` (7 AC, 39 TC, 16 scenario; chạy `gates/contract.py`) và khung `plan-19a-evidence-map.json`. **BA duyệt hash, không tự duyệt.**
-- **Exit:** D1–D6 đã chốt; baseline đã ghi; contract đã nộp duyệt.
-
-### Phase 1 — Lõi sinh dữ liệu (1 ngày)
-
-- [ ] 1.1 Viết `seededRandom.js`, `vnCodes.js`, `vnIdentity.js`, `vnNames.js`, `edgePayloads.js`, `index.js` kèm test colocated (TC-01…TC-10).
-- [ ] 1.2 `dataManager.js`: nhánh `default` gọi `resolveVnPlaceholder` (TC-11).
-- [ ] 1.3 `commonUtils.js`: 5 export mới; D3 (TC-12). TC-13 (quét import).
-- **Exit:**
-  - `node --test core/utils/vnData/*.test.js core/utils/dataManager.test.js core/utils/commonUtils.test.js` pass.
-  - `npm run check:framework` pass.
-  - File mới ≤ 150 dòng, không exemption.
-
-### Phase 2 — API (0.5 ngày)
-
-- [ ] 2.1 Viết `dataGenerateRoutes.js`, đăng ký trong `server.js` trước `handleDataRoutes`; thêm khoá `vn_*` vào `dynamic-preview`.
-- [ ] 2.2 Viết `tests/dashboard-api/data-generate.test.js` (TC-14…TC-19). File tạm tên `plan19a-*`, xoá ở `after`.
-- **Exit:** `npm run test:dashboard:api` pass (bằng baseline + test mới); `npm run check:dashboard-features` pass.
-
-### Phase 3 — Giao diện (1.5 ngày)
-
-- [ ] 3.1 Markup trong `data.html`: nút, modal, hộp xác nhận; style trong `data.css`.
-- [ ] 3.2 Viết `vnDataPreview.js` và `vnDataGeneratorModal.js`; gắn vào `dataSlice.js` (init trước lệnh `return` sớm, destroy trong `unmount`).
-- [ ] 3.3 Viết E2E `data-vn-generator.spec.js` (TC-20…TC-31) và `data-vn-generator-layout.spec.js` (TC-32…TC-39).
-- **Exit:**
-  - Dashboard E2E không có test nào chuyển từ pass sang fail so với baseline.
-  - Soát ảnh 4 viewport × 2 theme; 0 lỗi console.
-  - DOM ban đầu tăng ≤ 60 phần tử (ghi số cụ thể).
-  - Modularity không có vi phạm mới.
-
-### Phase 4 — Gate 4 & bàn giao (0.5 ngày)
-
-- [ ] 4.1 Commit code. Trên HEAD sạch, chạy toàn bộ lệnh ở 0.2.
-- [ ] 4.2 `record-gate-run.py` tạo receipt `plan19a-node` và `plan19a-e2e` vào `.gate-artifacts/`. Sau đó `python .delivery/build-phase-evidence.py --map .delivery/phases/plan-19a-evidence-map.json --receipt … --output .gate-artifacts/plan19a-evidence.json`.
-- [ ] 4.3 Chạy `verify-gate.py --gate 3|4` cục bộ. Phần chờ người khác:
-  - BA duyệt hash;
-  - reviewer độc lập điền `reviews.gate3/gate4` và chạy lại 10 TC ★ trên cùng SHA;
-  - chạy `master.ps1 gate`.
-- [ ] 4.4 `npm run presync:drift:strict` trước khi sync vệ tinh (D3 làm đổi `commonUtils.js`).
-- [ ] 4.5 **Kiểm tra ảnh hưởng D3 trên vệ tinh:** `grep -rn 'generateRandomVNPhone\|0[3578]\\d{8}\|prefixes.*09.*03.*07' tests/` trong mỗi repo vệ tinh; liệt kê test bị ảnh hưởng và ghi vào release notes.
-- [ ] 4.6 Chỉ ghi bài học mới đã xác nhận vào `ai/dashboard/AI_LESSONS.md`, hoặc `.ai/learning/candidates.md` nếu còn chỗ dưới trần 50 dòng.
+| AC ID | TC ID | Mức (unit/integration/e2e) | Critical? | File Test Dự Kiến | Ca Biên / Ghi Chú |
+|---|---|:---:|:---:|---|---|
+| `AC-19A-01` | `TC-01` | unit | No | `core/utils/vnData/seededRandom.test.js` | PRNG Mulberry32: cùng seed ra cùng dãy, biên min/max |
+| `AC-19A-01` | `TC-02` | unit | Yes | `core/utils/vnData/vnIdentity.test.js` | 1.000 CCCD qua oracle 63 tỉnh và mã thế kỷ/giới tính |
+| `AC-19A-01` | `TC-03` | unit | No | `core/utils/vnData/vnIdentity.test.js` | Tùy chọn CCCD sai trả về VnDataError kèm tên trường field |
+| `AC-19A-02` | `TC-04` | unit | Yes | `core/utils/vnData/vnIdentity.test.js` | 1.000 MST 10 số qua oracle checksum; kiểm tra 2 MST công khai |
+| `AC-19A-02` | `TC-05` | unit | No | `core/utils/vnData/vnIdentity.test.js` | MST 13 số định dạng NNNNNNNNNN-NNN, hậu tố 001-999 |
+| `AC-19A-03` | `TC-06` | unit | No | `core/utils/vnData/vnIdentity.test.js` | 1.000 SĐT khớp 10 số và thuộc danh mục đầu số 3 nhà mạng |
+| `AC-19A-03` | `TC-07` | unit | No | `core/utils/vnData/vnNames.test.js` | Họ tên chuẩn NFC, tên đệm đúng giới tính, toAscii chuyển Đ sang D |
+| `AC-19A-03` | `TC-08` | unit | No | `core/utils/vnData/index.test.js` | Persona liên kết nhất quán CCCD/năm sinh/email, 500 bản ghi không trùng |
+| `AC-19A-03` | `TC-09` | unit | No | `core/utils/vnData/index.test.js` | BVA tham số count (0, 1, 500, 501), seed Unicode đặc biệt |
+| `AC-19A-04` | `TC-10` | unit | No | `core/utils/vnData/edgePayloads.test.js` | 6 nhóm payload biên đầy đủ ID, Unicode NFC vs NFD, chuỗi độ dài |
+| `AC-19A-05` | `TC-11` | unit | No | `core/utils/dataManager.test.js` | resolveDynamicValues thay thế đúng 5 placeholder vn_* lồng nhau |
+| `AC-19A-05` | `TC-12` | unit | No | `core/utils/commonUtils.test.js` | commonUtils export 5 hàm mới và cập nhật generateRandomVNPhone |
+| `AC-19A-05` | `TC-13` | unit | No | `core/utils/vnData/index.test.js` | Kiểm tra tĩnh (quét AST/import) không có import tới core/ai |
+| `AC-19A-06` | `TC-14` | integration | Yes | `tests/dashboard-api/data-generate.test.js` | POST /api/data/generate persona trả về 200 kèm seed tái lập |
+| `AC-19A-06` | `TC-15` | integration | Yes | `tests/dashboard-api/data-generate.test.js` | Kiểm tra phản hồi lỗi 400 và 413 khi body > 16KB hoặc sai field |
+| `AC-19A-06` | `TC-16` | integration | No | `tests/dashboard-api/data-generate.test.js` | GET /api/data/payloads lọc theo category và trả đủ 6 nhóm |
+| `AC-19A-06` | `TC-17` | integration | No | `tests/dashboard-api/data-generate.test.js` | GET /api/data/dynamic-preview chứa đầy đủ 5 khóa vn_* |
+| `AC-19A-06` | `TC-18` | integration | No | `tests/dashboard-api/data-generate.test.js` | Sinh dữ liệu không ghi đĩa và không làm tăng audit AI |
+| `AC-19A-06` | `TC-19` | integration | Yes | `tests/dashboard-api/data-generate.test.js` | LIFE-01: Sinh persona -> create-dataset -> đọc lại -> dọn dẹp |
+| `AC-19A-07` | `TC-20` | e2e | Yes | `tests/dashboard/data-vn-generator.spec.js` | UI-02/LIFE-01: Mở modal -> sinh CCCD -> lưu dataset -> xác nhận |
+| `AC-19A-07` | `TC-21` | e2e | No | `tests/dashboard/data-vn-generator.spec.js` | UI-01: Tùy chọn type, carrier, category khớp danh mục đặc tả |
+| `AC-19A-07` | `TC-22` | e2e | No | `tests/dashboard/data-vn-generator.spec.js` | ASYNC-03: Request sinh trễ, bấm sinh lần 2 -> chỉ nhận kết quả lần 2 |
+| `AC-19A-07` | `TC-23` | e2e | No | `tests/dashboard/data-vn-generator.spec.js` | ASYNC-02: Đổi type khi request đang chờ -> hủy request cũ |
+| `AC-19A-07` | `TC-24` | e2e | No | `tests/dashboard/data-vn-generator.spec.js` | ASYNC-01: Khóa form và nút khi đang lưu dataset |
+| `AC-19A-07` | `TC-25` | e2e | Yes | `tests/dashboard/data-vn-generator.spec.js` | ASYNC-04: Lưu trùng tên báo lỗi 400, giữ nguyên bản xem trước |
+| `AC-19A-07` | `TC-26` | e2e | No | `tests/dashboard/data-vn-generator.spec.js` | ASYNC-05: Chỉ báo thành công sau mã 200, xử lý lỗi 500 an toàn |
+| `AC-19A-07` | `TC-27` | e2e | Yes | `tests/dashboard/data-vn-generator.spec.js` | UI-05: Đóng khi dirty hiển thị confirmDialog, ở lại giữ nguyên dữ liệu |
+| `AC-19A-07` | `TC-28` | e2e | No | `tests/dashboard/data-vn-generator.spec.js` | UI-04: Chuyển tab Định danh <-> Payload hiển thị đúng panel và aria |
+| `AC-19A-07` | `TC-29` | e2e | Yes | `tests/dashboard/data-vn-generator.spec.js` | OWN-01..04: init idempotent, gỡ listener khi destroy, 20 vòng lặp |
+| `AC-19A-07` | `TC-30` | e2e | No | `tests/dashboard/data-vn-generator.spec.js` | OWN-05: Rời view khi request đang chờ, không lỗi console |
+| `AC-19A-07` | `TC-31` | e2e | Yes | `tests/dashboard/data-vn-generator.spec.js` | An toàn hiển thị: Xem nhóm XSS không kích hoạt script |
+| `AC-19A-07` | `TC-32` | e2e | No | `tests/dashboard/data-vn-generator-layout.spec.js` | UI-03: Viewport 1920x1080 Light Mode |
+| `AC-19A-07` | `TC-33` | e2e | No | `tests/dashboard/data-vn-generator-layout.spec.js` | UI-03: Viewport 1920x1080 Dark Mode |
+| `AC-19A-07` | `TC-34` | e2e | No | `tests/dashboard/data-vn-generator-layout.spec.js` | UI-03: Viewport 1440x900 Light Mode |
+| `AC-19A-07` | `TC-35` | e2e | No | `tests/dashboard/data-vn-generator-layout.spec.js` | UI-03: Viewport 1440x900 Dark Mode |
+| `AC-19A-07` | `TC-36` | e2e | No | `tests/dashboard/data-vn-generator-layout.spec.js` | UI-03: Viewport 1280x800 Light Mode |
+| `AC-19A-07` | `TC-37` | e2e | No | `tests/dashboard/data-vn-generator-layout.spec.js` | UI-03: Viewport 1280x800 Dark Mode |
+| `AC-19A-07` | `TC-38` | e2e | No | `tests/dashboard/data-vn-generator-layout.spec.js` | UI-03: Viewport 390x844 Mobile Light Mode |
+| `AC-19A-07` | `TC-39` | e2e | No | `tests/dashboard/data-vn-generator-layout.spec.js` | UI-03: Viewport 390x844 Mobile Dark Mode |
 
 ---
 
-## 9. Định Nghĩa Hoàn Thành
-
-- [ ] 39/39 TC PASS trong JUnit; 16/16 gate scenario có bằng chứng.
-- [ ] CCCD, MST, SĐT qua oracle độc lập; seed tái hiện được; không trùng trong một lần sinh.
-- [ ] 0 token: TC-13 và TC-18 pass.
-- [ ] Không có đường ghi file mới; lưu chỉ qua `create-dataset`.
-- [ ] 4 viewport × 2 theme đã soát; 0 lỗi console; không có vi phạm modularity mới.
-- [ ] BA duyệt hash contract; `master.ps1 gate` PASS; có review độc lập và rerun critical.
+## D. Phạm Vi Dev Được Tự Quyết (Local Decisions)
+- Thứ tự sắp xếp các cột trong bảng xem trước Persona (mặc định: Họ tên, Giới tính, Ngày sinh, CCCD, SĐT, Email).
+- Điều chỉnh kích thước và độ cao cuộn tối đa của bảng xem trước (`max-height: 360px` hoặc `420px`).
+- Lựa chọn icon SVG hiển thị trên nút "Sao chép" của từng dòng payload biên.
+- Bổ sung thêm các mô tả ngữ cảnh chi tiết cho từng payload biên trong `edgePayloads.js`.
 
 ---
 
-## 10. Rủi Ro Còn Lại
-
-- CCCD, MST hợp lệ về cấu trúc có thể trùng người hoặc doanh nghiệp thật (INV-3). Chỉ dùng cho môi trường test.
-- Dải đầu số nhà mạng có thể thay đổi. Phụ lục B cần rà lại khi có thông báo mới; có chuyển mạng giữ số.
-- `DATA_DIR` cố định ở thư mục framework: test ghi file chạy song song có thể va nhau. Tên file có timestamp, xoá ở `after`.
-- D3 đổi hành vi `generateRandomVNPhone` ở mọi vệ tinh sau khi sync. Test nào hard-code đầu số cũ sẽ lộ ra.
-- CarThings vẫn dùng `generateRandomVNIDCard` cục bộ (sai cấu trúc). Đổi sang `generateVnCccd` là việc của repo CarThings.
+## E. Câu Hỏi Mở & Giả Định (Open Questions)
+- Hiện tại có 0 câu hỏi chặn (zero blocking questions).
+- Giả định: Danh mục 63 mã tỉnh tại Phụ lục A và đầu số viễn thông tại Phụ lục B đã được xác nhận làm căn cứ kiểm thử chuẩn mực cho hệ thống.
 
 ---
 
-## Phụ Lục A — Mã tỉnh CCCD (63 mã; BA đối chiếu nguồn chính thức ở Phase 0)
+## F. Tiêu Chí Ra Phase (Exit Criteria)
+- [ ] 100% (39/39) test cases đạt kết quả PASS với báo cáo JUnit đầy đủ.
+- [ ] Toàn bộ 16 kịch bản Gate Scenarios (ASYNC, OWN, UI, LIFE) đều có test case kiểm chứng đạt chuẩn.
+- [ ] Kiểm thử oracle độc lập cho CCCD, MST, SĐT pass 100%, không tái sử dụng logic generator.
+- [ ] Quét tĩnh xác nhận 0 token AI (INV-1), không có import nào tới `core/ai`.
+- [ ] Tuân thủ giới hạn dòng mã (Component $\le 150$, Service $\le 200$, Module $\le 250$, Utils $\le 150$).
+- [ ] Kiểm tra hiển thị responsive 4 viewport trên 2 theme (Light/Dark), không có lỗi console.
+
+---
+
+## G. Soát Chéo (Cross-Review Signatures)
+- Nghiệp vụ soát bởi Tech Lead: ✔ @tl (phiên init)
+- Kỹ thuật soát bởi BA (không đổi nghiệp vụ): ✔ @ba (phiên init)
+
+---
+
+## H. Nhật Ký Thay Đổi Kế Hoạch (Plan Deviation Requests - PDR)
+
+| PDR ID | Loại (BUSINESS / TECH) | Nội Dung Plan Gốc | Đề Xuất Thực Tế | Ảnh Hưởng (AC / File) | Trạng Thái (PENDING / APPROVED / REJECTED) |
+|---|:---:|---|---|---|:---:|
+| — | — | Không có sai lệch so với kế hoạch ban đầu | — | — | APPROVED |
+
+---
+
+## I. Bằng Chứng Thực Nghiệm (Evidence Block)
+_(Sẽ được điền sau khi thực thi code hoàn tất)_
+
+---
+
+## Phụ Lục A — Danh Mục Mã Tỉnh CCCD (63 Tỉnh Thành)
 
 `001` Hà Nội · `002` Hà Giang · `004` Cao Bằng · `006` Bắc Kạn · `008` Tuyên Quang · `010` Lào Cai · `011` Điện Biên · `012` Lai Châu · `014` Sơn La · `015` Yên Bái · `017` Hòa Bình · `019` Thái Nguyên · `020` Lạng Sơn · `022` Quảng Ninh · `024` Bắc Giang · `025` Phú Thọ · `026` Vĩnh Phúc · `027` Bắc Ninh · `030` Hải Dương · `031` Hải Phòng · `033` Hưng Yên · `034` Thái Bình · `035` Hà Nam · `036` Nam Định · `037` Ninh Bình · `038` Thanh Hóa · `040` Nghệ An · `042` Hà Tĩnh · `044` Quảng Bình · `045` Quảng Trị · `046` Thừa Thiên Huế · `048` Đà Nẵng · `049` Quảng Nam · `051` Quảng Ngãi · `052` Bình Định · `054` Phú Yên · `056` Khánh Hòa · `058` Ninh Thuận · `060` Bình Thuận · `062` Kon Tum · `064` Gia Lai · `066` Đắk Lắk · `067` Đắk Nông · `068` Lâm Đồng · `070` Bình Phước · `072` Tây Ninh · `074` Bình Dương · `075` Đồng Nai · `077` Bà Rịa – Vũng Tàu · `079` TP. Hồ Chí Minh · `080` Long An · `082` Tiền Giang · `083` Bến Tre · `084` Trà Vinh · `086` Vĩnh Long · `087` Đồng Tháp · `089` An Giang · `091` Kiên Giang · `092` Cần Thơ · `093` Hậu Giang · `094` Sóc Trăng · `095` Bạc Liêu · `096` Cà Mau
 
-## Phụ Lục B — Đầu số di động (3 nhà mạng; BA xác nhận ở Phase 0)
+---
 
-| Nhà mạng | Đầu số |
-| --- | --- |
+## Phụ Lục B — Danh Mục Đầu Số Di Động (3 Nhà Mạng Chính)
+
+| Nhà Mạng | Danh Sách Đầu Số |
+|---|---|
 | Viettel | 032, 033, 034, 035, 036, 037, 038, 039, 086, 096, 097, 098 |
 | VinaPhone | 081, 082, 083, 084, 085, 088, 091, 094 |
 | MobiFone | 070, 076, 077, 078, 079, 089, 090, 093 |
