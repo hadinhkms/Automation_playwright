@@ -15,6 +15,7 @@ const { handleRunnerRoutes } = require('./routes/runnerRoutes');
 const { handleRecorderRoutes, stopRecorderSession, getActiveRecorder } = require('./routes/recorderRoutes');
 const { handleGitRoutes } = require('./routes/gitRoutes');
 const { handleDataRoutes } = require('./routes/dataRoutes');
+const { handleDataGenerateRoutes } = require('./routes/dataGenerateRoutes');
 const { handleBddRoutes } = require('./routes/bddRoutes');
 const { handlePageRoutes } = require('./routes/pageRoutes');
 const { handleFixtureRoutes } = require('./routes/fixtureRoutes');
@@ -96,6 +97,7 @@ const server = http.createServer(async (request, response) => {
   if (await handleRunnerRoutes(request, response, url, context)) return;
   if (await handleRecorderRoutes(request, response, url, context)) return;
   if (await handleGitRoutes(request, response, url, context)) return;
+  if (await handleDataGenerateRoutes(request, response, url, context)) return;
   if (await handleDataRoutes(request, response, url, context)) return;
   if (await handleBddRoutes(request, response, url, context)) return;
   if (await handlePageRoutes(request, response, url, context)) return;
