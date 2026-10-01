@@ -39,6 +39,9 @@ function generateDynamicValue(placeholder) {
     case 'date':
       return new Date().toISOString().split('T')[0];
     default:
+      if (placeholder && (placeholder.startsWith('{{vn_') || placeholder.startsWith('vn_'))) {
+        return require('./vnData').resolveVnPlaceholder(placeholder);
+      }
       return placeholder;
   }
 }
