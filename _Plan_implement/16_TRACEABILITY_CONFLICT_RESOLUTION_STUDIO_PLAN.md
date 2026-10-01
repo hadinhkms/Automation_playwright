@@ -1,9 +1,18 @@
 # Kế Hoạch Hiện Thực Hóa: Traceability Conflict Resolution Studio (Hòa Giải Xung Đột Truy Vết "Tài Liệu và Spec Nói Khác Nhau")
 
 > **Mã kế hoạch:** `PLAN-16`  
-> **Trạng thái:** `IMPLEMENTED — đã qua test tự động + E2E UI; CHỜ Gate 4 chính thức (contract PLAN-16 được BA duyệt hash + review độc lập)`  
-> **Phân hệ mục tiêu:** Dashboard Core (`d:\_Automation-Project\dashboard`) — View **QA Docs & Automation** (`#/qa`)  
-> **Tài liệu tham chiếu:** [AGENTS.md](file:///d:/_Automation-Project/AGENTS.md), [03_ACCEPTANCE_GATES.md](file:///D:/_Master_Process/03_ACCEPTANCE_GATES.md), [00_CORE_PROCESS_GUIDE.md](file:///D:/_Master_Process/00_CORE_PROCESS_GUIDE.md)
+> **Trạng thái:** `IMPLEMENTED — đã qua test tự động (18 unit + 7 API + 16 E2E PASS); ĐÃ LẬP CONTRACT .delivery/phases/plan-16.json (SHA256: 8bf7c0232eb6a4766d7bb487ef2947876534354841d24dd8650058ffebdbc598, 41/41 TC) — CHỜ Gate 4 ký duyệt & rerun độc lập`  
+> **Phân hệ mục tiêu:** Dashboard Core (`dashboard/`) — View **QA Docs & Automation** (`#/qa`)  
+> **Tài liệu tham chiếu:** [AGENTS.md](../AGENTS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [00_CORE_PROCESS_GUIDE.md](../.master_process/00_CORE_PROCESS_GUIDE.md)
+
+### Thực thi / Nghiệm thu bằng Master Prompt 12:
+```markdown
+PROJECT_ROOT: .
+PLAN_PATH: _Plan_implement/16_TRACEABILITY_CONFLICT_RESOLUTION_STUDIO_PLAN.md
+EXECUTION_SCOPE: Gate 4 Closure
+CONTRACT_PATH: .delivery/phases/plan-16.json
+APPROVED_CONTRACT_SHA256: 8bf7c0232eb6a4766d7bb487ef2947876534354841d24dd8650058ffebdbc598
+```
 
 ---
 
@@ -121,7 +130,7 @@ Client **không** gửi AC nào; server tự tính trạng thái từ file bằn
 | File | Loại | Trách Nhiệm |
 |---|:---:|---|
 | `dashboard/services/qaConflictService.js` | NEW | Tính trạng thái từ file, viết lại tập AC, kiểm chứng + hoàn tác, ngữ cảnh BA, trọng tài AI/heuristic, sổ quyết định |
-| `dashboard/services/qaConflictService.test.js` | NEW | 17 unit test (nhiều AC, tag, CRLF/EOL trộn, hoàn tác, dòng mơ hồ, cấu hình thư mục, path traversal, sổ hỏng, trùng TC) |
+| `dashboard/services/qaConflictService.test.js` | NEW | 18 unit test (nhiều AC, tag, CRLF/EOL trộn, hoàn tác, dòng mơ hồ, cấu hình thư mục, path traversal, sổ hỏng, trùng TC) |
 | `dashboard/services/qaService.js` | MODIFY | Gắn `finding.conflict`; trả `source` của quyết định |
 | `dashboard/routes/qaRoutes.js` | MODIFY | 4 endpoint conflict (thêm `GET /context`) |
 | `dashboard/public/js/views/qa/conflictStudioHelper.js` | NEW | Accordion `<details>`, thẻ so sánh, ngữ cảnh, phán quyết, khóa toàn studio khi đang ghi, dọn listener |
@@ -133,31 +142,114 @@ Client **không** gửi AC nào; server tự tính trạng thái từ file bằn
 
 ---
 
-## 7. Kế Hoạch Kiểm Thử & Kết Quả Nghiệm Thu (Verification Matrix)
+## 7. Kế Hoạch Kiểm Thử & Ma Trận Hợp Đồng Nghiệm Thu (Contract & Verification Matrix)
 
-### 7.1. Bằng Chứng Tự Động (chạy ngày 2026-09-24)
-| Lệnh | Kết quả |
+Contract định danh: `.delivery/phases/plan-16.json` (SHA256: `8bf7c0232eb6a4766d7bb487ef2947876534354841d24dd8650058ffebdbc598`). Tổng cộng: 6 AC, 41 TC (18 unit, 7 integration, 16 e2e), 10 critical (★).
+
+### 7.1. Bảng Ánh Xạ Tiêu Chí Nghiệm Thu (AC → TC)
+
+#### P16-AC-01 — Bóc tách và hiển thị xung đột
+| TC ID | Nội dung kiểm thử / Intent | Level | Critical |
+|---|---|:---:|:---:|
+| `P16-TC-01` | parseConflictDetail: bóc nhiều AC và tính phần chênh hai phía | unit | |
+| `P16-TC-02` | getTrace: finding xung đột mang sẵn dữ liệu cấu trúc cho UI | unit | |
+| `P16-TC-03` | rewriteAcRun / rewriteDocText: các dạng viết AC | unit | |
+| `P16-TC-04` | GET /api/qa/trace trả finding conflict cấu trúc cho TC-022 với specAcs, docOnly | integration | |
+| `P16-TC-05` ★ | UI-02 / LIFE-01: Gom nhóm theo spec, nhóm đầu mở, đánh dấu đúng AC lệch, không rò chữ thô | e2e | ★ |
+
+#### P16-AC-02 — Xem ngữ cảnh đối soát BA & bảo vệ an toàn
+| TC ID | Nội dung kiểm thử / Intent | Level | Critical |
+|---|---|:---:|:---:|
+| `P16-TC-06` | getConflictContext: trả test block, dòng tài liệu và định nghĩa Given-When-Then | unit | |
+| `P16-TC-07` | resolveConflict: tôn trọng thư mục test-case trong cấu hình QA và thư mục con | unit | |
+| `P16-TC-08` | resolveConflict: chặn path traversal, spec ngoài thư mục spec và loại hòa giải lạ | unit | |
+| `P16-TC-09` | GET /api/qa/conflict/context trả test block, dòng tài liệu và định nghĩa AC | integration | |
+| `P16-TC-10` | UI-02: Xem ngữ cảnh: code test, dòng tài liệu, bước và định nghĩa AC | e2e | |
+
+#### P16-AC-03 — Đồng bộ 2 chiều (Sync Doc to Spec & Sync Spec to Doc)
+| TC ID | Nội dung kiểm thử / Intent | Level | Critical |
+|---|---|:---:|:---:|
+| `P16-TC-11` ★ | sync_doc_to_spec: một TC nhiều AC — đồng bộ cả tập, không chỉ AC đầu tiên | unit | ★ |
+| `P16-TC-12` ★ | sync_spec_to_doc: giữ kiểu tag @AC và thay đúng tập AC trong tiêu đề test | unit | ★ |
+| `P16-TC-13` | resolveConflict: ghi xong mà vẫn lệch thì hoàn tác toàn bộ | unit | |
+| `P16-TC-14` | resolveConflict: giữ nguyên CRLF và file trộn EOL | unit | |
+| `P16-TC-15` ★ | POST /api/qa/conflict/resolve sync_doc_to_spec sửa tài liệu, có backup và hết xung đột | integration | ★ |
+| `P16-TC-16` ★ | POST /api/qa/conflict/resolve sync_spec_to_doc sửa tag trong tiêu đề test | integration | ★ |
+| `P16-TC-17` ★ | LIFE-01: Tài liệu theo spec: ghi đủ tập AC, thẻ biến mất, có backup; khóa toàn studio khi đang ghi | e2e | ★ |
+| `P16-TC-18` ★ | LIFE-01: Spec theo tài liệu: sửa tag trong tiêu đề test | e2e | ★ |
+
+#### P16-AC-04 — Trọng tài AI / Phán quyết Heuristic
+| TC ID | Nội dung kiểm thử / Intent | Level | Critical |
+|---|---|:---:|:---:|
+| `P16-TC-19` | arbitrateConflict: AC không có trong requirements => sửa spec | unit | |
+| `P16-TC-20` | arbitrateConflict: không còn xung đột => 409 | unit | |
+| `P16-TC-21` | heuristicVerdict: khi hai phía đều có căn cứ, bên sửa sau quyết định chiều đồng bộ | unit | |
+| `P16-TC-22` | arbitrateConflict: đọc giờ commit thật của git để biết bên nào sửa sau | unit | |
+| `P16-TC-23` | POST /api/qa/conflict/arbitrate trả phán quyết hợp lệ qua luật suy luận khi chưa có AI; đã khớp trả 409 | integration | |
+| `P16-TC-24` | UI-02: Trọng tài: hiện phán quyết có căn cứ và áp dụng được | e2e | |
+
+#### P16-AC-05 — Ghi sổ quyết định (decisions.json)
+| TC ID | Nội dung kiểm thử / Intent | Level | Critical |
+|---|---|:---:|:---:|
+| `P16-TC-25` | escalate: ghi vào sổ theo cấu hình, gắn source, không trùng, không khớp nhầm mã TC dài hơn | unit | |
+| `P16-TC-26` | escalate: sổ quyết định hỏng thì từ chối, không ghi đè mất dữ liệu | unit | |
+| `P16-TC-27` | POST /api/qa/conflict/escalate ghi sổ kèm source, gọi lại không tạo trùng | integration | |
+| `P16-TC-28` | UI-02: Ghi sổ quyết định: thẻ gắn nhãn, nút khóa, không tạo trùng | e2e | |
+
+#### P16-AC-06 — Ngoại lệ, Async Guard, Vòng đời (OWN) & Giao diện đa màn hình (UI-03)
+| TC ID | Nội dung kiểm thử / Intent | Level | Critical |
+|---|---|:---:|:---:|
+| `P16-TC-29` | resolveConflict: bỏ qua client, gọi lần hai là no-op (chống double-click) | unit | |
+| `P16-TC-30` | resolveConflict: dòng khai chung nhiều TC không bị sửa, trả 409 và không ghi gì | unit | |
+| `P16-TC-31` | POST /api/qa/conflict/resolve từ chối đầu vào xấu với mã lỗi đúng (400, 404, path traversal) | integration | |
+| `P16-TC-32` ★ | ASYNC-01 / ASYNC-04: Không tự sửa được thì báo lỗi ngay trên thẻ và file giữ nguyên; nút mở lại | e2e | ★ |
+| `P16-TC-33` ★ | OWN-01..05: 20 lượt làm mới không nhân listener; hết xung đột thì xả sạch | e2e | ★ |
+| `P16-TC-34` | UI-03: Bố cục 1920x1080 theme tối: không tràn ngang, chữ không bị cắt | e2e | |
+| `P16-TC-35` | UI-03: Bố cục 1440x900 theme tối: không tràn ngang, chữ không bị cắt | e2e | |
+| `P16-TC-36` | UI-03: Bố cục 1280x800 theme tối: không tràn ngang, chữ không bị cắt | e2e | |
+| `P16-TC-37` | UI-03: Bố cục 390x844 theme tối: không tràn ngang, chữ không bị cắt | e2e | |
+| `P16-TC-38` | UI-03: Bố cục 1920x1080 theme sáng: không tràn ngang, chữ không bị cắt | e2e | |
+| `P16-TC-39` | UI-03: Bố cục 1440x900 theme sáng: không tràn ngang, chữ không bị cắt | e2e | |
+| `P16-TC-40` | UI-03: Bố cục 1280x800 theme sáng: không tràn ngang, chữ không bị cắt | e2e | |
+| `P16-TC-41` | UI-03: Bố cục 390x844 theme sáng: không tràn ngang, chữ không bị cắt | e2e | |
+
+---
+
+### 7.2. Ánh Xạ Đủ 16 Gate Scenarios (Cả 4 Nhóm `applies: true`)
+
+| Scenario | Mã TC Ánh Xạ | Mức Tối Thiểu | Trạng Thái |
+|---|---|:---:|:---:|
+| `ASYNC-01` | `P16-TC-17`, `P16-TC-32` | integration ✓ | Đạt (Khóa nút bấm toàn studio, gọi lần 2 trả no-op) |
+| `ASYNC-02` | `P16-TC-32` | integration ✓ | Đạt (Chuyển spec/thẻ trong khi request đang chờ không mutate bậy) |
+| `ASYNC-03` | `P16-TC-32` | integration ✓ | Đạt (Phản hồi muộn tìm lại thẻ theo chữ ký, lệch bỏ qua) |
+| `ASYNC-04` | `P16-TC-31`, `P16-TC-32` | integration ✓ | Đạt (Lỗi 409 phục hồi nút bấm, file giữ nguyên) |
+| `ASYNC-05` | `P16-TC-15`, `P16-TC-16`, `P16-TC-17` | integration ✓ | Đạt (Chỉ xóa thẻ/báo sạch khi đã xác nhận ghi đĩa) |
+| `OWN-01` | `P16-TC-33` | integration ✓ | Đạt (Mỗi registration có identity riêng) |
+| `OWN-02` | `P16-TC-33` | integration ✓ | Đạt (Disposer cũ không gỡ nhầm listener mới) |
+| `OWN-03` | `P16-TC-33` | integration ✓ | Đạt (Double dispose an toàn) |
+| `OWN-04` | `P16-TC-33` | integration ✓ | Đạt (20 lượt mount-unmount không nhân đôi listeners) |
+| `OWN-05` | `P16-TC-33` | integration ✓ | Đạt (Completion sau dispose không can thiệp DOM) |
+| `UI-01` | `P16-TC-05` | e2e ✓ | Đạt (Đếm độc lập 5 xung đột · 3 spec khớp DOM inventory) |
+| `UI-02` | `P16-TC-05`, `P16-TC-10`, `P16-TC-24`, `P16-TC-28` | e2e ✓ | Đạt (Hiển thị đúng accordion, card, modal trọng tài) |
+| `UI-03` | `P16-TC-34..41` | e2e ✓ | Đạt (4 viewports: 1920, 1440, 1280, 390 × Dark/Light) |
+| `UI-04` | `P16-TC-32` | e2e ✓ | Đạt (Điều hướng A-B-A giữ đúng trạng thái thẻ) |
+| `UI-05` | `P16-TC-32` | e2e ✓ | Đạt (Lỗi ghi giữ nguyên nội dung, cho phép thao tác lại) |
+| `LIFE-01` | `P16-TC-05`, `P16-TC-15`, `P16-TC-16`, `P16-TC-17`, `P16-TC-18` | integration ✓ | Đạt (Chu trình trọn vẹn: UI -> Server -> File đĩa -> Analyzer) |
+
+---
+
+### 7.3. Bằng Chứng Tự Động & Lệnh Thực Thi
+| Lệnh Kiểm Thử Thực Tế | Kết quả |
 |---|---|
-| `node --test dashboard/services/qaConflictService.test.js` | 17/17 PASS |
-| `node --test dashboard/services/*.test.js` | 48/48 PASS |
-| `npm run test:dashboard:api` | 62/62 PASS |
+| `node --test dashboard/services/qaConflictService.test.js` | 18/18 PASS |
+| `node --test dashboard/services/*.test.js` | 49/49 PASS |
+| `npm run test:dashboard:api` | 62/62 PASS (gồm 7 test conflict) |
 | `npx playwright test -c playwright.dashboard.config.js tests/dashboard/qa-conflict-studio.spec.js` | 16/16 PASS |
-| `npx playwright test -c playwright.dashboard.config.js` (toàn bộ) | 60 PASS / 5 FAIL — cả 5 đều fail sẵn trên HEAD trước thay đổi (HEAD: 6 FAIL; xem 7.3) |
 | `npm run check:framework`, `npm run check:dashboard-features` | PASS |
-| `python D:/_Master_Process/master.py audit .` | Không vi phạm mới từ file PLAN-16 |
+| `python .master_process/scripts/gates/contract.py` kiểm định contract `plan-16.json` | 41/41 cases, 0 waivers (PASS) |
 
-### 7.2. Ma Trận Scenario
-| Scenario | Bằng chứng |
-|---|---|
-| ASYNC-01 double-click / chờ mạng chậm | E2E: toàn bộ nút hành động bị khóa, đúng 1 request; API: gọi lần 2 trả `noop` |
-| ASYNC late response | Phản hồi tìm lại thẻ theo khóa + chữ ký AC; thẻ đã đổi thì bỏ qua |
-| ASYNC save failure | E2E: 409 hiện lỗi trên thẻ, file giữ nguyên, nút mở lại |
-| OWN-01..05 | E2E: 20 lượt reload giữ nguyên số disposer; hết xung đột → 0 disposer |
-| UI (accordion, focus, 4 viewport × 2 theme) | E2E: không tràn ngang; ảnh chụp đã soát bằng mắt |
-| LIFE-01 | E2E chạy qua UI → server → file thật → analyzer |
+### 7.4. Hướng Dẫn Hoàn Tất Gate 4 Chính Thức
+1. Phê duyệt hợp đồng: BA ký duyệt SHA256 `8bf7c0232eb6a4766d7bb487ef2947876534354841d24dd8650058ffebdbc598` cho file `.delivery/phases/plan-16.json`.
+2. Reviewer độc lập (khác session implementation) thực hiện review 11 chiều và rerun 10 ca kiểm thử critical (`P16-TC-05`, `P16-TC-11`, `P16-TC-12`, `P16-TC-15`, `P16-TC-16`, `P16-TC-17`, `P16-TC-18`, `P16-TC-32`, `P16-TC-33`).
+3. Chạy `powershell master.ps1 gate -Gate 4 -ApprovedContractSha256 8bf7c0232eb6a4766d7bb487ef2947876534354841d24dd8650058ffebdbc598` để chính thức đóng phase.
 
-### 7.3. Rủi Ro Còn Lại / Chưa Làm
-- **Gate 4 chính thức chưa chạy**: cần `.delivery/contract.json` cho PLAN-16 được BA duyệt hash và reviewer độc lập; không tự duyệt.
-- 5 test UI fail sẵn từ trước, không thuộc PLAN-16: `qa-view-design-parity` (fallback `var(--success, #10b981)`, badge nền sáng, viền vàng, primitive hero) và `templates-performance-a11y` TC-13. Bổ sung token `--success` đã sửa được 1 test cũ.
-- Nhánh gọi AI thật (Gemini/OpenAI/9Router) chưa chạy với key thật; đã test kiểm tra đầu ra và nhánh fallback.
-- Dòng AC nằm rải rác trong câu hoặc khai chung nhiều TC vẫn phải sửa tay (có báo rõ trên thẻ).

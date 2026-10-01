@@ -1,0 +1,400 @@
+{
+  "schema_version": 1,
+  "phase": "plan-16",
+  "groups": {
+    "async_state": {
+      "applies": true,
+      "reason": ""
+    },
+    "ownership_lifecycle": {
+      "applies": true,
+      "reason": ""
+    },
+    "router_ui": {
+      "applies": true,
+      "reason": ""
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "P16-AC-01",
+      "text": "Bóc tách và hiển thị xung đột (parseConflictDetail, gom nhóm theo file spec, đánh dấu đúng AC lệch, không rò chữ thô / XSS).",
+      "cases": [
+        {
+          "id": "P16-TC-01",
+          "intent": "parseConflictDetail: bóc nhiều AC và tính phần chênh hai phía",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-02",
+          "intent": "getTrace: finding xung đột mang sẵn dữ liệu cấu trúc cho UI",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-03",
+          "intent": "rewriteAcRun / rewriteDocText: các dạng viết AC",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-04",
+          "intent": "GET /api/qa/trace trả finding conflict cấu trúc cho TC-022 với specAcs, docOnly",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-05",
+          "intent": "UI-02 / LIFE-01: Gom nhóm theo spec, nhóm đầu mở, đánh dấu đúng AC lệch, không rò chữ thô",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "UI-01",
+            "UI-02",
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P16-AC-02",
+      "text": "Xem ngữ cảnh đối soát BA & bảo vệ an toàn (đọc test block, dòng tài liệu, định nghĩa AC, tôn trọng cấu hình và chặn path traversal).",
+      "cases": [
+        {
+          "id": "P16-TC-06",
+          "intent": "getConflictContext: trả test block, dòng tài liệu và định nghĩa Given-When-Then",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-07",
+          "intent": "resolveConflict: tôn trọng thư mục test-case trong cấu hình QA và thư mục con",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-08",
+          "intent": "resolveConflict: chặn path traversal, spec ngoài thư mục spec và loại hòa giải lạ",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-09",
+          "intent": "GET /api/qa/conflict/context trả test block, dòng tài liệu và định nghĩa AC",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-10",
+          "intent": "UI-02: Xem ngữ cảnh: code test, dòng tài liệu, bước và định nghĩa AC",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-02"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P16-AC-03",
+      "text": "Đồng bộ 2 chiều (Sync Doc to Spec & Sync Spec to Doc) với cơ chế sao lưu, giữ nguyên EOL/CRLF, và hoàn tác nếu còn lệch.",
+      "cases": [
+        {
+          "id": "P16-TC-11",
+          "intent": "sync_doc_to_spec: một TC nhiều AC — đồng bộ cả tập, không chỉ AC đầu tiên",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-12",
+          "intent": "sync_spec_to_doc: giữ kiểu tag @AC và thay đúng tập AC trong tiêu đề test",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-13",
+          "intent": "resolveConflict: ghi xong mà vẫn lệch thì hoàn tác toàn bộ",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-14",
+          "intent": "resolveConflict: giữ nguyên CRLF và file trộn EOL",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-15",
+          "intent": "POST /api/qa/conflict/resolve sync_doc_to_spec sửa tài liệu, có backup và hết xung đột",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-05",
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "P16-TC-16",
+          "intent": "POST /api/qa/conflict/resolve sync_spec_to_doc sửa tag trong tiêu đề test",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-05",
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "P16-TC-17",
+          "intent": "LIFE-01: Tài liệu theo spec: ghi đủ tập AC, thẻ biến mất, có backup; khóa toàn studio khi đang ghi",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-01",
+            "ASYNC-05",
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "P16-TC-18",
+          "intent": "LIFE-01: Spec theo tài liệu: sửa tag trong tiêu đề test",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P16-AC-04",
+      "text": "Trọng tài AI / Phán quyết Heuristic có căn cứ xác thực và hỗ trợ áp dụng phán quyết.",
+      "cases": [
+        {
+          "id": "P16-TC-19",
+          "intent": "arbitrateConflict: AC không có trong requirements => sửa spec",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-20",
+          "intent": "arbitrateConflict: không còn xung đột => 409",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-21",
+          "intent": "heuristicVerdict: khi hai phía đều có căn cứ, bên sửa sau quyết định chiều đồng bộ",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-22",
+          "intent": "arbitrateConflict: đọc giờ commit thật của git để biết bên nào sửa sau",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-23",
+          "intent": "POST /api/qa/conflict/arbitrate trả phán quyết hợp lệ qua luật suy luận khi chưa có AI; đã khớp trả 409",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-24",
+          "intent": "UI-02: Trọng tài: hiện phán quyết có căn cứ và áp dụng được",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-02"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P16-AC-05",
+      "text": "Ghi sổ quyết định (decisions.json) an toàn, gắn nguồn source, không trùng lặp, bảo vệ sổ khi hỏng.",
+      "cases": [
+        {
+          "id": "P16-TC-25",
+          "intent": "escalate: ghi vào sổ theo cấu hình, gắn source, không trùng, không khớp nhầm mã TC dài hơn",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-26",
+          "intent": "escalate: sổ quyết định hỏng thì từ chối, không ghi đè mất dữ liệu",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-27",
+          "intent": "POST /api/qa/conflict/escalate ghi sổ kèm source, gọi lại không tạo trùng",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-28",
+          "intent": "UI-02: Ghi sổ quyết định: thẻ gắn nhãn, nút khóa, không tạo trùng",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-02"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P16-AC-06",
+      "text": "Xử lý ngoại lệ, chống Race Condition, vòng đời listener (OWN), và giao diện đa màn hình (UI-03).",
+      "cases": [
+        {
+          "id": "P16-TC-29",
+          "intent": "resolveConflict: bỏ qua client, gọi lần hai là no-op (chống double-click)",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-30",
+          "intent": "resolveConflict: dòng khai chung nhiều TC không bị sửa, trả 409 và không ghi gì",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P16-TC-31",
+          "intent": "POST /api/qa/conflict/resolve từ chối đầu vào xấu với mã lỗi đúng (400, 404, path traversal)",
+          "level": "integration",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-04"
+          ]
+        },
+        {
+          "id": "P16-TC-32",
+          "intent": "ASYNC-01 / ASYNC-04: Không tự sửa được thì báo lỗi ngay trên thẻ và file giữ nguyên; nút mở lại",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-01",
+            "ASYNC-02",
+            "ASYNC-03",
+            "ASYNC-04",
+            "UI-04",
+            "UI-05"
+          ]
+        },
+        {
+          "id": "P16-TC-33",
+          "intent": "OWN-01..05: 20 lượt làm mới không nhân listener; hết xung đột thì xả sạch",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "OWN-01",
+            "OWN-02",
+            "OWN-03",
+            "OWN-04",
+            "OWN-05"
+          ]
+        },
+        {
+          "id": "P16-TC-34",
+          "intent": "UI-03: Bố cục 1920x1080 theme tối: không tràn ngang, chữ không bị cắt",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P16-TC-35",
+          "intent": "UI-03: Bố cục 1440x900 theme tối: không tràn ngang, chữ không bị cắt",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P16-TC-36",
+          "intent": "UI-03: Bố cục 1280x800 theme tối: không tràn ngang, chữ không bị cắt",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P16-TC-37",
+          "intent": "UI-03: Bố cục 390x844 theme tối: không tràn ngang, chữ không bị cắt",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P16-TC-38",
+          "intent": "UI-03: Bố cục 1920x1080 theme sáng: không tràn ngang, chữ không bị cắt",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P16-TC-39",
+          "intent": "UI-03: Bố cục 1440x900 theme sáng: không tràn ngang, chữ không bị cắt",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P16-TC-40",
+          "intent": "UI-03: Bố cục 1280x800 theme sáng: không tràn ngang, chữ không bị cắt",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P16-TC-41",
+          "intent": "UI-03: Bố cục 390x844 theme sáng: không tràn ngang, chữ không bị cắt",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        }
+      ]
+    }
+  ]
+}

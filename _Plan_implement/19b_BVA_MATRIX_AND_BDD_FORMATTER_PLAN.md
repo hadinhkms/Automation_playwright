@@ -1,13 +1,22 @@
 # Kế Hoạch 19b: Ma Trận Giá Trị Biên (BVA/EP) & Chuẩn Hoá AC Given-When-Then (BA-2)
 
 > **Mã kế hoạch:** `PLAN-19b` — tách từ [PLAN-19](19_BDD_SPEC_AND_SMART_TEST_DATA_STUDIO_PLAN.md) v1  
-> **Phiên bản:** `v1.1` — 2026-09-28  
-> **Trạng thái:** `DRAFT — CHỜ CHỐT D1–D7 (mục 0), BA DUYỆT CORPUS (Phụ lục A, B) VÀ HASH CONTRACT (Phase 0)`  
+> **Phiên bản:** `v1.2` — 2026-09-29  
+> **Trạng thái:** `READY FOR IMPLEMENTATION — ĐÃ LẬP HỢP ĐỒNG .delivery/phases/plan-19b.json (SHA256: 401e3b0045ca83c4b2e7946b7dcc28de2c1b126cd5d1063beff3d7d7a4e52bfb, 38/38 TC, VALID) — CHỜ CHỐT D1–D7, DUYỆT CORPUS & BA DUYỆT HASH`  
 > **Phân loại:** L3. Ma trận biên **không dùng AI** (0 token); chỉ riêng BDD gọi AI qua gateway.  
 > **Phạm vi:** modal **Phân tích Yêu cầu** trong `#/qa` (`#qa-req-analyzer-modal`), `dashboard/services/`, `core/ai/tasks/`, `dashboard/routes/`.  
 > **Phụ thuộc:** không phụ thuộc PLAN-19a. Làm sau 19a để mỗi lần chỉ có một phase chờ gate trên `main`.  
 > **Tham chiếu bắt buộc:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [AI_PROMPTS.md §3, §5](../ai/shared/AI_PROMPTS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json), [PLAN-17 §BA-2](17_AI_ASSISTED_QA_FRAMEWORK_PLAN.md).  
 > **Nhánh:** trunk-based trên `main`. Commit code **trước** khi ghi receipts.
+
+### Thực thi bằng Master Prompt 12:
+```markdown
+PROJECT_ROOT: .
+PLAN_PATH: _Plan_implement/19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md
+EXECUTION_SCOPE: Phase 0 .. Phase 4
+CONTRACT_PATH: .delivery/phases/plan-19b.json
+APPROVED_CONTRACT_SHA256: 401e3b0045ca83c4b2e7946b7dcc28de2c1b126cd5d1063beff3d7d7a4e52bfb
+```
 
 ---
 
@@ -321,7 +330,14 @@ Mỗi TC ứng với đúng 1 test. Level: gọi hàm = `unit`, HTTP = `integrat
 | TC-28 ★ | OWN-01..04: 20 vòng chuyển `#/qa` ↔ view khác, mở modal, bấm BVA 1 lần → đúng 1 request. Qua `import()` module: mount ×2, destroy ×2, disposer cũ an toàn | e2e |
 | TC-29 | OWN-05: rời view khi BDD đang chờ → không sửa DOM, 0 lỗi console | e2e |
 | TC-30 ★ | An toàn hiển thị: requirement có `<img src=x onerror=alert(1)>` và `<script>` → BVA/BDD hiện nguyên văn; không có sự kiện `dialog`, không có `img[onerror]` | e2e |
-| TC-31…38 | UI-03: 4 viewport × Light/Dark. Hàng tab cuộn ngang trong modal ở 390px; bảng ma trận cuộn bên trong; không tràn trang; có focus-visible; 0 lỗi console; không có `undefined`/`null` | e2e |
+| TC-31 | UI-03: Bố cục modal 1920×1080 theme tối: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-32 | UI-03: Bố cục modal 1440×900 theme tối: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-33 | UI-03: Bố cục modal 1280×800 theme tối: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-34 | UI-03: Bố cục modal 390×844 theme tối: hàng 8 tab cuộn ngang bên trong modal, không vỡ layout, 0 lỗi console | e2e |
+| TC-35 | UI-03: Bố cục modal 1920×1080 theme sáng: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-36 | UI-03: Bố cục modal 1440×900 theme sáng: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-37 | UI-03: Bố cục modal 1280×800 theme sáng: không tràn trang, hàng tab và bảng cuộn bên trong, 0 lỗi console | e2e |
+| TC-38 | UI-03: Bố cục modal 390×844 theme sáng: hàng 8 tab cuộn ngang bên trong modal, không vỡ layout, 0 lỗi console | e2e |
 
 **Cộng:** 7 AC, 38 TC (10 unit, 8 integration, 20 e2e), 12 critical.
 
@@ -340,7 +356,7 @@ Mỗi TC ứng với đúng 1 test. Level: gọi hàm = `unit`, HTTP = `integrat
 | OWN-05 | TC-29 |
 | UI-01 | TC-20 |
 | UI-02 | TC-19 |
-| UI-03 | TC-31…38 |
+| UI-03 | TC-31…TC-38 |
 | UI-04 | TC-21 |
 | UI-05 | TC-27 |
 | LIFE-01 | TC-18, TC-19 |
@@ -369,8 +385,8 @@ Mỗi TC ứng với đúng 1 test. Level: gọi hàm = `unit`, HTTP = `integrat
   - `npm run check:framework`
   - `npm run check:dashboard-features`
   - Ghi thêm số phần tử DOM ban đầu (TC-13 perf).
-- [ ] 0.3 Soạn `.delivery/phases/plan-19b.json` (7 AC, 38 TC, 16 scenario; chạy `gates/contract.py`) và `plan-19b-evidence-map.json`. **BA duyệt hash.**
-- **Exit:** D1–D7 đã chốt; corpus đã duyệt; baseline đã ghi; contract đã nộp duyệt.
+- [x] 0.3 Đã lập hợp đồng `.delivery/phases/plan-19b.json` (7 AC, 38 TC, 16 scenario) và khung `.delivery/phases/plan-19b-evidence-map.json`. Đã kiểm định hợp lệ qua `contract.py` (`cases=38, waivers=0`), SHA256: `401e3b0045ca83c4b2e7946b7dcc28de2c1b126cd5d1063beff3d7d7a4e52bfb`. **Chờ BA duyệt hash.**
+- **Exit:** D1–D7 đã chốt; corpus đã duyệt; baseline đã ghi; contract đã lập và sẵn sàng nghiệm thu.
 
 ### Phase 1 — Ma trận biên, 0 token (1 ngày)
 

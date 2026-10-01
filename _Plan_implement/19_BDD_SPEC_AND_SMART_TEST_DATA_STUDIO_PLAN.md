@@ -1,9 +1,16 @@
 # Kế Hoạch 19: BDD Specification & Smart Test Data Studio (Plan Tổng)
 
 > **Mã kế hoạch:** `PLAN-19`  
-> **Phiên bản:** `v2.0` — 2026-09-28. Bản v1 (DRAFT, cùng ngày) nằm trong git history, commit `db3d741`.  
-> **Trạng thái:** `ĐÃ TÁCH thành PLAN-19a và PLAN-19b — file này chỉ còn là mục lục và quyết định chung`  
-> **Tham chiếu:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json), [PLAN-17](17_AI_ASSISTED_QA_FRAMEWORK_PLAN.md) (BA-2, QA-7 là 2 hạng mục còn bỏ ngỏ), [PLAN-18](18_QA_STATIC_FINDINGS_BATCH_PROCESSING_PLAN.md) (mẫu contract/evidence).
+> **Phiên bản:** `v2.1` — 2026-09-29  
+> **Trạng thái:** `ĐÃ TÁCH thành PLAN-19a và PLAN-19b — file này là mục lục, kiến trúc tổng thể và hợp đồng điều phối`  
+> **Tham chiếu:** [AGENTS.md](../AGENTS.md), [DASHBOARD_AI_PROMPT.md](../ai/dashboard/DASHBOARD_AI_PROMPT.md), [AI_LESSONS.md](../ai/dashboard/AI_LESSONS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [gate-scenarios.json](../.master_process/config/gate-scenarios.json), [PLAN-17](17_AI_ASSISTED_QA_FRAMEWORK_PLAN.md), [PLAN-18](18_QA_STATIC_FINDINGS_BATCH_PROCESSING_PLAN.md).
+
+### Thực thi bằng Master Prompt 12:
+```markdown
+PROJECT_ROOT: .
+PLAN_PATH: _Plan_implement/19_BDD_SPEC_AND_SMART_TEST_DATA_STUDIO_PLAN.md
+EXECUTION_SCOPE: PLAN-19a (triển khai trước) | PLAN-19b (triển khai sau)
+```
 
 ---
 

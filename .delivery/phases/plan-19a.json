@@ -1,0 +1,384 @@
+{
+  "schema_version": 1,
+  "phase": "plan-19a",
+  "groups": {
+    "async_state": {
+      "applies": true,
+      "reason": ""
+    },
+    "ownership_lifecycle": {
+      "applies": true,
+      "reason": ""
+    },
+    "router_ui": {
+      "applies": true,
+      "reason": ""
+    },
+    "lifecycle_integration": {
+      "applies": true,
+      "reason": ""
+    }
+  },
+  "criteria": [
+    {
+      "id": "P19A-AC-01",
+      "text": "CCCD đúng cấu trúc, lặp lại được theo seed, không trùng",
+      "cases": [
+        {
+          "id": "P19A-TC-01",
+          "intent": "createRng: cùng seed -> cùng dãy; khác seed -> khác; int(min,max) ra đủ cả min và max trong 10.000 lần, không vượt biên",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-02",
+          "intent": "1.000 CCCD (seed cố định): 12 chữ số; PPP thuộc danh sách Phụ lục A viết tay trong test; C đúng với birthYear 1900, 1999, 2000, 2099 x nam/nữ; không trùng",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-03",
+          "intent": "Tuỳ chọn sai trả VnDataError: provinceCode = 003, 000, 097, 79; birthYear = 1899, năm sau; gender = x. Mỗi lỗi có field đúng",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19A-AC-02",
+      "text": "MST 10/13 số đúng checksum",
+      "cases": [
+        {
+          "id": "P19A-TC-04",
+          "intent": "Oracle checksum viết tay: 0100109106, 0300588569 hợp lệ; đổi 1 chữ số thì không hợp lệ; 1.000 MST sinh ra đều qua oracle; không số nào có S mod 11 = 0",
+          "level": "unit",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-05",
+          "intent": "MST 13 số khớp ^\\d{10}-\\d{3}$, hậu tố 001–999 (không có 000), 10 số đầu qua oracle",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19A-AC-03",
+      "text": "SĐT, họ tên, persona nhất quán",
+      "cases": [
+        {
+          "id": "P19A-TC-06",
+          "intent": "1.000 SĐT khớp ^0\\d{9}$, đầu số thuộc Phụ lục B đúng nhà mạng; carrier lạ -> lỗi",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-07",
+          "intent": "Họ tên ở dạng NFC; tên đệm/tên đúng giới tính; diacritics:false chỉ còn [A-Za-z ]; Đ thành D",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-08",
+          "intent": "Persona: giới tính khớp C, năm sinh khớp YY và birthDate; email @example.com, phần trước @ chỉ ASCII; 500 persona không trùng CCCD/SĐT/email",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-09",
+          "intent": "generateRecords BVA count: 0, 1, 500, 501, 1.5, \"10\", null; type lạ; seed rỗng -> tự sinh seed, seed unicode/dài -> xác định, seed không phải chuỗi -> lỗi",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19A-AC-04",
+      "text": "Payload biên",
+      "cases": [
+        {
+          "id": "P19A-TC-10",
+          "intent": "Đủ 6 nhóm; danh sách id khớp danh sách viết tay trong test; nhóm length dài đúng 255/256/1024; NFC != NFD về bytes nhưng bằng nhau sau normalize('NFC')",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19A-AC-05",
+      "text": "Dùng được lúc chạy test",
+      "cases": [
+        {
+          "id": "P19A-TC-11",
+          "intent": "resolveDynamicValues thay đúng 5 placeholder vn_* (lồng trong object/array); {{vn_unknown}} giữ nguyên; {{random_phone}} vẫn như cũ",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-12",
+          "intent": "commonUtils export 5 hàm mới; withLocalOverrides vẫn cho bản local thắng; D3: generateRandomVNPhone() ra đầu số thuộc Phụ lục B",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-13",
+          "intent": "INV-1: đọc mã nguồn 19a (core/utils/vnData/*.js, dataGenerateRoutes.js, 2 file view), không có require/import tới core/ai hoặc /api/ai",
+          "level": "unit",
+          "critical": false,
+          "scenarios": []
+        }
+      ]
+    },
+    {
+      "id": "P19A-AC-06",
+      "text": "API sinh dữ liệu và nạp payload biên",
+      "cases": [
+        {
+          "id": "P19A-TC-14",
+          "intent": "POST /api/data/generate persona 10 với seed -> 200, trả seed; gọi lại cùng seed -> giống hệt",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-15",
+          "intent": "Bảng 400/413: các giá trị count ở 4.4, type lạ, provinceCode 003, birthYear 1899, body không phải JSON, body > 16KB. Mỗi lỗi có field",
+          "level": "integration",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-16",
+          "intent": "GET /api/data/payloads: xss chỉ trả xss; không truyền -> đủ 6 nhóm; nhóm lạ -> 400",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-17",
+          "intent": "GET /api/data/dynamic-preview có 5 khoá vn_* đúng định dạng",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-18",
+          "intent": "Sinh không ghi đĩa: danh sách data/ trước và sau giống nhau; GET /api/ai/audit không tăng",
+          "level": "integration",
+          "critical": false,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-19",
+          "intent": "LIFE-01: sinh persona -> create-dataset với content -> GET /api/data/dataset đọc lại y hệt -> tạo lại cùng tên bị 400 và file không đổi -> xoá",
+          "level": "integration",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-05",
+            "LIFE-01"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P19A-AC-07",
+      "text": "Giao diện modal Sinh dữ liệu kiểm thử Việt Nam",
+      "cases": [
+        {
+          "id": "P19A-TC-20",
+          "intent": "UI-02 / LIFE-01: mở #/data -> \"Sinh dữ liệu VN\" -> CCCD, 10 bản, seed demo -> 10 dòng đúng regex -> lưu plan19a-e2e-<ts>.json -> file có trong danh sách và trên đĩa -> xoá",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "UI-02",
+            "LIFE-01"
+          ]
+        },
+        {
+          "id": "P19A-TC-21",
+          "intent": "UI-01: option của #data-vn-type, carrier, nhóm payload khớp danh sách viết tay ở mục 4.1/4.3 (không đọc từ module)",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-01"
+          ]
+        },
+        {
+          "id": "P19A-TC-22",
+          "intent": "ASYNC-03: request sinh thứ nhất bị trễ (page.route), bấm sinh lần 2 -> chỉ hiện kết quả lần 2, phản hồi muộn bị bỏ",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-03"
+          ]
+        },
+        {
+          "id": "P19A-TC-23",
+          "intent": "ASYNC-02: đổi type khi request đang chờ -> phản hồi cũ không vẽ vào form mới; request cũ bị huỷ",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-02"
+          ]
+        },
+        {
+          "id": "P19A-TC-24",
+          "intent": "ASYNC-01: khi đang lưu, form, nút sinh và tên file bị khoá; sau 200, trạng thái sạch và đúng bản đã lưu",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-01"
+          ]
+        },
+        {
+          "id": "P19A-TC-25",
+          "intent": "ASYNC-04: create-dataset trả 400 (trùng tên) -> báo lỗi, giữ bản xem trước và tên file -> đổi tên -> lưu thành công",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "ASYNC-04"
+          ]
+        },
+        {
+          "id": "P19A-TC-26",
+          "intent": "ASYNC-05: chỉ báo thành công sau 200; route trả 500 -> không có toast thành công, badge \"Chưa lưu\" còn",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "ASYNC-05"
+          ]
+        },
+        {
+          "id": "P19A-TC-27",
+          "intent": "UI-05: đóng khi dirty -> hộp xác nhận; \"Ở lại\" giữ dữ liệu; \"Bỏ và đóng\" xoá; sau khi lưu thì đóng không hỏi",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "UI-05"
+          ]
+        },
+        {
+          "id": "P19A-TC-28",
+          "intent": "UI-04: đổi chế độ nhanh Định danh -> Payload -> Định danh -> chỉ panel định danh hiện, aria-selected đúng",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-04"
+          ]
+        },
+        {
+          "id": "P19A-TC-29",
+          "intent": "OWN-01..04: (a) init idempotent; (b) disposer cũ an toàn; (c) destroy double an toàn; (d) 20 vòng chuyển #/data ↔ view khác không nhân listener",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": [
+            "OWN-01",
+            "OWN-02",
+            "OWN-03",
+            "OWN-04"
+          ]
+        },
+        {
+          "id": "P19A-TC-30",
+          "intent": "OWN-05: rời view khi request sinh đang chờ -> phản hồi về không sửa DOM, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "OWN-05"
+          ]
+        },
+        {
+          "id": "P19A-TC-31",
+          "intent": "An toàn hiển thị: xem nhóm xss -> không có sự kiện dialog, không có img[onerror] trong DOM, chuỗi hiện đúng nguyên văn",
+          "level": "e2e",
+          "critical": true,
+          "scenarios": []
+        },
+        {
+          "id": "P19A-TC-32",
+          "intent": "UI-03: Bố cục modal 1920x1080 theme tối: không tràn ngang, bảng cuộn bên trong, focus tiêu đề, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19A-TC-33",
+          "intent": "UI-03: Bố cục modal 1440x900 theme tối: không tràn ngang, bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19A-TC-34",
+          "intent": "UI-03: Bố cục modal 1280x800 theme tối: không tràn ngang, bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19A-TC-35",
+          "intent": "UI-03: Bố cục modal 390x844 theme tối: không tràn ngang, cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19A-TC-36",
+          "intent": "UI-03: Bố cục modal 1920x1080 theme sáng: không tràn ngang, bảng cuộn bên trong, focus tiêu đề, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19A-TC-37",
+          "intent": "UI-03: Bố cục modal 1440x900 theme sáng: không tràn ngang, bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19A-TC-38",
+          "intent": "UI-03: Bố cục modal 1280x800 theme sáng: không tràn ngang, bảng cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        },
+        {
+          "id": "P19A-TC-39",
+          "intent": "UI-03: Bố cục modal 390x844 theme sáng: không tràn ngang, cuộn bên trong, 0 lỗi console",
+          "level": "e2e",
+          "critical": false,
+          "scenarios": [
+            "UI-03"
+          ]
+        }
+      ]
+    }
+  ]
+}
