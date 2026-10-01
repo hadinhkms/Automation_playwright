@@ -1,7 +1,7 @@
 # Phase 1 — Lõi Trích Ràng Buộc & Ma Trận Giá Trị Biên (0 Token)
 
 > **Tác giả Nghiệp vụ:** @ba (phiên init) · **Tác giả Kỹ thuật:** @tl (phiên init) · **Research:** Không áp dụng  
-> **Trạng thái:** `DRAFT` · **Cấp độ:** `L3`  
+> **Trạng thái:** `COMPLETED` · **Cấp độ:** `L3`  
 
 ---
 
@@ -101,9 +101,9 @@
 ---
 
 ## F. Tiêu Chí Ra Phase (Exit Criteria)
-- [ ] 6/6 TC unit tests PASS trên `node --test`.
-- [ ] 100% corpus A (34 câu) và corpus B (10 câu) đạt kỳ vọng.
-- [ ] Không có file nào vượt trần số dòng quy định.
+- [x] 6/6 TC unit tests PASS trên `node --test`.
+- [x] 100% corpus A (34 câu) và corpus B (10 câu) đạt kỳ vọng.
+- [x] Không có file nào vượt trần số dòng quy định.
 
 ---
 
@@ -116,8 +116,21 @@
 ## H. Nhật Ký Thay Đổi Kế Hoạch (Plan Deviation Requests - PDR)
 | PDR ID | Loại (BUSINESS / TECH) | Nội Dung Plan Gốc | Đề Xuất Thực Tế | Ảnh Hưởng (AC / File) | Trạng Thái (PENDING / APPROVED / REJECTED) |
 |---|:---:|---|---|---|:---:|
+| — | — | Không có sai lệch | Thực thi đúng 100% quy chuẩn | — | APPROVED |
 
 ---
 
 ## I. Bằng Chứng Thực Nghiệm (Evidence Block)
-_(Chờ thực thi Phase 1)_
+- **Lệnh chạy:** `node --test dashboard/services/qaBoundaryExtract.test.js dashboard/services/qaBoundaryMatrix.test.js`
+- **Kết quả:** 6/6 tests PASS (100%), duration ~212ms.
+  * TC-01: Corpus dương tính Phụ lục A (34 câu) — PASS
+  * TC-02: Corpus âm tính Phụ lục B (10 câu) — PASS
+  * TC-03: Đa dòng, số dòng nguồn, chuẩn hoá NFC/NFD và ký hiệu — PASS
+  * TC-04: buildMatrix khoảng 2 phía [18, 60] kiểu number — PASS
+  * TC-05: buildMatrix 1 phía và đúng giá trị (single bound, exact bound, no negative for length) — PASS
+  * TC-06: Sinh mẫu chuỗi sample cho length và invalidTypes phù hợp — PASS
+- **Kiểm tra trần dòng:**
+  * `dashboard/services/qaBoundaryExtract.js`: 176 dòng ≤ 200 (ĐẠT)
+  * `dashboard/services/qaBoundaryMatrix.js`: 113 dòng ≤ 200 (ĐẠT)
+  * `dashboard/services/qaBoundaryExtract.test.js`: 170 dòng ≤ 800 (ĐẠT)
+  * `dashboard/services/qaBoundaryMatrix.test.js`: 100 dòng ≤ 800 (ĐẠT)
