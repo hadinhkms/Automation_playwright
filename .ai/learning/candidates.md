@@ -27,4 +27,16 @@
   - **DO:** Khi chạy công cụ truy vết chất lượng tại Hub engine (`package.json.name === '@hadinhkms/qa-automation-engine'`), tự động bỏ qua spec hạ tầng/dashboard nội bộ và thư mục ẩn `.`, không áp đặt tài liệu nghiệp vụ vệ tinh lên sample specs.
   - **DON'T:** Không đánh đồng kiểm thử hạ tầng Studio với kiểm thử nghiệp vụ E2E thực tế khi thực thi cổng kiểm soát chất lượng tự động.
 
+- **CANDIDATE-07 (Tiered Overlap Coefficient & Mutex Test Isolation):**
+  - **DO:** Tính điểm so khớp song ngữ theo từng tầng (High/Describe x3, Med/Path x2, Low/AC x1) qua Overlap Coefficient (giao thoa / tập nhỏ hơn) và lọc stop words BDD; khi test mutex in-memory giữa tiến trình con HTTP harness, test trực tiếp hàm service được bọc lock để bảo đảm tính tất định.
+  - **DON'T:** Không chia mẫu số cho toàn bộ text markdown thô khiến từ khóa cốt lõi bị pha loãng; không gọi mutex trong test runner mong đợi nó khóa biến bộ nhớ của tiến trình con `child_process.spawn`.
+
+- **CANDIDATE-08 (Lazy Modal Mount & Editor Synchronization Contract):**
+  - **DO:** Khi triển khai modal hỗ trợ editor trong SPA, dùng cơ chế lazy DOM mount vào `document.body` khi trigger lần đầu để giữ Initial DOM < 1,500 nodes; đồng bộ editor qua API an toàn bảo toàn scroll và hỗ trợ fallback tên thuộc tính scaffold (`suggestedReqId` / `nextReqId`).
+  - **DON'T:** Không chèn sẵn dialog trợ lý vào template khởi động gây phình DOM; không giả định cứng tên thuộc tính trả về từ backend mà không có adapter fallback.
+
+- **CANDIDATE-09 (Reverse Sync Non-Destructive Update & XSS Sanitization):**
+  - **DO:** Nhận diện test theo title chuẩn hóa và tag `TC-zzz`; khi test đổi tên, hiện cảnh báo và coi là kịch bản mới mà KHÔNG xóa TC cũ trong tài liệu; lọc sạch thẻ `<script>` cùng nội dung và thay thế pipe `|` trước khi ghi markdown; ưu tiên `window.__currentSpecPath` khi mở modal từ toolbar editor.
+  - **DON'T:** Không tự ý xóa bỏ các TC cũ không còn tìm thấy trong code khi đồng bộ ngược; không dùng regex `[^)]*` bắt assertion vì không xử lý được ngoặc lồng nhau `expect(locator(...))`.
+
 

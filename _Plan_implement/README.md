@@ -10,19 +10,24 @@ Nơi lưu trữ và điều phối toàn bộ các **Implementation Plan** của
 
 | Mã Plan | Tính Năng / Kế Hoạch | Thư Mục Cụm (Feature-Cluster) | File Điều Phối | Trạng Thái | Tiến Độ |
 |---|---|---|---|:---:|:---:|
-| **PLAN-20** | **Ổn Định Khung Kiểm Thử, Dashboard Parity & CI/CD Hub** | [framework-stabilization/](framework-stabilization/) | [plan-20-overview.md](framework-stabilization/plan-20-overview.md) | `READY_FOR_EXECUTION` | 0/3 Phase |
+| **PLAN-21** | **Bộ Liên Kết Truy Vết Thông Minh (Smart Trace Linker)** | [smart-trace-linker/](smart-trace-linker/) | [plan-21-overview.md](smart-trace-linker/plan-21-overview.md) | `COMPLETED` | 3/3 Phase |
+| **PLAN-20** | **Ổn Định Khung Kiểm Thử, Dashboard Parity & CI/CD Hub** | [framework-stabilization/](framework-stabilization/) | [plan-20-overview.md](framework-stabilization/plan-20-overview.md) | `COMPLETED` | 3/3 Phase |
 
 ### Chi tiết kế hoạch đang chạy:
+- **[Plan 21: Smart Trace Linker (1-Click Spec to Requirement)](smart-trace-linker/21_SMART_TRACE_LINKER_PLAN.md)** ([Điều phối Phase](smart-trace-linker/plan-21-overview.md)):
+  - 🔹 [Phase 1: Backend Smart Matcher & Linker API](smart-trace-linker/phase-1-backend-smart-matcher-and-linker-api.md): Thuật toán so khớp Heuristic / Semantic song ngữ, 2 route API `/api/qa/smart-link` và `/api/qa/smart-link/apply` (có `withWriteLock`).
+  - 🔹 [Phase 2: Studio UI & Code Editor Integration](smart-trace-linker/phase-2-studio-ui-and-editor-integration.md): Nút bấm thông minh trên Code Editor toolbar (`#/builder`, `builder-view`), nút trong bảng Vấn đề (`#/qa`, `findingRows.js`), modal Preview Lazy-Mounted và đăng ký CSS Master Cascade.
+  - 🔹 [Phase 3: Reverse Sync, Edge Cases & Verification](smart-trace-linker/phase-3-reverse-sync-and-e2e-verification.md): Cơ chế đồng bộ ngược cho spec đã có REQ, test E2E Playwright, Gate 4 `npm run mp:gate` và bảo toàn Hub-to-Spoke.
 - **[Plan 20: Framework Reliability & Quality Stabilization](framework-stabilization/plan-20-overview.md)**:
-  - 🔹 [Phase 1: E2E Isolation & Runner Hygiene](framework-stabilization/phase-1-e2e-isolation-and-smoke-fix.md): Cô lập test bằng HTML fixture cục bộ (hết phụ thuộc `example.com`), dọn rác `.tmp-workspace-*` và thêm `testIgnore`.
-  - 🔹 [Phase 2: Dashboard Parity & DOM Budget](framework-stabilization/phase-2-dashboard-parity-and-dom-budget.md): Bổ sung CSS tokens (`--warning-subtle`, `--accent-subtle`), chuẩn hóa viền/màu trong `qa.css`, tối ưu Lazy Mount đưa DOM ban đầu về `< 1,500` node.
-  - 🔹 [Phase 3: Traceability Hub-Spoke & CI Pipeline](framework-stabilization/phase-3-traceability-hub-spoke-and-ci-pipeline.md): Chuẩn hóa `qaTrace.js` chế độ Hub Mode (0 finding major), kích hoạt CI Playwright headless trên PR, dọn dẹp Git tracking.
+  - 🔹 Phase 1: E2E Isolation & Runner Hygiene (Đã nghiệm thu)
+  - 🔹 Phase 2: Dashboard Parity & DOM Budget (Đã nghiệm thu)
+  - 🔹 Phase 3: Traceability Hub-Spoke & CI Pipeline (Đã nghiệm thu)
 
 ---
 
 ## 2. 📋 Kế Hoạch Đang Chờ / Backlog
 
-*Hiện tại không có kế hoạch nào trong Backlog. Toàn bộ trọng tâm đang tập trung vào thực thi Plan 20.*
+*Hiện tại không có kế hoạch nào trong Backlog. Toàn bộ trọng tâm đang tập trung vào thực thi Plan 21.*
 
 ---
 
