@@ -46,31 +46,16 @@ jobs:
     - name: Run unit tests
       run: node --test
     - name: Install Playwright browsers
-      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.suite != 'check' }}
       run: npx playwright install --with-deps chromium
-    - name: Run selected suite
+    - name: Run Playwright Tests
       env:
-        SUITE: ${{ github.event.inputs.suite || 'check' }}
-        NODE_ENV: ${{ github.event.inputs.env || 'qc' }}
+        NODE_ENV: qc
       run: |
-        case "$SUITE" in
-          check)
-            npm run check:framework
-            ;;
-          e2e)
-            npm run test:e2e
-            ;;
-          smoke)
-            npm run suite:smoke
-            ;;
-          regression)
-            npm run suite:regression
-            ;;
-          *)
-            echo "Unknown suite: $SUITE"
-            exit 1
-            ;;
-        esac
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          npm run suite:${{ github.event.inputs.suite }}
+        else
+          npm run suite:smoke
+        fi
     - name: Notify Discord
       if: always()
       env:
@@ -83,43 +68,44 @@ jobs:
         fi
 
         node -e "
-          try {
-            const fs = require('fs');
-            const cfgPath = './core/config/dashboardConfig.json';
-            let discord = {};
-            if (fs.existsSync(cfgPath)) {
-              discord = JSON.parse(fs.readFileSync(cfgPath, 'utf8')).discord || {};
-            }
-            if (discord.notifyOnFinish === false) {
-              console.log('Discord notification is disabled (notifyOnFinish: false); skipping.');
-              process.exit(0);
-            }
-            if (discord.notifyOnlyOnFailure && '${{ job.status }}' !== 'failure') {
-              console.log('notifyOnlyOnFailure is enabled and status is ${{ job.status }}; skipping.');
-              process.exit(0);
-            }
-            const isPassed = '${{ job.status }}' === 'success';
-            const color = isPassed ? 0x22c55e : 0xef4444;
-            const emoji = isPassed ? '✅' : '❌';
-            const embed = {
-              title: emoji + ' GitHub Actions CI: Playwright Checks',
-              color: color,
-              description: 'Kết quả kiểm thử tự động từ GitHub Actions workflow.',
-              fields: [
-                { name: '📊 Trạng thái', value: '\`${{ job.status }}\`', inline: true },
-                { name: '📦 Báo cáo / Artifacts', value: '[Xem chi tiết trên GitHub](' + process.env.RUN_URL + ')', inline: false }
-              ],
-              footer: { text: 'CarThings QA Automation • ' + new Date().toLocaleString('vi-VN') }
-            };
-            fetch(process.env.DISCORD_WEBHOOK_URL, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ embeds: [embed] })
-            }).then(r => {
-              if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+          (async () => {
+            try {
+              const fs = require('fs');
+              const cfgPath = './core/config/dashboardConfig.json';
+              let discord = {};
+              if (fs.existsSync(cfgPath)) {
+                discord = JSON.parse(fs.readFileSync(cfgPath, 'utf8')).discord || {};
+              }
+              if (discord.notifyOnFinish === false) {
+                console.log('Discord notification is disabled (notifyOnFinish: false); skipping.');
+                process.exit(0);
+              }
+              if (discord.notifyOnlyOnFailure && '${{ job.status }}' !== 'failure') {
+                console.log('notifyOnlyOnFailure is enabled and status is ${{ job.status }}; skipping.');
+                process.exit(0);
+              }
+              const isPassed = '${{ job.status }}' === 'success';
+              const color = isPassed ? 0x22c55e : 0xef4444;
+              const emoji = isPassed ? '✅' : '❌';
+              const embed = {
+                title: emoji + ' GitHub Actions CI: Playwright Checks',
+                color: color,
+                description: 'Kết quả kiểm thử tự động từ GitHub Actions workflow.',
+                fields: [
+                  { name: '📊 Trạng thái', value: '\`${{ job.status }}\`', inline: true },
+                  { name: '📦 Báo cáo / Artifacts', value: '[Xem chi tiết trên GitHub](' + process.env.RUN_URL + ')', inline: false }
+                ],
+                footer: { text: '@hadinhkms/qa-automation-engine • ' + new Date().toLocaleString('vi-VN') }
+              };
+              const res = await fetch(process.env.DISCORD_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ embeds: [embed] })
+              });
+              if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
               console.log('Discord notification sent successfully.');
-            });
-          } catch (err) {
-            console.error('Error sending Discord notification:', err.message);
-          }
+            } catch (err) {
+              console.error('Error sending Discord notification:', err.message);
+            }
+          })();
         "

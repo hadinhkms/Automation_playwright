@@ -1,7 +1,7 @@
 # Phase 1 — Cô Lập Môi Trường E2E Smoke & Dọn Rác Test Runner
 
 > **Tác giả Nghiệp vụ:** @ba · **Tác giả Kỹ thuật:** @tl · **Research:** Không áp dụng  
-> **Trạng thái:** `READY_FOR_EXECUTION` · **Cấp độ:** `L3`  
+> **Trạng thái:** `IMPLEMENTED` · **Cấp độ:** `L3`  
 > **Nằm trong:** [Plan 20 Overview](plan-20-overview.md)
 
 ---
@@ -68,10 +68,10 @@
 | `tests/dashboard/support/fixtureWorkspace.js` | Test Helper | Sửa | 70 | 60 |
 
 ### B3. Checklist Thực Thi & Bằng Chứng Nghiệm Thu
-1. [ ] Tạo `data/fixtures/sample-app.html` chứa layout HTML5 cơ bản (h1, p, a).
-2. [ ] Cập nhật `SamplePage.js` và `SampleMobilePage.js` hỗ trợ load file fixture cục bộ.
-3. [ ] Bổ sung `testIgnore` trong `playwright.dashboard.config.js`.
-4. [ ] Xóa sạch các thư mục `.tmp-workspace-*` còn sót trong `tests/dashboard/`.
-5. [ ] Cập nhật `fixtureWorkspace.js` với process exit handler.
-6. [ ] Chạy `npm run suite:desktop` -> Bằng chứng 7/7 PASS.
-7. [ ] Chạy `npm run suite:smoke` -> Bằng chứng toàn bộ PASS.
+1. [x] Tạo `data/fixtures/sample-app.html` chứa layout HTML5 cơ bản (h1, p, a).
+2. [x] Cập nhật `SamplePage.js` và `SampleMobilePage.js` hỗ trợ load file fixture cục bộ.
+3. [x] Bổ sung `testIgnore` trong `playwright.dashboard.config.js`.
+4. [x] Xóa sạch các thư mục `.tmp-workspace-*` còn sót trong `tests/dashboard/`.
+5. [x] Cập nhật `fixtureWorkspace.js` với process exit handler.
+6. [x] Chạy `npm run suite:desktop` -> Bằng chứng 7/7 PASS.
+7. [x] Chạy `npm run suite:smoke` -> Bằng chứng toàn bộ PASS.

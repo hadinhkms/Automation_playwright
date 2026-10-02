@@ -18,3 +18,13 @@
 - **CANDIDATE-04 (Sequence Token + Abort for Async UI Requests - ASYNC-03):**
   - **DO:** Luôn kết hợp `AbortController.abort()` và bộ đếm tuần tự `seq` (`currentSeq`) cho các tác vụ phân tích bất đồng bộ để ngăn chặn hoàn toàn yêu cầu chậm đến sau (late response) ghi đè giao diện.
   - **DON'T:** Không phụ thuộc đơn thuần vào debounce hay giả định mạng phản hồi theo thứ tự gửi.
+
+- **CANDIDATE-05 (DOM Budget & Prefetching without DOM Bloat):**
+  - **DO:** Khi nạp trước (preload) template view trong SPA, lưu trữ HTML vào in-memory cache và chỉ gán `container.innerHTML` theo cơ chế On-Demand khi view được mở lần đầu để giữ DOM ban đầu < 1,500 nodes.
+  - **DON'T:** Không gán `container.innerHTML` cho tất cả view ngay khi khởi động trang, tránh làm phình DOM và suy giảm hiệu năng render/FOUC.
+
+- **CANDIDATE-06 (Hub-Spoke Traceability Boundary):**
+  - **DO:** Khi chạy công cụ truy vết chất lượng tại Hub engine (`package.json.name === '@hadinhkms/qa-automation-engine'`), tự động bỏ qua spec hạ tầng/dashboard nội bộ và thư mục ẩn `.`, không áp đặt tài liệu nghiệp vụ vệ tinh lên sample specs.
+  - **DON'T:** Không đánh đồng kiểm thử hạ tầng Studio với kiểm thử nghiệp vụ E2E thực tế khi thực thi cổng kiểm soát chất lượng tự động.
+
+

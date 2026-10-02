@@ -1,7 +1,7 @@
 # Phase 3 — Chuẩn Hóa Truy Vết Hub-Spoke & Kích Hoạt CI/CD Pipeline
 
 > **Tác giả Nghiệp vụ:** @ba · **Tác giả Kỹ thuật:** @tl · **Research:** Không áp dụng  
-> **Trạng thái:** `READY_FOR_EXECUTION` · **Cấp độ:** `L3`  
+> **Trạng thái:** `IMPLEMENTED` · **Cấp độ:** `L3`  
 > **Nằm trong:** [Plan 20 Overview](plan-20-overview.md)
 
 ---
@@ -78,8 +78,8 @@
 | `.gitignore` | Git Config | Sửa | 155 | 150 |
 
 ### B3. Checklist Thực Thi & Bằng Chứng Nghiệm Thu
-1. [ ] Cập nhật `scripts/lib/qaTrace.js` hỗ trợ chế độ Hub và lọc thư mục ẩn `.`.
-2. [ ] Chạy `npm run qa:check` -> Bằng chứng exit code 0, 0 finding major.
-3. [ ] Cập nhật `.github/workflows/playwright.yml` chạy `suite:smoke` và sửa Discord notification.
-4. [ ] Thực thi `git rm -r --cached _backup_vieclam24h/` và cập nhật `.gitignore`.
-5. [ ] Chạy kiểm thử toàn diện Gate 4 cuối cùng (`npm run test:e2e`, `npm run test:dashboard:api`).
+1. [x] Cập nhật `scripts/lib/qaTrace.js` hỗ trợ chế độ Hub và lọc thư mục ẩn `.`.
+2. [x] Chạy `npm run qa:check` -> Bằng chứng exit code 0, 0 finding major.
+3. [x] Cập nhật `.github/workflows/playwright.yml` chạy `suite:smoke` và sửa Discord notification (async/await, footer `@hadinhkms/qa-automation-engine`).
+4. [x] Thực thi `git rm -r --cached _backup_vieclam24h/` và cập nhật `.gitignore`.
+5. [x] Chạy kiểm thử toàn diện Gate 4 cuối cùng (`npm run test:e2e` [11/11 passed], `npm run test:dashboard:api` [164/164 passed], `npm run suite:smoke` [9/9 passed]).

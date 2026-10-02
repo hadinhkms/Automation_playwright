@@ -1,7 +1,7 @@
 # Kế Hoạch 20: Ổn Định Khung Kiểm Thử, Dashboard Parity & Chuẩn Hóa CI/CD Hub Engine
 
 > **Plan ID:** `PLAN-20-STABILIZATION-2026-10-02` · **Cấp độ:** `L3` · **Phiên bản:** `1.0.0`  
-> **Trạng thái:** `DRAFT_PENDING_APPROVAL` · **Mục tiêu:** 100% Green E2E Smoke & Dashboard Suites, Khắc phục vỡ DOM Budget, Chuẩn hóa Traceability Hub-Spoke & Kích hoạt CI Playwright.
+> **Trạng thái:** `COMPLETED` · **Mục tiêu:** 100% Green E2E Smoke & Dashboard Suites, Khắc phục vỡ DOM Budget, Chuẩn hóa Traceability Hub-Spoke & Kích hoạt CI Playwright.
 
 ---
 
@@ -48,9 +48,9 @@ Phase 3: Hub-Spoke Traceability & CI/CD Hardening
 
 | Phase | File Đặc Tả Chi Tiết | Trọng Tâm Xử Lý | Trạng Thái |
 |---|---|---|:---:|
-| **1** | [phase-1-e2e-isolation-and-smoke-fix.md](phase-1-e2e-isolation-and-smoke-fix.md) | E2E Isolation, Sửa SamplePage/Mobile, testIgnore | `READY` |
-| **2** | [phase-2-dashboard-parity-and-dom-budget.md](phase-2-dashboard-parity-and-dom-budget.md) | Tokens CSS, DOM Budget < 1500, QA View Parity | `READY` |
-| **3** | [phase-3-traceability-hub-spoke-and-ci-pipeline.md](phase-3-traceability-hub-spoke-and-ci-pipeline.md) | qaTrace Hub Mode, CI/CD Workflow, Clean Backup | `READY` |
+| **1** | [phase-1-e2e-isolation-and-smoke-fix.md](phase-1-e2e-isolation-and-smoke-fix.md) | E2E Isolation, Sửa SamplePage/Mobile, testIgnore | `COMPLETED` |
+| **2** | [phase-2-dashboard-parity-and-dom-budget.md](phase-2-dashboard-parity-and-dom-budget.md) | Tokens CSS, DOM Budget < 1500, QA View Parity | `COMPLETED` |
+| **3** | [phase-3-traceability-hub-spoke-and-ci-pipeline.md](phase-3-traceability-hub-spoke-and-ci-pipeline.md) | qaTrace Hub Mode, CI/CD Workflow, Clean Backup | `COMPLETED` |
 
 ---
 

@@ -1,7 +1,7 @@
 # Phase 2 — Đồng Bộ Thiết Kế Dashboard & Tối Ưu Ngân Sách DOM
 
 > **Tác giả Nghiệp vụ:** @ba · **Tác giả Kỹ thuật:** @tl · **Research:** Không áp dụng  
-> **Trạng thái:** `READY_FOR_EXECUTION` · **Cấp độ:** `L3`  
+> **Trạng thái:** `IMPLEMENTED` · **Cấp độ:** `L3`  
 > **Nằm trong:** [Plan 20 Overview](plan-20-overview.md)
 
 ---
@@ -71,9 +71,9 @@
 | `dashboard/public/js/views/qa/reqAnalyzerHelper.js` | Helper | Sửa | 350 | 280 |
 
 ### B3. Checklist Thực Thi & Bằng Chứng Nghiệm Thu
-1. [ ] Cập nhật `tokens.css` bổ sung 2 token subtle.
-2. [ ] Dọn sạch 8 vị trí fallback màu cứng và viền hairline trong `qa.css`.
-3. [ ] Tối ưu hóa hàm mount template trong `app.js` theo cơ chế Lazy Mount on-demand.
-4. [ ] Đo đạc `initialDomCount` trong trình duyệt đảm bảo `< 1500` nodes.
-5. [ ] Chuẩn hóa thông điệp bản thảo BDD.
-6. [ ] Chạy `npx playwright test --config=playwright.dashboard.config.js` -> Đạt 100% Green (154/154 passed).
+1. [x] Cập nhật `tokens.css` bổ sung 2 token subtle.
+2. [x] Dọn sạch 8 vị trí fallback màu cứng và viền hairline trong `qa.css`.
+3. [x] Tối ưu hóa hàm mount template trong `app.js` và `templateLoader.js` theo cơ chế Lazy Mount on-demand.
+4. [x] Đo đạc `initialDomCount` trong trình duyệt đảm bảo `< 1500` nodes (thực tế ~900 nodes).
+5. [x] Chuẩn hóa thông điệp bản thảo BDD chứa `'KHÔNG được lưu lại'`.
+6. [x] Chạy `npx playwright test --config=playwright.dashboard.config.js` -> Đạt 100% Green (149/149 passed, 0 failures).

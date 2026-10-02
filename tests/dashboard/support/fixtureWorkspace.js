@@ -31,16 +31,23 @@ function createFixtureWorkspace() {
     'utf8'
   );
 
+  const clean = () => {
+    try {
+      if (fs.existsSync(tmpRoot)) {
+        fs.rmSync(tmpRoot, { recursive: true, force: true });
+      }
+    } catch (_) {}
+  };
+
+  process.on('exit', clean);
+  process.on('SIGINT', clean);
+
   return {
     rootPath: tmpRoot,
     cleanup: () => {
-      try {
-        if (fs.existsSync(tmpRoot)) {
-          fs.rmSync(tmpRoot, { recursive: true, force: true });
-        }
-      } catch (err) {
-        console.warn(`[fixtureWorkspace] Cleanup warning for ${tmpRoot}:`, err.message);
-      }
+      clean();
+      process.removeListener('exit', clean);
+      process.removeListener('SIGINT', clean);
     }
   };
 }
