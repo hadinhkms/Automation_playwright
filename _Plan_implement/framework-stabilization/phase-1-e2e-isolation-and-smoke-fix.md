@@ -1,7 +1,7 @@
 # Phase 1 — Cô Lập Môi Trường E2E Smoke & Dọn Rác Test Runner
 
 > **Tác giả Nghiệp vụ:** @ba · **Tác giả Kỹ thuật:** @tl · **Research:** Không áp dụng  
-> **Trạng thái:** `IMPLEMENTED` · **Cấp độ:** `L3`  
+> **Trạng thái:** `COMPLETED` · **Cấp độ:** `L3`  
 > **Nằm trong:** [Plan 20 Overview](plan-20-overview.md)
 
 ---

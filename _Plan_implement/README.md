@@ -6,28 +6,35 @@ Nơi lưu trữ và điều phối toàn bộ các **Implementation Plan** của
 
 ---
 
-## 1. 🚀 Đang Triển Khai (Active Plans)
+## 1. 🏁 Kế Hoạch Vừa Nghiệm Thu Thành Công (Recently Completed & Validated Plans)
 
-| Mã Plan | Tính Năng / Kế Hoạch | Thư Mục Cụm (Feature-Cluster) | File Điều Phối | Trạng Thái | Tiến Độ |
+| Mã Plan | Tính Năng / Kế Hoạch | Thư Mục Cụm (Feature-Cluster) | File Điều Phối | Trạng Thái | Tiến Độ & Bằng Chứng |
 |---|---|---|---|:---:|:---:|
-| **PLAN-21** | **Bộ Liên Kết Truy Vết Thông Minh (Smart Trace Linker)** | [smart-trace-linker/](smart-trace-linker/) | [plan-21-overview.md](smart-trace-linker/plan-21-overview.md) | `COMPLETED` | 3/3 Phase |
-| **PLAN-20** | **Ổn Định Khung Kiểm Thử, Dashboard Parity & CI/CD Hub** | [framework-stabilization/](framework-stabilization/) | [plan-20-overview.md](framework-stabilization/plan-20-overview.md) | `COMPLETED` | 3/3 Phase |
+| **PLAN-22** | **Xử Lý Rủi Ro Hệ Thống, Khôi Phục CI & Chuẩn Hóa Hub** | [framework-risk-remediation/](framework-risk-remediation/) | [plan-22-overview.md](framework-risk-remediation/plan-22-overview.md) | `COMPLETED` | 3/3 Phase (764/764 unit+API tests PASS, Satellites synced) |
+| **PLAN-21** | **Bộ Liên Kết Truy Vết Thông Minh (Smart Trace Linker)** | [smart-trace-linker/](smart-trace-linker/) | [plan-21-overview.md](smart-trace-linker/plan-21-overview.md) | `COMPLETED` | 3/3 Phase (12/12 API tests PASS, 6/6 E2E tests PASS) |
+| **PLAN-20** | **Ổn Định Khung Kiểm Thử, Dashboard Parity & CI/CD Hub** | [framework-stabilization/](framework-stabilization/) | [plan-20-overview.md](framework-stabilization/plan-20-overview.md) | `COMPLETED` | 3/3 Phase (7/7 E2E tests PASS, DOM < 1,500 nodes) |
 
-### Chi tiết kế hoạch đang chạy:
+### Chi tiết kế hoạch vừa hoàn tất (Sẵn sàng đóng gói Release):
+- **[Plan 22: Framework Risk Remediation](framework-risk-remediation/22_FRAMEWORK_RISK_REMEDIATION_PLAN.md)** ([Điều phối Phase](framework-risk-remediation/plan-22-overview.md)):
+  - 🔹 [Phase 1: CI Unit Test Recovery & AI Gateway Mock](framework-risk-remediation/phase-1-ci-unit-test-recovery.md): Khắc phục 7 lỗi unit test, cô lập thư mục backup và chống rò rỉ concurrency slot.
+  - 🔹 [Phase 2: Hub-to-Spoke Satellite Sync & Audit Alignment](framework-risk-remediation/phase-2-hub-spoke-and-audit-sync.md): Xử lý drift `run-suite.js`, cập nhật 41 file CarThings, đồng bộ vệ tinh `_SieuVietGroup`, phân định sạch Sổ Thẩm định.
+  - 🔹 [Phase 3: Traceability Showcase Suite & Hygiene](framework-risk-remediation/phase-3-traceability-showcase-and-hygiene.md): Xây dựng bộ mẫu `REQ-001` cho SauceDemo (`REQ-001-authentication.md`), tạo root config `dashboardConfig.json`, dọn dẹp gitignore và nghiệm thu Gate 4.
 - **[Plan 21: Smart Trace Linker (1-Click Spec to Requirement)](smart-trace-linker/21_SMART_TRACE_LINKER_PLAN.md)** ([Điều phối Phase](smart-trace-linker/plan-21-overview.md)):
   - 🔹 [Phase 1: Backend Smart Matcher & Linker API](smart-trace-linker/phase-1-backend-smart-matcher-and-linker-api.md): Thuật toán so khớp Heuristic / Semantic song ngữ, 2 route API `/api/qa/smart-link` và `/api/qa/smart-link/apply` (có `withWriteLock`).
   - 🔹 [Phase 2: Studio UI & Code Editor Integration](smart-trace-linker/phase-2-studio-ui-and-editor-integration.md): Nút bấm thông minh trên Code Editor toolbar (`#/builder`, `builder-view`), nút trong bảng Vấn đề (`#/qa`, `findingRows.js`), modal Preview Lazy-Mounted và đăng ký CSS Master Cascade.
   - 🔹 [Phase 3: Reverse Sync, Edge Cases & Verification](smart-trace-linker/phase-3-reverse-sync-and-e2e-verification.md): Cơ chế đồng bộ ngược cho spec đã có REQ, test E2E Playwright, Gate 4 `npm run mp:gate` và bảo toàn Hub-to-Spoke.
 - **[Plan 20: Framework Reliability & Quality Stabilization](framework-stabilization/plan-20-overview.md)**:
-  - 🔹 Phase 1: E2E Isolation & Runner Hygiene (Đã nghiệm thu)
-  - 🔹 Phase 2: Dashboard Parity & DOM Budget (Đã nghiệm thu)
-  - 🔹 Phase 3: Traceability Hub-Spoke & CI Pipeline (Đã nghiệm thu)
+  - 🔹 Phase 1: E2E Isolation & Runner Hygiene (Đã nghiệm thu, 7/7 tests pass)
+  - 🔹 Phase 2: Dashboard Parity & DOM Budget (Đã nghiệm thu, DOM < 1,500 nodes)
+  - 🔹 Phase 3: Traceability Hub-Spoke & CI Pipeline (Đã nghiệm thu, CI Playwright kích hoạt)
 
 ---
 
-## 2. 📋 Kế Hoạch Đang Chờ / Backlog
+## 2. 📋 Kế Hoạch Tiếp Theo (Upcoming Active Plans & Backlog)
 
-*Hiện tại không có kế hoạch nào trong Backlog. Toàn bộ trọng tâm đang tập trung vào thực thi Plan 21.*
+- **Kế hoạch Dự kiến (Candidates for Plan 23):**
+  - **Tái cấu trúc & Chia nhỏ các Legacy Module (Modular Decomposition):** Triển khai chia nhỏ các file mang cờ `master-process-disable-size-check` lâu đời (`core/generator/objectRepository.js`, `core/utils/commonUtils.js`, `core/utils/dataManager.js`) về ngân sách chuẩn $\le 200$ dòng.
+  - **Mở rộng Đa Dự Án (Multi-Tenant Workspace Selector):** Hỗ trợ chuyển đổi nhanh ngữ cảnh giữa Hub và các vệ tinh ngay trên giao diện Dashboard.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Mã kế hoạch:** `PLAN-19b` — tách từ [PLAN-19](19_BDD_SPEC_AND_SMART_TEST_DATA_STUDIO_PLAN.md) v1  
 > **Phiên bản:** `v1.2` — 2026-09-29  
-> **Trạng thái:** `READY FOR IMPLEMENTATION — ĐÃ LẬP HỢP ĐỒNG .delivery/phases/plan-19b.json (SHA256: 401e3b0045ca83c4b2e7946b7dcc28de2c1b126cd5d1063beff3d7d7a4e52bfb, 38/38 TC, VALID) — CHỜ CHỐT D1–D7, DUYỆT CORPUS & BA DUYỆT HASH`  
+> **Trạng thái:** `COMPLETED & ARCHIVED` (Đã nghiệm thu Gate 4 và hoàn tất 3/3 Phase theo [plan-19b-overview.md](plan-19b-overview.md))  
 > **Phân loại:** L3. Ma trận biên **không dùng AI** (0 token); chỉ riêng BDD gọi AI qua gateway.  
 > **Phạm vi:** modal **Phân tích Yêu cầu** trong `#/qa` (`#qa-req-analyzer-modal`), `dashboard/services/`, `core/ai/tasks/`, `dashboard/routes/`.  
 > **Phụ thuộc:** không phụ thuộc PLAN-19a. Làm sau 19a để mỗi lần chỉ có một phase chờ gate trên `main`.  

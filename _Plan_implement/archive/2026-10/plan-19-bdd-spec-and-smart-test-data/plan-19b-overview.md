@@ -2,7 +2,7 @@
 
 > **Plan ID:** `PLAN-19B-SPEC-STUDIO-2026-10-01` · **Baseline:** `a20461e` · **Cấp độ:** `L3`  
 > **Trạng thái:** `COMPLETED` · **Research:** Không áp dụng (L3-Standard)  
-> **Nguồn gốc:** `_plan_implement/19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md` — giữ nguyên bản gốc, không xoá.
+> **Nguồn gốc:** [19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md](19b_BVA_MATRIX_AND_BDD_FORMATTER_PLAN.md) — giữ nguyên bản gốc, không xoá.
 
 ---
 

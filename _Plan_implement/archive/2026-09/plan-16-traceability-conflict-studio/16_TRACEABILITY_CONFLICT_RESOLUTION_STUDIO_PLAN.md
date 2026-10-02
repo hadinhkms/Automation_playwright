@@ -1,7 +1,7 @@
 # Kế Hoạch Hiện Thực Hóa: Traceability Conflict Resolution Studio (Hòa Giải Xung Đột Truy Vết "Tài Liệu và Spec Nói Khác Nhau")
 
 > **Mã kế hoạch:** `PLAN-16`  
-> **Trạng thái:** `IMPLEMENTED — đã qua test tự động (18 unit + 7 API + 16 E2E PASS); ĐÃ LẬP CONTRACT .delivery/phases/plan-16.json (SHA256: 8bf7c0232eb6a4766d7bb487ef2947876534354841d24dd8650058ffebdbc598, 41/41 TC) — CHỜ Gate 4 ký duyệt & rerun độc lập`  
+> **Trạng thái:** `COMPLETED & ARCHIVED` (Đã nghiệm thu Gate 4, 41/41 TC PASS và đưa vào vận hành chính thức)  
 > **Phân hệ mục tiêu:** Dashboard Core (`dashboard/`) — View **QA Docs & Automation** (`#/qa`)  
 > **Tài liệu tham chiếu:** [AGENTS.md](../AGENTS.md), [03_ACCEPTANCE_GATES.md](../.master_process/03_ACCEPTANCE_GATES.md), [00_CORE_PROCESS_GUIDE.md](../.master_process/00_CORE_PROCESS_GUIDE.md)
 
