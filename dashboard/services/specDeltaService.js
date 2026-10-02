@@ -12,7 +12,13 @@ const { stripDiacritics } = require('./smartLinkMatcher');
 const { scanMaxIds } = require('./smartLinkDrafter');
 
 function normalizeTitleForCompare(str) {
-  return stripDiacritics(str).replace(/@[a-zA-Z0-9_\-]+/g, '').replace(/^tc-[a-z0-9_\-]+:?\s*/i, '').replace(/[^a-z0-9\s]/g, ' ').trim().replace(/\s+/g, ' ');
+  return stripDiacritics(str)
+    .replace(/@[a-zA-Z0-9_\-]+/g, '')
+    .replace(/\b(?:tc|ac)-\d{1,4}\b/gi, '')
+    .replace(/^tc-[a-z0-9_\-]+:?\s*/i, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
 }
 
 function sanitizeTestTitle(title) {
@@ -30,12 +36,17 @@ function parseExistingTestCases(content) {
   const existing = [];
   const lines = String(content || '').split(/\r?\n/);
   for (const line of lines) {
-    const headingMatch = line.match(/^###\s*(TC-\d{3})\s*[:—\-]?\s*(.*)/i);
+    const headingMatch = line.match(/^#{2,4}\s*(TC-\d{3})\s*[:—.\-]?\s*(.*)/i);
     const tableMatch = line.match(/^\s*\|\s*(TC-\d{3})\s*\|\s*([^|]+)\|\s*([^|]+)\|/i);
     const id = (headingMatch ? headingMatch[1] : (tableMatch ? tableMatch[1] : '')).toUpperCase();
     const rawTitle = (headingMatch ? headingMatch[2] : (tableMatch ? tableMatch[3] : '')).trim();
-    if (id && rawTitle && !existing.some((e) => e.id === id)) {
-      existing.push({ id, title: rawTitle, normTitle: normalizeTitleForCompare(rawTitle) });
+    if (id && rawTitle) {
+      const idx = existing.findIndex((e) => e.id === id);
+      if (idx === -1) {
+        existing.push({ id, title: rawTitle, normTitle: normalizeTitleForCompare(rawTitle) });
+      } else if (!existing[idx].title || headingMatch) {
+        existing[idx] = { id, title: rawTitle, normTitle: normalizeTitleForCompare(rawTitle) };
+      }
     }
   }
   return existing;
@@ -97,7 +108,7 @@ function detectSpecDelta(root, specParsed, relSpecPath = '') {
       }
     }
 
-    if (!isKnown && !taggedTcId && existingTcs.some((e) => e.normTitle === normTest)) {
+    if (!isKnown && !taggedTcId && existingTcs.some((e) => e.normTitle && (e.normTitle === normTest || (normTest.length >= 8 && e.normTitle.includes(normTest)) || (e.normTitle.length >= 8 && normTest.includes(e.normTitle))))) {
       isKnown = true;
       knownCount += 1;
     }

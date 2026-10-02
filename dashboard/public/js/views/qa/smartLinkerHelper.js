@@ -144,6 +144,12 @@ async function handleApply(specPath, applyData) {
   modal.setBusy(true, 'Đang cập nhật nguyên tử...');
   modal.setNotice(null);
 
+  let editorContent = undefined;
+  if (typeof window !== 'undefined' && window.__currentSpecPath === specPath) {
+    const editor = document.getElementById('script-spec-editor');
+    if (editor && editor.value) editorContent = editor.value;
+  }
+
   try {
     const res = await fetch('/api/qa/smart-link/apply', {
       method: 'POST',
@@ -155,6 +161,7 @@ async function handleApply(specPath, applyData) {
         mode: applyData.mode,
         targetReqId: applyData.targetReqId,
         newReqData: applyData.newReqData,
+        currentEditorContent: editorContent,
       }),
     });
 
