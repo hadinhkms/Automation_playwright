@@ -7,6 +7,7 @@
 - **Không dùng `sleep` cứng:** Luôn dùng explicit waits (`waitFor`, `waitForResponse`, `toBeVisible`).
 - **Test ID Convention:** Sử dụng thuộc tính `data-testid="..."` cho các phần tử tương tác trong E2E test.
 - **Tính độc lập:** Mỗi test case phải tự khởi tạo hoặc dọn dẹp dữ liệu (test fixture), không phụ thuộc vào thứ tự chạy của test khác.
+- **Không hard-code link/domain:** URL/domain thuộc cấu hình môi trường (`dashboardConfig.json` → `environments.<env>` → `core/config/env.js`). Script dùng path tương đối với `baseURL`, `env.apiBaseURL` hoặc key `*URL` riêng cho domain phụ. Chi tiết: `ai/shared/AI_PROMPTS.md` §4; được `npm run check:framework` kiểm tra tự động.
 
 ## 2. Cấu Trúc File Test
 - Unit test: Nằm cạnh file mã nguồn (`[name].test.ts` hoặc trong `__tests__/`).

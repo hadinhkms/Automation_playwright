@@ -11,7 +11,8 @@ Trước khi tạo, sửa hoặc review Playwright test, phải đọc và tuân
    - Đối chiếu xem có mâu thuẫn (conflict), lệch bước hoặc dữ liệu chưa khớp giữa tài liệu với UI/mã nguồn thực tế hay không. Nếu có mâu thuẫn, phải làm rõ hoặc điều chỉnh thống nhất trước khi viết code.
 2. **Thực thi & Kiểm chứng (Execute & Verify):**
    - Viết kịch bản test theo đúng chuẩn BDD / Page Object Model, gắn tag `@REQ-xxx` và mã `@TC-xxx`.
-   - Chạy test kiểm chứng và đảm bảo pass 100%.
+   - **Link/domain lấy từ cấu hình môi trường, không hard-code:** dùng path tương đối với `baseURL`, `env.apiBaseURL` hoặc key `*URL` khai cho mọi môi trường trong `dashboardConfig.json` (đọc qua `core/config/env.js`). Nếu thiếu key cho domain mới, bổ sung vào config trước khi viết script.
+   - Chạy `npm run check:framework` và test kiểm chứng, đảm bảo pass 100%.
 3. **Cập nhật ngược tài liệu sau khi chạy thành công (Post-execution Sync):**
    - Sau khi script chạy thành công, nếu phát hiện bất kỳ thay đổi, rule mới hoặc hành vi thực tế khác biệt so với tài liệu ban đầu, **BẮT BUỘC phải cập nhật ngược lại ngay vào file `requirements/REQ-xxx.md` (và `test-cases/`) tương ứng** để tài liệu và automation luôn đồng bộ 100%.
 4. **Khu vực cách ly file test tạm & nháp của AI (Scratchpad Isolation):**
