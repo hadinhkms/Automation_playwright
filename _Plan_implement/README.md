@@ -6,33 +6,24 @@ Nơi lưu trữ và điều phối toàn bộ các **Implementation Plan** của
 
 ---
 
-## 1. 🏁 Kế Hoạch Vừa Nghiệm Thu Thành Công (Recently Completed & Validated Plans)
+## 1. 🚀 Kế Hoạch Đang Triển Khai (Active Implementation Plans)
 
-| Mã Plan | Tính Năng / Kế Hoạch | Thư Mục Cụm (Feature-Cluster) | File Điều Phối | Trạng Thái | Tiến Độ & Bằng Chứng |
-|---|---|---|---|:---:|:---:|
-| **PLAN-22** | **Xử Lý Rủi Ro Hệ Thống, Khôi Phục CI & Chuẩn Hóa Hub** | [framework-risk-remediation/](framework-risk-remediation/) | [plan-22-overview.md](framework-risk-remediation/plan-22-overview.md) | `COMPLETED` | 3/3 Phase (764/764 unit+API tests PASS, Satellites synced) |
-| **PLAN-21** | **Bộ Liên Kết Truy Vết Thông Minh (Smart Trace Linker)** | [smart-trace-linker/](smart-trace-linker/) | [plan-21-overview.md](smart-trace-linker/plan-21-overview.md) | `COMPLETED` | 3/3 Phase (12/12 API tests PASS, 6/6 E2E tests PASS) |
-| **PLAN-20** | **Ổn Định Khung Kiểm Thử, Dashboard Parity & CI/CD Hub** | [framework-stabilization/](framework-stabilization/) | [plan-20-overview.md](framework-stabilization/plan-20-overview.md) | `COMPLETED` | 3/3 Phase (7/7 E2E tests PASS, DOM < 1,500 nodes) |
+| Mã Plan | Tính Năng / Kế Hoạch | Thư Mục Cụm (Feature-Cluster) | File Điều Phối | Trạng Thái | Tiến Độ & Mục Tiêu |
+|---|---|---|---|:---:|---|
+| **PLAN-23** | **Khắc Phục Lỗ Hổng Hệ Thống, Đồng Bộ Hub Anti-Drift & Chuẩn Hóa Plan** | [system-hardening-and-remediation/](system-hardening-and-remediation/) | [plan-23-overview.md](system-hardening-and-remediation/plan-23-overview.md) | `COMPLETED` | 4/4 Phase hoàn tất (100% Green, Drift IN_SYNC, Probes PASS) |
 
-### Chi tiết kế hoạch vừa hoàn tất (Sẵn sàng đóng gói Release):
-- **[Plan 22: Framework Risk Remediation](framework-risk-remediation/22_FRAMEWORK_RISK_REMEDIATION_PLAN.md)** ([Điều phối Phase](framework-risk-remediation/plan-22-overview.md)):
-  - 🔹 [Phase 1: CI Unit Test Recovery & AI Gateway Mock](framework-risk-remediation/phase-1-ci-unit-test-recovery.md): Khắc phục 7 lỗi unit test, cô lập thư mục backup và chống rò rỉ concurrency slot.
-  - 🔹 [Phase 2: Hub-to-Spoke Satellite Sync & Audit Alignment](framework-risk-remediation/phase-2-hub-spoke-and-audit-sync.md): Xử lý drift `run-suite.js`, cập nhật 41 file CarThings, đồng bộ vệ tinh `_SieuVietGroup`, phân định sạch Sổ Thẩm định.
-  - 🔹 [Phase 3: Traceability Showcase Suite & Hygiene](framework-risk-remediation/phase-3-traceability-showcase-and-hygiene.md): Xây dựng bộ mẫu `REQ-001` cho SauceDemo (`REQ-001-authentication.md`), tạo root config `dashboardConfig.json`, dọn dẹp gitignore và nghiệm thu Gate 4.
-- **[Plan 21: Smart Trace Linker (1-Click Spec to Requirement)](smart-trace-linker/21_SMART_TRACE_LINKER_PLAN.md)** ([Điều phối Phase](smart-trace-linker/plan-21-overview.md)):
-  - 🔹 [Phase 1: Backend Smart Matcher & Linker API](smart-trace-linker/phase-1-backend-smart-matcher-and-linker-api.md): Thuật toán so khớp Heuristic / Semantic song ngữ, 2 route API `/api/qa/smart-link` và `/api/qa/smart-link/apply` (có `withWriteLock`).
-  - 🔹 [Phase 2: Studio UI & Code Editor Integration](smart-trace-linker/phase-2-studio-ui-and-editor-integration.md): Nút bấm thông minh trên Code Editor toolbar (`#/builder`, `builder-view`), nút trong bảng Vấn đề (`#/qa`, `findingRows.js`), modal Preview Lazy-Mounted và đăng ký CSS Master Cascade.
-  - 🔹 [Phase 3: Reverse Sync, Edge Cases & Verification](smart-trace-linker/phase-3-reverse-sync-and-e2e-verification.md): Cơ chế đồng bộ ngược cho spec đã có REQ, test E2E Playwright, Gate 4 `npm run mp:gate` và bảo toàn Hub-to-Spoke.
-- **[Plan 20: Framework Reliability & Quality Stabilization](framework-stabilization/plan-20-overview.md)**:
-  - 🔹 Phase 1: E2E Isolation & Runner Hygiene (Đã nghiệm thu, 7/7 tests pass)
-  - 🔹 Phase 2: Dashboard Parity & DOM Budget (Đã nghiệm thu, DOM < 1,500 nodes)
-  - 🔹 Phase 3: Traceability Hub-Spoke & CI Pipeline (Đã nghiệm thu, CI Playwright kích hoạt)
+### Chi tiết các phase của Plan 23:
+- **[Plan 23: System Hardening, Anti-Drift & Gate Remediation](system-hardening-and-remediation/plan-23-overview.md)**:
+  - 🔹 [Phase 1: Đồng Bộ Hub Anti-Drift & Cập Nhật Tri Thức](system-hardening-and-remediation/phase-1-drift-sync-and-knowledge.md): Khắc phục lệch commit Hub `20caf254`, cập nhật lockfile và template tri thức mới.
+  - 🔹 [Phase 2: Căn Chỉnh Hợp Đồng Gate 4 & Đóng Sổ Audit](system-hardening-and-remediation/phase-2-gate4-contract-and-evidence-realignment.md): Đồng bộ contract SHA256 pin, đóng chính thức finding HUB-01/HUB-02 trong Sổ Audit.
+  - 🔹 [Phase 3: Vệ Sinh Mã Nguồn, Chống Rác Workspace & Sửa Probes](system-hardening-and-remediation/phase-3-hygiene-and-probe-fixes.md): Xóa thư mục rác tạm thời, thêm teardown an toàn, tinh chỉnh Probe P5 tránh false positive.
+  - 🔹 [Phase 4: Lưu Trữ Kế Hoạch Cũ & Chuẩn Hóa Dashboard Plan](system-hardening-and-remediation/phase-4-plan-archive-and-standardization.md): Gom plan 20, 21, 22 vào niên khóa `archive/2026-10/` và duy trì chuẩn Master Process.
 
 ---
 
-## 2. 📋 Kế Hoạch Tiếp Theo (Upcoming Active Plans & Backlog)
+## 2. 📋 Kế Hoạch Tiếp Theo (Upcoming Plans & Backlog)
 
-- **Kế hoạch Dự kiến (Candidates for Plan 23):**
+- **Kế hoạch Dự kiến (Candidates for Plan 24):**
   - **Tái cấu trúc & Chia nhỏ các Legacy Module (Modular Decomposition):** Triển khai chia nhỏ các file mang cờ `master-process-disable-size-check` lâu đời (`core/generator/objectRepository.js`, `core/utils/commonUtils.js`, `core/utils/dataManager.js`) về ngân sách chuẩn $\le 200$ dòng.
   - **Mở rộng Đa Dự Án (Multi-Tenant Workspace Selector):** Hỗ trợ chuyển đổi nhanh ngữ cảnh giữa Hub và các vệ tinh ngay trên giao diện Dashboard.
 
@@ -44,6 +35,9 @@ Các kế hoạch đã hoàn tất thực thi, nghiệm thu Gate 4 và triển k
 
 | Mã Plan | Tên Kế Hoạch | Thư Mục Lưu Trữ | Ngày Lưu Trữ | Trạng Thái |
 |---|---|---|---|:---:|
+| **PLAN-22** | **Xử Lý Rủi Ro Hệ Thống, Khôi Phục CI & Chuẩn Hóa Hub** | [archive/2026-10/framework-risk-remediation/](archive/2026-10/framework-risk-remediation/) | 2026-10-03 | `ĐÃ NGHIỆM THU` |
+| **PLAN-21** | **Bộ Liên Kết Truy Vết Thông Minh (Smart Trace Linker)** | [archive/2026-10/smart-trace-linker/](archive/2026-10/smart-trace-linker/) | 2026-10-03 | `ĐÃ NGHIỆM THU` |
+| **PLAN-20** | **Ổn Định Khung Kiểm Thử, Dashboard Parity & CI/CD Hub** | [archive/2026-10/framework-stabilization/](archive/2026-10/framework-stabilization/) | 2026-10-03 | `ĐÃ NGHIỆM THU` |
 | **PLAN-19** | **BDD Spec & Smart Test Data Studio (19, 19a, 19b)** | [archive/2026-10/plan-19-bdd-spec-and-smart-test-data/](archive/2026-10/plan-19-bdd-spec-and-smart-test-data/) | 2026-10-02 | `ĐÃ NGHIỆM THU` |
 | **PLAN-18** | **QA Static Findings Batch Processing & Conflict Studio** | [archive/2026-09/plan-18-qa-static-findings-batch-processing/](archive/2026-09/plan-18-qa-static-findings-batch-processing/) | 2026-09-30 | `ĐÃ NGHIỆM THU` |
 | **PLAN-17** | **AI Assisted QA Framework (Copilot, Triage & Fast-Wins)** | [archive/2026-09/plan-17-ai-assisted-qa-framework/](archive/2026-09/plan-17-ai-assisted-qa-framework/) | 2026-09-28 | `ĐÃ NGHIỆM THU` |

@@ -5,6 +5,9 @@
  */
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
 const { startDashboardHarness } = require('../dashboard/support/dashboardHarness');
 const { createFixtureWorkspace } = require('../dashboard/support/fixtureWorkspace');
 
@@ -56,5 +59,24 @@ describe('API Contract: System & Lifecycle Routes', () => {
     assert.match(res.headers.get('content-type') || '', /application\/json/);
     const body = await res.json();
     assert.ok(body.error !== undefined);
+  });
+
+  test('TC-23-02: Contract SHA256 matches approved hash and audit registry has closed Hub findings', async () => {
+    const contractPath = path.resolve(__dirname, '../../.delivery/contract.json');
+    const approvedPath = path.resolve(__dirname, '../../.delivery/approved_contract.sha256');
+    const registryPath = path.resolve(__dirname, '../../audit/FINDINGS_REGISTRY.md');
+
+    assert.ok(fs.existsSync(contractPath), 'contract.json must exist');
+    assert.ok(fs.existsSync(approvedPath), 'approved_contract.sha256 must exist');
+    assert.ok(fs.existsSync(registryPath), 'FINDINGS_REGISTRY.md must exist');
+
+    const contractBytes = fs.readFileSync(contractPath);
+    const contractHash = crypto.createHash('sha256').update(contractBytes).digest('hex');
+    const approvedHash = fs.readFileSync(approvedPath, 'utf8').trim().toLowerCase();
+    assert.equal(contractHash, approvedHash, 'contract.json hash must match approved_contract.sha256');
+
+    const registryText = fs.readFileSync(registryPath, 'utf8');
+    assert.match(registryText, /HUB-01.*CLOSED/);
+    assert.match(registryText, /HUB-02.*CLOSED/);
   });
 });

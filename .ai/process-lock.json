@@ -1,8 +1,8 @@
 {
-  "version": "2.4.1",
-  "hub_commit": "2863a7cb2c167a629cc72e4642b92e7204cd4919",
+  "version": "2.6.0",
+  "hub_commit": "20caf25453867e319ccb5efdf98933f794aaf983",
   "hub_path": "D:/_Master_Process",
-  "installed_at": "2026-09-27T19:36:37.773752+00:00",
+  "installed_at": "2026-10-03T04:10:11.602714+00:00",
   "managed_files": [
     ".ai/learning/candidates.md",
     ".ai/knowledge/manifest.json",
@@ -18,11 +18,12 @@
     ".ai/knowledge/domain/entities.md": "12a0cb02f130bf2af1fae9adfee0aedab505d50bc02cb898e67bb1e11136d779",
     ".ai/knowledge/domain/glossary.md": "9e94eab4592d9c98041d44050dbdefc0fb4382437f1184b498381c3d0534ab6c",
     ".ai/knowledge/domain/invariants.md": "b74e9f2744e52a52673fe776f2b95d505615cc6664cbb446e8db014c8b239d3b",
+    ".ai/knowledge/domain/research-sources.md": "e467f70c0ec81cc813d8181a5d2168808f6540f6bb61635b4dace49b4a653fee",
     ".ai/knowledge/engineering/architecture.md": "0c14aa9b2f4ab8c4c2949a339ae4954a31f316aab18cbc57a61c17c56a40dec3",
     ".ai/knowledge/engineering/coding-conventions.md": "e40a21235114ab26409422009a84da82876fa61bd9420d5e73ee6e5f6c3cbebd",
     ".ai/knowledge/engineering/known-pitfalls.md": "c221228043377b6b2193604b8f6e81422873cbe51da514e3cc1da8c89f3bd199",
     ".ai/knowledge/engineering/project-profile.md": "2e82e3a0feb4def9115173f5c4258f2cb5e022833a127803a807dfe79957f5eb",
-    ".ai/knowledge/manifest.json": "6f3999c476d89e51ab398c41ee8c0c12c3a38f69328953218175429452a23af4",
+    ".ai/knowledge/manifest.json": "123a528e7a470898011e46fe6910b1b9a50114cb0f184fa2fd5737ae975f5320",
     ".ai/knowledge/qa/critical-journeys.md": "8a8e0987170f5033fc47f52e68c449df72fc16a20c108e927e2a9c77b84cf431",
     ".ai/knowledge/qa/regression-hotspots.md": "2f74895d1363d2bfb1130c0439cd224424f00d8d1c5d949852292ed2929602f2",
     ".ai/knowledge/qa/test-conventions.md": "0dd80418d72de746eebbe16a835f5740def7e963dc4815a60a4a9019747bb796",
@@ -32,6 +33,6 @@
     ".ai/learning/candidates.md": "2c7427b9197e37810a0084378b26973c5263b6f89f0515d43728028030f305f5",
     ".ai/learning/conflicts.md": "06152aa611ad9f9d7da5b993479d4559adbebc82ef595d6a6af7134100d9d76e",
     ".ai/learning/promotion-log.md": "708b20965ecad8496741ebab27df80b0fd1434f8843b35b12c8838c5a9a1da15",
-    "AGENTS.md": "4c217368a9a0b1a5d57d978f1ef2fa71ec746bec55a1663e90ff5375cd6316b7"
+    "AGENTS.md": "1c253175c267664265f5673fa42c8defd1033dddd703c248eb57d0be6ceb0db5"
   }
 }

@@ -30,6 +30,7 @@ describe('API Contract: Master Process Integration Routes', () => {
     assert.ok(body.hub_path);
     assert.ok(body.quality);
     assert.equal(typeof body.quality.candidates_lines, 'number');
+    assert.equal(body.drift_status, 'IN_SYNC');
   });
 
   test('GET /api/mp/status?target=C:/Windows returns 403 Forbidden', async () => {

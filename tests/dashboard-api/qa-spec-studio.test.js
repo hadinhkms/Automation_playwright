@@ -349,4 +349,48 @@ describe('PLAN-19b QA Spec Studio API Suite', () => {
     assert.deepEqual(req099.acs.map((a) => a.id).sort(), ['AC-001', 'AC-002']);
     assert.equal(req099.nearMisses.length, 0, 'Khong duoc co near-miss');
   });
+
+  // TC-23-04: Plan lifecycle archive layout and dashboard links integrity
+  test('TC-23-04: Plan lifecycle archive layout and dashboard links integrity', () => {
+    const planRootDir = path.resolve(__dirname, '../../_Plan_implement');
+    assert.ok(fs.existsSync(planRootDir), '_Plan_implement directory must exist');
+
+    // 1. Root folder must only contain active plan directory, archive, and README.md
+    const rootEntries = fs.readdirSync(planRootDir);
+    const nonArchiveDirs = rootEntries.filter(
+      (entry) => entry !== 'README.md' && entry !== 'archive' && !entry.startsWith('.')
+    );
+    assert.deepEqual(
+      nonArchiveDirs,
+      ['system-hardening-and-remediation'],
+      'Only system-hardening-and-remediation should be active in _Plan_implement'
+    );
+
+    // 2. Archived plans 20, 21, 22 must exist in archive/2026-10
+    const archiveOctDir = path.join(planRootDir, 'archive', '2026-10');
+    assert.ok(fs.existsSync(path.join(archiveOctDir, 'framework-stabilization')), 'Plan 20 must be archived');
+    assert.ok(fs.existsSync(path.join(archiveOctDir, 'smart-trace-linker')), 'Plan 21 must be archived');
+    assert.ok(fs.existsSync(path.join(archiveOctDir, 'framework-risk-remediation')), 'Plan 22 must be archived');
+
+    // 3. Verify all relative links in _Plan_implement/README.md resolve to existing files or directories
+    const readmeContent = fs.readFileSync(path.join(planRootDir, 'README.md'), 'utf8');
+    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let match;
+    const checkedLinks = [];
+    while ((match = linkRegex.exec(readmeContent)) !== null) {
+      const linkTarget = match[2];
+      // Skip external links or anchor links
+      if (linkTarget.startsWith('http://') || linkTarget.startsWith('https://') || linkTarget.startsWith('#')) {
+        continue;
+      }
+      const resolvedPath = path.resolve(planRootDir, linkTarget);
+      assert.ok(
+        fs.existsSync(resolvedPath),
+        `Link target "${linkTarget}" in _Plan_implement/README.md must exist on disk (resolved to: ${resolvedPath})`
+      );
+      checkedLinks.push(linkTarget);
+    }
+    assert.ok(checkedLinks.length >= 5, 'Should have verified markdown links in README.md');
+  });
 });
+

@@ -12,8 +12,8 @@
 
 | ID | Ngày | Mức (P0-P3) | Chiều Audit | Vị Trí Script / Cấu Kiện | Tóm Tắt | Owner | Trạng Thái | Test Bảo Vệ |
 |:---:|:---:|:---:|---|---|---|:---:|:---:|---|
-| HUB-01 | 2026-10-02 | P0 | CI & Reliability | `package.json`, `.github/workflows/playwright.yml` | `npm run test:unit` hỏng do quét trúng backup và AI Gateway deadlock | @framework-lead | CLAIMED_FIXED | `npm run test:unit` (585 tests green) |
-| HUB-02 | 2026-10-02 | P1 | Synchronization | `scripts/run-suite.js`, `scripts/pre-sync-drift.js` | Satellite drift lệch presets và CLI flags giữa Hub và Vệ Tinh | @framework-lead | CLAIMED_FIXED | `npm run presync:drift:strict` |
+| HUB-01 | 2026-10-02 | P0 | CI & Reliability | `package.json`, `.github/workflows/playwright.yml` | `npm run test:unit` hỏng do quét trúng backup và AI Gateway deadlock | @framework-lead | CLOSED (2026-10-03 @qa-lead) | `npm run test:unit` (585 tests green) |
+| HUB-02 | 2026-10-02 | P1 | Synchronization | `scripts/run-suite.js`, `scripts/pre-sync-drift.js` | Satellite drift lệch presets và CLI flags giữa Hub và Vệ Tinh | @framework-lead | CLOSED (2026-10-03 @qa-lead) | `npm run presync:drift:strict` (0 drift) |
 
 ---
 

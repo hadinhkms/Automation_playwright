@@ -39,4 +39,8 @@
   - **DO:** Nhận diện test theo title chuẩn hóa và tag `TC-zzz`; khi test đổi tên, hiện cảnh báo và coi là kịch bản mới mà KHÔNG xóa TC cũ trong tài liệu; lọc sạch thẻ `<script>` cùng nội dung và thay thế pipe `|` trước khi ghi markdown; ưu tiên `window.__currentSpecPath` khi mở modal từ toolbar editor.
   - **DON'T:** Không tự ý xóa bỏ các TC cũ không còn tìm thấy trong code khi đồng bộ ngược; không dùng regex `[^)]*` bắt assertion vì không xử lý được ngoặc lồng nhau `expect(locator(...))`.
 
+- **CANDIDATE-10 (Windows Workspace Teardown & Comment-Anchored Probes):**
+  - **DO:** Dùng `fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })` và quét dọn workspace rác > 30s trước test; dùng `-cmatch '(?://|#|/\*|\*)\s*(TODO|FIXME|HACK)\b'` trong probe P5 để tránh false positive từ biến/keyword.
+  - **DON'T:** Không xóa thư mục tạm trên Windows mà thiếu retry; không dùng regex probe `-match` không phân biệt hoa thường và thiếu neo cú pháp chú thích.
+
 
