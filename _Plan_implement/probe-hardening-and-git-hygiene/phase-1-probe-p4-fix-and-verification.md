@@ -1,7 +1,7 @@
 # Phase 1 — Khắc Phục Probe P4 False Positive & Kiểm Định Probes
 
 > **Tác giả Nghiệp vụ:** @ba (phiên 2026-10-03) · **Tác giả Kỹ thuật:** @tl (phiên 2026-10-03) · **Research:** Không áp dụng  
-> **Trạng thái:** `DRAFT` · **Cấp độ:** L3  
+> **Trạng thái:** `COMPLETED` · **Cấp độ:** L3  
 
 ---
 
@@ -80,9 +80,9 @@
 ---
 
 ## F. Tiêu Chí Ra Phase (Exit Criteria)
-- [ ] `.master_process/scripts/audit-probes.ps1` được cập nhật pathspec an toàn.
-- [ ] Lệnh `node scripts/run-mp.js probes P4 .` đạt PASS (Exit code 0).
-- [ ] Bổ sung test `TC-24-01` vào `tests/dashboard-api/master-process.test.js`.
+- [x] `.master_process/scripts/audit-probes.ps1` được cập nhật pathspec an toàn.
+- [x] Lệnh `node scripts/run-mp.js probes P4 .` đạt PASS (Exit code 0).
+- [x] Bổ sung test `TC-24-01` vào `tests/dashboard-api/master-process.test.js`.
 
 ---
 
@@ -100,4 +100,22 @@
 ---
 
 ## I. Bằng Chứng Thực Nghiệm (Evidence Block)
-- Sẽ ghi nhận output của Probe P4 sau khi thực thi.
+- **Kiểm định Probe P4 CLI:**
+  ```powershell
+  PS D:\_Automation-Project> node scripts/run-mp.js probes P4 .
+  [*] Running Probe P4: Secret leakage in recent Git log on D:\_Automation-Project
+  # Exit Code: 0 (PASS)
+  ```
+- **Kiểm định Master Process Test Suite (TC-24-01):**
+  ```powershell
+  PS D:\_Automation-Project> node --test tests/dashboard-api/master-process.test.js
+  # Subtest: TC-24-01: POST /api/mp/probes with P4 returns code 0 and PASS (AC-24-01)
+  ok 6 - TC-24-01: POST /api/mp/probes with P4 returns code 0 and PASS (AC-24-01)
+  # tests 6 | pass 6 | fail 0
+  ```
+- **Kiểm định Python Unit Tests (test_audit_probes.py):**
+  ```powershell
+  PS D:\_Automation-Project> python .master_process/tests/test_audit_probes.py
+  Ran 6 tests in 6.715s - OK
+  ```
+

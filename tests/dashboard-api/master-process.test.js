@@ -82,4 +82,19 @@ describe('API Contract: Master Process Integration Routes', () => {
     assert.ok(Array.isArray(body.details.violations));
     assert.ok(Array.isArray(body.details.exemptions));
   });
+
+  test('TC-24-01: POST /api/mp/probes with P4 returns code 0 and PASS (AC-24-01)', async () => {
+    const res = await fetch(`${harness.url}/api/mp/probes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ probeId: 'P4' }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.equal(body.code, 0);
+    assert.match(body.stdout, /Running Probe P4/);
+    assert.doesNotMatch(body.stdout, /POTENTIAL SECRETS FOUND/);
+  });
 });
+

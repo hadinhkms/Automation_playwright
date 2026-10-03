@@ -1,7 +1,7 @@
 # Kế Hoạch 24: Khắc Phục Probe P4, Lưu Trữ Kế Hoạch 23 & Chuẩn Hóa Git Hygiene — Plan Overview
 
 > **Plan ID:** `PLAN-24-PROBE-FIX-PLAN-ARCHIVE-GIT-HYGIENE-2026-10-03` · **Baseline:** `20caf254` · **Cấp độ:** L3  
-> **Trạng thái:** `DRAFT` · **Research:** Không áp dụng (L1/L2)  
+> **Trạng thái:** `COMPLETED` · **Research:** Không áp dụng (L1/L2)  
 > **Nguồn gốc:** Đợt audit toàn diện hệ sinh thái ngày 2026-10-03 sau khi hoàn tất Plan 23.
 
 ---
@@ -22,9 +22,9 @@
 
 | Phase | Tên Giai Đoạn | File Chi Tiết | Phụ Thuộc | Chủ Trì | Trạng Thái |
 |---|---|---|---|:---:|:---:|
-| 1 | Khắc Phục Probe P4 False Positive & Kiểm Định Probes | [phase-1-probe-p4-fix-and-verification.md](phase-1-probe-p4-fix-and-verification.md) | — | @ba / @tl | `DRAFT` |
-| 2 | Lưu Trữ Plan 23 Vào Archive & Chuẩn Hóa Dashboard | [phase-2-plan23-archival-and-dashboard-alignment.md](phase-2-plan23-archival-and-dashboard-alignment.md) | Phase 1 | @ba / @tl | `DRAFT` |
-| 3 | Đóng Chu Trình Git Hygiene & Nghiệm Thu Sẵn Sàng Gate 4 | [phase-3-git-hygiene-and-gate4-readiness.md](phase-3-git-hygiene-and-gate4-readiness.md) | Phase 2 | @ba / @tl | `DRAFT` |
+| 1 | Khắc Phục Probe P4 False Positive & Kiểm Định Probes | [phase-1-probe-p4-fix-and-verification.md](phase-1-probe-p4-fix-and-verification.md) | — | @ba / @tl | `COMPLETED` |
+| 2 | Lưu Trữ Plan 23 Vào Archive & Chuẩn Hóa Dashboard | [phase-2-plan23-archival-and-dashboard-alignment.md](phase-2-plan23-archival-and-dashboard-alignment.md) | Phase 1 | @ba / @tl | `COMPLETED` |
+| 3 | Đóng Chu Trình Git Hygiene & Nghiệm Thu Sẵn Sàng Gate 4 | [phase-3-git-hygiene-and-gate4-readiness.md](phase-3-git-hygiene-and-gate4-readiness.md) | Phase 2 | @ba / @tl | `COMPLETED` |
 
 ```text
 Phase 1 (Probe P4 Fix) ──► Phase 2 (Plan 23 Archival) ──► Phase 3 (Git Hygiene & Gate 4)
@@ -53,7 +53,8 @@ Phase 1 (Probe P4 Fix) ──► Phase 2 (Plan 23 Archival) ──► Phase 3 (G
 ---
 
 ## 6. Checklist Trạng Thái Tổng Thể
-- [ ] Gate 1 — Phase files đạt `master plan-check` và có chữ ký chéo
-- [ ] Gate 2 — Probe P4 và P6 đạt PASS
-- [ ] Gate 3 — Thực thi hoàn tất 3 phase không gây hồi quy
-- [ ] Gate 4 — Toàn bộ suite 585 unit + 181 dashboard tests Green 100%
+- [x] Gate 1 — Phase files đạt `master plan-check` và có chữ ký chéo
+- [x] Gate 2 — Probe P4 và P6 đạt PASS
+- [x] Gate 3 — Thực thi hoàn tất 3 phase không gây hồi quy
+- [x] Gate 4 — Toàn bộ suite 585 unit + 181 dashboard tests Green 100%
+

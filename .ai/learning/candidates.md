@@ -42,5 +42,6 @@
 - **CANDIDATE-10 (Windows Workspace Teardown & Comment-Anchored Probes):**
   - **DO:** Dùng `fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })` và quét dọn workspace rác > 30s trước test; dùng `-cmatch '(?://|#|/\*|\*)\s*(TODO|FIXME|HACK)\b'` trong probe P5 để tránh false positive từ biến/keyword.
   - **DON'T:** Không xóa thư mục tạm trên Windows mà thiếu retry; không dùng regex probe `-match` không phân biệt hoa thường và thiếu neo cú pháp chú thích.
-
-
+- **CANDIDATE-11 (Git Log Probe Pathspec & Secret Dummy Filter):**
+  - **DO:** Khi quét secret bằng `git log -G`, dùng pathspec `":(exclude)_Plan_implement" ":(exclude)*.md"` kết hợp lọc dummy key chuẩn (`AKIAIOSFODNN7EXAMPLE`) để triệt tiêu false positive trong tài liệu.
+  - **DON'T:** Không quét càn toàn bộ commit git mà không phân tách giữa tài liệu kế hoạch và mã nguồn thực thi.

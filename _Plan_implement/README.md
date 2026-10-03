@@ -10,20 +10,19 @@ Nơi lưu trữ và điều phối toàn bộ các **Implementation Plan** của
 
 | Mã Plan | Tính Năng / Kế Hoạch | Thư Mục Cụm (Feature-Cluster) | File Điều Phối | Trạng Thái | Tiến Độ & Mục Tiêu |
 |---|---|---|---|:---:|---|
-| **PLAN-23** | **Khắc Phục Lỗ Hổng Hệ Thống, Đồng Bộ Hub Anti-Drift & Chuẩn Hóa Plan** | [system-hardening-and-remediation/](system-hardening-and-remediation/) | [plan-23-overview.md](system-hardening-and-remediation/plan-23-overview.md) | `COMPLETED` | 4/4 Phase hoàn tất (100% Green, Drift IN_SYNC, Probes PASS) |
+| **PLAN-24** | **Khắc Phục Probe P4, Lưu Trữ Kế Hoạch 23 & Chuẩn Hóa Git Hygiene** | [probe-hardening-and-git-hygiene/](probe-hardening-and-git-hygiene/) | [plan-24-overview.md](probe-hardening-and-git-hygiene/plan-24-overview.md) | `IN_PROGRESS` | 2/3 Phase hoàn tất (P4 Green, Plan 23 Archived) |
 
-### Chi tiết các phase của Plan 23:
-- **[Plan 23: System Hardening, Anti-Drift & Gate Remediation](system-hardening-and-remediation/plan-23-overview.md)**:
-  - 🔹 [Phase 1: Đồng Bộ Hub Anti-Drift & Cập Nhật Tri Thức](system-hardening-and-remediation/phase-1-drift-sync-and-knowledge.md): Khắc phục lệch commit Hub `20caf254`, cập nhật lockfile và template tri thức mới.
-  - 🔹 [Phase 2: Căn Chỉnh Hợp Đồng Gate 4 & Đóng Sổ Audit](system-hardening-and-remediation/phase-2-gate4-contract-and-evidence-realignment.md): Đồng bộ contract SHA256 pin, đóng chính thức finding HUB-01/HUB-02 trong Sổ Audit.
-  - 🔹 [Phase 3: Vệ Sinh Mã Nguồn, Chống Rác Workspace & Sửa Probes](system-hardening-and-remediation/phase-3-hygiene-and-probe-fixes.md): Xóa thư mục rác tạm thời, thêm teardown an toàn, tinh chỉnh Probe P5 tránh false positive.
-  - 🔹 [Phase 4: Lưu Trữ Kế Hoạch Cũ & Chuẩn Hóa Dashboard Plan](system-hardening-and-remediation/phase-4-plan-archive-and-standardization.md): Gom plan 20, 21, 22 vào niên khóa `archive/2026-10/` và duy trì chuẩn Master Process.
+### Chi tiết các phase của Plan 24:
+- **[Plan 24: Probe Hardening, Plan 23 Archival & Git Hygiene](probe-hardening-and-git-hygiene/plan-24-overview.md)**:
+  - 🔹 [Phase 1: Khắc Phục Probe P4 False Positive & Kiểm Định Probes](probe-hardening-and-git-hygiene/phase-1-probe-p4-fix-and-verification.md): Loại trừ tài liệu markdown khỏi git log quét secret, đưa Probe P4 về PASS 100%.
+  - 🔹 [Phase 2: Lưu Trữ Plan 23 Vào Archive & Chuẩn Hóa Dashboard](probe-hardening-and-git-hygiene/phase-2-plan23-archival-and-dashboard-alignment.md): Lưu trữ Plan 23 vào `archive/2026-10/`, đồng bộ Dashboard và kiểm định liên kết.
+  - 🔹 [Phase 3: Đóng Chu Trình Git Hygiene & Nghiệm Thu Sẵn Sàng Gate 4](probe-hardening-and-git-hygiene/phase-3-git-hygiene-and-gate4-readiness.md): Đóng gói commit sạch sẽ, xác nhận Probe P6 PASS và nghiệm thu Gate 4.
 
 ---
 
 ## 2. 📋 Kế Hoạch Tiếp Theo (Upcoming Plans & Backlog)
 
-- **Kế hoạch Dự kiến (Candidates for Plan 24):**
+- **Kế hoạch Dự kiến (Candidates for Plan 25):**
   - **Tái cấu trúc & Chia nhỏ các Legacy Module (Modular Decomposition):** Triển khai chia nhỏ các file mang cờ `master-process-disable-size-check` lâu đời (`core/generator/objectRepository.js`, `core/utils/commonUtils.js`, `core/utils/dataManager.js`) về ngân sách chuẩn $\le 200$ dòng.
   - **Mở rộng Đa Dự Án (Multi-Tenant Workspace Selector):** Hỗ trợ chuyển đổi nhanh ngữ cảnh giữa Hub và các vệ tinh ngay trên giao diện Dashboard.
 
@@ -35,6 +34,7 @@ Các kế hoạch đã hoàn tất thực thi, nghiệm thu Gate 4 và triển k
 
 | Mã Plan | Tên Kế Hoạch | Thư Mục Lưu Trữ | Ngày Lưu Trữ | Trạng Thái |
 |---|---|---|---|:---:|
+| **PLAN-23** | **Khắc Phục Lỗ Hổng Hệ Thống, Đồng Bộ Hub Anti-Drift & Chuẩn Hóa Plan** | [archive/2026-10/system-hardening-and-remediation/](archive/2026-10/system-hardening-and-remediation/) | 2026-10-03 | `ĐÃ NGHIỆM THU` |
 | **PLAN-22** | **Xử Lý Rủi Ro Hệ Thống, Khôi Phục CI & Chuẩn Hóa Hub** | [archive/2026-10/framework-risk-remediation/](archive/2026-10/framework-risk-remediation/) | 2026-10-03 | `ĐÃ NGHIỆM THU` |
 | **PLAN-21** | **Bộ Liên Kết Truy Vết Thông Minh (Smart Trace Linker)** | [archive/2026-10/smart-trace-linker/](archive/2026-10/smart-trace-linker/) | 2026-10-03 | `ĐÃ NGHIỆM THU` |
 | **PLAN-20** | **Ổn Định Khung Kiểm Thử, Dashboard Parity & CI/CD Hub** | [archive/2026-10/framework-stabilization/](archive/2026-10/framework-stabilization/) | 2026-10-03 | `ĐÃ NGHIỆM THU` |

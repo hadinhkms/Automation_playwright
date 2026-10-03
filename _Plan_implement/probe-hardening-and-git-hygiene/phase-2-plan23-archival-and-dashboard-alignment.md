@@ -1,7 +1,7 @@
 # Phase 2 — Lưu Trữ Plan 23 Vào Archive & Chuẩn Hóa Dashboard
 
 > **Tác giả Nghiệp vụ:** @ba (phiên 2026-10-03) · **Tác giả Kỹ thuật:** @tl (phiên 2026-10-03) · **Research:** Không áp dụng  
-> **Trạng thái:** `DRAFT` · **Cấp độ:** L3  
+> **Trạng thái:** `COMPLETED` · **Cấp độ:** L3  
 
 ---
 
@@ -79,9 +79,9 @@
 ---
 
 ## F. Tiêu Chí Ra Phase (Exit Criteria)
-- [ ] Thư mục `system-hardening-and-remediation` được chuyển vào `_Plan_implement/archive/2026-10/`.
-- [ ] `_Plan_implement/README.md` được cập nhật đồng bộ.
-- [ ] Test `TC-24-02` trong `tests/dashboard-api/qa-spec-studio.test.js` đạt PASS.
+- [x] Thư mục `system-hardening-and-remediation` được chuyển vào `_Plan_implement/archive/2026-10/`.
+- [x] `_Plan_implement/README.md` được cập nhật đồng bộ.
+- [x] Test `TC-24-02` trong `tests/dashboard-api/qa-spec-studio.test.js` đạt PASS.
 
 ---
 
@@ -99,4 +99,25 @@
 ---
 
 ## I. Bằng Chứng Thực Nghiệm (Evidence Block)
-- Sẽ ghi nhận kết quả test `qa-spec-studio.test.js` sau khi hoàn tất.
+- **Kiểm định di chuyển Archive Plan 23:**
+  ```powershell
+  PS D:\_Automation-Project> git status --short
+  R  _Plan_implement/system-hardening-and-remediation/phase-1-drift-sync-and-knowledge.md -> _Plan_implement/archive/2026-10/system-hardening-and-remediation/phase-1-drift-sync-and-knowledge.md
+  R  _Plan_implement/system-hardening-and-remediation/phase-2-gate4-contract-and-evidence-realignment.md -> _Plan_implement/archive/2026-10/system-hardening-and-remediation/phase-2-gate4-contract-and-evidence-realignment.md
+  R  _Plan_implement/system-hardening-and-remediation/phase-3-hygiene-and-probe-fixes.md -> _Plan_implement/archive/2026-10/system-hardening-and-remediation/phase-3-hygiene-and-probe-fixes.md
+  R  _Plan_implement/system-hardening-and-remediation/phase-4-plan-archive-and-standardization.md -> _Plan_implement/archive/2026-10/system-hardening-and-remediation/phase-4-plan-archive-and-standardization.md
+  R  _Plan_implement/system-hardening-and-remediation/plan-23-overview.md -> _Plan_implement/archive/2026-10/system-hardening-and-remediation/plan-23-overview.md
+  ```
+- **Kiểm định Test Contract TC-24-02:**
+  ```powershell
+  PS D:\_Automation-Project> node --test tests/dashboard-api/qa-spec-studio.test.js
+  # Subtest: TC-24-02: Plan 23 archival verification and dashboard links integrity
+  ok 9 - TC-24-02: Plan 23 archival verification and dashboard links integrity
+  # tests 9 | pass 9 | fail 0
+  ```
+- **Kiểm định Dashboard API Suites (TC-24-01 + TC-24-02):**
+  ```powershell
+  PS D:\_Automation-Project> node --test tests/dashboard-api/master-process.test.js tests/dashboard-api/qa-spec-studio.test.js
+  # tests 15 | suites 2 | pass 15 | fail 0
+  ```
+

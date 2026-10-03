@@ -350,8 +350,8 @@ describe('PLAN-19b QA Spec Studio API Suite', () => {
     assert.equal(req099.nearMisses.length, 0, 'Khong duoc co near-miss');
   });
 
-  // TC-23-04: Plan lifecycle archive layout and dashboard links integrity
-  test('TC-23-04: Plan lifecycle archive layout and dashboard links integrity', () => {
+  // TC-24-02: Plan 23 archival verification and dashboard links integrity (and preserved TC-23-04 contract)
+  test('TC-24-02: Plan 23 archival verification and dashboard links integrity', () => {
     const planRootDir = path.resolve(__dirname, '../../_Plan_implement');
     assert.ok(fs.existsSync(planRootDir), '_Plan_implement directory must exist');
 
@@ -362,15 +362,25 @@ describe('PLAN-19b QA Spec Studio API Suite', () => {
     );
     assert.deepEqual(
       nonArchiveDirs,
-      ['system-hardening-and-remediation'],
-      'Only system-hardening-and-remediation should be active in _Plan_implement'
+      ['probe-hardening-and-git-hygiene'],
+      'Only probe-hardening-and-git-hygiene should be active in _Plan_implement'
     );
 
-    // 2. Archived plans 20, 21, 22 must exist in archive/2026-10
+    // 2. Archived plans 20, 21, 22, 23 must exist in archive/2026-10
     const archiveOctDir = path.join(planRootDir, 'archive', '2026-10');
     assert.ok(fs.existsSync(path.join(archiveOctDir, 'framework-stabilization')), 'Plan 20 must be archived');
     assert.ok(fs.existsSync(path.join(archiveOctDir, 'smart-trace-linker')), 'Plan 21 must be archived');
     assert.ok(fs.existsSync(path.join(archiveOctDir, 'framework-risk-remediation')), 'Plan 22 must be archived');
+    assert.ok(fs.existsSync(path.join(archiveOctDir, 'system-hardening-and-remediation')), 'Plan 23 must be archived');
+
+    // Verify all 5 files of Plan 23 exist in archive
+    const plan23Dir = path.join(archiveOctDir, 'system-hardening-and-remediation');
+    const plan23Files = fs.readdirSync(plan23Dir);
+    assert.ok(plan23Files.includes('plan-23-overview.md'), 'plan-23-overview.md must exist in archive');
+    assert.ok(plan23Files.includes('phase-1-drift-sync-and-knowledge.md'), 'phase 1 must exist in archive');
+    assert.ok(plan23Files.includes('phase-2-gate4-contract-and-evidence-realignment.md'), 'phase 2 must exist in archive');
+    assert.ok(plan23Files.includes('phase-3-hygiene-and-probe-fixes.md'), 'phase 3 must exist in archive');
+    assert.ok(plan23Files.includes('phase-4-plan-archive-and-standardization.md'), 'phase 4 must exist in archive');
 
     // 3. Verify all relative links in _Plan_implement/README.md resolve to existing files or directories
     const readmeContent = fs.readFileSync(path.join(planRootDir, 'README.md'), 'utf8');
