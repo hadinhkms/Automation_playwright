@@ -67,7 +67,7 @@ test('recordParser and namingUtils handle locators starting with numbers and pre
     featureName: 'Recorded Feature',
   });
 
-  // Đảm bảo không ném SyntaxError khi chạy qua new Function
+  // Kiểm tra mã JavaScript sinh ra hợp lệ cú pháp (không bị SyntaxError: Unexpected number/token)
   assert.doesNotThrow(() => {
     new Function(result.pomDraft.content);
     new Function(result.specDraft.content);
