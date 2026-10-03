@@ -20,3 +20,11 @@
   - Tuyệt đối không trả về HTTP 400 cho các lệnh chạy thành công có phát hiện. HTTP 400 chỉ dành cho request cú pháp sai hoặc dữ liệu đầu vào không hợp lệ; HTTP 403 cho vi phạm quyền/whitelist; HTTP 409 cho xung đột Mutex.
 - **Nghiệm thu thực tế:** Không đóng phase khi chưa assert mã 200 cho toàn bộ nút thao tác của tính năng mới trên rendered DOM.
 
+## 4. Quy Chuẩn Chụp Ảnh Bằng Chứng (Evidence & Screenshots)
+- **Không hard-code / Không gọi screenshot trực tiếp:** Spec và Page Object không gọi `page.screenshot()` trực tiếp, luôn dùng `this.capture()` hoặc `ScreenshotHelper`.
+- **Chụp khi mở page cần test (Page Entry):** Khi điều hướng đến trang cần kiểm thử, sau khi assert trạng thái sẵn sàng thì chụp đúng 1 ảnh xác lập bối cảnh ban đầu (`precondition_*` hoặc `<feature>_page_opened`).
+- **Chụp sau mỗi thao tác active (Active Action):** Kể từ khi mở trang, cứ mỗi 1 thao tác active (click nút, chọn dropdown, submit, toggle, nhập xong form...) làm thay đổi trạng thái UI thì phải capture lại 1 ảnh kết quả sau thao tác.
+- **Nghiêm cấm ảnh trùng kề nhau (Anti-Duplicate):** Tuyệt đối không để 2 ảnh trùng lặp kế bên nhau. Không đặt 2 lệnh capture liên tiếp nếu UI không có thay đổi thực tế. Nếu một ảnh đồng thời thỏa mãn nhiều mốc evidence thì chỉ chụp một lần duy nhất.
+- **Độ ổn định trước khi capture:** Chờ skeleton loader, spinner và animation kết thúc trước khi capture; không capture trạng thái loading trung gian chớp nhoáng.
+- **Chế độ chụp modal/fullpage:** Khi có popup/modal hiển thị, chỉ chụp viewport để tập trung vào modal; khi không có modal, chụp full page.
+

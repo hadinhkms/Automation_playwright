@@ -290,7 +290,8 @@ Reporter hiện tại gồm JSON, HTML chuẩn của Playwright và dashboard t�
 - Screenshot tự động: `only-on-failure`.
 - Video: `retain-on-failure`.
 
-Trong source automation, không gọi `page.screenshot()` trực tiếp. Dùng `capture()`/`ScreenshotHelper`. Full-page dành cho page không có modal; viewport dành cho popup/modal. Tránh capture trùng nhau hoặc capture trạng thái loading trung gian.
+Trong source automation, không gọi `page.screenshot()` trực tiếp. Dùng `capture()`/`ScreenshotHelper`. Khi mở đến page cần test, capture đúng 1 ảnh ban đầu; kể từ đó, cứ mỗi 1 thao tác active (click, fill, select, toggle, submit...) thì capture lại 1 ảnh. Tuyệt đối không để ảnh trùng lặp kế bên nhau. Full-page dành cho page không có modal; viewport dành cho popup/modal. Tránh capture trạng thái loading trung gian.
+
 
 ## Đồng bộ và xử lý lỗi thường gặp
 
