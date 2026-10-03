@@ -10,7 +10,7 @@ Nơi lưu trữ và điều phối toàn bộ các **Implementation Plan** của
 
 | Mã Plan | Tính Năng / Kế Hoạch | Thư Mục Cụm (Feature-Cluster) | File Điều Phối | Trạng Thái | Tiến Độ & Mục Tiêu |
 |---|---|---|---|:---:|---|
-| **PLAN-24** | **Khắc Phục Probe P4, Lưu Trữ Kế Hoạch 23 & Chuẩn Hóa Git Hygiene** | [probe-hardening-and-git-hygiene/](probe-hardening-and-git-hygiene/) | [plan-24-overview.md](probe-hardening-and-git-hygiene/plan-24-overview.md) | `IN_PROGRESS` | 2/3 Phase hoàn tất (P4 Green, Plan 23 Archived) |
+| **PLAN-24** | **Khắc Phục Probe P4, Lưu Trữ Kế Hoạch 23 & Chuẩn Hóa Git Hygiene** | [probe-hardening-and-git-hygiene/](probe-hardening-and-git-hygiene/) | [plan-24-overview.md](probe-hardening-and-git-hygiene/plan-24-overview.md) | `COMPLETED` | 3/3 Phase hoàn tất (100% Green, 6/6 Probes PASS, Gate 4 Ready) |
 
 ### Chi tiết các phase của Plan 24:
 - **[Plan 24: Probe Hardening, Plan 23 Archival & Git Hygiene](probe-hardening-and-git-hygiene/plan-24-overview.md)**:
