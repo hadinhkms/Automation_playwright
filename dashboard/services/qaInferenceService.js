@@ -30,7 +30,14 @@ const {
   extractHeuristicFromTestScript,
   extractHeuristicFromSpecText,
 } = require('./qa/scaffoldScriptParser');
-const { appendTestCasesToDocument, synthesizeScaffoldContents } = require('./qa/scaffoldSynthesizer');
+const {
+  buildTestCaseDocument,
+  appendTestCasesToDocument,
+} = require('./qa/documentUpdater');
+const {
+  synthesizeScaffoldContents,
+  formatScaffoldResult,
+} = require('./qa/scaffoldSynthesizer');
 
 async function inferTestCases({ root, reqPath, mode = 'heuristic', clientConfig = null }) {
   const absReqPath = path.resolve(root, reqPath);
@@ -49,6 +56,7 @@ async function inferTestCases({ root, reqPath, mode = 'heuristic', clientConfig 
       totalInferred: 0,
       mode,
       testCases: [],
+      items: [],
       message: 'Không tìm thấy câu hỏi nào đã chốt (**Đã chốt:**) trong mục Open Questions của tài liệu này.',
     };
   }
@@ -81,37 +89,72 @@ async function inferTestCases({ root, reqPath, mode = 'heuristic', clientConfig 
     mode,
     totalInferred: items.length,
     testCases: items,
+    items,
   };
 }
 
-async function extractScaffoldFromRaw({ rawContent, root, clientConfig = null }) {
-  if (!rawContent || !rawContent.trim()) {
-    throw new Error('Nội dung thô không được để trống');
+async function extractScaffoldFromRaw(arg1, arg2 = {}) {
+  let root = process.cwd();
+  let payload = {};
+
+  if (typeof arg1 === 'string') {
+    root = arg1;
+    payload = arg2 || {};
+  } else if (arg1 && typeof arg1 === 'object') {
+    payload = arg1;
+    root = arg1.root || process.cwd();
   }
 
-  const isScript = detectIsTestScript(rawContent);
-  const extracted = isScript
-    ? extractHeuristicFromTestScript(rawContent)
-    : (clientConfig && clientConfig.mode === 'ai'
-      ? await extractWithAi({ rawText: rawContent, clientConfig, root })
-      : extractHeuristicFromSpecText(rawContent));
+  const rawContent = String(payload.rawContent || payload.rawText || payload.raw || '').trim();
+  if (!rawContent) {
+    throw Object.assign(new Error('Nội dung thô (Spec hoặc Test Script) không được để trống.'), { status: 400 });
+  }
 
-  const synthesized = synthesizeScaffoldContents({
-    root,
-    extracted,
-    isScript,
-    rawContent,
-    slugify,
-    inferDomainFromText,
+  const isTestScript = detectIsTestScript(rawContent);
+  const inputType = isTestScript ? 'test_script' : 'spec_text';
+
+  let nextReqId = 'REQ-001';
+  let existingDomains = ['auth', 'job', 'account', 'general'];
+  try {
+    const { getScaffoldMeta } = require('./qaService');
+    const meta = getScaffoldMeta(root);
+    if (meta.nextReqId) nextReqId = meta.nextReqId;
+    if (Array.isArray(meta.existingDomains) && meta.existingDomains.length) existingDomains = meta.existingDomains;
+  } catch (_) {}
+
+  const textReqMatch = rawContent.match(/\bREQ-(\d{3})\b/i);
+  const reqId = (payload.reqId && /^REQ-\d{3}$/i.test(payload.reqId.trim()))
+    ? payload.reqId.trim().toUpperCase()
+    : (textReqMatch ? textReqMatch[0].toUpperCase() : nextReqId);
+
+  const domain = (payload.domain && String(payload.domain).trim())
+    ? String(payload.domain).trim().toLowerCase()
+    : inferDomainFromText(rawContent, existingDomains);
+
+  let aiResult = null;
+  if (!isTestScript && payload.useAi !== false) {
+    try {
+      aiResult = await extractWithAi(root, rawContent, inputType, reqId, domain, payload);
+    } catch (_) {}
+  }
+
+  const parsed = aiResult || (isTestScript
+    ? extractHeuristicFromTestScript(rawContent, reqId, domain)
+    : extractHeuristicFromSpecText(rawContent, reqId, domain));
+
+  const synthesized = synthesizeScaffoldContents(root, {
+    reqId,
+    domain: parsed.domain || domain,
+    title: parsed.title || `Tính năng ${reqId}`,
+    slug: parsed.slug || slugify(parsed.title || `feature-${reqId}`),
+    businessGoal: parsed.businessGoal || '',
+    acs: parsed.acs || [],
+    rules: parsed.rules || [],
+    testCases: parsed.testCases || [],
+    specCode: parsed.specCode || null,
   });
 
-  return {
-    isScript,
-    extracted,
-    targetReqId: synthesized.targetReqId,
-    domain: synthesized.domain,
-    files: synthesized.files,
-  };
+  return formatScaffoldResult(synthesized, inputType, aiResult);
 }
 
 module.exports = {
@@ -134,5 +177,6 @@ module.exports = {
   extractHeuristicFromSpecText,
   extractWithAi,
   extractScaffoldFromRaw,
+  buildTestCaseDocument,
   appendTestCasesToDocument,
 };

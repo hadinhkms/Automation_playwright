@@ -10,26 +10,21 @@ const path = require('path');
 const { createBackup } = require('../resourceService');
 const { findTestCaseFile } = require('./markdownRequirementParser');
 
-function appendTestCasesToDocument(root, { reqId, tcPath, testCases = [] }) {
-  if (!Array.isArray(testCases) || !testCases.length) {
-    throw Object.assign(new Error('Danh sách test cases cần thêm không được rỗng.'), { status: 400 });
+function buildTestCaseDocument(currentContent, reqId, testCases = []) {
+  let content = currentContent;
+  if (!content) {
+    content = `# Test Cases: ${reqId}\n\nRequirement: \`requirements/${reqId}.md\`\n\n## Bảng truy vết\n\n| Test case | AC | Mô tả | Ưu tiên | Automation | Spec |\n|---|---|---|---|---|---|\n\n## Test cases\n\n`;
+  }
+  let lines = content.split(/\r?\n/);
+  const existingIdsInDoc = new Set();
+  for (const line of lines) {
+    const m = line.match(/\|\s*(TC-\d{3,})\s*\|/i);
+    if (m) existingIdsInDoc.add(m[1].toUpperCase());
   }
 
-  const cleanReqId = String(reqId || '').toUpperCase();
-  const tcFileInfo = tcPath
-    ? { absPath: path.resolve(root, tcPath), relPath: tcPath, exists: fs.existsSync(path.resolve(root, tcPath)) }
-    : findTestCaseFile(root, cleanReqId);
+  const toAdd = testCases.filter((tc) => !existingIdsInDoc.has(String(tc.suggestedId || '').toUpperCase()));
+  if (!toAdd.length) return content;
 
-  let currentContent = '';
-  if (tcFileInfo.exists) {
-    currentContent = fs.readFileSync(tcFileInfo.absPath, 'utf8');
-    createBackup(tcFileInfo.relPath, tcFileInfo.absPath, root);
-  } else {
-    fs.mkdirSync(path.dirname(tcFileInfo.absPath), { recursive: true });
-    currentContent = `# Test Cases: ${cleanReqId}\n\nRequirement: \`requirements/${cleanReqId}.md\`\n\n## Bảng truy vết\n\n| Test case | AC | Mô tả | Ưu tiên | Automation | Spec |\n|---|---|---|---|---|---|\n\n## Test cases\n\n`;
-  }
-
-  let lines = currentContent.split(/\r?\n/);
   let tableHeaderIdx = lines.findIndex((l) => /\|\s*(?:Test\s*case|Requirement)\s*\|/i.test(l));
   let isTableStyle1 = true;
 
@@ -46,20 +41,20 @@ function appendTestCasesToDocument(root, { reqId, tcPath, testCases = [] }) {
       tableEndIdx += 1;
     }
 
-    const newTableRows = testCases.map((tc) => {
+    const newTableRows = toAdd.map((tc) => {
       const p = tc.priority || 'P2';
       const ac = tc.acId || '-';
       const title = (tc.title || '').replace(/\|/g, '-').trim();
       if (isTableStyle1) {
         return `| ${tc.suggestedId} | ${ac} | ${title} | ${p} | candidate | - |`;
       }
-      return `| ${cleanReqId} | ${ac} | ${tc.suggestedId} | candidate | - | ${p} |`;
+      return `| ${reqId} | ${ac} | ${tc.suggestedId} | candidate | - | ${p} |`;
     });
 
     lines.splice(tableEndIdx, 0, ...newTableRows);
   }
 
-  const detailBlocks = testCases.map((tc) => {
+  const detailBlocks = toAdd.map((tc) => {
     const stepsTable = (tc.steps && tc.steps.length)
       ? tc.steps.map((s, idx) => `| ${s.step || idx + 1} | ${(s.action || '').replace(/\|/g, '-')} | ${(s.expected || '').replace(/\|/g, '-')} |`).join('\n')
       : `| 1 | Thực hiện kiểm thử ${tc.title} | Phản hồi đúng nghiệp vụ |`;
@@ -76,7 +71,28 @@ function appendTestCasesToDocument(root, { reqId, tcPath, testCases = [] }) {
   });
 
   lines.push(...detailBlocks);
-  const updatedContent = lines.join('\n');
+  return lines.join('\n');
+}
+
+function appendTestCasesToDocument(root, { reqId, tcPath, testCases = [] }) {
+  if (!Array.isArray(testCases) || !testCases.length) {
+    throw Object.assign(new Error('Danh sách test cases cần thêm không được rỗng.'), { status: 400 });
+  }
+
+  const cleanReqId = String(reqId || '').toUpperCase();
+  const tcFileInfo = tcPath
+    ? { absPath: path.resolve(root, tcPath), relPath: tcPath, exists: fs.existsSync(path.resolve(root, tcPath)) }
+    : findTestCaseFile(root, cleanReqId);
+
+  let currentContent = '';
+  if (tcFileInfo.exists) {
+    currentContent = fs.readFileSync(tcFileInfo.absPath, 'utf8');
+    createBackup(tcFileInfo.relPath, tcFileInfo.absPath, root);
+  } else {
+    fs.mkdirSync(path.dirname(tcFileInfo.absPath), { recursive: true });
+  }
+
+  const updatedContent = buildTestCaseDocument(currentContent, cleanReqId, testCases);
   fs.writeFileSync(tcFileInfo.absPath, updatedContent, 'utf8');
 
   return {
@@ -89,5 +105,6 @@ function appendTestCasesToDocument(root, { reqId, tcPath, testCases = [] }) {
 }
 
 module.exports = {
+  buildTestCaseDocument,
   appendTestCasesToDocument,
 };

@@ -165,19 +165,24 @@ function inferWithHeuristic({ reqId: _reqId, decidedQuestions, existingTcIds, ex
     }
 
     if (results.length === 0 && item.decision) {
-      results.push({
-        suggestedId: allocateId(),
-        acId: defaultAcId,
-        title: `Kiểm thử hành vi theo quyết định: ${item.question.slice(0, 70)}`,
-        priority: 'P2',
-        automation: 'candidate',
-        rationale: `Quyết định chốt từ ${item.id}: ${item.decision}`,
-        precondition: 'Môi trường sẵn sàng cho kịch bản',
-        testData: 'Dữ liệu theo nghiệp vụ đã chốt',
-        steps: [
-          { step: 1, action: `Thực hiện thao tác với điều kiện: ${item.decision.slice(0, 100)}`, expected: 'Hệ thống phản hồi đúng theo quyết định đã chốt' },
-        ],
-      });
+      const qTitle = `Kiểm thử hành vi theo quyết định: ${item.question.slice(0, 70)}`;
+      const cleanQ = item.question.trim().replace(/\?+$/, '');
+      const isDuplicate = existingTcTitles.some((t) => t.includes(cleanQ) || t.includes(qTitle) || t.includes(item.question.slice(0, 40)));
+      if (!isDuplicate) {
+        results.push({
+          suggestedId: allocateId(),
+          acId: defaultAcId,
+          title: qTitle,
+          priority: 'P2',
+          automation: 'candidate',
+          rationale: `Quyết định chốt từ ${item.id}: ${item.decision}`,
+          precondition: 'Môi trường sẵn sàng cho kịch bản',
+          testData: 'Dữ liệu theo nghiệp vụ đã chốt',
+          steps: [
+            { step: 1, action: `Thực hiện thao tác với điều kiện: ${item.decision.slice(0, 100)}`, expected: 'Hệ thống phản hồi đúng theo quyết định đã chốt' },
+          ],
+        });
+      }
     }
   }
 

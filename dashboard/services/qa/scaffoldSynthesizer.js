@@ -2,12 +2,11 @@
 
 /**
  * dashboard/services/qa/scaffoldSynthesizer.js
- * Tổng hợp đường dẫn và nội dung 3 file REQ/TC/Spec từ thông số phân tích.
+ * Tổng hợp tài liệu đặc tả (REQ, TC, Spec) từ cấu trúc dữ liệu đã trích xuất.
  */
 
 const fs = require('fs');
 const path = require('path');
-const { appendTestCasesToDocument } = require('./documentUpdater');
 const {
   buildReqMarkdown,
   buildTcMarkdown,
@@ -81,7 +80,47 @@ function synthesizeScaffoldContents(root, params) {
   };
 }
 
+function formatScaffoldResult(synthesized, inputType, aiResult) {
+  const files = [
+    { path: synthesized.reqRelPath, content: synthesized.reqContent },
+    { path: synthesized.tcRelPath, content: synthesized.tcContent },
+    { path: synthesized.specRelPath, content: synthesized.specContent },
+  ];
+  const preview = {
+    reqId: synthesized.reqId,
+    domain: synthesized.domain,
+    title: synthesized.title,
+    slug: synthesized.slug,
+    reqPath: synthesized.reqRelPath,
+    tcPath: synthesized.tcRelPath,
+    specPath: synthesized.specRelPath,
+    acsCount: (synthesized.acs || []).length,
+    testCasesCount: (synthesized.testCases || []).length,
+    acCount: (synthesized.acs || []).length,
+    tcCount: (synthesized.testCases || []).length,
+    files,
+  };
+  const generated = {
+    reqContent: synthesized.reqContent,
+    tcContent: synthesized.tcContent,
+    specContent: synthesized.specContent,
+    reqRelPath: synthesized.reqRelPath,
+    tcRelPath: synthesized.tcRelPath,
+    specRelPath: synthesized.specRelPath,
+  };
+  return {
+    success: true,
+    inputType,
+    engine: aiResult ? 'ai' : 'heuristic',
+    preview,
+    generated,
+    targetReqId: synthesized.reqId,
+    domain: synthesized.domain,
+    files,
+  };
+}
+
 module.exports = {
-  appendTestCasesToDocument,
   synthesizeScaffoldContents,
+  formatScaffoldResult,
 };
