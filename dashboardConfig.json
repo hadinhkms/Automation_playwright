@@ -1,0 +1,171 @@
+{
+  "environments": {
+    "qc": {
+      "label": "QC",
+      "baseURL": "https://www.saucedemo.com",
+      "apiBaseURL": "https://httpbin.org",
+      "_siteLabels": {
+        "baseURL": "SauceDemo E2E Web App",
+        "apiBaseURL": "Backend REST API"
+      }
+    },
+    "stg": {
+      "label": "Staging",
+      "baseURL": "https://www.saucedemo.com",
+      "apiBaseURL": "https://httpbin.org",
+      "_siteLabels": {
+        "baseURL": "SauceDemo E2E Web App",
+        "apiBaseURL": "Backend REST API"
+      }
+    },
+    "prod": {
+      "label": "Production",
+      "baseURL": "https://www.saucedemo.com",
+      "apiBaseURL": "https://httpbin.org",
+      "_siteLabels": {
+        "baseURL": "SauceDemo E2E Web App",
+        "apiBaseURL": "Backend REST API"
+      }
+    }
+  },
+  "runtime": {
+    "defaultEnvironment": "qc",
+    "workers": 2,
+    "testTimeout": 60000,
+    "navigationTimeout": 60000,
+    "actionTimeout": 15000,
+    "retriesLocal": 0,
+    "retriesCI": 2,
+    "trace": "on-first-retry",
+    "screenshot": "only-on-failure",
+    "video": "retain-on-failure",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "showEnvBanner": false,
+    "debugOptionalPopups": false
+  },
+  "server": {
+    "port": 4180
+  },
+  "api": {
+    "registrationBearerToken": "",
+    "branch": "main",
+    "lang": "vi",
+    "registerRetries": 2,
+    "registerTimeout": 30000,
+    "consentRetries": 2,
+    "consentTimeout": 30000
+  },
+  "artifacts": {
+    "retentionDays": 14,
+    "maxReportsPerDay": 20,
+    "autoCleanupEvidence": false,
+    "autoCleanupReports": false
+  },
+  "branding": {
+    "projectName": "QA Automation Engine",
+    "projectSubtitle": "Playwright Automation Platform",
+    "pageTitle": "QA Automation Engine Dashboard",
+    "logoUrl": "",
+    "primaryColor": "#0A65CC",
+    "backgroundColor": "",
+    "fontSize": "14px"
+  },
+  "suites": {
+    "smoke": {
+      "label": "Smoke Tests",
+      "description": "",
+      "type": "single",
+      "platform": "desktop",
+      "project": "Desktop Smoke Tests",
+      "device": "",
+      "viewport": {
+        "preset": "default",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all",
+      "grep": "@smoke",
+      "workers": 2
+    },
+    "regression-desktop": {
+      "label": "Regression Desktop Web",
+      "description": "Kịch bản kiểm thử hồi quy cho nền tảng máy tính (Desktop Chrome)",
+      "type": "single",
+      "platform": "desktop",
+      "project": "Desktop Smoke Tests",
+      "device": "",
+      "viewport": {
+        "preset": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all",
+      "grep": "@smoke",
+      "workers": 2
+    },
+    "regression-mobile": {
+      "label": "Regression Mobile Web",
+      "description": "Kịch bản kiểm thử hồi quy cho nền tảng di động (Pixel 7)",
+      "type": "single",
+      "platform": "mobile",
+      "project": "Mobile Chrome Smoke Tests",
+      "device": "Pixel 7",
+      "viewport": {
+        "preset": "393x851",
+        "width": 393,
+        "height": 851
+      },
+      "spec": "all",
+      "specs": "all",
+      "grep": "@smoke",
+      "workers": 2
+    },
+    "full-regression": {
+      "label": "Full Regression (Đa nền tảng)",
+      "description": "Kịch bản tổng hợp: tự động chạy cả 2 kịch bản Regression Desktop và Regression Mobile",
+      "type": "composite",
+      "suites": [
+        "regression-desktop",
+        "regression-mobile"
+      ],
+      "workers": 2
+    },
+    "e2e-sanity": {
+      "label": "E2E Sanity Suite",
+      "description": "",
+      "type": "single",
+      "platform": "desktop",
+      "project": "all",
+      "device": "",
+      "viewport": {
+        "preset": "1920x1080",
+        "width": 1920,
+        "height": 1080
+      },
+      "spec": "all",
+      "specs": "all",
+      "grep": "",
+      "workers": 2
+    }
+  },
+  "discord": {
+    "webhookUrl": "",
+    "channelName": "#qa-automation-reports",
+    "notifyOnFinish": true,
+    "notifyOnlyOnFailure": false
+  },
+  "qa": {
+    "requirements": "requirements",
+    "testCases": "test-cases",
+    "specs": "tests",
+    "decisionsFile": "decisions.json"
+  },
+  "docs": {
+    "dir": "docs"
+  }
+}

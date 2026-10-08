@@ -17,6 +17,7 @@ const {
   extractDecidedQuestions,
   findTestCaseFile,
   getNextTcId,
+  collectAllExistingTcIds,
   slugify,
   inferDomainFromText,
 } = require('./qa/markdownRequirementParser');
@@ -44,134 +45,94 @@ async function inferTestCases({ root, reqPath, mode = 'heuristic', clientConfig 
   const decidedQuestions = extractDecidedQuestions(reqContent);
   if (!decidedQuestions.length) {
     return {
-      success: true,
       reqId,
+      totalInferred: 0,
       mode,
-      count: 0,
-      items: [],
+      testCases: [],
       message: 'Không tìm thấy câu hỏi nào đã chốt (**Đã chốt:**) trong mục Open Questions của tài liệu này.',
     };
   }
 
   const acs = extractAcs(reqContent);
   const tcFile = findTestCaseFile(root, reqId);
-  const existingTcIds = [];
+  const existingTcIds = collectAllExistingTcIds(root);
   const existingTcTitles = [];
 
   if (tcFile.exists) {
     const tcContent = fs.readFileSync(tcFile.absPath, 'utf8');
-    for (const match of tcContent.matchAll(RE_TC)) existingTcIds.push(match[0].toUpperCase());
-    for (const line of tcContent.split(/\r?\n/)) {
-      if (line.includes('TC-')) existingTcTitles.push(line.trim());
+    for (const match of tcContent.matchAll(RE_TC)) {
+      const tid = match[0].toUpperCase();
+      if (!existingTcIds.includes(tid)) existingTcIds.push(tid);
+    }
+    const lines = tcContent.split(/\r?\n/);
+    for (const line of lines) {
+      if (line.includes('TC-') || line.startsWith('###')) {
+        existingTcTitles.push(line.trim());
+      }
     }
   }
 
   const items = mode === 'ai'
-    ? await inferWithAi({ reqId, reqContent, decidedQuestions, existingTcIds, existingTcTitles, acs, clientConfig, root })
+    ? await inferWithAi({ decidedQuestions, acs, existingTcIds, clientConfig, root })
     : inferWithHeuristic({ reqId, decidedQuestions, existingTcIds, existingTcTitles, acs });
 
   return {
-    success: true,
     reqId,
     mode,
-    tcPath: tcFile.relPath,
-    tcExists: tcFile.exists,
-    decidedQuestionsCount: decidedQuestions.length,
-    count: items.length,
-    items,
+    totalInferred: items.length,
+    testCases: items,
   };
 }
 
-async function extractScaffoldFromRaw(root, payload = {}) {
-  const rawContent = String(payload.rawContent || '').trim();
-  if (!rawContent) {
-    throw Object.assign(new Error('Nội dung thô (Spec hoặc Test Script) không được để trống.'), { status: 400 });
+async function extractScaffoldFromRaw({ rawContent, root, clientConfig = null }) {
+  if (!rawContent || !rawContent.trim()) {
+    throw new Error('Nội dung thô không được để trống');
   }
 
-  const isTestScript = detectIsTestScript(rawContent);
-  const inputType = isTestScript ? 'test_script' : 'spec_text';
+  const isScript = detectIsTestScript(rawContent);
+  const extracted = isScript
+    ? extractHeuristicFromTestScript(rawContent)
+    : (clientConfig && clientConfig.mode === 'ai'
+      ? await extractWithAi({ rawText: rawContent, clientConfig, root })
+      : extractHeuristicFromSpecText(rawContent));
 
-  let nextReqId = 'REQ-001';
-  let existingDomains = ['auth', 'job', 'account', 'general'];
-  try {
-    const { getScaffoldMeta } = require('./qaService');
-    const meta = getScaffoldMeta(root);
-    if (meta.nextReqId) nextReqId = meta.nextReqId;
-    if (Array.isArray(meta.existingDomains) && meta.existingDomains.length) existingDomains = meta.existingDomains;
-  } catch (_) {}
-
-  const textReqMatch = rawContent.match(/\bREQ-(\d{3})\b/i);
-  const reqId = (payload.reqId && /^REQ-\d{3}$/i.test(payload.reqId.trim()))
-    ? payload.reqId.trim().toUpperCase()
-    : (textReqMatch ? textReqMatch[0].toUpperCase() : nextReqId);
-
-  const domain = (payload.domain && String(payload.domain).trim())
-    ? String(payload.domain).trim().toLowerCase()
-    : inferDomainFromText(rawContent, existingDomains);
-
-  let aiResult = null;
-  if (!isTestScript && payload.useAi !== false) {
-    try {
-      aiResult = await extractWithAi(root, rawContent, inputType, reqId, domain, payload);
-    } catch (_) {}
-  }
-
-  const parsed = aiResult || (isTestScript
-    ? extractHeuristicFromTestScript(rawContent, reqId, domain)
-    : extractHeuristicFromSpecText(rawContent, reqId, domain));
-
-  const synthesized = synthesizeScaffoldContents(root, {
-    reqId,
-    domain: parsed.domain || domain,
-    title: parsed.title || `Tính năng ${reqId}`,
-    slug: parsed.slug || slugify(parsed.title || `feature-${reqId}`),
-    businessGoal: parsed.businessGoal || `Mục tiêu nghiệp vụ cho ${parsed.title || reqId}`,
-    acs: parsed.acs && parsed.acs.length ? parsed.acs : [{ id: 'AC-001', title: 'Tiêu chí chính', given: 'Tiền điều kiện', when: 'Thao tác', then: 'Kết quả mong đợi' }],
-    rules: parsed.rules || [],
-    testCases: parsed.testCases && parsed.testCases.length ? parsed.testCases : [],
-    rawScriptBody: isTestScript ? rawContent : null,
-    specCode: parsed.specCode || null,
+  const synthesized = synthesizeScaffoldContents({
+    root,
+    extracted,
+    isScript,
+    rawContent,
+    slugify,
+    inferDomainFromText,
   });
 
   return {
-    success: true,
-    engine: aiResult ? 'ai' : 'heuristic',
-    inputType,
-    preview: {
-      reqId: synthesized.reqId,
-      title: synthesized.title,
-      slug: synthesized.slug,
-      domain: synthesized.domain,
-      acCount: synthesized.acs.length,
-      acs: synthesized.acs,
-      tcCount: synthesized.testCases.length,
-      testCases: synthesized.testCases,
-      files: [synthesized.reqRelPath, synthesized.tcRelPath, synthesized.specRelPath],
-    },
-    generated: {
-      reqRelPath: synthesized.reqRelPath,
-      reqContent: synthesized.reqContent,
-      tcRelPath: synthesized.tcRelPath,
-      tcContent: synthesized.tcContent,
-      specRelPath: synthesized.specRelPath,
-      specContent: synthesized.specContent,
-    },
+    isScript,
+    extracted,
+    targetReqId: synthesized.targetReqId,
+    domain: synthesized.domain,
+    files: synthesized.files,
   };
 }
 
 module.exports = {
-  extractAcs,
+  RE_REQ,
+  RE_AC,
+  RE_TC,
   extractDecidedQuestions,
-  findTestCaseFile,
+  extractAcs,
   getNextTcId,
+  collectAllExistingTcIds,
+  findTestCaseFile,
+  slugify,
+  inferDomainFromText,
   inferWithHeuristic,
   inferWithAi,
   inferTestCases,
-  appendTestCasesToDocument,
-  slugify,
   detectIsTestScript,
+  parseTestBlocksFromScript,
   extractHeuristicFromTestScript,
   extractHeuristicFromSpecText,
+  extractWithAi,
   extractScaffoldFromRaw,
-  synthesizeScaffoldContents,
+  appendTestCasesToDocument,
 };

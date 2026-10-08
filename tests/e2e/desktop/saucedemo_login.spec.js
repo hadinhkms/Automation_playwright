@@ -7,14 +7,14 @@ const { test, expect } = require('../../../core/fixtures/baseTest');
 const SauceDemoLoginPage = require('../../../pages/desktop/SauceDemoLoginPage');
 const testData = require('../../../data/saucedemo_users.json');
 
-test.describe('Kiểm thử Xác thực Người dùng SauceDemo (E2E Real Web Suite) @e2e @saucedemo @desktop', () => {
+test.describe('Kiểm thử Xác thực Người dùng SauceDemo (E2E Real Web Suite) @REQ-001 @e2e @saucedemo @desktop', () => {
   let loginPage;
 
   test.beforeEach(async ({ page }) => {
     loginPage = new SauceDemoLoginPage(page);
   });
 
-  test('TC-LOGIN-01: Đăng nhập thành công với tài khoản hợp lệ (Standard User) @smoke @desktop', async ({ page }, testInfo) => {
+  test('TC-001 - AC-001: Đăng nhập thành công với tài khoản hợp lệ (Standard User) @smoke @desktop', async ({ page }, testInfo) => {
     testInfo.annotations.push({
       type: 'Precondition',
       description: 'Khách truy cập mở trang đăng nhập SauceDemo chưa xác thực',
@@ -36,7 +36,7 @@ test.describe('Kiểm thử Xác thực Người dùng SauceDemo (E2E Real Web S
     });
   });
 
-  test('TC-LOGIN-02: Đăng nhập thất bại với tài khoản bị khóa (Locked Out User) @e2e @desktop', async ({ page }, testInfo) => {
+  test('TC-002 - AC-002: Đăng nhập thất bại với tài khoản bị khóa (Locked Out User) @e2e @desktop', async ({ page }, testInfo) => {
     testInfo.annotations.push({
       type: 'Precondition',
       description: 'Tài khoản locked_out_user đã bị khóa quyền truy cập trong hệ thống',
@@ -58,7 +58,7 @@ test.describe('Kiểm thử Xác thực Người dùng SauceDemo (E2E Real Web S
     });
   });
 
-  test('TC-LOGIN-03: Kiểm tra thông báo lỗi khi để trống trường thông tin đăng nhập @e2e @desktop', async ({ page }, testInfo) => {
+  test('TC-003 - AC-003: Kiểm tra thông báo lỗi khi để trống trường thông tin đăng nhập @e2e @desktop', async ({ page }, testInfo) => {
     testInfo.annotations.push({
       type: 'Precondition',
       description: 'Người dùng truy cập form đăng nhập và bỏ trống cả hai trường username và password',

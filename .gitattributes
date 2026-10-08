@@ -1,0 +1,3 @@
+# Enforce LF for delivery contracts and json so SHA256 matches cross-platform
+.delivery/**/*.json text eol=lf
+.delivery/*.sha256 text eol=lf

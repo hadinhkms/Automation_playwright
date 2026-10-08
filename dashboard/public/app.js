@@ -8069,6 +8069,16 @@ document.querySelectorAll('.view-tab').forEach((button) => button.addEventListen
   if (typeof restoreAllSidebarStates === 'function') {
     restoreAllSidebarStates();
   }
+  if (window.__STUDIO_CORE__?.templateLoader) {
+    const tl = window.__STUDIO_CORE__.templateLoader;
+    if (tl.hasTemplate(button.dataset.view) && !tl.isLoaded(button.dataset.view)) {
+      try {
+        await tl.loadViewTemplate(button.dataset.view);
+      } catch (err) {
+        console.warn(`[ViewTab] templateLoader error for ${button.dataset.view}:`, err);
+      }
+    }
+  }
   if (button.dataset.view === 'resources-view') await openExplorer();
   if (button.dataset.view === 'docs-view') await openDocsView();
   if (button.dataset.view === 'page-manager-view') await openPageManager();
@@ -11605,6 +11615,9 @@ function selectProjectScript(script, doScroll = false) {
     specBadge.style.display = 'inline-flex';
   }
   if (specRevert) specRevert.style.display = 'none';
+  if (typeof window.updateSmartLinkButton === 'function') {
+    window.updateSmartLinkButton(script.relativePath, script.specCode || '');
+  }
 
   // Đồng bộ sang Visual Step Builder để tester có thể sửa trực tiếp nếu muốn
   if ($('#builder-feature-name')) $('#builder-feature-name').value = script.featureName || '';
@@ -14782,6 +14795,33 @@ function initVisualBuilderControls() {
     }
   });
 
+  // Smart Trace Linker Button & Shortcut (Alt+Shift+L)
+  const smartLinkBtn = document.getElementById('qa-btn-smart-link-spec');
+  smartLinkBtn?.addEventListener('click', () => {
+    const editor = document.getElementById('script-spec-editor');
+    const pathBadge = document.getElementById('script-banner-file');
+    const codeTitle = document.getElementById('script-code-title');
+    let specPath = window.__currentSpecPath || currentSelectedScript?.relativePath || pathBadge?.textContent.trim() || codeTitle?.textContent.trim() || '';
+    if (specPath) {
+      specPath = specPath.replace(/\\/g, '/');
+      if (!specPath.startsWith('tests/')) specPath = `tests/e2e/desktop/${specPath}`;
+    }
+    const specContent = editor ? editor.value : (currentSelectedScript?.specCode || '');
+    if (typeof window.openSmartLinkerForSpec === 'function') {
+      window.openSmartLinkerForSpec(specPath, specContent);
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
+      const btn = document.getElementById('qa-btn-smart-link-spec');
+      if (btn && btn.style.display !== 'none' && !btn.disabled) {
+        e.preventDefault();
+        btn.click();
+      }
+    }
+  });
+
   // Initialize Shared Code Editors for Spec Code and Page Object Modal
   window.specCodeEditor = createSharedCodeEditor({
     textarea: document.getElementById('script-spec-editor'),
@@ -17080,6 +17120,7 @@ async function openFixturesStudio() {
   }
 window.openFixturesStudio = openFixturesStudio;
 window.initFixturesStudioListeners = initFixturesStudioListeners;
+window.selectFixture = selectFixture;
   // Đảm bảo filter mặc định (Tất cả) luôn được kích hoạt đồng bộ
   if (!currentFixtureFilter) currentFixtureFilter = 'all';
   const fxPills = document.querySelectorAll('#fixtures-filter-pills .pm-filter-pill, #fixtures-filter-pills .fx-filter-pill');
@@ -17096,10 +17137,55 @@ async function loadFixturesList() {
   try {
     const res = await request('/api/fixtures');
     repoFixtures = res.fixtures || [];
+    window.repoFixtures = repoFixtures;
     renderFixturesList();
   } catch (err) {
     if (container) {
       container.innerHTML = `<p class="empty-resource" style="color: var(--danger);">Lỗi tải fixtures: ${escapeHtml(err.message)}</p>`;
+    }
+  }
+}
+
+function isFixtureDirty() {
+  if (!currentSelectedFixture || !currentSelectedFixture.isCustom) return false;
+  const editor = document.getElementById('fx-source-editor');
+  if (!editor) return false;
+  return editor.value !== (currentSelectedFixture.rawCode || '');
+}
+
+function updateFixtureDirtyIndicator(dirty) {
+  let dirtyBadge = document.getElementById('fx-dirty-badge');
+  if (!dirtyBadge) {
+    const modeBadge = document.getElementById('fx-mode-badge');
+    if (modeBadge && modeBadge.parentElement) {
+      dirtyBadge = document.createElement('span');
+      dirtyBadge.id = 'fx-dirty-badge';
+      dirtyBadge.className = 'fx-dirty-pill';
+      dirtyBadge.style.fontSize = '11px';
+      dirtyBadge.style.fontWeight = '600';
+      dirtyBadge.style.padding = '2px 8px';
+      dirtyBadge.style.borderRadius = '999px';
+      dirtyBadge.style.display = 'none';
+      dirtyBadge.style.marginLeft = '6px';
+      modeBadge.parentElement.appendChild(dirtyBadge);
+    }
+  }
+  if (dirtyBadge) {
+    if (dirty) {
+      dirtyBadge.textContent = '● Chưa lưu';
+      dirtyBadge.style.display = 'inline-flex';
+      dirtyBadge.style.background = 'rgba(234, 179, 8, 0.15)';
+      dirtyBadge.style.color = '#eab308';
+      dirtyBadge.style.border = '1px solid rgba(234, 179, 8, 0.3)';
+    } else {
+      dirtyBadge.textContent = '✓ Đã lưu';
+      dirtyBadge.style.display = 'inline-flex';
+      dirtyBadge.style.background = 'rgba(34, 197, 94, 0.15)';
+      dirtyBadge.style.color = '#22c55e';
+      dirtyBadge.style.border = '1px solid rgba(34, 197, 94, 0.3)';
+      setTimeout(() => {
+        if (!isFixtureDirty() && dirtyBadge) dirtyBadge.style.display = 'none';
+      }, 2000);
     }
   }
 }
@@ -17152,7 +17238,7 @@ function renderFixturesList() {
             ${fx.isCustom ? '<span class="script-card-badge-platform setup" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border-color: rgba(16, 185, 129, 0.3);">Tùy biến</span>' : '<span class="script-card-badge-platform desktop" style="background: rgba(99, 102, 241, 0.15); color: #6366f1; border-color: rgba(99, 102, 241, 0.3);">Cốt lõi</span>'}
           </div>
           <div class="script-card-file" title="${escapeHtml(fx.title || fx.description || '')}">
-            ${escapeHtml(fx.title || fx.description || 'Fixture tự động nạp.')}
+            <i class="ph ph-file-js"></i> ${escapeHtml(fx.title || fx.description || 'Fixture tự động nạp.')}
           </div>
           <div class="script-card-pills">
             <span class="script-card-badge-pages">
@@ -17166,50 +17252,6 @@ function renderFixturesList() {
       </div>
     `;
   }).join('');
-
-function isFixtureDirty() {
-  if (!currentSelectedFixture || !currentSelectedFixture.isCustom) return false;
-  const editor = document.getElementById('fx-source-editor');
-  if (!editor) return false;
-  return editor.value !== (currentSelectedFixture.rawCode || '');
-}
-
-function updateFixtureDirtyIndicator(dirty) {
-  let dirtyBadge = document.getElementById('fx-dirty-badge');
-  if (!dirtyBadge) {
-    const modeBadge = document.getElementById('fx-mode-badge');
-    if (modeBadge && modeBadge.parentElement) {
-      dirtyBadge = document.createElement('span');
-      dirtyBadge.id = 'fx-dirty-badge';
-      dirtyBadge.className = 'fx-dirty-pill';
-      dirtyBadge.style.fontSize = '11px';
-      dirtyBadge.style.fontWeight = '600';
-      dirtyBadge.style.padding = '2px 8px';
-      dirtyBadge.style.borderRadius = '999px';
-      dirtyBadge.style.display = 'none';
-      dirtyBadge.style.marginLeft = '6px';
-      modeBadge.parentElement.appendChild(dirtyBadge);
-    }
-  }
-  if (dirtyBadge) {
-    if (dirty) {
-      dirtyBadge.textContent = '● Chưa lưu';
-      dirtyBadge.style.display = 'inline-flex';
-      dirtyBadge.style.background = 'rgba(234, 179, 8, 0.15)';
-      dirtyBadge.style.color = '#eab308';
-      dirtyBadge.style.border = '1px solid rgba(234, 179, 8, 0.3)';
-    } else {
-      dirtyBadge.textContent = '✓ Đã lưu';
-      dirtyBadge.style.display = 'inline-flex';
-      dirtyBadge.style.background = 'rgba(34, 197, 94, 0.15)';
-      dirtyBadge.style.color = '#22c55e';
-      dirtyBadge.style.border = '1px solid rgba(34, 197, 94, 0.3)';
-      setTimeout(() => {
-        if (!isFixtureDirty() && dirtyBadge) dirtyBadge.style.display = 'none';
-      }, 2000);
-    }
-  }
-}
 
   container.querySelectorAll('.fixture-card-item').forEach((card) => {
     card.addEventListener('click', () => {
@@ -17247,8 +17289,15 @@ function updateFixtureDirtyIndicator(dirty) {
   }
 }
 
-async function selectFixture(fx) {
+async function selectFixture(target) {
+  if (!target) return;
+  const name = typeof target === 'string' ? target : target.name;
+  let fx = (typeof target === 'object' && target.name && target.category) ? target : repoFixtures.find((f) => f.name === name);
+  if (!fx && window.repoFixtures) fx = window.repoFixtures.find((f) => f.name === name);
+  if (!fx) return;
+
   currentSelectedFixture = fx;
+  window.currentSelectedFixture = fx;
 
   document.querySelectorAll('#fixtures-list-container .fixture-card-item').forEach((card) => {
     const isThis = card.dataset.name === fx.name;
@@ -17291,45 +17340,24 @@ async function selectFixture(fx) {
     deleteBtn.style.display = fx.isCustom ? 'inline-flex' : 'none';
   }
 
-  const saveBtn = $('#btn-save-fixture');
-  const valBtn = $('#btn-validate-fixture');
   const sourcePre = $('#fx-source-code-pre');
   const sourceEditor = $('#fx-source-editor');
-  const editorHint = $('#fx-editor-hint');
-  const modeBadge = $('#fx-mode-badge');
-
-  if (modeBadge) {
-    modeBadge.textContent = fx.isCustom ? 'Chỉnh sửa trực tiếp' : 'Chỉ đọc';
-    modeBadge.classList.toggle('editable', Boolean(fx.isCustom));
-  }
+  const toggleEditBtn = $('#btn-toggle-fixture-edit');
 
   const sourceCode = fx.rawCode || `// Fixture ${fx.name} được định nghĩa trong ${fx.sourceFile}
 // Chữ ký tham số: ${fx.params?.join(', ') || 'Không có'}`;
 
+  if (sourceEditor) {
+    sourceEditor.value = sourceCode;
+    updateFixtureDirtyIndicator(false);
+  }
+
   if (fx.isCustom) {
-    if (saveBtn) saveBtn.style.display = 'inline-flex';
-    if (valBtn) valBtn.style.display = 'inline-flex';
-    if (sourcePre) sourcePre.style.display = 'none';
-    if (sourceEditor) {
-      sourceEditor.style.display = 'block';
-      sourceEditor.value = sourceCode;
-      updateFixtureDirtyIndicator(false);
-    }
-    if (editorHint) editorHint.textContent = 'Mã nguồn fixture tùy biến có thể chỉnh sửa trực tiếp. Bấm "Lưu thay đổi" để áp dụng.';
+    if (toggleEditBtn) toggleEditBtn.style.display = 'inline-flex';
+    setFixtureEditorMode(false);
   } else {
-    if (saveBtn) saveBtn.style.display = 'none';
-    if (valBtn) valBtn.style.display = 'none';
-    if (sourcePre) sourcePre.style.display = 'block';
-    if (sourceEditor) sourceEditor.style.display = 'none';
-    const sourceCodeEl = $('#fx-source-code');
-    if (sourceCodeEl) {
-      sourceCodeEl.textContent = sourceCode;
-      sourceCodeEl.className = 'language-javascript';
-      if (window.Prism) {
-        Prism.highlightElement(sourceCodeEl);
-      }
-    }
-    if (editorHint) editorHint.textContent = 'Mã nguồn fixture nền tảng của hệ thống (chế độ chỉ đọc).';
+    if (toggleEditBtn) toggleEditBtn.style.display = 'none';
+    setFixtureEditorMode(false);
   }
 
   const usageCode = `const { test, expect } = require('../../../core/fixtures/baseTest');
@@ -17345,6 +17373,58 @@ test('Kịch bản sử dụng fixture ${fx.name}', async ({ ${fx.name} }) => {
     if (window.Prism) {
       Prism.highlightElement(usageCodeEl);
     }
+  }
+}
+
+function setFixtureEditorMode(isEditing) {
+  const saveBtn = $('#btn-save-fixture');
+  const valBtn = $('#btn-validate-fixture');
+  const toggleEditText = $('#fx-toggle-edit-text');
+  const toggleEditBtn = $('#btn-toggle-fixture-edit');
+  const sourcePre = $('#fx-source-code-pre');
+  const sourceEditor = $('#fx-source-editor');
+  const editorHint = $('#fx-editor-hint');
+  const modeBadge = $('#fx-mode-badge');
+  const sourceCodeEl = $('#fx-source-code');
+
+  if (isEditing) {
+    if (sourcePre) sourcePre.style.display = 'none';
+    if (sourceEditor) {
+      sourceEditor.style.display = 'block';
+      sourceEditor.focus();
+    }
+    if (saveBtn) saveBtn.style.display = 'inline-flex';
+    if (valBtn) valBtn.style.display = 'inline-flex';
+    if (modeBadge) {
+      modeBadge.textContent = 'Chỉnh sửa trực tiếp';
+      modeBadge.classList.add('editable');
+    }
+    if (toggleEditText) toggleEditText.textContent = 'Xem mã highlight';
+    if (toggleEditBtn) {
+      const icon = toggleEditBtn.querySelector('i');
+      if (icon) icon.className = 'ph-bold ph-eye';
+    }
+    if (editorHint) editorHint.textContent = 'Chế độ soạn thảo: bạn có thể gõ, sửa code và bấm "Lưu thay đổi".';
+  } else {
+    if (sourceEditor && sourceCodeEl) {
+      sourceCodeEl.textContent = sourceEditor.value || (currentSelectedFixture?.rawCode || '');
+      sourceCodeEl.className = 'language-javascript';
+      if (window.Prism) Prism.highlightElement(sourceCodeEl);
+    }
+    if (sourcePre) sourcePre.style.display = 'block';
+    if (sourceEditor) sourceEditor.style.display = 'none';
+    if (saveBtn) saveBtn.style.display = 'none';
+    if (valBtn) valBtn.style.display = 'none';
+    if (modeBadge) {
+      modeBadge.textContent = currentSelectedFixture?.isCustom ? 'Tùy biến (Xem mã)' : 'Chỉ đọc';
+      modeBadge.classList.toggle('editable', Boolean(currentSelectedFixture?.isCustom));
+    }
+    if (toggleEditText) toggleEditText.textContent = 'Chỉnh sửa mã';
+    if (toggleEditBtn) {
+      const icon = toggleEditBtn.querySelector('i');
+      if (icon) icon.className = 'ph-bold ph-pencil-simple';
+    }
+    if (editorHint) editorHint.textContent = currentSelectedFixture?.isCustom ? 'Mã nguồn fixture tùy biến (có tô màu cú pháp). Bấm "Chỉnh sửa mã" để sửa.' : 'Mã nguồn fixture nền tảng của hệ thống (chế độ chỉ đọc).';
   }
 }
 
@@ -17378,6 +17458,10 @@ test('Kịch bản sử dụng fixture ${fx.name}', async ({ ${fx.name} }) => {
   }
 
 function initFixturesStudioListeners() {
+  $('#btn-toggle-fixture-edit')?.addEventListener('click', () => {
+    const isCurrentlyEditing = $('#fx-source-editor')?.style.display !== 'none';
+    setFixtureEditorMode(!isCurrentlyEditing);
+  });
   $('#btn-copy-usage-code')?.addEventListener('click', () => {
     const code = $('#fx-usage-code')?.textContent || '';
     if (code) {

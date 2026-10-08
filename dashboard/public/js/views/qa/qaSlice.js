@@ -13,6 +13,7 @@ import { ProcessStudioHelper } from './processStudioHelper.js';
 import { ReqAnalyzerHelper } from './reqAnalyzerHelper.js';
 import { BatchController } from './batch/batchController.js';
 import { ConflictStudioHelper } from './conflictStudioHelper.js';
+import { openSmartLinkerForSpec, updateSmartLinkButton } from './smartLinkerHelper.js';
 
 import { QaOverviewSlice } from './slices/qaOverviewSlice.js';
 import { QaDocsSlice } from './slices/qaDocsSlice.js';
@@ -116,6 +117,10 @@ export class QaSlice {
 
     on(root.querySelector('#qa-btn-autofix'), 'click', () => this.batchSlice.openAutoFixModal());
     on(root.querySelector('#qa-btn-scaffold'), 'click', () => this.batchSlice.openScaffoldModal());
+
+    const onSmartLinkApplied = () => this.reload(true);
+    window.addEventListener('qa:smart-link:applied', onSmartLinkApplied);
+    this._disposers.push(() => window.removeEventListener('qa:smart-link:applied', onSmartLinkApplied));
 
     const fixModal = root.querySelector('#qa-fix-modal');
     if (fixModal) {
@@ -233,4 +238,10 @@ export class QaSlice {
   toggleAllPicks(c) { this.candidatesSlice.toggleAllPicks(c); }
   openReleaseBriefingModal() { this.overviewSlice.openReleaseBriefingModal(); }
   openDeleteRequirementModal(d) { this.conflictSlice.openDeleteRequirementModal(d); }
+
+  notify(msg) {
+    eventBus.emit('ui:notify', { message: msg });
+  }
+
+  _el(tag, text, className) { const el = document.createElement(tag); if (text) el.textContent = text; if (className) el.className = className; return el; }
 }

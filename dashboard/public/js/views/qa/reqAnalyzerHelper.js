@@ -34,6 +34,7 @@ import {
   scaffoldFiles,
   copyMarkdownReport,
 } from './analyzer/analyzerActions.js';
+import { mountSpecPanels } from './specStudio/specStudioPanels.js';
 
 export class ReqAnalyzerHelper {
   constructor(qaSlice) {
@@ -42,6 +43,7 @@ export class ReqAnalyzerHelper {
     this.currentResult = null;
     this.currentTestCases = [];
     this.currentRawText = '';
+    this.specPanels = null;
   }
 
   init(root) {
@@ -75,10 +77,32 @@ export class ReqAnalyzerHelper {
       toast.success('Đã chuyển đổi Jira markup sang Markdown.');
     });
 
+    this.specPanels = mountSpecPanels(root, {
+      switchTab: (tab) => this.switchTab(root, tab),
+      showResults: () => {
+        const inSec = root.querySelector('#qa-req-analyzer-input-section');
+        const resSec = root.querySelector('#qa-req-analyzer-results-section');
+        if (inSec) inSec.style.display = 'none';
+        if (resSec) resSec.style.display = 'flex';
+      },
+      showInput: () => this.showInputView(root),
+    });
+
     addEvt(root.querySelector('#qa-btn-analyze-req'), 'click', () => this.openModal(root));
-    const closeModal = () => { try { modal.close(); } catch (_) {} };
+
+    const closeModal = async (event) => {
+      if (this.specPanels) {
+        const canClose = await this.specPanels.confirmClose();
+        if (!canClose) {
+          if (event && typeof event.preventDefault === 'function') event.preventDefault();
+          return;
+        }
+      }
+      try { modal.close(); } catch (_) {}
+    };
     addEvt(root.querySelector('#qa-req-analyzer-close'), 'click', closeModal);
     addEvt(root.querySelector('#qa-req-analyzer-btn-cancel'), 'click', closeModal);
+    addEvt(modal, 'cancel', closeModal);
 
     addEvt(root.querySelector('#qa-req-analyzer-sample-btn'), 'click', () => {
       const textarea = root.querySelector('#qa-req-analyzer-text');
@@ -209,6 +233,9 @@ export class ReqAnalyzerHelper {
   _escape(str) { return escapeHtml(str); }
 
   destroy() {
+    if (this._activeRequest) { try { this._activeRequest.cancel(); } catch (_) {} this._activeRequest = null; }
+    if (this._statusBar) { try { this._statusBar.dispose(); } catch (_) {} this._statusBar = null; }
+    if (this.specPanels) { try { this.specPanels.destroy(); } catch (_) {} this.specPanels = null; }
     this.disposers.forEach((d) => { try { d(); } catch (_) {} });
     this.disposers = [];
   }

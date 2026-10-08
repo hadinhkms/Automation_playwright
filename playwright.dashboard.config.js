@@ -8,6 +8,7 @@ const { defineConfig, devices } = require('@playwright/test');
 module.exports = defineConfig({
   testDir: './tests/dashboard',
   testMatch: '**/*.spec.js',
+  testIgnore: ['**/.tmp-workspace-*/**', '**/test-results/**'],
   timeout: 30000,
   retries: 0,
   workers: 1,

@@ -125,6 +125,11 @@ thuần, phụ thuộc bên thứ ba không kiểm soát được, chạy một 
 
 Chỉ **đề xuất**. Không tự viết thêm script ngoài phạm vi được yêu cầu.
 
+**c. Đồng bộ ngược kịch bản mới tự động (Reverse Sync qua Studio).** Khi bổ sung các kịch bản test mới (`test()`) vào file spec đã gắn tag `@REQ-xxx`, có thể sử dụng tính năng **✦ Đồng bộ kịch bản vào REQ** trên Toolbar của Code Editor Studio (hoặc phím tắt `Alt+Shift+L`):
+- Hệ thống tự động trích xuất các test case mới chưa có trong tài liệu, tính mã `AC-yyy` và `TC-zzz` tiếp theo dựa trên số lớn nhất hiện có.
+- Tự động append tiêu chí kiểm thử và test case vào `requirements/REQ-xxx.md` & `test-cases/REQ-xxx.md` một cách nguyên tử mà không làm mất hay trùng lặp kịch bản cũ.
+- Nhận diện test theo tiêu đề chuẩn hóa (bỏ dấu, lowercase, bỏ tag) hoặc mã `TC-zzz`; cảnh báo nếu test mang mã cũ nhưng đã bị đổi tên (không tự xóa kịch bản cũ).
+
 ## 4. Kiến trúc bắt buộc
 
 - E2E test đặt tại `tests/e2e/` và có hậu tố `.spec.js`.
@@ -132,6 +137,12 @@ Chỉ **đề xuất**. Không tự viết thêm script ngoài phạm vi đượ
 - Helper/fixture đặt tại `core/utils/` hoặc `core/fixtures/`.
 - Test data đặt tại `data/`; không hard-code bộ dữ liệu nghiệp vụ lớn trong spec.
 - Cấu hình môi trường nằm tại `core/config/env.js` và được dùng qua `baseURL` trong `playwright.config.js`.
+- **Không hard-code link/domain trong script (spec, Page Object, fixture, helper).** Domain thay đổi theo môi trường (`qc`/`staging`/`prod`) nên phải khai báo theo từng môi trường trong `environments` của `dashboardConfig.json` và đọc qua `core/config/env.js`:
+  - Domain chính: khai `baseURL`, điều hướng bằng đường dẫn tương đối `page.goto('/path')` hoặc `this.navigate('/path')`.
+  - Domain phụ (portal đối tác, trang admin, seeker/employer…): thêm key riêng kết thúc bằng `URL` (ví dụ `employerURL`) cho **mọi** môi trường, dùng `new URL('/path', env.employerURL).href`.
+  - API: dùng `env.apiBaseURL`, không viết `request.get('https://...')`.
+  - Assertion URL dùng path/regex (`toHaveURL(/\/inventory/)`) thay vì URL tuyệt đối; không dùng fallback dạng `url || 'https://domain-that.vn'`.
+  - Chỉ được phép dùng literal URL với tên miền dự phòng (`example.com`, `localhost`, `127.0.0.1`) trong sample/mock. `npm run check:framework` chặn các vi phạm còn lại.
 - Spec không được gọi `page.locator()`, `page.getBy*()`, `page.screenshot()`, `page.evaluate()` hoặc thao tác UI trực tiếp. Spec chỉ điều phối Page Object/helper và assertion ở cấp hành vi.
 - Locator thuộc Page Object. Action dùng lại `UiActions` trong `core/utils/commonUtils.js` khi action tương ứng đã tồn tại.
 - Không import `fs` trong spec. File I/O và evidence phải đi qua helper.
@@ -182,14 +193,18 @@ Dùng web-first assertion như `await expect(locator).toBeVisible()`. Không dù
 
 ## 8. Evidence
 
-- Spec và Page Object không gọi `page.screenshot()` trực tiếp.
-- Dùng `ScreenshotHelper` trong `core/utils/commonUtils.js` qua `takeScreenshot()` hoặc `takeFullPageScreenshot()`.
+- **Spec và Page Object không gọi `page.screenshot()` trực tiếp.** Dùng `ScreenshotHelper` trong `core/utils/commonUtils.js` qua `takeScreenshot()` / `takeFullPageScreenshot()` hoặc method `capture()` của BasePage.
+- **Quy tắc chụp khi mở trang cần test (Page Entry Milestone):** Khi điều hướng/mở đến đúng page cần test, sau khi assert trang đã load và các thành phần cốt lõi hiển thị sẵn sàng, bắt buộc **capture đúng 1 ảnh** xác nhận trạng thái bối cảnh ban đầu (ví dụ: `precondition_page_loaded`, `<feature>_page_opened`).
+- **Quy tắc chụp theo từng thao tác active (Active Action Milestone):** Kể từ khi mở trang, **cứ mỗi 1 thao tác active** (click button chuyển trạng thái, chọn select/dropdown, nhập xong form, toggle switch, mở/đóng modal, submit, filter...) làm thay đổi trạng thái UI thì **phải capture lại 1 ảnh** phản ánh kết quả sau thao tác đó.
+- **Tuyệt đối KHÔNG để ảnh trùng lặp kế bên nhau (Anti-Duplicate):**
+  - Nghiêm cấm đặt hai lệnh/hàm capture kề nhau nếu giữa chúng không có thao tác active hoặc thay đổi UI thực tế.
+  - Sau một loạt thao tác nhập liệu đơn lẻ liên tiếp trong cùng một form (ví dụ điền tên, email, password), chỉ capture 1 lần ở cuối form sau khi hoàn tất chuỗi nhập liệu (form completed) trước khi click submit.
+  - Nếu một ảnh đồng thời thỏa mãn nhiều mốc evidence thì chỉ chụp một lần duy nhất.
+- **Ổn định giao diện trước khi capture:** Chỉ capture khi UI đã hoàn tất cập nhật và ổn định (chờ skeleton loader biến mất, animation hoàn tất). Tuyệt đối không capture trạng thái loading/chuyển tiếp chớp nhoáng (transient states).
+- **Chế độ Full-page vs Viewport (Modal detection):** Khi không có popup/modal hiển thị, capture full page. Khi popup/modal đang hiển thị, chỉ capture viewport để tập trung vào popup/modal tránh vỡ layout.
+- **Đặt tên file ảnh rõ ràng theo ngữ cảnh:** Tên ảnh phải mô tả trạng thái sau action, ví dụ `profile_page_opened`, `login_form_filled`, `job_applied_success`; không đặt tên chung chung như `screenshot_1`.
 - Việc chụp evidence không được biến một test failure thành pass. Nếu evidence là bắt buộc và chụp thất bại, phải báo lỗi phù hợp.
-- Mỗi scenario phải có một ảnh sau khi đã vào đúng page cần test và một ảnh cuối cùng sau khi hoàn tất toàn bộ action.
-- Sau thao tác click làm thay đổi trạng thái UI và sau khi fill xong một form, phải capture trạng thái kết quả. Không capture trạng thái trung gian khi UI chưa cập nhật xong.
-- Khi không có popup/modal hiển thị, capture full page. Khi popup/modal đang hiển thị, chỉ capture viewport để tập trung vào popup/modal.
-- Không đặt hai lệnh/hàm capture kề nhau nếu giữa chúng không có action hoặc thay đổi UI có ý nghĩa. Tránh tạo nhiều ảnh giống nhau cho cùng một trạng thái; nếu một ảnh đồng thời thỏa nhiều mốc evidence thì chỉ chụp một lần.
-- Tên ảnh phải mô tả trạng thái sau action, ví dụ `profile_page_opened`, `introduction_form_filled`, `introduction_saved`; không đặt tên chung chung như `screenshot_1`.
+
 
 ## 9. Quy trình thực hiện và kiểm chứng
 

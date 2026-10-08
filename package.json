@@ -47,6 +47,7 @@
                     "update:framework": "node scripts/update-framework.js",
                     "test:dashboard:api": "node scripts/run-dashboard-api-tests.js",
                     "test:dashboard:regression": "npm run test:dashboard:api && npx playwright test --config=playwright.dashboard.config.js",
+                    "test:unit": "node --test core dashboard scripts tools",
                     "mp:doctor": "node scripts/run-mp.js doctor .",
                     "mp:audit": "node scripts/run-mp.js audit .",
                     "mp:optimize": "node scripts/run-mp.js optimize .",

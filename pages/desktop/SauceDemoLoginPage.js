@@ -18,7 +18,8 @@ class SauceDemoLoginPage extends BasePage {
   /**
    * Mở trang đăng nhập SauceDemo và chụp ảnh precondition.
    */
-  async open(url = 'https://www.saucedemo.com') {
+  async open(url) {
+    if (!url) throw new Error('SauceDemoLoginPage.open() cần URL đích từ cấu hình/test data, không dùng domain mặc định.');
     await this.navigate(url);
     await expect(this.loginButton).toBeVisible({ timeout: 15000 });
     await this.capture('precondition_login_page_loaded');

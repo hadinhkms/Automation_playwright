@@ -129,6 +129,26 @@ function inferDomainFromText(text, existingDomains = []) {
   return existingDomains[0] || 'general';
 }
 
+function collectAllExistingTcIds(root) {
+  const ids = new Set();
+  const dirs = ['test-cases', 'testCases'];
+  for (const d of dirs) {
+    const absDir = path.join(root, d);
+    if (!fs.existsSync(absDir)) continue;
+    try {
+      const files = fs.readdirSync(absDir);
+      for (const f of files) {
+        if (!f.endsWith('.md')) continue;
+        const text = fs.readFileSync(path.join(absDir, f), 'utf8');
+        for (const match of text.matchAll(RE_TC)) {
+          ids.add(match[0].toUpperCase());
+        }
+      }
+    } catch {}
+  }
+  return [...ids];
+}
+
 module.exports = {
   RE_REQ,
   RE_AC,
@@ -137,6 +157,7 @@ module.exports = {
   extractDecidedQuestions,
   findTestCaseFile,
   getNextTcId,
+  collectAllExistingTcIds,
   slugify,
   inferDomainFromText,
 };
