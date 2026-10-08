@@ -10,3 +10,8 @@
 - **CANDIDATE-02 (Engine Label = Code Path, Test "No AI" With a Key):**
   - **DO:** Gắn nhãn `source`/`engine` tại đúng nhánh code tạo ra kết quả; mọi tính năng tuyên bố "không dùng AI" phải có test chạy với key đã cấu hình và khẳng định fake provider nhận 0 request.
   - **DON'T:** Không suy ra "AI" từ `res.ok` khi wrapper có thể tự trả `ok: true` từ nhánh luật; không để UI giữ nhãn "(AI)"/✦ cho tính năng chạy luật.
+
+- **CANDIDATE-03 (Facade Pattern for God Object Decomposition):**
+  - **DO:** Khi bóc tách các file God Object (> 1000 lines), tạo thư mục con chứa các sub-module chuyên biệt và giữ file gốc làm Facade re-export/orchestrator mỏng (< 200 lines) để bảo đảm 100% backward compatibility cho mọi imports hiện hữu.
+  - **DON'T:** Không thay đổi chữ ký hàm hoặc import paths của callers bên ngoài khi refactor nội bộ; không gom logic xử lý dữ liệu và vẽ DOM vào cùng một slice.
+

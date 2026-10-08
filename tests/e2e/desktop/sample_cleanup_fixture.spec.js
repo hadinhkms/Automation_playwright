@@ -2,8 +2,8 @@ const { test, expect } = require('../../../core/fixtures/baseTest');
 const sampleData = require('../../../data/sampleData.json');
 
 
-test.describe('Kịch bản kiểm thử vòng đời Fixture & Tự động dọn dẹp (Setup/Teardown)', () => {
-  test('Tự động cấp phát và xóa User tạm thời thông qua custom fixture ephemeralUser @smoke @e2e', async ({ pages, ephemeralUser, cleanupQueue }, testInfo) => {
+test.describe('Kịch bản kiểm thử vòng đời Fixture & Tự động dọn dẹp (Setup/Teardown) @desktop', () => {
+  test('Tự động cấp phát và xóa User tạm thời thông qua custom fixture ephemeralUser @smoke @e2e @desktop', async ({ pages, ephemeralUser, cleanupQueue }, testInfo) => {
     testInfo.annotations.push({
       type: 'Precondition',
       description: 'Hệ thống tự động cấp phát user tạm từ ephemeralUser fixture và đăng ký dọn dẹp vào cleanupQueue',

@@ -4,7 +4,7 @@ const { withMockSample } = require('../../../core/fixtures/mockSampleTest');
 const SamplePage = require('../../../pages/desktop/SamplePage');
 const test = withMockSample(base);
 
-test('Desktop container and manual page agree on local mock @smoke @e2e', async ({ page, pages, featureName, mockSampleUrl }, testInfo) => {
+test('Desktop container and manual page agree on local mock @smoke @e2e @desktop', async ({ page, pages, featureName, mockSampleUrl }, testInfo) => {
   testInfo.annotations.push({ type: 'Precondition', description: "Isolated local mock server; no external website required." });
       await test.step('Given The local sample page is visible', async () => {
 await pages.sample.open(mockSampleUrl);

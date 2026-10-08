@@ -2,8 +2,8 @@ const { test, expect } = require('../../../core/fixtures/baseTest');
 const SamplePage = require('../../../pages/desktop/SamplePage');
 const sampleData = require('../../../data/sampleData.json');
 
-test.describe('Kịch bản kiểm thử mẫu Desktop (Starter Demo Suite)', () => {
-  test('Kiểm tra tải trang mẫu và tiêu đề @smoke @e2e', async ({ page }, testInfo) => {
+test.describe('Kịch bản kiểm thử mẫu Desktop (Starter Demo Suite) @desktop', () => {
+  test('Kiểm tra tải trang mẫu và tiêu đề @smoke @e2e @desktop', async ({ page }, testInfo) => {
     testInfo.annotations.push({
       type: 'Precondition',
       description: 'Môi trường sẵn sàng, người dùng truy cập trang web mẫu (Khách vãng lai)',

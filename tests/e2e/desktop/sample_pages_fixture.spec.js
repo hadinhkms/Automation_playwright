@@ -1,8 +1,8 @@
 const { test, expect } = require('../../../core/fixtures/baseTest');
 const sampleData = require('../../../data/sampleData.json');
 
-test.describe('Kịch bản kiểm thử mẫu với Lazy Page Container 10/10', () => {
-  test('Tự động nạp SamplePage qua pages fixture @smoke @e2e', async ({ pages }, testInfo) => {
+test.describe('Kịch bản kiểm thử mẫu với Lazy Page Container 10/10 @desktop', () => {
+  test('Tự động nạp SamplePage qua pages fixture @smoke @e2e @desktop', async ({ pages }, testInfo) => {
     testInfo.annotations.push({
       type: 'Precondition',
       description: 'Môi trường sẵn sàng, tự động nạp Page Object qua pages container mà không cần import hay khởi tạo thủ công',
