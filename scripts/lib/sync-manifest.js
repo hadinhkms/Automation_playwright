@@ -47,6 +47,8 @@ function resolveSatellitePath(sat, hubRoot = HUB_ROOT) {
     );
   } else if (normName.includes('carthings')) {
     candidates.push(
+      path.join(parentDir, 'Carthings', '_automation_carthings'),
+      path.join(parentDir, '_automation_carthings'),
       path.join(parentDir, '_CarThings', 'Automation_Carthings'),
       path.join(parentDir, 'Automation_Carthings'),
       path.join(parentDir, 'Carthings', 'Automation_Carthings'),
@@ -101,8 +103,12 @@ const RAW_SATELLITES = [
     name: 'Automation_Carthings',
     repo: 'hadinhkms/Automation_Carthings',
     branch: 'main',
-    localPath: 'D:\\_CarThings\\Automation_Carthings',
-    candidates: ['D:\\_CarThings\\Automation_Carthings', 'D:\\Carthings\\Automation_Carthings'],
+    localPath: 'D:\\Carthings\\_automation_carthings',
+    candidates: [
+      'D:\\Carthings\\_automation_carthings',
+      'D:\\_CarThings\\Automation_Carthings',
+      'D:\\Carthings\\Automation_Carthings',
+    ],
     envVar: 'SATELLITE_CARTHINGS_PATH',
     autoSync: true, // Tự động đồng bộ khi chạy sync-satellites từ Hub
   },

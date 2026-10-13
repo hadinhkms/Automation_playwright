@@ -292,7 +292,7 @@ async function run() {
           + '-c user.email="github-actions[bot]@users.noreply.github.com"';
         execSync('git add -A', { cwd: workingDir, windowsHide: true });
         execSync(
-          `git ${botIdentity} commit -m "chore(framework): sync latest dashboard and core engine from hub [skip ci]"`,
+          `git ${botIdentity} commit --no-verify -m "chore(framework): sync latest dashboard and core engine from hub [skip ci]"`,
           { cwd: workingDir, windowsHide: true },
         );
 

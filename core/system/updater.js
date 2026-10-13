@@ -150,12 +150,12 @@ function checkGitFrameworkUpdates(rootDir = ENGINE_DIR) {
   // 1. ƯU TIÊN KIỂM TRA NGUỒN LOCAL HUB (D:\_Automation-Project)
   // Vì updateFramework ưu tiên lấy từ Local Hub nên nguồn check cũng phải ưu tiên Local Hub để đồng nhất
   try {
-    const localHub = 'D:\\_Automation-Project';
+    const localHub = process.env.QA_HUB_PATH || 'D:\\_Automation-Project';
     if (!isHub && path.resolve(rootDir) !== path.resolve(localHub) && fs.existsSync(path.join(localHub, 'dashboard', 'server.js'))) {
       const hubHead = safeGit(['rev-parse', '--short', 'HEAD'], { cwd: localHub }).trim();
       const hubLastLog = safeGit(['log', '-n', '3', '--oneline', '--', 'dashboard', 'core', 'bin', 'scripts'], { cwd: localHub }).trim();
 
-      // Kiểm tra file mẫu trong dashboard xem có khác biệt không
+      // Kiểm tra file mẫu trong dashboard và core xem có khác biệt không
       const sampleFiles = [
         path.join('dashboard', 'public', 'js', 'views', 'qa', 'qaSlice.js'),
         path.join('dashboard', 'public', 'app.js'),
@@ -163,6 +163,8 @@ function checkGitFrameworkUpdates(rootDir = ENGINE_DIR) {
         path.join('dashboard', 'public', 'styles', 'views', 'qa.css'),
         path.join('dashboard', 'routes', 'qaRoutes.js'),
         path.join('dashboard', 'server.js'),
+        path.join('core', 'system', 'updater.js'),
+        path.join('scripts', 'update-framework.js'),
       ];
 
       const isDifferent = sampleFiles.some((f) => {
@@ -320,9 +322,18 @@ function applyUpdate(options = {}) {
         if (Array.isArray(fwResult.logs)) {
           fwResult.logs.forEach((l) => log.push(l));
         }
+        if (fwResult.ok) {
+          return {
+            ok: true,
+            message: fwResult.message || 'Đã cập nhật Framework thành công!',
+            logs: log,
+            newVersion: getCurrentVersion(),
+          };
+        }
         return {
-          ok: fwResult.ok,
-          message: fwResult.message || 'Đã cập nhật Framework thành công!',
+          ok: false,
+          message: fwResult.message || fwResult.error || 'Cập nhật Framework thất bại.',
+          error: fwResult.error || fwResult.message || 'Cập nhật Framework thất bại.',
           logs: log,
           newVersion: getCurrentVersion(),
         };
