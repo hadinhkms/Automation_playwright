@@ -2,11 +2,13 @@
 
 /**
  * dashboard/public/js/views/qa/slices/qaBatchSlice.js
- * Quản lý tab Static Findings, quy trình Auto-Fix và Scaffold Wizard.
+ * Quản lý tab Static Findings và quy trình Auto-Fix.
  */
 
 import { apiClient } from '../../../core/apiClient.js';
 import { toast } from '../../../core/toast.js';
+
+const SEVERITY_LABEL = { major: 'Nghiêm trọng', minor: 'Cần xử lý', info: 'Ghi nhận' };
 
 export class QaBatchSlice {
   constructor(qaSlice) {
@@ -14,37 +16,64 @@ export class QaBatchSlice {
   }
 
   renderFindings(root) {
-    const list = root.querySelector('#qa-findings-list');
-    const empty = root.querySelector('#qa-findings-empty');
-    if (!list) return;
-    list.innerHTML = '';
+    if (!root) return;
 
+    const staticGapsCard = root.querySelector('#qa-static-gaps-card');
+    const staticGapsBadge = root.querySelector('#qa-static-gaps-badge');
     const summary = this.qaSlice.summary;
-    const findings = (summary && Array.isArray(summary.findings)) ? summary.findings : [];
+    const staticGaps = (summary && Array.isArray(summary.findings)) ? summary.findings : [];
 
-    if (!findings.length) {
-      if (empty) empty.style.display = 'block';
+    if (staticGapsCard) {
+      staticGapsCard.hidden = staticGaps.length === 0 && !(this.qaSlice.batch && this.qaSlice.batch.hasActiveResult);
+      const blockers = staticGaps.filter((f) => f.severity === 'blocker').length;
+      if (staticGapsBadge) {
+        staticGapsBadge.textContent = `${staticGaps.length} phát hiện (${blockers > 0 ? `${blockers} blocker` : 'cảnh báo'})`;
+        staticGapsBadge.className = `qa-badge ${blockers > 0 ? 'qa-badge-danger' : 'qa-badge-warn'}`;
+      }
+      if (this.qaSlice.batch) {
+        if (!this.qaSlice.batch.alive) this.qaSlice.batch.init(root);
+        this.qaSlice.batch.render(summary);
+      }
+    }
+
+    const box = root.querySelector('#qa-findings-groups');
+    if (this.qaSlice.conflictStudio) this.qaSlice.conflictStudio.destroy();
+    if (!box || !this.qaSlice.trace) return;
+    box.textContent = '';
+
+    const groups = this.qaSlice.trace.findings || {};
+    const total = ['major', 'minor', 'info'].reduce((n, k) => n + ((groups[k] || []).length), 0);
+    if (!total && staticGaps.length === 0) {
+      this.qaSlice._setEmpty('qa-findings-empty', this.qaSlice.trace.bootstrap
+        ? ['Chưa có gì để đối chiếu', 'Repo chưa có tài liệu nên chưa thể tìm khoảng hở nào.']
+        : ['Không còn khoảng hở nào trong ma trận truy vết']);
       return;
     }
-    if (empty) empty.style.display = 'none';
+    this.qaSlice._setEmpty('qa-findings-empty', null);
 
-    findings.forEach((f) => {
-      const card = document.createElement('div');
-      card.className = 'qa-finding-card';
-      const severity = (f.severity || 'info').toLowerCase();
-      card.setAttribute('data-severity', severity);
+    ['major', 'minor', 'info'].forEach((severity) => {
+      const items = groups[severity] || [];
+      if (!items.length) return;
+      const section = this.qaSlice._el('div', null, `qa-finding-group qa-finding-${severity}`);
+      section.appendChild(this.qaSlice._el('h4', `${SEVERITY_LABEL[severity]} (${items.length})`, 'qa-finding-head'));
 
-      card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-          <div>
-            <span class="qa-finding-badge" data-severity="${severity}">${f.severity || 'Info'}</span>
-            <strong style="margin-left: 6px;">${f.code || 'FINDING'}</strong>
-            <span style="color: var(--muted); margin-left: 6px;">${f.file || ''}</span>
-          </div>
-        </div>
-        <p style="margin: 6px 0 0; font-size: 13px; color: var(--text);">${f.message || f.detail || ''}</p>
-      `;
-      list.appendChild(card);
+      const byKind = new Map();
+      items.forEach((f) => {
+        if (!byKind.has(f.kind)) byKind.set(f.kind, { label: f.label, rows: [] });
+        byKind.get(f.kind).rows.push(f);
+      });
+      byKind.forEach(({ label, rows }, kind) => {
+        if (kind === 'ac-lech-giua-tai-lieu-va-spec' && this.qaSlice.conflictStudio) {
+          this.qaSlice.conflictStudio.render(section, rows);
+          return;
+        }
+        section.appendChild(this.qaSlice._el('p', `${label} — ${rows.length}`, 'qa-finding-kind'));
+        const ul = this.qaSlice._el('ul', null, 'qa-finding-list');
+        rows.slice(0, 50).forEach((f) => ul.appendChild(this.qaSlice._el('li', f.detail)));
+        if (rows.length > 50) ul.appendChild(this.qaSlice._el('li', `… và ${rows.length - 50} mục nữa`, 'qa-dim'));
+        section.appendChild(ul);
+      });
+      box.appendChild(section);
     });
   }
 
@@ -92,86 +121,7 @@ export class QaBatchSlice {
     }
   }
 
-  async openScaffoldModal() {
-    const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-scaffold-modal');
-    if (!modal) return;
-
-    try {
-      const meta = await apiClient.get('/api/qa/scaffold-meta');
-      const reqInput = modal.querySelector('#qa-scaffold-req-id');
-      const domainSelect = modal.querySelector('#qa-scaffold-domain');
-
-      if (reqInput && meta.nextReqId) reqInput.value = meta.nextReqId;
-      if (domainSelect && meta.existingDomains) {
-        domainSelect.innerHTML = '';
-        meta.existingDomains.forEach((d) => {
-          const opt = document.createElement('option');
-          opt.value = d;
-          opt.textContent = d;
-          domainSelect.appendChild(opt);
-        });
-      }
-    } catch (_) {}
-
-    try { modal.showModal(); } catch (_) { modal.setAttribute('open', ''); }
-  }
-
-  async extractRawScaffold() {
-    const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-scaffold-modal');
-    if (!modal) return;
-
-    const rawTextarea = modal.querySelector('#qa-scaffold-raw-content');
-    const rawContent = rawTextarea ? rawTextarea.value.trim() : '';
-    if (!rawContent) {
-      toast.warn('Vui lòng dán nội dung kịch bản hoặc spec thô.');
-      return;
-    }
-
-    const previewSection = modal.querySelector('#qa-scaffold-preview-section');
-    const previewFiles = modal.querySelector('#qa-scaffold-preview-files');
-    const titleInput = modal.querySelector('#qa-scaffold-title');
-
-    try {
-      const res = await apiClient.post('/api/qa/extract-scaffold', { rawContent });
-      if (res && res.preview) {
-        if (titleInput && res.preview.title) titleInput.value = res.preview.title;
-        if (previewFiles && res.preview.files) {
-          previewFiles.innerHTML = res.preview.files.map((f) => `<li><code>${f}</code></li>`).join('');
-        }
-        if (previewSection) previewSection.style.display = 'block';
-        toast.success(`Đã trích xuất ${res.preview.acCount} AC và ${res.preview.tcCount} TC!`);
-      }
-    } catch (err) {
-      toast.error(`Lỗi trích xuất: ${err.message}`);
-    }
-  }
-
-  async submitScaffold() {
-    const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-scaffold-modal');
-    if (!modal) return;
-
-    const reqId = modal.querySelector('#qa-scaffold-req-id')?.value.trim();
-    const title = modal.querySelector('#qa-scaffold-title')?.value.trim();
-    const domain = modal.querySelector('#qa-scaffold-domain')?.value.trim();
-    const acCount = parseInt(modal.querySelector('#qa-scaffold-ac-count')?.value || '2', 10);
-
-    if (!reqId || !title) {
-      toast.warn('Vui lòng nhập đầy đủ Mã REQ và Tiêu đề.');
-      return;
-    }
-
-    try {
-      const res = await apiClient.post('/api/qa/scaffold', { reqId, title, domain, acCount });
-      if (res.ok) {
-        toast.success(`Đã khởi tạo ${res.created?.length || 3} file thành công!`);
-        try { modal.close(); } catch (_) {}
-        await this.qaSlice.reload(true);
-      }
-    } catch (err) {
-      toast.error(`Lỗi tạo scaffold: ${err.message}`);
-    }
-  }
+  openScaffoldModal() { return this.qaSlice.scaffoldSlice.openScaffoldModal(); }
+  extractRawScaffold() { return this.qaSlice.scaffoldSlice.extractRawScaffold(); }
+  submitScaffold() { return this.qaSlice.scaffoldSlice.submitScaffold(); }
 }

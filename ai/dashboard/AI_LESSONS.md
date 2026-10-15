@@ -316,3 +316,14 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 - Regression check: Run `npx playwright test tests/dashboard/tab-persistence-reload.spec.js --config=playwright.dashboard.config.js` (5/5 PASS).
 - Related files: `dashboard/public/app.js`, `dashboard/public/js/core/featureRegistry.js`, `dashboard/public/js/legacy/legacyAdapter.js`, `dashboard/public/js/views/qa/qaSlice.js`, `tests/dashboard/tab-persistence-reload.spec.js`.
 
+### 2026-10-16 — Prevent Silent Blank Renders by Aligning Modular Sub-Slices with DOM Templates and Sibling Controllers
+
+- Area: QA Docs & Automation View (`qaSlice.js`, `qaBatchSlice.js`, `qa.html`).
+- Symptom: Opening or switching to tab "Vấn đề (24)" in QA Docs (`#/qa-view`) showed a completely blank, empty container despite having 17 critical issues and 7 trace findings.
+- Root cause: (1) During decomposition of `qaSlice.js` into modular sub-slices (PLAN-07), `qaBatchSlice.renderFindings` was stubbed to query non-existent element `#qa-findings-list` instead of `#qa-static-gaps-card`, returning early before rendering; (2) parent card `#qa-static-gaps-card` had the `hidden` attribute in `qa.html` and was never unhidden; (3) `this.qaSlice.batch.render(summary)` was never called to populate `BatchController`; (4) trace findings groups `#qa-findings-groups` were never rendered; (5) `switchTab('findings')` did not trigger `this.batchSlice.renderFindings()`.
+- Correct pattern: (1) `qaBatchSlice.renderFindings(root)` unhides `#qa-static-gaps-card`, delegates static gaps rendering and toolbar synchronization to `BatchController.render(summary)`, and renders trace findings grouped by severity into `#qa-findings-groups`; (2) `switchTab('findings')` explicitly invokes `renderFindings(root)` upon tab activation.
+- Preventive rule: When refactoring monolithic view controllers into sub-slices, always verify DOM selectors against the template markup and ensure all sub-controllers and sibling handlers receive required data and lifecycle updates.
+- Regression check: Run `npx playwright test tests/dashboard/qa-batch-fixer.spec.js --config=playwright.dashboard.config.js` (8/8 PASS).
+- Related files: `dashboard/public/js/views/qa/slices/qaBatchSlice.js`, `dashboard/public/js/views/qa/qaSlice.js`, `dashboard/public/templates/qa.html`.
+
+
