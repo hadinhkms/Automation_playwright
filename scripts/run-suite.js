@@ -1,14 +1,13 @@
-const { spawn } = require('child_process');
+﻿const { spawn } = require('child_process');
 const path = require('path');
 const { getDashboardConfig } = require('../core/config/dashboardConfig');
 const { assertNotFrozen } = require('../core/utils/circuitBreaker');
+const { resolveConfiguredSuiteArgs } = require('./lib/suiteRunnerHelper');
 
 const suiteName = process.argv[2] ? process.argv[2].trim() : '';
-
 let env = 'qc';
 let explicitSpec = '';
-const rawArgs = process.argv.slice(3);
-for (const raw of rawArgs) {
+for (const raw of process.argv.slice(3)) {
   const lower = raw.trim().toLowerCase();
   if (['qc', 'stg', 'prod', 'staging', 'production'].includes(lower)) {
     env = lower === 'staging' ? 'stg' : (lower === 'production' ? 'prod' : lower);
@@ -17,12 +16,7 @@ for (const raw of rawArgs) {
   }
 }
 
-// 1. Kiểm tra Circuit Breaker theo Tiêu Chuẩn Thẩm Định 04 (§10.3)
-assertNotFrozen({
-  suiteName,
-  projectRoot: path.resolve(__dirname, '..'),
-  exitOnError: true
-});
+assertNotFrozen({ suiteName, projectRoot: path.resolve(__dirname, '..'), exitOnError: true });
 
 if (!suiteName) {
   console.error('Vui lòng cung cấp tên suite. Ví dụ: node scripts/run-suite.js admin-flows dev');
@@ -30,13 +24,9 @@ if (!suiteName) {
 }
 
 const norm = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
 const config = getDashboardConfig();
 const suiteEntries = Object.entries(config.suites || {});
-const matchedEntry = suiteEntries.find(([key, val]) => {
-  return norm(key) === norm(suiteName) || norm(val.label) === norm(suiteName);
-});
-
+const matchedEntry = suiteEntries.find(([key, val]) => norm(key) === norm(suiteName) || norm(val.label) === norm(suiteName));
 const suite = matchedEntry ? matchedEntry[1] : null;
 
 const args = ['test'];
@@ -47,174 +37,41 @@ if (suiteName.toLowerCase() === 'check') {
 } else if (suiteName.toLowerCase() === 'e2e') {
   args.push('tests/e2e');
 } else if (suiteName.toLowerCase() === 'file') {
-  if (!explicitSpec) {
-    console.error('Vui lòng cung cấp đường dẫn file spec.');
-    process.exit(1);
-  }
+  if (!explicitSpec) { console.error('Vui lòng cung cấp đường dẫn file spec.'); process.exit(1); }
   args.push(explicitSpec);
 } else if (suite) {
-  console.log(`[Suite Runner] Đang chạy kịch bản: ${suite.label || matchedEntry[0]}`);
-
-  function mapProjectName(p, key) {
-    if (!p || p === 'all') {
-      return key === 'mobile'
-        ? ['Mobile Chrome Smoke Tests', 'Mobile Chrome Regression Tests']
-        : ['Desktop Smoke Tests', 'Desktop Regression Tests'];
-    }
-    const lower = p.toLowerCase();
-    if (lower === 'chromium' || lower.includes('desktop chrome')) {
-      return ['Desktop Smoke Tests', 'Desktop Regression Tests'];
-    }
-    if (lower === 'mobile-chrome' || lower.includes('pixel')) {
-      return ['Mobile Chrome Smoke Tests', 'Mobile Chrome Regression Tests'];
-    }
-    if (lower === 'mobile-safari' || lower.includes('iphone')) {
-      return ['Mobile Safari Smoke Tests', 'Mobile Safari Regression Tests'];
-    }
-    return [p];
-  }
-
-  // Composite suite: Cha chứa nhiều con
-  if (suite.type === 'composite' || (Array.isArray(suite.suites) && suite.suites.length > 0)) {
-    const childKeys = Array.isArray(suite.suites) ? suite.suites : [];
-    console.log(`[Composite Suite] Kịch bản cha kích hoạt ${childKeys.length} kịch bản con: ${childKeys.join(', ')}`);
-    const compSpecs = [];
-    const compProjects = [];
-    let compWorkers = suite.workers || 2;
-    const compGreps = [];
-
-    for (const childKey of childKeys) {
-      const childSuite = config.suites?.[childKey];
-      if (!childSuite) {
-        console.warn(`[Composite Suite] Cảnh báo: Kịch bản con "${childKey}" không tồn tại trong cấu hình.`);
-        continue;
-      }
-      if (Array.isArray(childSuite.specs) && childSuite.specs.length > 0 && childSuite.specs !== 'all') {
-        compSpecs.push(...childSuite.specs);
-      } else if (childSuite.spec && childSuite.spec !== 'all') {
-        compSpecs.push(childSuite.spec);
-      }
-      if (childSuite.project && childSuite.project !== 'all') {
-        compProjects.push(...mapProjectName(childSuite.project, childSuite.platform));
-      } else if (childSuite.platform === 'mobile') {
-        compProjects.push('Mobile Chrome Smoke Tests', 'Mobile Chrome Regression Tests');
-      } else if (childSuite.platform === 'desktop') {
-        compProjects.push('Desktop Smoke Tests', 'Desktop Regression Tests');
-      }
-      if (childSuite.grep) compGreps.push(childSuite.grep);
-      if (childSuite.workers) compWorkers = Math.max(compWorkers, childSuite.workers);
-    }
-
-    if (compSpecs.length > 0) {
-      args.push(...[...new Set(compSpecs)]);
-    }
-    for (const proj of [...new Set(compProjects)]) {
-      args.push(`--project=${proj}`);
-    }
-    if (compGreps.length > 0) {
-      args.push('--grep', compGreps.join('|'));
-    }
-    if (compWorkers) {
-      args.push(`--workers=${compWorkers}`);
-    }
-  } else if (suite.platforms && typeof suite.platforms === 'object') {
-    const activePlatforms = Object.entries(suite.platforms).filter(([, p]) => p.enabled !== false);
-    const multiSpecs = [];
-    const multiProjects = [];
-    let customWorkers = suite.workers || 2;
-
-    for (const [pKey, pVal] of activePlatforms) {
-      if (Array.isArray(pVal.specs) && pVal.specs.length > 0 && pVal.specs !== 'all') {
-        multiSpecs.push(...pVal.specs);
-      }
-
-      if (pVal.project && pVal.project !== 'all') {
-        multiProjects.push(...mapProjectName(pVal.project, pKey));
-      } else if (pKey === 'mobile') {
-        multiProjects.push('Mobile Chrome Smoke Tests', 'Mobile Chrome Regression Tests');
-      } else if (pKey === 'desktop') {
-        multiProjects.push('Desktop Smoke Tests', 'Desktop Regression Tests');
-      }
-      if (pVal.workers) customWorkers = Math.max(customWorkers, pVal.workers);
-    }
-
-    if (multiSpecs.length > 0) {
-      args.push(...[...new Set(multiSpecs)]);
-    }
-    for (const proj of [...new Set(multiProjects)]) {
-      args.push(`--project=${proj}`);
-    }
-    if (suite.grep) {
-      args.push('--grep', suite.grep);
-    }
-    if (customWorkers) {
-      args.push(`--workers=${customWorkers}`);
-    }
-  } else {
-    if (Array.isArray(suite.specs) && suite.specs.length > 0 && suite.specs !== 'all') {
-      args.push(...suite.specs);
-    } else if (suite.spec && suite.spec !== 'all') {
-      args.push(suite.spec);
-    }
-    if (suite.project && suite.project !== 'all') {
-      args.push(`--project=${suite.project}`);
-    }
-    if (suite.grep) {
-      args.push('--grep', suite.grep);
-    }
-    if (suite.workers) {
-      args.push(`--workers=${suite.workers}`);
-    }
-  }
+  args.push(...resolveConfiguredSuiteArgs(suite, config, matchedEntry));
 } else {
-  // Built-in presets
   const s = suiteName.toLowerCase();
-  if (s === 'smoke') {
-    args.push('--grep', '@smoke');
-  } else if (s === 'regression') {
-    args.push('--grep-invert', '@smoke');
-  } else if (s === 'auth' || s === 'authenticated') {
-    args.push('--grep', '@auth');
-  } else if (s === 'guest' || s === 'no-auth' || s === 'unauth') {
-    args.push('--grep', '@guest');
-  } else if (s === 'applyjob' || s === 'apply-job') {
-    args.push('--grep', '@applyjob');
-  } else if (s === 'profile') {
-    args.push('--grep', '@profile');
-  } else if (s === 'desktop') {
-    args.push('--project=Desktop Smoke Tests', '--project=Desktop Regression Tests');
-  } else if (s === 'mobile') {
-    args.push('--project=Mobile Chrome Regression Tests', '--project=Mobile Safari Regression Tests');
-  } else if (s === 'api') {
-    args.push('--project=API Tests');
-  } else {
+  if (s === 'smoke') args.push('--grep', '@smoke');
+  else if (s === 'regression' || s === 'ci') args.push('--grep', '@regression');
+  else if (s === 'deep') args.push('--grep', '@deep');
+  else if (s === 'negative') args.push('--grep', '@negative|@validation');
+  else if (s === 'edge' || s === 'boundary') args.push('--grep', '@boundary|@edge|@concurrency|@responsive');
+  else if (s === 'security') args.push('--grep', '@security');
+  else if (s === 'auth' || s === 'authenticated') args.push('--grep', '@auth');
+  else if (s === 'guest' || s === 'no-auth' || s === 'unauth') args.push('--grep', '@guest');
+  else if (s === 'applyjob' || s === 'apply-job') args.push('--grep', '@applyjob');
+  else if (s === 'profile') args.push('--grep', '@profile');
+  else if (s === 'desktop') args.push('--project=Desktop Smoke Tests', '--project=Desktop Regression Tests');
+  else if (s === 'mobile') args.push('--project=Mobile Chrome Regression Tests', '--project=Mobile Safari Regression Tests');
+  else if (s === 'api') args.push('--project=API Tests');
+  else {
     console.error(`Không tìm thấy kịch bản nào phù hợp với: "${suiteName}"`);
-    console.error('Các kịch bản hợp lệ:', ['check', 'e2e', 'smoke', 'regression', 'applyjob', 'profile', 'desktop', 'mobile', 'api', 'file', ...Object.keys(config.suites || {})].join(', '));
+    console.error('Các kịch bản hợp lệ:', ['check', 'e2e', 'smoke', 'regression', 'ci', 'deep', 'negative', 'edge', 'security', 'applyjob', 'profile', 'desktop', 'mobile', 'api', 'file', ...Object.keys(config.suites || {})].join(', '));
     process.exit(1);
   }
 }
 
-const envVars = {
-  ...process.env,
-  NODE_ENV: env,
-};
-
+const envVars = { ...process.env, NODE_ENV: env };
 if (suite?.viewport) {
   envVars.PW_VIEWPORT_WIDTH = String(suite.viewport.width || 1920);
   envVars.PW_VIEWPORT_HEIGHT = String(suite.viewport.height || 1080);
 }
 
 const extraCliFlags = process.argv.slice(3).filter((arg) => arg.startsWith('--'));
-if (extraCliFlags.length > 0) {
-  args.push(...extraCliFlags);
-}
+if (extraCliFlags.length > 0) args.push(...extraCliFlags);
 
 const playwrightCli = require.resolve('@playwright/test/cli');
-const child = spawn(process.execPath, [playwrightCli, ...args], {
-  stdio: 'inherit',
-  env: envVars,
-});
-
-child.on('close', (code) => {
-  process.exit(code || 0);
-});
+const child = spawn(process.execPath, [playwrightCli, ...args], { stdio: 'inherit', env: envVars });
+child.on('close', (code) => { process.exit(code || 0); });
