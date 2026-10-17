@@ -91,9 +91,10 @@ if (typeof window !== 'undefined') {
       docs: docsSlice,
       compare: compareSlice,
       settings: settingsSlice,
+      qa: qaSlice,
     },
   };
-  console.log('[Studio Core] All 13 Feature Slices, Shared Shell & Template Loader active.');
+  console.log('[Studio Core] All 14 Feature Slices, Shared Shell & Template Loader active.');
 }
 
 export {

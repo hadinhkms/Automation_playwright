@@ -105,8 +105,10 @@ export class QaSlice {
       if (panel) panel.hidden = name !== tabName;
     });
 
+    if (tabName === 'docs') this.docsSlice.renderDocs(root);
     if (tabName === 'candidates') this.candidatesSlice.renderCandidates(root);
     if (tabName === 'findings') this.batchSlice.renderFindings(root);
+    if (tabName === 'decisions') this.decisionsSlice.renderDecisions(root);
     if (tabName === 'process-studio' && this.processStudio) this.processStudio.loadStatus(root);
     if (tabName === 'conflicts') this.conflictSlice.renderConflicts(root);
   }

@@ -26,6 +26,11 @@ export async function reloadQaData(slice, force = false) {
 
     if (trace.status !== 'fulfilled') {
       slice._showAlert(`Không tải được dữ liệu QA: ${trace.reason && trace.reason.message}`, 'danger');
+      slice._setEmpty('qa-docs-empty', [
+        'Không tải được dữ liệu tài liệu QA',
+        (trace.reason && trace.reason.message) || 'Lỗi mạng hoặc server không phản hồi.',
+        'Nhấn "Làm mới" hoặc kiểm tra tiến trình server dashboard.',
+      ]);
       return;
     }
 

@@ -22,6 +22,9 @@ export function bindQaEvents(slice, root) {
   on(root.querySelector('#qa-reader-answer'), 'click', () => slice.docsSlice.openAnswerForm());
   on(root.querySelector('#qa-reader-infer'), 'click', () => slice.inferenceSlice.openInferModal());
   on(root.querySelector('#qa-reader-edit'), 'click', () => slice.docsSlice.openEditForm());
+  on(root.querySelector('#qa-reader-delete'), 'click', () => {
+    if (slice._activeDoc) slice.openDeleteRequirementModal(slice._activeDoc);
+  });
   on(root.querySelector('#qa-btn-draft'), 'click', () => slice.candidatesSlice.generateDraft());
   on(root.querySelector('#qa-btn-draft-clear'), 'click', () => slice.candidatesSlice.clearPicks());
   on(root.querySelector('#qa-draft-copy'), 'click', () => slice.candidatesSlice.copyDraft());
@@ -35,7 +38,7 @@ export function bindQaEvents(slice, root) {
   on(root.querySelector('.qa-score-boundary'), 'click', () => slice.switchTab('findings'));
 
   on(root.querySelector('#qa-btn-autofix'), 'click', () => slice.batchSlice.openAutoFixModal());
-  on(root.querySelector('#qa-btn-scaffold'), 'click', () => slice.batchSlice.openScaffoldModal());
+  on(root.querySelector('#qa-btn-scaffold'), 'click', () => slice.openScaffoldModal());
 
   const onSmartLinkApplied = () => slice.reload(true);
   window.addEventListener('qa:smart-link:applied', onSmartLinkApplied);
@@ -52,8 +55,8 @@ export function bindQaEvents(slice, root) {
   if (scaffoldModal) {
     on(root.querySelector('#qa-scaffold-modal-close'), 'click', () => scaffoldModal.close());
     on(root.querySelector('#qa-scaffold-cancel-btn'), 'click', () => scaffoldModal.close());
-    on(root.querySelector('#qa-btn-submit-scaffold'), 'click', () => slice.batchSlice.submitScaffold());
-    on(root.querySelector('#qa-btn-extract-raw'), 'click', () => slice.batchSlice.extractRawScaffold());
+    on(root.querySelector('#qa-btn-submit-scaffold'), 'click', () => slice.submitScaffold());
+    on(root.querySelector('#qa-btn-extract-raw'), 'click', () => slice.extractRawScaffold());
   }
 
   const inferModal = root.querySelector('#qa-infer-modal');
