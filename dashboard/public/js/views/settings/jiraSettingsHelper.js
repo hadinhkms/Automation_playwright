@@ -91,11 +91,13 @@ export function initJiraSettings() {
     testBtn.disabled = true;
     testBtn.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Đang kiểm tra...';
     try {
-      const payload = {
-        baseUrl: baseUrlInput?.value?.trim() || '',
-        email: emailInput?.value?.trim() || '',
-        apiToken: tokenInput?.value?.trim() || '',
-      };
+      const payload = {};
+      const b = baseUrlInput?.value?.trim();
+      const em = emailInput?.value?.trim();
+      const tk = tokenInput?.value?.trim();
+      if (b) payload.baseUrl = b;
+      if (em) payload.email = em;
+      if (tk) payload.apiToken = tk;
       const res = await fetch('/api/jira/test-connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
