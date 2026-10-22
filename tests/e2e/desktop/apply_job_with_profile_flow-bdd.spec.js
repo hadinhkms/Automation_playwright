@@ -20,8 +20,8 @@ test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e 
     const homePage = pages.homePage;
     const jobSearchPage = pages.jobSearchPage;
     const onboardingPopup = new OnboardingPopup(page);
+    test.setTimeout(900000); // Luồng điền 7 section và capture nhiều evidence
     test.slow();
-    test.setTimeout(600000); // Luồng điền nhiều section và capture evidence
 
     await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và sẵn sàng tại trang chủ', async () => {
       await onboardingPopup.closeIfVisible(undefined, {
