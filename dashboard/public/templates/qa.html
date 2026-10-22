@@ -808,13 +808,22 @@ test.describe('Đổi mật khẩu @account', () => {
                   </button>
                 </div>
               </div>
-              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
+              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;">
                 <label for="qa-req-jira-key" style="font-size: 11.5px; font-weight: 600; color: var(--muted); white-space: nowrap;">
-                  <i class="ph-bold ph-ticket"></i> Mã Jira (tùy chọn):
+                  <i class="ph-bold ph-ticket"></i> Mã Jira:
                 </label>
-                <input type="text" id="qa-req-jira-key" class="input-sm" placeholder="VD: PROJ-123 (tự động nhận diện nếu dán story Jira)" style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font-size: 11.5px; flex: 1; max-width: 320px;">
+                <input type="text" id="qa-req-jira-key" class="input-sm"
+                  placeholder="VD: JS-8824 hoặc dán URL ticket"
+                  style="padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font-size: 11.5px; flex: 1; max-width: 280px;">
+                <button type="button" class="btn-primary-sm" id="qa-req-btn-fetch-jira"
+                  style="font-size: 11.5px; padding: 4px 10px; white-space: nowrap; background: #8b5cf6; border-color: #7c3aed;"
+                  title="Tự động đọc thông tin ticket từ Jira Cloud qua Token">
+                  <i class="ph-bold ph-cloud-arrow-down"></i> Đọc từ Jira
+                </button>
               </div>
-              <textarea id="qa-req-analyzer-text" rows="9" class="input-sm" style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); resize: vertical;" placeholder="Dán nội dung requirement từ Jira, Confluence, Slack, PRD hoặc Change Request vào đây...&#10;&#10;Ví dụ:&#10;Hồ sơ giáo viên có thêm trường 'Trung tâm sát hạch' đứng cạnh 'Trung tâm đang công tác'.&#10;- Bắt buộc cả khi tạo mới và khi cập nhật (hồ sơ cũ chưa có sẽ bị chặn lưu).&#10;- Khu vực đào tạo (phường/xã) nâng hạn mức tối đa từ 6 lên 10 mục.&#10;- Nút 'Dùng lại trung tâm đang công tác' tự copy và biến mất khi 2 ô trùng nhau."></textarea>
+              <textarea id="qa-req-analyzer-text" rows="9" class="input-sm"
+                style="width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; line-height: 1.5; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); resize: vertical;"
+                placeholder="Dán nội dung requirement từ Jira, Confluence, Slack, PRD hoặc Change Request vào đây..."></textarea>
             </div>
 
             <!-- Controls bar -->

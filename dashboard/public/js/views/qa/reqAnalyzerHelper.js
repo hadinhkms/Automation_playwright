@@ -8,31 +8,12 @@
 
 import { apiClient } from '../../core/apiClient.js';
 import { toast } from '../../core/toast.js';
+import { escapeHtml, extractJiraKey, parseJiraMarkup, buildMarkdownReport } from './analyzer/markdownSpecParser.js';
+import { switchTab, renderResults, renderClarityResult, renderSpecResult } from './analyzer/reqAnalyzerRenderer.js';
+import { renderTestCases, renderSystemImpact, renderLogicClarifications, renderQaInquiries } from './analyzer/cardPanelsRenderer.js';
 import {
-  escapeHtml,
-  extractJiraKey,
-  parseJiraMarkup,
-  buildMarkdownReport,
-} from './analyzer/markdownSpecParser.js';
-import {
-  switchTab,
-  renderResults,
-  renderClarityResult,
-  renderSpecResult,
-} from './analyzer/reqAnalyzerRenderer.js';
-import {
-  renderTestCases,
-  renderSystemImpact,
-  renderLogicClarifications,
-  renderQaInquiries,
-} from './analyzer/cardPanelsRenderer.js';
-import {
-  runClarityCheck,
-  runGenerateTestCases,
-  runGenerateSpec,
-  runAnalysis,
-  scaffoldFiles,
-  copyMarkdownReport,
+  runClarityCheck, runGenerateTestCases, runGenerateSpec,
+  runAnalysis, scaffoldFiles, copyMarkdownReport,
 } from './analyzer/analyzerActions.js';
 import { mountSpecPanels } from './specStudio/specStudioPanels.js';
 
@@ -75,6 +56,25 @@ export class ReqAnalyzerHelper {
         if (detectedKey) jiraKeyInput.value = detectedKey;
       }
       toast.success('Đã chuyển đổi Jira markup sang Markdown.');
+    });
+
+    const fetchJiraBtn = root.querySelector('#qa-req-btn-fetch-jira');
+    addEvt(fetchJiraBtn, 'click', async () => {
+      const key = (jiraKeyInput?.value || '').trim();
+      if (!key) return toast.info('Vui lòng nhập mã hoặc URL Jira (VD: JS-8824)');
+      fetchJiraBtn.disabled = true;
+      try {
+        const res = await apiClient.get(`/api/jira/issue?key=${encodeURIComponent(key)}`);
+        if (!res?.success) throw new Error(res?.error || 'Không thể tải ticket từ Jira');
+        const textarea = root.querySelector('#qa-req-analyzer-text');
+        if (textarea) textarea.value = res.formattedForReq || res.summary;
+        if (jiraKeyInput) jiraKeyInput.value = res.key;
+        toast.success(`Đã nạp ticket ${res.key} từ Jira thành công!`);
+      } catch (e) {
+        toast.error(e.message || 'Lỗi đọc ticket Jira. Kiểm tra cấu hình trong Settings > Jira.');
+      } finally {
+        fetchJiraBtn.disabled = false;
+      }
     });
 
     this.specPanels = mountSpecPanels(root, {
