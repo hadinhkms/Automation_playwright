@@ -11,6 +11,7 @@ const { createAgentRoutes } = require('../core/ai/agentRoutes');
 
 const { handleSystemRoutes } = require('./routes/systemRoutes');
 const { handleAiRoutes } = require('./routes/aiRoutes');
+const { handleJiraRoutes } = require('./routes/jiraRoutes');
 const { handleRunnerRoutes } = require('./routes/runnerRoutes');
 const { handleRecorderRoutes, stopRecorderSession, getActiveRecorder } = require('./routes/recorderRoutes');
 const { handleGitRoutes } = require('./routes/gitRoutes');
@@ -69,6 +70,7 @@ const AGENT_SAFE_POST_ROUTES = new Set([
   '/api/recorder/convert', '/api/recorder/generate-draft', '/api/ai/generate-state',
   '/api/ai/config', '/api/ai/test-connection', '/api/ai/inline-suggest',
   '/api/ai/format-bdd', '/api/qa/boundary-matrix',
+  '/api/jira/config', '/api/jira/test-connection', '/api/jira/issue',
   '/api/diagnostics/analyze', '/api/builder/compile', '/api/system/apply-update',
 ]);
 
@@ -96,6 +98,7 @@ const server = http.createServer(async (request, response) => {
 
   if (await handleSystemRoutes(request, response, url, context)) return;
   if (await handleAiRoutes(request, response, url, context)) return;
+  if (await handleJiraRoutes(request, response, url, context)) return;
   if (await handleRunnerRoutes(request, response, url, context)) return;
   if (await handleRecorderRoutes(request, response, url, context)) return;
   if (await handleGitRoutes(request, response, url, context)) return;

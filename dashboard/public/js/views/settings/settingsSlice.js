@@ -6,6 +6,7 @@ import { apiClient } from '../../core/apiClient.js';
 import { eventBus } from '../../core/eventBus.js';
 import { stateStore } from '../../core/stateStore.js';
 import { MasterProcessHelper } from './masterProcessHelper.js';
+import { initJiraSettings } from './jiraSettingsHelper.js';
 
 export class SettingsSlice {
   constructor() {
@@ -86,14 +87,16 @@ export class SettingsSlice {
       }
     }
 
-    const discordPanel = root.querySelector('.settings-discord');
-    if (discordPanel) discordPanel.hidden = target !== 'discord';
+    ['discord', 'branding', 'suites'].forEach((k) => {
+      const p = root.querySelector(`.settings-${k}`);
+      if (p) p.hidden = target !== k;
+    });
 
-    const brandingPanel = root.querySelector('.settings-branding');
-    if (brandingPanel) brandingPanel.hidden = target !== 'branding';
-
-    const suitesPanel = root.querySelector('.settings-suites');
-    if (suitesPanel) suitesPanel.hidden = target !== 'suites';
+    const jiraPanel = root.querySelector('.settings-jira');
+    if (jiraPanel) {
+      jiraPanel.hidden = target !== 'jira';
+      if (target === 'jira') initJiraSettings();
+    }
 
     const documentsPanel = root.querySelector('.settings-documents');
     if (documentsPanel) {

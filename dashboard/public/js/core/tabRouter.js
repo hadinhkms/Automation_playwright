@@ -115,7 +115,7 @@ export class TabRouter {
       setTimeout(() => { if (typeof window.switchResourceCategory === 'function') window.switchResourceCategory(sTab, true); }, 150);
     } else if (targetViewId === 'qa-view' && sTab) {
       setTimeout(() => {
-        const btn = document.querySelector(`.qa-tab-btn[data-tab="${sTab}"]`);
+        const btn = document.querySelector(`[data-qa-tab="${sTab}"]`);
         if (btn && !btn.classList.contains('active')) btn.click();
       }, 150);
     }
@@ -151,8 +151,8 @@ export class TabRouter {
       if (resBtn?.dataset.category) try { localStorage.setItem('dashboard_resources_category', resBtn.dataset.category); } catch (_) {}
       const docsTab = e.target.closest('.docs-subtab');
       if (docsTab?.dataset.docsSubtab) try { localStorage.setItem('dashboard_docs_subtab', docsTab.dataset.docsSubtab); } catch (_) {}
-      const qaBtn = e.target.closest('.qa-tab-btn');
-      if (qaBtn?.dataset.tab) try { localStorage.setItem('dashboard_qa_subtab', qaBtn.dataset.tab); } catch (_) {}
+      const qaBtn = e.target.closest('[data-qa-tab]');
+      if (qaBtn?.dataset.qaTab) try { localStorage.setItem('dashboard_qa_subtab', qaBtn.dataset.qaTab); } catch (_) {}
       const runTab = e.target.closest('.runner-mode-tab');
       if (runTab?.dataset.mode) try { localStorage.setItem('dashboard_runner_mode', runTab.dataset.mode); } catch (_) {}
     });

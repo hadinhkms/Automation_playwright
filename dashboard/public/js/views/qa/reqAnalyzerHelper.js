@@ -4,37 +4,21 @@
  * dashboard/public/js/views/qa/reqAnalyzerHelper.js
  * Quản lý vòng đời và tương tác của Modal Phân Tích Yêu Cầu & Đánh Giá Tác Động QA (Requirement Analyzer).
  * Tuân thủ quy chuẩn OWN-01..05 & Modular Decomposition (PLAN-07).
+ * Modularity ceiling <= 250 lines (Target < 200).
  */
 
-import { apiClient } from '../../core/apiClient.js';
 import { toast } from '../../core/toast.js';
+import { escapeHtml, extractJiraKey, parseJiraMarkup, buildMarkdownReport } from './analyzer/markdownSpecParser.js';
+import { switchTab, renderResults, renderClarityResult, renderSpecResult } from './analyzer/reqAnalyzerRenderer.js';
+import { renderTestCases, renderSystemImpact, renderLogicClarifications, renderQaInquiries } from './analyzer/cardPanelsRenderer.js';
 import {
-  escapeHtml,
-  extractJiraKey,
-  parseJiraMarkup,
-  buildMarkdownReport,
-} from './analyzer/markdownSpecParser.js';
-import {
-  switchTab,
-  renderResults,
-  renderClarityResult,
-  renderSpecResult,
-} from './analyzer/reqAnalyzerRenderer.js';
-import {
-  renderTestCases,
-  renderSystemImpact,
-  renderLogicClarifications,
-  renderQaInquiries,
-} from './analyzer/cardPanelsRenderer.js';
-import {
-  runClarityCheck,
-  runGenerateTestCases,
-  runGenerateSpec,
-  runAnalysis,
-  scaffoldFiles,
-  copyMarkdownReport,
+  runClarityCheck, runGenerateTestCases, runGenerateSpec,
+  runAnalysis, scaffoldFiles, copyMarkdownReport,
 } from './analyzer/analyzerActions.js';
 import { mountSpecPanels } from './specStudio/specStudioPanels.js';
+import {
+  setLoadingState, checkAiStatus, showInputView, fetchJiraTicket,
+} from './analyzer/reqAnalyzerModalState.js';
 
 export class ReqAnalyzerHelper {
   constructor(qaSlice) {
@@ -76,6 +60,9 @@ export class ReqAnalyzerHelper {
       }
       toast.success('Đã chuyển đổi Jira markup sang Markdown.');
     });
+
+    const fetchJiraBtn = root.querySelector('#qa-req-btn-fetch-jira');
+    addEvt(fetchJiraBtn, 'click', () => fetchJiraTicket(root, jiraKeyInput, fetchJiraBtn));
 
     this.specPanels = mountSpecPanels(root, {
       switchTab: (tab) => this.switchTab(root, tab),
@@ -154,22 +141,7 @@ export class ReqAnalyzerHelper {
   async copyMarkdownReport() { await copyMarkdownReport(this); }
 
   _setLoadingState(root, isLoading, isError = false) {
-    const inputSection = root.querySelector('#qa-req-analyzer-input-section');
-    const loadingSection = root.querySelector('#qa-req-analyzer-loading');
-    const resultsSection = root.querySelector('#qa-req-analyzer-results-section');
-    if (isLoading) {
-      if (inputSection) inputSection.style.display = 'none';
-      if (loadingSection) loadingSection.style.display = 'block';
-      if (resultsSection) resultsSection.style.display = 'none';
-    } else if (isError) {
-      if (loadingSection) loadingSection.style.display = 'none';
-      if (inputSection) inputSection.style.display = 'flex';
-      if (resultsSection) resultsSection.style.display = 'none';
-    } else {
-      if (loadingSection) loadingSection.style.display = 'none';
-      if (inputSection) inputSection.style.display = 'none';
-      if (resultsSection) resultsSection.style.display = 'flex';
-    }
+    setLoadingState(root, isLoading, isError);
   }
 
   async openModal(root) {
@@ -181,35 +153,11 @@ export class ReqAnalyzerHelper {
   }
 
   async checkAiStatus(root) {
-    const badge = root.querySelector('#qa-req-analyzer-ai-badge');
-    if (!badge) return;
-    badge.textContent = 'Đang kiểm tra AI...';
-    try {
-      const config = await apiClient.get('/api/ai/config');
-      if (config && config.hasKey) {
-        badge.textContent = `🟢 Sẵn sàng (${config.provider} - ${config.model})`;
-        badge.style.color = 'var(--success)';
-      } else {
-        badge.textContent = '⚪ Chưa cấu hình Key';
-        badge.style.color = 'var(--danger)';
-      }
-    } catch (_) {
-      badge.textContent = '⚪ Không khả dụng';
-    }
+    await checkAiStatus(root);
   }
 
   showInputView(root) {
-    const inputSection = root.querySelector('#qa-req-analyzer-input-section');
-    const loadingSection = root.querySelector('#qa-req-analyzer-loading');
-    const resultsSection = root.querySelector('#qa-req-analyzer-results-section');
-    const copyBtn = root.querySelector('#qa-req-analyzer-btn-copy');
-    const scaffoldBtn = root.querySelector('#qa-req-analyzer-btn-scaffold');
-
-    if (inputSection) inputSection.style.display = 'flex';
-    if (loadingSection) loadingSection.style.display = 'none';
-    if (resultsSection) resultsSection.style.display = 'none';
-    if (copyBtn) copyBtn.style.display = 'none';
-    if (scaffoldBtn) scaffoldBtn.style.display = 'none';
+    showInputView(root);
   }
 
   renderResults(root, data) {

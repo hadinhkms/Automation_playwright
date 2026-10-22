@@ -17,6 +17,7 @@
         <button class="settings-subtab active" type="button" role="tab" data-subtab="general"><i class="ph-bold ph-gear"></i> Cấu hình chung & Môi trường</button>
         <button class="settings-subtab" type="button" role="tab" data-subtab="master-process"><i class="ph-bold ph-shield-check"></i> Quy trình Master Process</button>
         <button class="settings-subtab" type="button" role="tab" data-subtab="ai"><i class="ph-bold ph-sparkle"></i> Cấu hình AI & API</button>
+        <button class="settings-subtab" type="button" role="tab" data-subtab="jira"><i class="ph-bold ph-ticket"></i> Cấu hình Jira</button>
         <button class="settings-subtab" type="button" role="tab" data-subtab="discord"><i class="ph-bold ph-bell-ringing"></i> Thông báo Discord</button>
         <button class="settings-subtab" type="button" role="tab" data-subtab="branding"><i class="ph-bold ph-paint-brush"></i> Giao diện & Branding</button>
       </div>
@@ -1148,6 +1149,79 @@
               <div class="settings-card-grid">
                 <label class="toggle settings-toggle"><input id="settings-auto-cleanup-evidence" type="checkbox"><span></span><div>Tự dọn evidence<small>Dọn ảnh evidence theo số ngày giữ lại.</small></div></label>
                 <label class="toggle settings-toggle"><input id="settings-auto-cleanup-reports" type="checkbox"><span></span><div>Tự dọn báo cáo<small>Dọn Playwright report theo số ngày giữ lại và giới hạn theo ngày.</small></div></label>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="panel settings-panel settings-jira" hidden>
+          <div class="panel-heading settings-panel-heading">
+            <span class="settings-icon"><i class="ph-bold ph-ticket"></i></span>
+            <div style="flex: 1;">
+              <p>ATLASSIAN INTEGRATION</p>
+              <h2>Cấu Hình Kết Nối Jira Cloud & Đọc Ticket</h2>
+            </div>
+            <div class="settings-actions-top">
+              <span id="settings-jira-status-badge" class="settings-badge-status"><i class="ph-fill ph-circle"></i> Đang tải...</span>
+            </div>
+          </div>
+
+          <div id="settings-jira-status-alert" class="settings-card settings-card-wide settings-ai-alert" hidden>
+            <div class="settings-ai-alert-body">
+              <i class="ph-fill ph-info settings-ai-alert-icon"></i>
+              <div class="settings-ai-alert-text">
+                <strong id="settings-jira-alert-title">Thông báo Jira</strong>
+                <p id="settings-jira-alert-msg"></p>
+              </div>
+              <button type="button" class="btn-icon-subtle settings-ai-alert-close" id="settings-jira-alert-close" aria-label="Đóng thông báo"><i class="ph ph-x"></i></button>
+            </div>
+          </div>
+
+          <div class="settings-body settings-grid" style="grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px;">
+            <!-- CARD 1: CẤU HÌNH TOKEN -->
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-key"></i><span>Tài khoản & API Token</span></div>
+              <div class="settings-card-grid">
+                <label class="wide">Jira Base URL<small>Tên miền Jira Cloud của tổ chức (ví dụ: https://sieuviet.atlassian.net).</small>
+                  <input id="settings-jira-base-url" type="url" placeholder="https://sieuviet.atlassian.net" autocomplete="off">
+                </label>
+                <label class="wide">Email Atlassian<small>Email đăng nhập tài khoản Atlassian của bạn.</small>
+                  <input id="settings-jira-email" type="email" placeholder="your_email@sieuviet.vn" autocomplete="off">
+                </label>
+                <label class="wide">Jira API Token<small>Token bảo mật cá nhân (Personal API Token) tạo từ Atlassian.</small>
+                  <div class="ai-key-input-wrap" style="display: flex; gap: 6px; align-items: center;">
+                    <input id="settings-jira-token" type="password" placeholder="Dán Jira API Token vào đây (ATATT...)" autocomplete="off" style="flex: 1;">
+                    <button type="button" class="btn-icon-subtle" id="toggle-jira-token-vis" title="Ẩn/Hiện token"><i class="ph ph-eye"></i></button>
+                    <button type="button" class="btn-icon-subtle" id="paste-jira-token" title="Dán từ Clipboard"><i class="ph ph-clipboard"></i></button>
+                  </div>
+                  <small style="color: var(--muted); margin-top: 4px; display: block;">
+                    Chưa có token?
+                    <a href="https://id.atlassian.com/manage-profile/security/api-tokens"
+                      target="_blank" rel="noopener noreferrer"
+                      style="color: var(--accent); text-decoration: underline;">
+                      Tạo API Token tại Atlassian Security &rarr;
+                    </a>
+                  </small>
+                </label>
+                <div class="wide" style="display: flex; gap: 10px; margin-top: 8px;">
+                  <button type="button" id="btn-test-jira" class="ghost" style="flex: 1;"><i class="ph-bold ph-plugs"></i> Kiểm tra kết nối</button>
+                  <button type="button" id="btn-save-jira" class="primary" style="flex: 1;"><i class="ph-fill ph-floppy-disk"></i> Lưu cấu hình Jira</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- CARD 2: THỬ NGHIỆM ĐỌC TICKET JIRA -->
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-file-magnifying-glass"></i><span>Đọc & Trích Xuất Ticket Trực Tiếp</span></div>
+              <div class="settings-card-grid">
+                <label class="wide">Mã ticket hoặc URL Jira<small>Nhập mã issue (ví dụ: JS-8824, JS-8834) hoặc dán link browse để kiểm tra đọc dữ liệu.</small>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <input id="jira-fetch-key-input" type="text" placeholder="Ví dụ: JS-8824 hoặc https://.../browse/JS-8824" style="flex: 1;">
+                    <button type="button" id="btn-fetch-jira-test" class="primary" style="white-space: nowrap;"><i class="ph-bold ph-ticket"></i> Đọc thử ticket</button>
+                  </div>
+                </label>
+                <div class="wide">
+                  <div id="jira-fetch-result" hidden style="margin-top: 8px;"></div>
+                </div>
               </div>
             </div>
           </div>
