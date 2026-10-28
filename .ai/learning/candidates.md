@@ -21,4 +21,19 @@
   1. Xử lý dropdown kỹ năng bằng selector đa tầng: tìm option `text=/Thêm mới:\s*<skill>/i`, fallback sang exact match hoặc partial match, và dự phòng phím `Enter` nếu dropdown không xuất hiện.
   2. Tuyệt đối không chọn nút Save chung chung bằng `.first()` trong `common__actions-button`; luôn lọc tường minh qua text: `.filter({ hasText: /Lưu/i })` hoặc `getByRole('button', { name: /Lưu/i })`.
   3. Với các luồng composite dài trên QC, luôn chủ động tăng timeout phù hợp trước khi gọi `test.slow()`.
+### [LEARN-027] Kiểm Thử Cơ Chế Phục Hồi HTTP 431 (?_restore=1), Cookie Bloat & Client URL Guard
+- **Nguồn trích xuất:** Ticket JS-8865 (Fix HTTP 431 Request Header Or Cookie Too Large)
+- **Role quan sát:** Senior Automation QA Engineer (Gate 4)
+- **Quan sát & Nguyên tắc:**
+  1. Với cơ chế self-healing URL dài qua `?_restore=1` và `sessionStorage`, kiểm thử tự động cần intercept tracking network để xác nhận 0 request analytics và assert `<meta name="robots" content="noindex, nofollow">` trên trang restore.
+  2. Cookie bloat phòng ngừa bằng cách kiểm tra context cookies không tồn tại các cookie tìm kiếm cũ và `sv_p_r` $\le$ 200 ký tự.
+  3. URL vượt ngưỡng API $\ge$ 8 KB (~750 quận): Xác nhận client chặn thành công Search API request và hiển thị đúng Toast warning thay vì để server 431.
+- **Trạng thái:** PENDING
 
+### [LEARN-028] Quy Tắc Validation Ô Input SĐT SMS OTP (JS-8819) & Tương Tác Controlled Input Trong Modal
+- **Nguồn trích xuất:** Ticket JS-8819 (Cải thiện SMS OTP: kiểm tra đầu số SĐT & countdown)
+- **Role quan sát:** Senior Automation QA Engineer (Gate 4)
+- **Quan sát & Nguyên tắc:**
+  1. Ô input SĐT của Seeker giới hạn cứng `maxLength = 10` và tự động cắt từ ký tự thứ 11 (kể cả khi paste số 11 chữ số hoặc mã vùng `+84`/`84`), đồng thời hiển thị dòng cảnh báo `"Số điện thoại không hợp lệ"` bên dưới ô input là **hành vi chủ đích của đội phát triển (By Design)**, không phải bug.
+  2. Khi kiểm thử ô input SĐT React trong HeadlessUI modal (`[role="dialog"]`), luôn scope locator vào `dialog`, xóa giá trị cũ bằng `click()` + `Control+A` + `Backspace` trước khi `pressSequentially()`, và dùng `.getByText(/Số điện thoại không hợp lệ/i)` thay vì nối chuỗi CSS với `text=`.
+- **Trạng thái:** PENDING
