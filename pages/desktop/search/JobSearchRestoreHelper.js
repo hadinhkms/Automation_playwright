@@ -62,3 +62,4 @@ class JobSearchRestoreHelper {
 }
 
 module.exports = { JobSearchRestoreHelper };
+

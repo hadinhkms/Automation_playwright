@@ -174,3 +174,4 @@ class JobSearchFilterHelper {
 }
 
 module.exports = { JobSearchFilterHelper };
+
