@@ -229,3 +229,4 @@ module.exports = {
   verifySatelliteAfterSync,
   finalizeSatelliteSyncRun,
 };
+
