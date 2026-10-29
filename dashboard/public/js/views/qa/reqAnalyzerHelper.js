@@ -17,6 +17,7 @@ import {
 } from './analyzer/analyzerActions.js';
 import { mountSpecPanels } from './specStudio/specStudioPanels.js';
 import {
+  SAMPLE_REQUIREMENT_TEXT, setAnalyzerText,
   setLoadingState, checkAiStatus, showInputView, fetchJiraTicket,
 } from './analyzer/reqAnalyzerModalState.js';
 
@@ -53,7 +54,7 @@ export class ReqAnalyzerHelper {
       }
       const original = textarea.value;
       const formatted = this.parseJiraMarkup(original);
-      textarea.value = formatted;
+      setAnalyzerText(textarea, formatted);
       if (jiraKeyInput && !jiraKeyInput.value.trim()) {
         const detectedKey = this.extractJiraKey(original) || this.extractJiraKey(formatted);
         if (detectedKey) jiraKeyInput.value = detectedKey;
@@ -79,6 +80,9 @@ export class ReqAnalyzerHelper {
 
     const closeModal = async (event) => {
       if (this.specPanels) {
+        if (this.specPanels.isDirty() && event && typeof event.preventDefault === 'function') {
+          event.preventDefault();
+        }
         const canClose = await this.specPanels.confirmClose();
         if (!canClose) {
           if (event && typeof event.preventDefault === 'function') event.preventDefault();
@@ -94,19 +98,7 @@ export class ReqAnalyzerHelper {
     addEvt(root.querySelector('#qa-req-analyzer-sample-btn'), 'click', () => {
       const textarea = root.querySelector('#qa-req-analyzer-text');
       if (textarea) {
-        textarea.value = [
-          'Tính năng: Bổ sung trường "Trung tâm sát hạch" trên Hồ sơ Giáo viên',
-          '1. Bối cảnh:',
-          '- Hồ sơ giáo viên có thêm trường "Trung tâm sát hạch" đứng cạnh "Trung tâm đang công tác".',
-          '- Cho phép chọn từ danh sách hoặc "Thêm trung tâm mới".',
-          '- Có nút "Dùng lại trung tâm đang công tác".',
-          '',
-          '2. Quy tắc nghiệp vụ:',
-          '- MST KHÔNG bắt buộc khi tạo trung tâm sát hạch mới.',
-          '- Bắt buộc cả khi tạo mới và cập nhật.',
-          '- Nâng giới hạn chọn phường/xã từ 6 lên 10 mục.',
-          '- Nút dùng lại tự động ẩn sau khi bấm.'
-        ].join('\n');
+        setAnalyzerText(textarea, SAMPLE_REQUIREMENT_TEXT);
         textarea.focus();
         toast.info('Đã nạp văn bản requirement mẫu.');
       }
@@ -140,9 +132,7 @@ export class ReqAnalyzerHelper {
   async scaffoldFiles(root) { await scaffoldFiles(this, root); }
   async copyMarkdownReport() { await copyMarkdownReport(this); }
 
-  _setLoadingState(root, isLoading, isError = false) {
-    setLoadingState(root, isLoading, isError);
-  }
+  _setLoadingState(root, isLoading, isError = false) { setLoadingState(root, isLoading, isError); }
 
   async openModal(root) {
     const modal = root.querySelector('#qa-req-analyzer-modal');
@@ -152,17 +142,9 @@ export class ReqAnalyzerHelper {
     try { modal.showModal(); } catch (_) { modal.setAttribute('open', ''); }
   }
 
-  async checkAiStatus(root) {
-    await checkAiStatus(root);
-  }
-
-  showInputView(root) {
-    showInputView(root);
-  }
-
-  renderResults(root, data) {
-    renderResults(this, root, data);
-  }
+  async checkAiStatus(root) { await checkAiStatus(root); }
+  showInputView(root) { showInputView(root); }
+  renderResults(root, data) { renderResults(this, root, data); }
 
   renderTestCases(root, testCases) {
     this.currentTestCases = testCases;

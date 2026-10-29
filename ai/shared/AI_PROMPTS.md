@@ -42,9 +42,7 @@ Không đọc hoặc gửi cho AI các thư mục sinh tự động như `node_m
 negative, thiếu ràng buộc quyền, thiếu state chuyển tiếp. Ghi requirement trước rồi mới sinh test
 case, sinh script từ test case: mỗi lần rơi rụng đều lộ ra ở ma trận truy vết thay vì lộ ra ở production.
 
-**Nguồn chuẩn duy nhất** cho template, quy tắc viết và tooling: repo `hadinhkms/Support_doc_n_TestCase`
-(`.github/copilot-instructions.md`, `templates/`, `docs/`, `tools/qa`). Mục này **không chép lại** các
-rule đó để tránh hai bản lệch nhau — nó chỉ nêu phần thuộc về repo automation này.
+**Nguồn chuẩn duy nhất** cho template, quy tắc viết, skill cào bug và tooling: `D:\_QA_Test_Automation` (repo `hadinhkms/Support_doc_n_TestCase` — đọc trực tiếp `.agents/skills/qa-logic-gaps/SKILL.md`, `.agents/skills/qa-api-testing/SKILL.md`, `.agents/skills/qa-system-testing/SKILL.md`, `.agents/skills/qa-ui-review/SKILL.md`, `templates/`, `docs/`, `tools/qa`). Mục này **không chép lại** các rule đó để tránh hai bản lệch nhau — nó chỉ nêu phần thuộc về repo automation này.
 
 ### 3.1 Chuỗi truy vết
 

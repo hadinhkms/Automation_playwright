@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "rules": {
+    "test-no-polling-loop": {
+      "core/ai/agentService.test.js": 4
+    },
+    "test-no-real-time-wait": {
+      "core/generator/draftManager.test.js": 1,
+      "dashboard/services/masterProcessService.test.js": 1,
+      "tests/dashboard-api/gatewayAgent.test.js": 2,
+      "tests/dashboard-api/gatewayCall.test.js": 1,
+      "tests/dashboard-api/gatewayTasks.test.js": 1,
+      "tests/dashboard-api/qa-spec-studio.test.js": 1,
+      "tests/dashboard/data-vn-generator.spec.js": 4,
+      "tests/dashboard/foundation-parity.spec.js": 2,
+      "tests/dashboard/qa-batch-fixer-layout.spec.js": 1,
+      "tests/dashboard/qa-conflict-studio.spec.js": 1,
+      "tests/dashboard/qa-spec-studio.spec.js": 4,
+      "tests/dashboard/spike-esm-coexistence.spec.js": 1
+    },
+    "test-no-wall-clock": {
+      "dashboard/services/masterProcessService.test.js": 2,
+      "dashboard/services/qaFindingFixerService.test.js": 2,
+      "tests/dashboard-api/data-generate.test.js": 1,
+      "tests/dashboard/data-vn-generator.spec.js": 1,
+      "tests/dashboard/qa-smart-linker.spec.js": 2
+    },
+    "test-skip-needs-quarantine": {
+      "dashboard/services/qaBatchCommit.test.js": 2,
+      "dashboard/services/qaBatchPlan.test.js": 3,
+      "dashboard/services/qaFixTitle.test.js": 3,
+      "dashboard/services/qaFixValidate.test.js": 2,
+      "tests/dashboard/qa-batch-fixer.spec.js": 2,
+      "tools/qa/lib/commandsDeepGuards.test.js": 1
+    },
+    "test-timeout-needs-reason": {},
+    "test-no-in-test-import-actual": {}
+  }
+}

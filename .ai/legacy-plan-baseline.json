@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "head_commit": "82987f5f9f2b37e29f2b3a7e2985d92bc300c308",
+  "files": {
+    "_Plan_implement/probe-hardening-and-git-hygiene/phase-1-probe-p4-fix-and-verification.md": "4b681e7c4174ce34e721e0031ca140bc257787260857603c229061eafa3d2637",
+    "_Plan_implement/probe-hardening-and-git-hygiene/phase-2-plan23-archival-and-dashboard-alignment.md": "153af9cd45dfc1ae2529f5906043dc40650e82edb32655840d7702964ab8e64e",
+    "_Plan_implement/probe-hardening-and-git-hygiene/phase-3-git-hygiene-and-gate4-readiness.md": "ac96445de5d1966d13f93e3f7ca0f9ee86bf89db599ea7f4132319b2385eeda8",
+    "_Plan_implement/probe-hardening-and-git-hygiene/plan-24-overview.md": "1913c97f3e27871c4f7fd3a2289717dddb4d1b6a46307feb324ad862e67156df"
+  }
+}

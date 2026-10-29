@@ -56,11 +56,11 @@ test.describe('Đăng nhập @REQ-001', () => {
   });
 
   test.skip('TC-003 - AC-003 chặn trang riêng', async ({ page }) => {
-    await expect(page).toHaveURL(/login/);
+    await expect(page.locator('#login-form')).toBeVisible();
   });
 
   test('kiểm tra tiêu đề trang', async ({ page }) => {
-    await expect(page).toHaveTitle(/.*/);
+    await expect(page.locator('#title')).toBeVisible();
   });
 });
 

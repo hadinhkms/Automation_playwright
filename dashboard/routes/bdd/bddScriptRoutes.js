@@ -9,13 +9,33 @@ const { deleteTestScript, createBackup } = require('../../services/resourceServi
 const { saveDraft, listDrafts, getDraft, deleteDraft, cleanupDraft } = require('../../../core/generator/draftManager');
 const { sendJson, parseBody, safeChildPath } = require('../routeUtils');
 
+function buildBddSpecTemplate({ fixtureRelPath, featureName, tags, scenarioName, fixtureName }) {
+  return [
+    `const { test, expect } = require('${fixtureRelPath}');`,
+    '',
+    `test.describe('Feature: ${featureName} ${tags}', () => {`,
+    `  test('${scenarioName}', async ({`,
+    `    ${fixtureName},`,
+    '  }, testInfo) => {',
+    '    test.setTimeout(180000);',
+    "    testInfo.annotations.push({ type: 'Precondition', description: 'Môi trường sẵn sàng, khởi tạo kịch bản kiểm thử' });",
+    "    await test.step('Given Tiền điều kiện: Mở trang kiểm thử và chuẩn bị môi trường', async () => {",
+    `      await ${fixtureName}.capture('precondition_ready');`,
+    '    });',
+    "    await test.step('When Người dùng thực hiện các bước kiểm thử', async () => {});",
+    "    await test.step('Then Hệ thống phản hồi đúng kết quả mong đợi', async () => {});",
+    '  });',
+    '});',
+    '',
+  ].join('\n');
+}
+
 async function handleBddScriptRoutes(request, response, url, context = {}) {
   const root = context.root || process.env.QA_PROJECT_ROOT || process.cwd();
 
   if (request.method === 'GET' && url.pathname === '/api/builder/scripts') {
-    try {
-      sendJson(response, 200, { scripts: scanAllProjectScripts(root) });
-    } catch (e) { sendJson(response, 500, { error: e.message }); }
+    try { sendJson(response, 200, { scripts: scanAllProjectScripts(root) }); }
+    catch (e) { sendJson(response, 500, { error: e.message }); }
     return true;
   }
   if (request.method === 'GET' && url.pathname === '/api/builder/load-spec') {
@@ -48,7 +68,7 @@ async function handleBddScriptRoutes(request, response, url, context = {}) {
       const { type, id, data } = await parseBody(request);
       if (!type || !['script', 'page'].includes(type)) return sendJson(response, 400, { error: 'type phải là "script" hoặc "page"' }) || true;
       sendJson(response, 200, { success: true, draft: saveDraft({ type, id, data, rootDir: root }) });
-    } catch (e) { sendJson(response, 500, { error: `Lỗi lưu bản nháp: ${e.message}` }); }
+    } catch (e) { sendJson(response, Number.isInteger(e.status) ? e.status : 500, { error: `Lỗi lưu bản nháp: ${e.message}` }); }
     return true;
   }
   if (request.method === 'GET' && url.pathname === '/api/drafts') {
@@ -72,15 +92,11 @@ async function handleBddScriptRoutes(request, response, url, context = {}) {
       const id = b.id || url.searchParams.get('id');
       if (!id) return sendJson(response, 400, { error: 'Thiếu id bản nháp cần xóa' }) || true;
       sendJson(response, 200, deleteDraft({ type: b.type || url.searchParams.get('type') || 'script', id, rootDir: root }));
-    } catch (e) { sendJson(response, 500, { error: `Lỗi xóa bản nháp: ${e.message}` }); }
+    } catch (e) { sendJson(response, Number.isInteger(e.status) ? e.status : 500, { error: `Lỗi xóa bản nháp: ${e.message}` }); }
     return true;
   }
-  if (request.method === 'POST' && url.pathname === '/api/builder/insert-step') {
-    return handleInsertStep(request, response, root);
-  }
-  if (request.method === 'POST' && url.pathname === '/api/builder/create-script') {
-    return handleCreateScript(request, response, root);
-  }
+  if (request.method === 'POST' && url.pathname === '/api/builder/insert-step') return handleInsertStep(request, response, root);
+  if (request.method === 'POST' && url.pathname === '/api/builder/create-script') return handleCreateScript(request, response, root);
   return false;
 }
 
@@ -88,8 +104,12 @@ async function handleInsertStep(request, response, root) {
   try {
     const body = await parseBody(request);
     const { scriptPath, pageFile, pageClassName, actionType, actionName, actionParams, locatorInteraction = 'click', locatorValue, stepType = 'When', stepTitle, includeEvidence = true } = body;
-    if (!scriptPath) return sendJson(response, 400, { error: 'Thiếu đường dẫn kịch bản BDD (scriptPath).' }) || true;
+    if (!scriptPath || typeof scriptPath !== 'string') return sendJson(response, 400, { error: 'Thiếu đường dẫn kịch bản BDD (scriptPath).' }) || true;
+    const testsRoot = path.resolve(root, 'tests');
     const fullPath = path.resolve(root, scriptPath);
+    if (!fullPath.startsWith(`${testsRoot}${path.sep}`) || !fullPath.endsWith('.spec.js')) {
+      return sendJson(response, 403, { error: 'Đường dẫn kịch bản BDD phải nằm trong thư mục tests/ và có đuôi .spec.js.' }) || true;
+    }
     if (!fs.existsSync(fullPath)) return sendJson(response, 404, { error: `Không tìm thấy file kịch bản: ${scriptPath}` }) || true;
     let content = fs.readFileSync(fullPath, 'utf8');
     const cleanClassName = pageClassName || (pageFile ? path.basename(pageFile, '.js') : 'CustomPage');
@@ -133,7 +153,7 @@ async function handleInsertStep(request, response, root) {
       success: true, message: `Đã thêm bước "${stepType} ${safeStepTitle}" gọi ${cleanClassName}.${actionName}() thành công!`,
       script: parseExistingSpecFile(scriptPath, root), backup,
     });
-  } catch (err) { sendJson(response, 500, { error: `Lỗi chèn bước BDD: ${err.message}` }); }
+  } catch (err) { sendJson(response, Number.isInteger(err.status) ? err.status : 500, { error: `Lỗi chèn bước BDD: ${err.message}` }); }
   return true;
 }
 
@@ -141,22 +161,33 @@ async function handleCreateScript(request, response, root) {
   try {
     const body = await parseBody(request);
     const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
-    let rawName = (body.fileName || '').trim().replace(/\.spec\.js$/, '');
+    let rawName = typeof body.fileName === 'string' ? body.fileName.trim().replace(/\.spec\.js$/, '') : '';
+    if (rawName && (/[\\/]|\.\./.test(rawName) || !/^[A-Za-z0-9._-]+$/.test(rawName))) {
+      return sendJson(response, 400, { error: 'Tên file kịch bản không hợp lệ (chỉ chấp nhận chữ, số, dấu gạch ngang/dưới).' }) || true;
+    }
     if (!rawName) rawName = `scenario_${Date.now()}`;
     if (!rawName.endsWith('-bdd')) rawName += '-bdd';
     const fileName = `${rawName}.spec.js`;
     const relPath = `tests/e2e/${platform}/${fileName}`;
+    const platformDir = path.resolve(root, 'tests', 'e2e', platform);
     const fullPath = path.resolve(root, relPath);
+    if (!fullPath.startsWith(`${platformDir}${path.sep}`)) return sendJson(response, 403, { error: 'Đường dẫn kịch bản vượt ra ngoài thư mục cho phép.' }) || true;
     if (fs.existsSync(fullPath)) return sendJson(response, 400, { error: `File kịch bản ${fileName} đã tồn tại trong ${platform}.` }) || true;
-    const fixtureName = body.primaryPage ? path.basename(body.primaryPage, '.js').charAt(0).toLowerCase() + path.basename(body.primaryPage, '.js').slice(1) : 'homePage';
+    const basePage = body.primaryPage ? path.basename(body.primaryPage, '.js') : '';
+    const fixtureName = basePage ? basePage.charAt(0).toLowerCase() + basePage.slice(1) : 'homePage';
     const fixtureRelPath = platform === 'mobile-web' ? '../../../core/fixtures/mobileWebTest' : '../../../core/fixtures/baseTest';
-    const template = `const { test, expect } = require('${fixtureRelPath}');\n\ntest.describe('Feature: ${(body.featureName || 'Tính năng kiểm thử').trim()} ${(body.tags || '@e2e @custom').trim()}', () => {\n  test('${(body.scenarioName || 'Người dùng thực hiện quy trình kiểm thử').trim()}', async ({\n    ${fixtureName},\n  }, testInfo) => {\n    test.setTimeout(180000);\n    testInfo.annotations.push({ type: 'Precondition', description: 'Môi trường sẵn sàng, khởi tạo kịch bản kiểm thử' });\n    await test.step('Given Tiền điều kiện: Mở trang kiểm thử và chuẩn bị môi trường', async () => {\n      await ${fixtureName}.capture('precondition_ready');\n    });\n    await test.step('When Người dùng thực hiện các bước kiểm thử', async () => {});\n    await test.step('Then Hệ thống phản hồi đúng kết quả mong đợi', async () => {});\n  });\n});\n`;
+    const template = buildBddSpecTemplate({
+      fixtureRelPath, fixtureName,
+      featureName: (body.featureName || 'Tính năng kiểm thử').trim(),
+      tags: (body.tags || '@e2e @custom').trim(),
+      scenarioName: (body.scenarioName || 'Người dùng thực hiện quy trình kiểm thử').trim(),
+    });
     const dir = path.dirname(fullPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(fullPath, (typeof body.specCode === 'string' && body.specCode.trim()) ? body.specCode : template, 'utf8');
     if (body.draftId) cleanupDraft({ type: 'script', id: body.draftId, rootDir: root });
     sendJson(response, 200, { success: true, message: `Đã tạo kịch bản BDD ${fileName} thành công!`, script: parseExistingSpecFile(relPath, root) });
-  } catch (err) { sendJson(response, 500, { error: `Lỗi tạo kịch bản: ${err.message}` }); }
+  } catch (err) { sendJson(response, Number.isInteger(err.status) ? err.status : 500, { error: `Lỗi tạo kịch bản: ${err.message}` }); }
   return true;
 }
 

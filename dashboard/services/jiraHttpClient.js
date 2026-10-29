@@ -11,6 +11,7 @@ const path = require('node:path');
 const { parseEnvFile, writeEnvFile } = require('../routes/aiRoutes');
 
 const DEFAULT_JIRA_URL = 'https://sieuviet.atlassian.net';
+const MAX_JIRA_RESPONSE_BYTES = 5 * 1024 * 1024;
 
 function assertSafeEnvValue(value, label) {
   if (/[\r\n\0]/.test(String(value || ''))) {
@@ -24,7 +25,10 @@ function normalizeJiraBaseUrl(rawUrl) {
   assertSafeEnvValue(trimmed, 'JIRA_BASE_URL');
   let parsed;
   try { parsed = new URL(trimmed); } catch { return null; }
-  return ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.hostname) ? trimmed : null;
+  if ((parsed.protocol !== 'http:' && parsed.protocol !== 'https:') || !parsed.hostname) return null;
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) return null;
+  const cleanPath = parsed.pathname.replace(/\/+$/, '');
+  return `${parsed.origin}${cleanPath}`;
 }
 
 function sameHttpOrigin(urlA, urlB) {
@@ -47,7 +51,7 @@ function saveJiraConfig(root, { baseUrl, email, apiToken }) {
   const current = parseEnvFile(envPath);
   if (baseUrl !== undefined && String(baseUrl).trim() !== '') {
     const normalized = normalizeJiraBaseUrl(baseUrl);
-    if (!normalized) throw new Error('Địa chỉ Jira Base URL không hợp lệ (chỉ chấp nhận http:// hoặc https://).');
+    if (!normalized) throw new Error('Địa chỉ Jira Base URL không hợp lệ (chỉ chấp nhận http:// hoặc https:// không kèm query/hash/credentials).');
     current.JIRA_BASE_URL = normalized;
   }
   if (email !== undefined) {
@@ -94,8 +98,21 @@ function requestJiraApi(urlStr, { email, apiToken, timeout = 10000 }) {
       timeout,
     }, (res) => {
       let raw = '';
-      res.on('data', (chunk) => { raw += chunk; });
+      let bytes = 0;
+      let aborted = false;
+      res.on('data', (chunk) => {
+        if (aborted) return;
+        bytes += Buffer.byteLength(chunk);
+        if (bytes > MAX_JIRA_RESPONSE_BYTES) {
+          aborted = true;
+          req.destroy();
+          resolve({ ok: false, status: 413, error: 'Phản hồi từ Jira vượt quá giới hạn 5 MB.' });
+          return;
+        }
+        raw += chunk;
+      });
       res.on('end', () => {
+        if (aborted) return;
         try {
           const json = raw ? JSON.parse(raw) : {};
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -122,4 +139,3 @@ module.exports = {
   resolveCredentials,
   requestJiraApi,
 };
-

@@ -2,7 +2,7 @@
 
 /**
  * tools/qa/lib/sourcesTestCases.js
- * Đọc test-cases/*.md -> bảng Traceability / Bảng truy vết, chi tiết TC và lý do không automation.
+ * Đọc test-cases/*.md -> bảng Traceability / Bảng truy vết, chi tiết TC (kèm Capabilities) và lý do không automation.
  */
 
 const path = require('node:path');
@@ -15,7 +15,6 @@ const {
 
 const RE_TC_HEADING = /^\s{0,3}#{2,6}\s*(TC-\d{3})\b\s*[:\-–—]?\s*(.*?)\s*$/;
 
-/** test-cases/*.md -> [{ reqId, acId, tcId, automation, spec, priority }] + chi tiết TC */
 function loadTestCases(root, options = {}) {
   const dir = options.testCasesDir || 'test-cases';
   const links = [];
@@ -36,11 +35,11 @@ function loadTestCases(root, options = {}) {
     let rowIdx = 0;
     for (const cells of tableRowsUnder(lines, /^##\s+(?:Traceability|Bảng truy vết)/i)) {
       rowIdx++;
-      if (/^REQ-\d{3}$/i.test(cells[0] || '')) {
+      if (/^REQ-\d{3}$/.test(cells[0] || '')) {
         const [reqId, acId, tcId, automation, spec, priority] = cells;
         const auto = normalizeAutomation(automation);
         links.push({
-          reqId: reqId.toUpperCase(),
+          reqId,
           acId,
           tcId,
           automation: auto.value,
@@ -50,7 +49,7 @@ function loadTestCases(root, options = {}) {
           file: rel,
           rowId: `${rel}:${rowIdx}`,
         });
-      } else if (/^TC-\d{3}$/i.test(cells[0] || '')) {
+      } else if (/^TC-\d{3}$/.test(cells[0] || '')) {
         const tcId = cells[0];
         const acsFound = (cells[1] || '').match(/AC-\d{3}/gi) || [];
         const priority = (cells[3] || '').trim();
@@ -86,8 +85,10 @@ function loadTestCases(root, options = {}) {
         }
       } else {
         const looksLikeData =
-          /^req[-_ ]?\d+/i.test(cells[0] || '') || /^tc[-_]?\d+/i.test(cells[0] || '');
-        if (looksLikeData) nearMisses.push({ raw: cells.slice(0, 3).join(' | '), file: rel });
+          /^req[-_ ]?\d+/i.test(cells[0] || '') ||
+          /^tc[-_]?\d+/i.test(cells[0] || '') ||
+          /^tc[-_]?\d+/i.test(cells[2] || '');
+        if (looksLikeData) nearMisses.push({ raw: `${cells[0] || ''} | ${cells[2] || cells[1] || ''}`, file: rel });
       }
     }
 
@@ -96,13 +97,30 @@ function loadTestCases(root, options = {}) {
       if (m && (cells[1] || '').trim()) noAutomationReasons.add(m[0]);
     }
 
+    let currentDetail = null;
     lines.forEach((line, i) => {
       const m = line.match(RE_TC_HEADING);
-      if (m) details.push({ tcId: m[1], title: m[2], file: rel, line: i + 1 });
+      if (m) {
+        currentDetail = { tcId: m[1], title: m[2], file: rel, line: i + 1, capabilities: [] };
+        details.push(currentDetail);
+        return;
+      }
+      if (/^\s{0,3}#{2,6}\s/.test(line)) {
+        currentDetail = null;
+        return;
+      }
+      if (currentDetail) {
+        const mCap = line.match(/^\s*-\s*\*\*Capabilities\*\*\s*:\s*(.+)$/i);
+        if (mCap) {
+          currentDetail.capabilities = mCap[1]
+            .split(',')
+            .map((c) => c.trim().toLowerCase())
+            .filter(Boolean);
+        }
+      }
     });
   }
   return { links, details, noAutomationReasons, nearMisses };
 }
 
 module.exports = { loadTestCases };
-

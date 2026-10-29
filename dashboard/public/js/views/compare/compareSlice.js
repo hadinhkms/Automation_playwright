@@ -50,11 +50,22 @@ export class CompareSlice {
   renderComparisonGrid() {
     const el = document.getElementById('compare-grid-output');
     if (!el) return;
+    el.replaceChildren();
     if (this.diffs.length === 0) {
-      el.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--muted);">Chưa có ảnh so sánh vi phạm (0 visual diffs).</div>';
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding: 24px; text-align: center; color: var(--muted);';
+      empty.textContent = 'Chưa có ảnh so sánh vi phạm (0 visual diffs).';
+      el.appendChild(empty);
       return;
     }
-    el.innerHTML = this.diffs.map((d) => `<div class="compare-card">${d}</div>`).join('');
+    const frag = document.createDocumentFragment();
+    this.diffs.forEach((d) => {
+      const card = document.createElement('div');
+      card.className = 'compare-card';
+      card.textContent = String(d ?? '');
+      frag.appendChild(card);
+    });
+    el.appendChild(frag);
   }
 }
 

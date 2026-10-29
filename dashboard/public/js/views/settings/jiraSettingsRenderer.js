@@ -54,7 +54,7 @@ export function renderJiraIssueResult(container, res) {
       + `<ul style="margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: var(--text);">${acItems}</ul>`
       + `</div>`
     : '';
-  const preStyle = 'margin: 0; padding: 10px; background: rgba(0,0,0,0.25); border-radius: 6px; '
+  const preStyle = 'margin: 0; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; '
     + 'font-size: 11.5px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; '
     + 'font-family: var(--font-mono); color: var(--text);';
 

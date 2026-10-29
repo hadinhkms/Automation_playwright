@@ -6,20 +6,51 @@
  */
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('path');
+const { execFileSync } = require('node:child_process');
 const { startDashboardHarness } = require('../dashboard/support/dashboardHarness');
+
+function createProbeGitFixture() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mp-p4-fixture-'));
+  fs.mkdirSync(path.join(dir, '_Plan_implement'), { recursive: true });
+  fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
+  const sampleDocKey = 'AKIA' + '1234567890ABCDEF';
+  fs.writeFileSync(path.join(dir, '_Plan_implement', 'plan.md'), `# Plan\nExample: ${sampleDocKey}\n`, 'utf8');
+  fs.writeFileSync(path.join(dir, 'README.md'), `# Docs\nSample: ${sampleDocKey}\n`, 'utf8');
+  fs.writeFileSync(path.join(dir, 'src', 'index.js'), "'use strict';\nmodule.exports = { ok: true };\n", 'utf8');
+  execFileSync('git', ['init'], { cwd: dir, stdio: 'ignore' });
+  execFileSync('git', ['config', 'user.email', 'qa@example.com'], { cwd: dir, stdio: 'ignore' });
+  execFileSync('git', ['config', 'user.name', 'QA Bot'], { cwd: dir, stdio: 'ignore' });
+  execFileSync('git', ['add', '.'], { cwd: dir, stdio: 'ignore' });
+  execFileSync('git', ['commit', '-m', 'chore: seed markdown fixture'], { cwd: dir, stdio: 'ignore' });
+  return dir;
+}
 
 describe('API Contract: Master Process Integration Routes', () => {
   let harness;
+  let probeFixtureDir;
+  let prevAllowedProjects;
   const projectRoot = path.resolve(__dirname, '../..');
 
   before(async () => {
+    probeFixtureDir = createProbeGitFixture();
+    prevAllowedProjects = process.env.QA_ALLOWED_PROJECTS;
+    process.env.QA_ALLOWED_PROJECTS = prevAllowedProjects
+      ? `${prevAllowedProjects};${probeFixtureDir}`
+      : probeFixtureDir;
     // Run harness on the actual project root so Master Process Hub is discoverable
     harness = await startDashboardHarness(projectRoot);
   });
 
   after(async () => {
     if (harness) await harness.stop();
+    if (prevAllowedProjects === undefined) delete process.env.QA_ALLOWED_PROJECTS;
+    else process.env.QA_ALLOWED_PROJECTS = prevAllowedProjects;
+    if (probeFixtureDir) {
+      try { fs.rmSync(probeFixtureDir, { recursive: true, force: true }); } catch (_) {}
+    }
   });
 
   test('GET /api/mp/status returns 200 and valid schema', async () => {
@@ -83,11 +114,11 @@ describe('API Contract: Master Process Integration Routes', () => {
     assert.ok(Array.isArray(body.details.exemptions));
   });
 
-  test('TC-24-01: POST /api/mp/probes with P4 returns code 0 and PASS (AC-24-01)', async () => {
+  test('TC-24-01: POST /api/mp/probes with P4 returns code 0 and PASS on markdown-key repo (AC-24-01)', async () => {
     const res = await fetch(`${harness.url}/api/mp/probes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ probeId: 'P4' }),
+      body: JSON.stringify({ probeId: 'P4', targetPath: probeFixtureDir }),
     });
     assert.equal(res.status, 200);
     const body = await res.json();
@@ -97,4 +128,3 @@ describe('API Contract: Master Process Integration Routes', () => {
     assert.doesNotMatch(body.stdout, /POTENTIAL SECRETS FOUND/);
   });
 });
-

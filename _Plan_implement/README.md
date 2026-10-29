@@ -43,6 +43,7 @@ Các kế hoạch đã hoàn tất thực thi, nghiệm thu Gate 4 và triển k
 | **PLAN-17** | **AI Assisted QA Framework (Copilot, Triage & Fast-Wins)** | [archive/2026-09/plan-17-ai-assisted-qa-framework/](archive/2026-09/plan-17-ai-assisted-qa-framework/) | 2026-09-28 | `ĐÃ NGHIỆM THU` |
 | **PLAN-16** | **Traceability Conflict Resolution Studio** | [archive/2026-09/plan-16-traceability-conflict-studio/](archive/2026-09/plan-16-traceability-conflict-studio/) | 2026-09-27 | `ĐÃ NGHIỆM THU` |
 | **PLAN-09** | **Frontend Strangler Monolith & System Modularization** | [archive/2026-09/plan-09-strangler-architecture/](archive/2026-09/plan-09-strangler-architecture/) | 2026-09-25 | `ĐÃ NGHIỆM THU` |
+| **PLAN-07** | **Modular Decomposition Core & Dashboard (`core/deep-testing`, `tools/qa`, `dashboard`)** | [archive/2026-10/plan-07-modular-decomposition/](archive/2026-10/plan-07-modular-decomposition/) | 2026-10-29 | `ĐÃ NGHIỆM THU` |
 
 ---
 

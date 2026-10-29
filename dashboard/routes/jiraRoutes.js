@@ -75,7 +75,8 @@ async function handleJiraRoutes(request, response, url, context = {}) {
       const status = result.success ? 200 : (result.status || 400);
       return sendJson(response, status, result) || true;
     } catch (err) {
-      return sendJson(response, 500, { success: false, error: err.message }) || true;
+      const status = Number.isInteger(err.status) ? err.status : 500;
+      return sendJson(response, status, { success: false, error: err.message }) || true;
     }
   }
 

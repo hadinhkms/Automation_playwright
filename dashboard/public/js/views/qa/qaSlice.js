@@ -36,7 +36,8 @@ export class QaSlice {
     this._fixChanges = [];
     this.candidates = [];
     this.decisions = null;
-    this.activeTab = (typeof localStorage !== 'undefined' && localStorage.getItem('dashboard_qa_subtab')) || 'docs';
+    const savedTab = typeof localStorage !== 'undefined' && localStorage.getItem('dashboard_qa_subtab');
+    this.activeTab = TAB_PANELS.includes(savedTab) ? savedTab : 'docs';
     this.priorityFilter = 'all';
     this.documents = [];
     this.activeDocPath = null;
@@ -108,19 +109,19 @@ export class QaSlice {
 
   switchTab(tabName) {
     if (!tabName) return;
-    this.activeTab = tabName;
-    try { localStorage.setItem('dashboard_qa_subtab', tabName); } catch (_) {}
+    const safeTab = TAB_PANELS.includes(tabName) ? tabName : 'docs';
+    this.activeTab = safeTab;
+    try { localStorage.setItem('dashboard_qa_subtab', safeTab); } catch (_) {}
     const root = this._root();
     if (!root) return;
 
-    this._syncTabVisibility(root, tabName);
+    this._syncTabVisibility(root, safeTab);
 
-    if (tabName === 'docs') this.docsSlice.renderDocs(root);
-    if (tabName === 'candidates') this.candidatesSlice.renderCandidates(root);
-    if (tabName === 'findings') this.batchSlice.renderFindings(root);
-    if (tabName === 'decisions') this.decisionsSlice.renderDecisions(root);
-    if (tabName === 'process-studio' && this.processStudio) this.processStudio.loadStatus(root);
-    if (tabName === 'conflicts') this.conflictSlice.renderConflicts(root);
+    if (safeTab === 'docs') this.docsSlice.renderDocs(root);
+    if (safeTab === 'candidates') this.candidatesSlice.renderCandidates(root);
+    if (safeTab === 'findings') this.batchSlice.renderFindings(root);
+    if (safeTab === 'decisions') this.decisionsSlice.renderDecisions(root);
+    if (safeTab === 'process-studio' && this.processStudio) this.processStudio.loadStatus(root);
   }
 
   async reload(force = false) { await reloadQaData(this, force); }
@@ -137,6 +138,8 @@ export class QaSlice {
       this.activeDocPath = null;
       this._activeDoc = null;
     }
+
+    if (!TAB_PANELS.includes(this.activeTab)) this.activeTab = 'docs';
 
     this.overviewSlice.renderSourceBar(root, this.summary);
     this.overviewSlice.renderStats(root, this.trace);

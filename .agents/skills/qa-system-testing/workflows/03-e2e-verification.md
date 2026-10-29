@@ -78,13 +78,15 @@ Khi phát hiện một test fail hoặc hành vi bất thường, **bắt buộc
 
 ---
 
-### Bước 5: Chạy Cổng Kiểm Chứng Cuối (Final Quality Gates)
-Sau khi cập nhật spec, test case hoặc requirement, chạy tuần tự:
-1. Trong `playwright/`: `npm run verify` (đảm bảo pass TypeScript, ESLint và `playwright test --list`).
+### Bước 5: Chạy Cổng Kiểm Chứng Cuối & Tự Review Giới Hạn Code (Final Quality & Modularity Gates)
+Sau khi cập nhật spec, Page Object, fixture, test case hoặc requirement, bắt buộc tự kiểm tra giới hạn kích thước code (Rule 15: `*.spec.ts` $< 640/800$ dòng; Page Object / Fixture / Support / Data / `ApiClient` trong `tests/` $< 200/250$ dòng; Service ngoài `tests/` $< 160/200$; Utils ngoài `tests/` $< 120/150$; dòng đơn $\le 500$ ký tự, trung bình dòng $\le 100$ ký tự, không để file `.ai-test.`/`.scratch.`) và chạy tuần tự:
+1. Trong `playwright/`: `npm run verify` (đảm bảo pass TypeScript, ESLint `max-lines`/`max-len`, `limits` và `playwright test --list`).
 2. Ở thư mục gốc:
    ```bash
    npm run qa:matrix
+   npm run qa:limits -- --strict
    npm run qa:check
    npm test
    ```
+   *(Với dự án ngoài workspace chưa có `tools/qa`, chạy `python D:/_Master_process/master.py audit <repo> --changed-only` kèm đếm số dòng các file vừa sửa; nếu chạm vùng vàng $\ge 80\%$ khi thêm logic/test mới thì phải tự tách file và verify lại ngay trước khi trả lời).*
 3. Nếu vừa sửa lỗi hoặc bổ sung kiến thức kiểm thử mới, cân nhắc chạy `npm run qa:learn` theo quy trình của [qa-logic-gaps](../../qa-logic-gaps/SKILL.md) để lưu lại bài học vào Knowledge Base của dự án.

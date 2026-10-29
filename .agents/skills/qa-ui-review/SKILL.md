@@ -148,9 +148,7 @@ Keep **classification**, **severity**, and **confidence** separate:
 - Review-only requests produce findings, not rewrites. When fixes are authorized,
   prefer the smallest compatible patch; preserve component contracts, accessibility,
   localization, and project conventions. Do not add libraries just to satisfy a rubric.
-- After spec edits, run `npm run verify` in `playwright/`, relevant runtime tests when
-  available, then matrix/check commands required by the workspace. Report static
-  checks separately from runtime results and any unresolved findings.
+- After spec or helper edits, enforce workspace Rule 15 code-size budgets (`*.spec.ts` $< 640/800$ lines; Page Objects, Fixtures, Support, Data, and `*.setup.ts` $< 200/250$ lines; single line $\le 500$ chars; avg line length $\le 100$ chars; no `*.ai-test.*`/`*.scratch.*`), run `npm run verify` in `playwright/`, relevant runtime tests when available, and `npm run qa:limits -- --strict` + matrix/check commands required by the workspace (or `python D:/_Master_process/master.py audit <repo> --changed-only` in external repos). Split any file breaching the limit before finishing. Report static checks separately from runtime results and any unresolved findings.
 
 ## Report
 

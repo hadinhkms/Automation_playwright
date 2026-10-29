@@ -16,27 +16,49 @@ function sendError(response, status, message) {
   return sendJson(response, status, { error: message });
 }
 
+function jsonError(status, code, message) {
+  return Object.assign(new Error(message), { status, code });
+}
+
 /**
- * Parses JSON request body asynchronously with a maximum byte limit.
+ * Parses JSON object request body asynchronously with a maximum byte limit.
  */
 function parseBody(request, maxBytes = 2 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let raw = '';
+    let bytes = 0;
+    let settled = false;
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    };
     request.on('data', (chunk) => {
-      raw += chunk;
-      if (raw.length > maxBytes) {
-        reject(new Error('Kích thước request vượt quá giới hạn cho phép.'));
+      if (settled) return;
+      bytes += Buffer.byteLength(chunk);
+      if (bytes > maxBytes) {
+        raw = '';
+        fail(jsonError(413, 'PAYLOAD_TOO_LARGE', 'Kích thước request vượt quá giới hạn cho phép.'));
+        return;
       }
+      raw += chunk;
     });
     request.on('end', () => {
-      if (!raw) return resolve({});
+      if (settled) return;
+      if (!raw) { settled = true; resolve({}); return; }
       try {
-        resolve(JSON.parse(raw));
+        const parsed = JSON.parse(raw);
+        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          fail(jsonError(400, 'INVALID_JSON', 'Dữ liệu JSON phải là một object.'));
+          return;
+        }
+        settled = true;
+        resolve(parsed);
       } catch (err) {
-        reject(new Error('Dữ liệu JSON không hợp lệ: ' + err.message));
+        fail(jsonError(400, 'INVALID_JSON', 'Dữ liệu JSON không hợp lệ: ' + err.message));
       }
     });
-    request.on('error', reject);
+    request.on('error', fail);
   });
 }
 

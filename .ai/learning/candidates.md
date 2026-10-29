@@ -1,6 +1,5 @@
 # Learning Candidates (Pending Gate 0.5 Review)
 
-> [!NOTE]
 > Bài học trích xuất sau Feature/QA (chờ Gate 0.5 duyệt). Trần file < 50 dòng, chuẩn DO/DON'T.
 
 - **CANDIDATE-01 (Rule-First for Structured AI Tasks):**
@@ -42,3 +41,9 @@
 - **CANDIDATE-13 (Contract & Side-Effect Parity After Slice Decomposition):**
   - **DO:** Đối chiếu 1-1 DOM IDs với template HTML, route API với server, re-export ở Facade và side-effect imports (vd `smartLinkerHelper.js`) sau khi tách slice.
   - **DON'T:** Không tự suy diễn selector/endpoint mới trong sub-slice hoặc dùng `innerHTML` cho dữ liệu thô từ repo/Jira.
+- **CANDIDATE-14 (VS Code Git Banner Truncation & Pre-Commit Size/Secret Thresholds):**
+  - **DO:** Chạy trực tiếp `master.py audit --staged` khi VS Code chỉ hiện dòng banner đầu; giữ mọi file helper không mang đuôi `.test.js` dưới 200 dòng (`role: module`) và ghép động mock token (`join('-')`).
+  - **DON'T:** Không để test fixture `.js` vượt 200 dòng dưới `tools/` hoặc hardcode chuỗi giống secret thật trong `*.test.js`.
+- **CANDIDATE-15 (Sync Dialog Cancel Guard, Plain-Object JSON Parsing & Sub-Module Allowlist Sync):**
+  - **DO:** Gọi `event.preventDefault()` đồng bộ trước `await confirmClose()` trên `<dialog>` `'cancel'`, ép `parseBody` chỉ nhận plain JSON object kèm `err.status = 400`, và đồng bộ allowlist `sourcesAssertionConstants.js` khi tách helper.
+  - **DON'T:** Không `await` trước `preventDefault()` trên sự kiện `cancel` của `<dialog>` và không gọi `decodeURIComponent` hay `parseBody` ngoài `try/catch`.

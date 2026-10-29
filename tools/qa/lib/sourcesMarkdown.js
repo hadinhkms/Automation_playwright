@@ -2,8 +2,7 @@
 
 /**
  * tools/qa/lib/sourcesMarkdown.js
- * Đọc và phân tích requirements/*.md (YAML front-matter phẳng, AC headings, bảng Rules).
- * Không dùng dependency ngoài.
+ * Đọc và phân tích requirements/*.md (YAML front-matter phẳng, AC headings, bảng Rules, Canonical Metadata).
  */
 
 const fs = require('node:fs');
@@ -21,7 +20,6 @@ const AUTOMATION_ALIASES = new Map([
   ['planned', 'Candidate'], ['todo', 'Candidate'],
 ]);
 
-/** Đọc file và chuẩn hoá CRLF + BOM. Repo Windows rất hay có CRLF. */
 function readText(file) {
   return fs
     .readFileSync(file, 'utf8')
@@ -29,7 +27,6 @@ function readText(file) {
     .replace(/\r\n?/g, '\n');
 }
 
-/** Front-matter phẳng `key: value`. Đủ dùng và không cần thư viện YAML. */
 function parseFrontMatter(text) {
   if (!text.startsWith('---')) return { data: {}, body: text, offset: 0 };
   const end = text.indexOf('\n---', 3);
@@ -57,7 +54,6 @@ function normalizeAutomation(raw) {
   return { value: hit || null, raw: original };
 }
 
-/** Tách các dòng dữ liệu của bảng markdown nằm dưới một heading. */
 function tableRowsUnder(lines, headingRe) {
   const out = [];
   let inSection = false;
@@ -81,7 +77,38 @@ function listMarkdown(dir) {
     .map((f) => path.join(dir, f));
 }
 
-/** requirements/*.md -> [{ id, title, status, acs: [...], rules: [...] }] */
+function parseCanonicalReqMetadata(lines) {
+  let pageExposure = null;
+  let uiCoverage = null;
+  let xssApplicability = null;
+  for (const line of lines) {
+    const mExp = line.match(/^\s*-\s*\*\*Page exposure\*\*\s*:\s*(Public|Authenticated)\b/i);
+    if (mExp) pageExposure = /^public$/i.test(mExp[1]) ? 'Public' : 'Authenticated';
+    const mUi = line.match(
+      /^\s*-\s*\*\*UI coverage\*\*\s*:\s*(Required|Exempt)(?:\s*\(\s*reason\s*:\s*([^)]+?)\s*\))?/i,
+    );
+    if (mUi) {
+      uiCoverage = {
+        status: /^required$/i.test(mUi[1]) ? 'Required' : 'Exempt',
+        reason: mUi[2] ? mUi[2].trim() : null,
+      };
+    }
+    const mXss = line.match(
+      /^\s*-\s*\*\*XSS applicability\*\*\s*:\s*(Applicable|Not applicable)(?:\s*\(\s*reason\s*:\s*([^)]+?)\s*\))?/i,
+    );
+    if (mXss) {
+      xssApplicability = {
+        status: /^applicable$/i.test(mXss[1]) ? 'Applicable' : 'Not applicable',
+        reason: mXss[2] ? mXss[2].trim() : null,
+      };
+    }
+  }
+  const coverageNotes = tableRowsUnder(lines, /Coverage notes/i)
+    .filter((cells) => !/^Aspect$/i.test(cells[0]))
+    .map((cells) => ({ aspect: cells[0] || '', status: cells[1] || '', notes: cells[2] || '' }));
+  return { pageExposure, uiCoverage, xssApplicability, coverageNotes };
+}
+
 function loadRequirements(root, options = {}) {
   const reqs = [];
   const dir = options.requirementsDir || 'requirements';
@@ -117,6 +144,7 @@ function loadRequirements(root, options = {}) {
         expected: cells[4] || '',
         testCases: (cells[5] || '').match(/TC-\d{3}/g) || [],
       }));
+    const meta = parseCanonicalReqMetadata(lines);
     reqs.push({
       id: data.id,
       title: data.title || '',
@@ -129,6 +157,7 @@ function loadRequirements(root, options = {}) {
       acs,
       nearMisses,
       rules,
+      ...meta,
     });
   }
   return reqs;
@@ -142,4 +171,3 @@ module.exports = {
   listMarkdown,
   loadRequirements,
 };
-

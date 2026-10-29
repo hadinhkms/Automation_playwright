@@ -154,10 +154,11 @@ If the user asks to fix the discovered Logic Gaps:
 1. Update `requirements/REQ-xxx-*.md` (add missing ACs, rules, or `Open questions`).
 2. Update `test-cases/REQ-xxx-*.md` (add missing `TC-xxx` rows and update the `Traceability` table).
 3. Implement or strengthen Playwright tests in `playwright/tests/` (ensure `@REQ-xxx` on `test.describe`, title `TC-xxx - AC-yyy <description>`, and priority tag `@p0`..`@p3`).
-4. Validate strictly before finishing:
-   - Run `npm run verify` inside `playwright/`
+   - **Respect Code Size Budgets Before Adding Tests/Helpers (Workspace Rule 15)**: Never bloat a `.spec.ts` into $\ge 640$ lines (80% warning zone of 800) or a Page Object / Fixture / Support / Data / `ApiClient` file inside `tests/` into $\ge 200$ lines (80% warning zone of `module` ceiling 250; outside `tests/`: `service` $< 160/200$, `utils` $< 120/150$). If adding remediation tests or methods would reach the 80% threshold, proactively split into a companion spec (e.g., `<feature>.validation.spec.ts` or `<feature>.security.spec.ts` carrying `{ tag: '@REQ-xxx' }`) or sub-Page Object first, keep lines $\le 500$ chars and average line length $\le 100$ chars, and never use `*.ai-test.*` / `*.scratch.*` filenames.
+4. Validate strictly before finishing (and self-split any file flagged by `qa:limits` before handing off):
+   - Run `npm run verify` inside `playwright/` (typecheck + ESLint `max-lines`/`max-len` + `limits` + `--list`)
    - Run `npm run qa:matrix` at repository root
-   - Run `npm run qa:check` at repository root (must pass with 0 `blocker`/`major` findings)
+   - Run `npm run qa:limits -- --strict` and `npm run qa:check` at repository root (must pass with 0 `blocker`/`major` findings; in external repos without `tools/qa`, run `python D:/_Master_process/master.py audit <repo> --changed-only` and verify line counts $< 80\%$)
    - Run `npm test` at repository root
 
 ---

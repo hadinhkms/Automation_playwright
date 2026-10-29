@@ -86,8 +86,6 @@ describe('API Contract: System & Lifecycle Routes', () => {
     const content = fs.readFileSync(probeScript, 'utf8');
     assert.match(content, /:\(exclude\)_Plan_implement/, 'Probe P4 must exclude _Plan_implement');
     assert.match(content, /:\(exclude\)\*\.md/, 'Probe P4 must exclude *.md');
-    const dummyKeyPattern = new RegExp('AKIA' + 'IOSFODNN7EXAMPLE'); // master-process-disable-secret-check: test fixture
-    assert.match(content, dummyKeyPattern, 'Probe P4 must filter dummy aws example key');
+    assert.match(content, /secret-allowlist\.json/, 'Probe P4 must support reviewed secret-allowlist.json hashes');
   });
 });
-
