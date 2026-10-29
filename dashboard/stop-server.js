@@ -11,7 +11,7 @@ const { stateFilePath } = require('./services/serverStateService');
 const STATE_PATH = stateFilePath(ROOT);
 let resolveConfiguredPort;
 try {
-  ({ resolveConfiguredPort } = require('../core/config/dashboardConfig'));
+  ({ resolveConfiguredPort, getDashboardConfig } = require('../core/config/dashboardConfig'));
 } catch (_) {
   resolveConfiguredPort = () => 4180;
 }
@@ -30,11 +30,8 @@ function readPort() {
 
 function getProjectTitle() {
   try {
-    const cfgPath = path.join(ROOT, 'core', 'config', 'dashboardConfig.json');
-    if (fs.existsSync(cfgPath)) {
-      const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-      if (cfg?.branding?.projectName) return cfg.branding.projectName;
-    }
+    const cfg = typeof getDashboardConfig === 'function' ? getDashboardConfig() : null;
+    if (cfg?.branding?.projectName) return cfg.branding.projectName;
   } catch (_) {}
   return 'QA Automation Studio';
 }
