@@ -4,17 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execSync } = require('child_process');
-
-const colors = {
-  reset: '\x1b[0m',
-  bright: '\x1b[1m',
-  dim: '\x1b[2m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
-  cyan: '\x1b[36m',
-  red: '\x1b[31m',
-};
+const { colors, runUpdateFrameworkCli } = require('./frameworkUpdateCli');
 
 function isExcludedPath(targetPath, excludes = []) {
   const normTarget = path.normalize(targetPath).toLowerCase();
@@ -37,22 +27,13 @@ function copyDirRecursive(srcDir, destDir, excludes = [], logs = []) {
     const srcPath = path.join(srcDir, entry.name);
     const destPath = path.join(destDir, entry.name);
 
-    if (isExcludedPath(destPath, excludes)) {
-      continue;
-    }
+    if (isExcludedPath(destPath, excludes)) continue;
 
     if (entry.isDirectory()) {
       updatedCount += copyDirRecursive(srcPath, destPath, excludes, logs);
     } else {
-      let isDifferent = true;
-      if (fs.existsSync(destPath)) {
-        const srcBuf = fs.readFileSync(srcPath);
-        const destBuf = fs.readFileSync(destPath);
-        if (srcBuf.equals(destBuf)) {
-          isDifferent = false;
-        }
-      }
-      if (isDifferent) {
+      const isDiff = !fs.existsSync(destPath) || !fs.readFileSync(srcPath).equals(fs.readFileSync(destPath));
+      if (isDiff) {
         fs.copyFileSync(srcPath, destPath);
         updatedCount++;
         if (logs.length < 50) {
@@ -65,12 +46,7 @@ function copyDirRecursive(srcDir, destDir, excludes = [], logs = []) {
   return updatedCount;
 }
 
-/**
- * Tìm nguồn cập nhật Hub hợp lệ
- * @param {string} targetDir Thư mục vệ tinh hiện tại
- */
 function resolveFrameworkSource(targetDir) {
-  // 1. Kiểm tra nếu có Hub cục bộ (D:\_Automation-Project hoặc qua biến môi trường QA_HUB_PATH)
   const defaultLocalHub = process.env.QA_HUB_PATH || 'D:\\_Automation-Project';
   if (path.resolve(targetDir) !== path.resolve(defaultLocalHub)) {
     const hubDashboardServer = path.join(defaultLocalHub, 'dashboard', 'server.js');
@@ -79,7 +55,6 @@ function resolveFrameworkSource(targetDir) {
     }
   }
 
-  // 2. Kiểm tra nếu trong repo Git hiện tại có remote origin hoặc upstream
   try {
     const remotes = execSync('git remote -v', { cwd: targetDir, encoding: 'utf8', windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     if (remotes.includes('origin')) {
@@ -96,7 +71,6 @@ function extractRemoteFrameworkSnapshot(targetDir, logs) {
 
   const tempExtractDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-update-'));
   logs.push('Đang trích xuất snapshot Framework từ origin/main...');
-  // Trích xuất qua git archive an toàn trên Windows với tar -xf - (tránh lỗi tape0)
   const candidatePaths = [
     'dashboard', 'core', 'bin', 'scripts', 'ai', 'tools', '.agents/skills',
     'Start_Dashboard.bat', 'Stop_Dashboard.bat',
@@ -126,28 +100,21 @@ function extractRemoteFrameworkSnapshot(targetDir, logs) {
 function syncFrameworkAssets(sourceRoot, targetDir, modules, rootFiles, logs) {
   let totalUpdated = 0;
 
-  // Tiến hành đồng bộ từng module Framework
   for (const mod of modules) {
     const srcModDir = path.join(sourceRoot, mod.src);
     const destModDir = path.join(targetDir, mod.dest);
     if (fs.existsSync(srcModDir)) {
       const count = copyDirRecursive(srcModDir, destModDir, mod.excludes, logs);
       totalUpdated += count;
-      if (count > 0) {
-        logs.push(`Module [${mod.name}]: Đã cập nhật ${count} tệp.`);
-      }
+      if (count > 0) logs.push(`Module [${mod.name}]: Đã cập nhật ${count} tệp.`);
     }
   }
 
-  // Đồng bộ các file root
   for (const file of rootFiles) {
     const srcFile = path.join(sourceRoot, file);
     const destFile = path.join(targetDir, file);
     if (fs.existsSync(srcFile)) {
-      let isDiff = true;
-      if (fs.existsSync(destFile)) {
-        isDiff = !fs.readFileSync(srcFile).equals(fs.readFileSync(destFile));
-      }
+      const isDiff = !fs.existsSync(destFile) || !fs.readFileSync(srcFile).equals(fs.readFileSync(destFile));
       if (isDiff) {
         fs.copyFileSync(srcFile, destFile);
         totalUpdated++;
@@ -183,31 +150,6 @@ function runFrameworkQualityGate(targetDir, logs) {
   } catch (_) {
     logs.push('Quality Gate lưu ý: Phát hiện cảnh báo trong mã kiểm thử riêng của dự án (không ảnh hưởng cập nhật Dashboard Framework).');
     return false;
-  }
-}
-
-function runUpdateFrameworkCli(updateFrameworkFn) {
-  console.log(`${colors.cyan}${colors.bright}=====================================================${colors.reset}`);
-  console.log(`${colors.cyan}${colors.bright}  QA STUDIO - TẢI CẬP NHẬT DASHBOARD FRAMEWORK       ${colors.reset}`);
-  console.log(`${colors.cyan}${colors.bright}=====================================================${colors.reset}\n`);
-
-  const result = updateFrameworkFn();
-
-  if (result.logs && result.logs.length) {
-    for (const log of result.logs) {
-      console.log(`  > ${log}`);
-    }
-  }
-
-  console.log('');
-  if (result.ok) {
-    console.log(`${colors.green}${colors.bright}✅ ${result.message}${colors.reset}`);
-    if (result.updatedCount > 0) {
-      console.log(`${colors.yellow}💡 Vui lòng tải lại (F5) giao diện Dashboard để trải nghiệm các tính năng mới.${colors.reset}\n`);
-    }
-  } else {
-    console.error(`${colors.red}${colors.bright}❌ ${result.error}${colors.reset}\n`);
-    process.exit(1);
   }
 }
 
