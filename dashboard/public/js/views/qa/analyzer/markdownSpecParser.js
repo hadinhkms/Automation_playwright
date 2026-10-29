@@ -17,13 +17,14 @@ export function escapeHtml(str) {
 export function extractJiraKey(text) {
   if (!text) return null;
   const keys = String(text).match(/\b[A-Z][A-Z0-9]+-\d+\b/g) || [];
-  return keys.find((key) => !['AC', 'TC'].includes(key.split('-')[0])) || null;
+  return keys.find((key) => !['AC', 'TC', 'REQ'].includes(key.split('-')[0])) || null;
 }
 
 export function parseJiraMarkup(raw) {
   if (!raw || typeof raw !== 'string') return '';
   let text = raw;
-  if (/<[a-z][\s\S]*>/i.test(text)) {
+  const isHtml = /<[a-z][\s\S]*>/i.test(text);
+  if (isHtml) {
     text = text.replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, lvl, c) => `${'#'.repeat(Number(lvl))} ${c.trim()}\n\n`);
     text = text.replace(/<(?:strong|b)[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**');
     text = text.replace(/<(?:em|i)[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*');
@@ -41,7 +42,9 @@ export function parseJiraMarkup(raw) {
   text = text.replace(/\{noformat\}([\s\S]*?)\{noformat\}/gi, (_, code) => `\`\`\`\n${code.trim()}\n\`\`\`\n`);
   text = text.replace(/\{quote\}([\s\S]*?)\{quote\}/gi, (_, q) => q.trim().split('\n').map((l) => `> ${l}`).join('\n') + '\n\n');
   text = text.replace(/^bq\.\s*(.+)$/gm, '> $1');
-  text = text.replace(/^(\s*)#+\s+/gm, '$11. ');
+  if (!isHtml) {
+    text = text.replace(/^(\s*)#+\s+/gm, '$11. ');
+  }
   text = text.replace(/^(\s*)\*\s+/gm, '$1- ');
   text = text.replace(/^h([1-6])\.\s*(.+)$/gm, (_, lvl, title) => `${'#'.repeat(Number(lvl))} ${title.trim()}`);
   text = text.replace(/(^|[\s(])\*([^\s*][^*]*[^\s*])\*([\s).,!?:]|$)/g, '$1**$2**$3');

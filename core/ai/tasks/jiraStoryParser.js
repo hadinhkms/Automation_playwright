@@ -6,9 +6,9 @@
 
 function extractJiraKey(text = '') {
   if (!text) return null;
-  // AC-xxx / TC-xxx are the framework's traceability IDs, not Jira issues.
+  // REQ-xxx / AC-xxx / TC-xxx are the framework's traceability IDs, not Jira issues.
   const keys = String(text).match(/\b[A-Z][A-Z0-9]+-\d+\b/g) || [];
-  return keys.find((key) => !['AC', 'TC'].includes(key.split('-')[0])) || null;
+  return keys.find((key) => !['AC', 'TC', 'REQ'].includes(key.split('-')[0])) || null;
 }
 
 function cleanConfluenceHtml(html = '') {
@@ -40,7 +40,8 @@ function parseJiraMarkupToMarkdown(raw = '') {
   let text = raw;
 
   // If text contains HTML tags from Confluence, clean them first
-  if (/<[a-z][\s\S]*>/i.test(text)) {
+  const isHtml = /<[a-z][\s\S]*>/i.test(text);
+  if (isHtml) {
     text = cleanConfluenceHtml(text);
   }
 
@@ -61,7 +62,9 @@ function parseJiraMarkupToMarkdown(raw = '') {
   text = text.replace(/^bq\.\s*(.+)$/gm, '> $1');
 
   // 4. Bullet & numbered lists in Jira markup: * item or # item
-  text = text.replace(/^(\s*)#+\s+/gm, '$11. ');
+  if (!isHtml) {
+    text = text.replace(/^(\s*)#+\s+/gm, '$11. ');
+  }
   text = text.replace(/^(\s*)\*\s+/gm, '$1- ');
 
   // 5. Headings: h1. to h6.
@@ -105,5 +108,5 @@ function parseJiraMarkupToMarkdown(raw = '') {
 module.exports = {
   extractJiraKey,
   cleanConfluenceHtml,
-  parseJiraMarkupToMarkdown
+  parseJiraMarkupToMarkdown,
 };

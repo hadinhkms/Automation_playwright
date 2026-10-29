@@ -327,3 +327,23 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 - Related files: `dashboard/public/js/views/qa/slices/qaBatchSlice.js`, `dashboard/public/js/views/qa/qaSlice.js`, `dashboard/public/templates/qa.html`.
 
 
+### 2026-10-29 — Verify Full DOM/API/Export/Import Contract Parity When Decomposing Monolithic Slices
+
+- Area: QA Studio Sub-Slices (`qaSlice.js`, `qaOverviewSlice.js`, `qaBatchSlice.js`, `qaScaffoldSlice.js`, `qaInferenceSlice.js`, `qaConflictSlice.js`, `qaDecisionsSlice.js`), `qaInferenceService.js`, `jiraService.js`, `jiraSettingsHelper.js`, and `tools/qa/lib/sources.js`.
+- Symptom:
+  1. Smart Trace Linker broke across both UI (`window.openSmartLinkerForSpec` undefined, `#qa-btn-smart-link-spec` permanently hidden) and API (`HTTP 500: synthesizeScaffoldContents is not a function`).
+  2. QA Studio modals (Infer Test Cases, Scaffold Wizard, Auto-Fix Preview, Delete Requirement, Interactive Decisions, Release Briefing) silently failed to open, clicked dead buttons, or called 404 endpoints.
+  3. Jira Settings lost event bindings after remounting `#settings-view`, failed connection test with saved `.env` token, and left `maskedToken` / `res.url` unescaped in `innerHTML`.
+  4. Batch Fixer preview modal timed out (> 5s) on hoisted/temp workspaces because `loadAutomatedTests` missed hoisted `@playwright/test/cli` and re-spawned `cmd.exe /c npx playwright test --list`.
+- Root cause:
+  1. During monolithic decomposition (`PLAN-07`), `import './smartLinkerHelper.js'` was dropped from `qaSlice.js` and `synthesizeScaffoldContents` was omitted from `qaInferenceService.js` `module.exports`.
+  2. Extracted sub-slices were rewritten with guessed DOM IDs (`#qa-del-*`, `#qa-infer-cards`, `#qa-fix-preview-list`) and guessed endpoints (`/api/qa/infer-test-cases`, `/api/qa/scaffold-meta`, `/api/qa/delete-requirement`) instead of matching `templates/qa.html` and `routes/qaRoutes.js`, and introduced raw `innerHTML` on untrusted repo text.
+  3. `jiraSettingsHelper.js` set a module-global `jiraInitialized = true` flag that blocked re-binding when `#settings-view` remounted fresh DOM nodes.
+- Correct pattern:
+  1. Diff every decomposed slice and service facade against the pre-split baseline for 4 contracts: (a) exported symbols, (b) side-effect imports (`window.*` bridges), (c) template DOM IDs/classes, and (d) canonical HTTP routes.
+  2. Enforce 100% DOM-safe rendering (`createElement` + `textContent`, or strict `escapeHtml` + `^https?://` URL allowlist) for all repo/Jira strings.
+  3. Bind per-element lifecycle guards (`el.dataset.bound = 'true'`) or disposer arrays instead of module-global booleans on remountable views.
+  4. Resolve `@playwright/test/cli` via `require.resolve('@playwright/test/cli', { paths: [projectDir, root] })` and memoize raw `--list` JSON by project content SHA-1 fingerprint.
+- Preventive rule: Never rewrite DOM IDs or API paths from memory during file splitting. Always run full `npm run test:unit`, `npm run test:dashboard:api`, `npm run mp:audit`, and `npx playwright test --config=playwright.dashboard.config.js` after decomposition.
+- Regression check: `node --test tests/dashboard-api/smartTraceLinker.test.js tests/dashboard-api/jira.test.js` and `npx playwright test --config=playwright.dashboard.config.js tests/dashboard/qa-smart-linker.spec.js tests/dashboard/smart-trace-linker-ui.spec.js tests/dashboard/qa-batch-fixer-layout.spec.js tests/dashboard/qa-modals-and-jira-regression.spec.js`.
+- Related files: `dashboard/public/js/views/qa/qaSlice.js`, `dashboard/public/js/views/qa/qaSliceEvents.js`, `dashboard/public/js/views/qa/slices/*.js`, `dashboard/services/qaInferenceService.js`, `dashboard/services/jiraService.js`, `dashboard/public/js/views/settings/jiraSettingsHelper.js`, `dashboard/public/js/views/settings/jiraSettingsRenderer.js`, `tools/qa/lib/sources.js`.

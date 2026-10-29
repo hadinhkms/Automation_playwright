@@ -76,7 +76,7 @@ export class TemplateLoader {
     const promises = Object.entries(this._viewMap).map(async ([viewId, templateName]) => {
       try {
         if (!this._cache.has(templateName)) {
-          const res = await fetch(`/templates/${templateName}.html?v=5.6`);
+          const res = await fetch(`/templates/${templateName}.html?v=5.7`);
           if (res.ok) {
             const html = await res.text();
             this._cache.set(templateName, html);

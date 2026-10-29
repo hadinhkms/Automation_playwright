@@ -3,7 +3,10 @@
  * Router for Jira Cloud Configuration, Test Connection, and Ticket Fetching.
  * Modularity ceiling <= 150 lines.
  */
+'use strict';
+
 const { parseBody, sendJson } = require('./routeUtils');
+const { isCrossSiteRequest } = require('../services/aiEndpointPolicy');
 const {
   getJiraConfig,
   saveJiraConfig,
@@ -12,6 +15,12 @@ const {
 } = require('../services/jiraService');
 
 async function handleJiraRoutes(request, response, url, context = {}) {
+  if (!url.pathname.startsWith('/api/jira/')) return false;
+
+  if (isCrossSiteRequest(request.headers)) {
+    return sendJson(response, 403, { success: false, error: 'Cross-site request tới /api/jira/* bị từ chối.' }) || true;
+  }
+
   const root = context.root || process.env.QA_PROJECT_ROOT || process.cwd();
 
   if (request.method === 'GET' && url.pathname === '/api/jira/config') {
@@ -48,7 +57,7 @@ async function handleJiraRoutes(request, response, url, context = {}) {
       const status = result.success ? 200 : (result.status || 400);
       return sendJson(response, status, result) || true;
     } catch (err) {
-      return sendJson(response, 500, { success: false, error: err.message }) || true;
+      return sendJson(response, 400, { success: false, error: err.message }) || true;
     }
   }
 

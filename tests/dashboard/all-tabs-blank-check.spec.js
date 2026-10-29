@@ -1,5 +1,7 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
+const { startDashboardHarness } = require('./support/dashboardHarness');
+const { createFixtureWorkspace } = require('./support/fixtureWorkspace');
 
 const TABS = [
   { id: 'runner-view', name: 'Chạy test', isDropdown: false, keySelector: '#run-form' },
@@ -19,7 +21,22 @@ const TABS = [
 ];
 
 test.describe('Dashboard Tabs Content & Blank Page Verification', () => {
-  const targetUrl = 'http://127.0.0.1:4180';
+  let fixture = null;
+  let harness = null;
+  let targetUrl = process.env.DASHBOARD_URL || '';
+
+  test.beforeAll(async () => {
+    if (!targetUrl) {
+      fixture = createFixtureWorkspace();
+      harness = await startDashboardHarness(fixture.rootPath);
+      targetUrl = harness.url;
+    }
+  });
+
+  test.afterAll(async () => {
+    if (harness) await harness.stop();
+    if (fixture) fixture.cleanup();
+  });
 
   test('Verify all 14 tabs load content and are not blank', async ({ page }) => {
     const pageErrors = [];
@@ -50,11 +67,9 @@ test.describe('Dashboard Tabs Content & Blank Page Verification', () => {
     const results = [];
 
     for (const tab of TABS) {
-      // Navigate to tab
       if (tab.isHeaderAction && tab.selector) {
         await page.click(tab.selector);
       } else if (tab.isDropdown) {
-        // Open dropdown if not open
         const dropdownMenu = page.locator('#nav-tools-menu');
         const isMenuVisible = await dropdownMenu.isVisible().catch(() => false);
         if (!isMenuVisible) {
@@ -66,15 +81,12 @@ test.describe('Dashboard Tabs Content & Blank Page Verification', () => {
         await page.click(`.view-tab[data-view="${tab.id}"]`);
       }
 
-      // Wait a moment for dynamic template loading and slice mount
       await page.waitForTimeout(400);
 
-      // Verify view container
       const viewLocator = page.locator(`#${tab.id}`);
       await expect(viewLocator).toBeVisible({ timeout: 5000 });
       await expect(viewLocator).toHaveClass(/active/);
 
-      // Check child element count and text
       const viewInfo = await page.evaluate((viewId) => {
         const el = document.getElementById(viewId);
         if (!el) return { exists: false };
@@ -96,11 +108,9 @@ test.describe('Dashboard Tabs Content & Blank Page Verification', () => {
       expect(viewInfo.height).toBeGreaterThan(50);
       expect(viewInfo.width).toBeGreaterThan(200);
 
-      // Verify view is not completely blank (either has text or an iframe/cards)
       const hasContent = viewInfo.textLength > 0 || tab.id === 'compare-view';
       expect(hasContent).toBe(true);
 
-      // Check key element
       const keyEl = page.locator(tab.keySelector).first();
       await expect(keyEl).toBeAttached();
 
@@ -114,11 +124,6 @@ test.describe('Dashboard Tabs Content & Blank Page Verification', () => {
       });
     }
 
-    console.log('\n--- TAB VERIFICATION MATRIX ---');
-    console.table(results);
-    console.log('--------------------------------\n');
-
-    // Assert zero critical uncaught errors across entire navigation
     expect(pageErrors).toEqual([]);
     expect(consoleErrors).toEqual([]);
   });
@@ -140,8 +145,7 @@ test.describe('Dashboard Tabs Content & Blank Page Verification', () => {
     await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => Boolean(window.__STUDIO_CORE__));
 
-    // Cycle through all 14 views 2 times (28 transitions)
-    const viewIds = TABS.map(t => t.id);
+    const viewIds = TABS.map((t) => t.id);
     for (let cycle = 0; cycle < 2; cycle++) {
       for (const viewId of viewIds) {
         await page.evaluate(async (vId) => {
@@ -166,7 +170,6 @@ test.describe('Dashboard Tabs Content & Blank Page Verification', () => {
       }
     }
 
-    // Verify returning to runner-view
     await page.evaluate(async () => {
       await window.__STUDIO_CORE__.featureRegistry.switchView('runner-view');
     });

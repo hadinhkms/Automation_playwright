@@ -39,3 +39,6 @@
 - **CANDIDATE-12 (Facade Pattern for God Object Decomposition):**
   - **DO:** Bóc tách file God Object (> 1000 lines) thành các sub-module và giữ file gốc làm Facade mỏng (< 200 lines).
   - **DON'T:** Không thay đổi chữ ký hàm hay import paths của callers bên ngoài khi refactor nội bộ.
+- **CANDIDATE-13 (Contract & Side-Effect Parity After Slice Decomposition):**
+  - **DO:** Đối chiếu 1-1 DOM IDs với template HTML, route API với server, re-export ở Facade và side-effect imports (vd `smartLinkerHelper.js`) sau khi tách slice.
+  - **DON'T:** Không tự suy diễn selector/endpoint mới trong sub-slice hoặc dùng `innerHTML` cho dữ liệu thô từ repo/Jira.

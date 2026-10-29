@@ -9,7 +9,7 @@ const ROOT = detectedRoot;
 const { stateFilePath } = require('./services/serverStateService');
 
 const STATE_PATH = stateFilePath(ROOT);
-let resolveConfiguredPort;
+let resolveConfiguredPort, getDashboardConfig;
 try {
   ({ resolveConfiguredPort, getDashboardConfig } = require('../core/config/dashboardConfig'));
 } catch (_) {

@@ -9,7 +9,7 @@ if (path.basename(detectedRoot) === 'dashboard' && fs.existsSync(path.join(detec
 }
 const ROOT = detectedRoot;
 
-let resolveConfiguredPort;
+let resolveConfiguredPort, getDashboardConfig;
 try {
   ({ resolveConfiguredPort, getDashboardConfig } = require('../core/config/dashboardConfig'));
 } catch (_) {

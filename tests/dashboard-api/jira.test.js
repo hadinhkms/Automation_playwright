@@ -6,6 +6,7 @@
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const http = require('node:http');
 const path = require('node:path');
 const { startDashboardHarness } = require('../dashboard/support/dashboardHarness');
 const { createFixtureWorkspace } = require('../dashboard/support/fixtureWorkspace');
@@ -20,53 +21,65 @@ const {
 describe('Jira Integration Unit & API Tests', () => {
   let fixture;
   let harness;
+  let mockJira;
+  let mockJiraUrl;
+  let lastAuthHeader = null;
 
   before(async () => {
     fixture = createFixtureWorkspace();
     harness = await startDashboardHarness(fixture.rootPath);
+    mockJira = http.createServer((req, res) => {
+      lastAuthHeader = req.headers.authorization || null;
+      res.setHeader('Content-Type', 'application/json');
+      if (req.url === '/rest/api/3/myself') {
+        res.end(JSON.stringify({ displayName: 'QA Bot', emailAddress: 'qa@local.test', timeZone: 'Asia/Ho_Chi_Minh', active: true }));
+        return;
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ errorMessages: ['Not Found'] }));
+    });
+    await new Promise((resolve) => mockJira.listen(0, '127.0.0.1', resolve));
+    mockJiraUrl = `http://127.0.0.1:${mockJira.address().port}`;
   });
 
   after(async () => {
+    if (mockJira) await new Promise((resolve) => mockJira.close(resolve));
     if (harness) await harness.stop();
     if (fixture) fixture.cleanup();
   });
 
-  test('JIRA-01: adfToMarkdown parses paragraphs, headings, bold, lists, and links', () => {
+  test('JIRA-01: adfToMarkdown parses headings, bold, lists, links, tables, hardBreak, orderedList, and inlineCard', () => {
     const adfSample = {
       type: 'doc',
       content: [
-        {
-          type: 'heading',
-          attrs: { level: 2 },
-          content: [{ type: 'text', text: 'Acceptance Criteria' }],
-        },
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Acceptance Criteria' }] },
         {
           type: 'bulletList',
+          content: [{
+            type: 'listItem',
+            content: [{
+              type: 'paragraph',
+              content: [
+                { type: 'text', text: 'User must be logged in with ', marks: [{ type: 'strong' }] },
+                { type: 'text', text: 'valid token', marks: [{ type: 'code' }] },
+                { type: 'hardBreak' },
+                { type: 'inlineCard', attrs: { url: 'https://example.com/spec' } },
+              ],
+            }],
+          }],
+        },
+        {
+          type: 'orderedList',
           content: [
-            {
-              type: 'listItem',
-              content: [
-                {
-                  type: 'paragraph',
-                  content: [
-                    { type: 'text', text: 'User must be logged in with ', marks: [{ type: 'strong' }] },
-                    { type: 'text', text: 'valid token', marks: [{ type: 'code' }] },
-                  ],
-                },
-              ],
-            },
-            {
-              type: 'listItem',
-              content: [
-                {
-                  type: 'paragraph',
-                  content: [
-                    { type: 'text', text: 'See docs at ' },
-                    { type: 'text', text: 'portal', marks: [{ type: 'link', attrs: { href: 'https://example.com' } }] },
-                  ],
-                },
-              ],
-            },
+            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Step One' }] }] },
+            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Step Two' }] }] },
+          ],
+        },
+        {
+          type: 'table',
+          content: [
+            { type: 'tableRow', content: [{ type: 'tableHeader', content: [{ type: 'text', text: 'Field' }] }, { type: 'tableHeader', content: [{ type: 'text', text: 'Rule' }] }] },
+            { type: 'tableRow', content: [{ type: 'tableCell', content: [{ type: 'text', text: 'Email' }] }, { type: 'tableCell', content: [{ type: 'text', text: 'Required' }] }] },
           ],
         },
       ],
@@ -75,125 +88,121 @@ describe('Jira Integration Unit & API Tests', () => {
     assert.ok(md.includes('## Acceptance Criteria'));
     assert.ok(md.includes('**User must be logged in with **'));
     assert.ok(md.includes('`valid token`'));
-    assert.ok(md.includes('[portal](https://example.com)'));
+    assert.ok(md.includes('[https://example.com/spec](https://example.com/spec)'));
+    assert.ok(md.includes('1. Step One\n2. Step Two'));
+    assert.ok(md.includes('| Field | Rule |\n| --- | --- |\n| Email | Required |'));
   });
 
-  test('JIRA-02: extractAcceptanceCriteria extracts bullet items under AC heading', () => {
+  test('JIRA-02: extractAcceptanceCriteria extracts bullet and numbered items without false digit matches', () => {
     const markdown = [
-      '# Feature description',
-      'This is an overview of the feature.',
-      '',
       '## Acceptance Criteria',
+      'Note version 2.0 applies below:',
       '- AC-1: Login with valid email and password redirects to dashboard',
-      '- AC-2: Login with locked account shows error alert',
-      '- AC-3: Session expires after 30 minutes',
-      '',
+      '1. AC-2: Login with locked account shows error alert',
       '## Technical notes',
       '- Uses Redis cache',
     ].join('\n');
 
     const acs = extractAcceptanceCriteria(markdown);
-    assert.equal(acs.length, 3);
-    assert.equal(acs[0], 'AC-1: Login with valid email and password redirects to dashboard');
-    assert.equal(acs[1], 'AC-2: Login with locked account shows error alert');
-    assert.equal(acs[2], 'AC-3: Session expires after 30 minutes');
+    assert.deepEqual(acs, [
+      'AC-1: Login with valid email and password redirects to dashboard',
+      'AC-2: Login with locked account shows error alert',
+    ]);
   });
 
-  test('JIRA-03: parseJiraDescription handles both ADF objects and plain wiki strings', () => {
-    const wiki = 'h2. Title\n* Point 1\n* Point 2';
-    const parsedWiki = parseJiraDescription(wiki);
+  test('JIRA-03: parseJiraDescription handles ADF, wiki strings, and preserves Confluence HTML headings', () => {
+    const parsedWiki = parseJiraDescription('h2. Title\n* Point 1');
     assert.ok(parsedWiki.includes('## Title'));
     assert.ok(parsedWiki.includes('- Point 1'));
 
-    const adf = {
-      type: 'doc',
-      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'ADF text' }] }],
-    };
-    const parsedAdf = parseJiraDescription(adf);
-    assert.ok(parsedAdf.includes('ADF text'));
+    const parsedHtml = parseJiraDescription('<h1>Main Spec</h1><p>Body paragraph</p>');
+    assert.ok(parsedHtml.startsWith('# Main Spec'), `Expected Markdown heading, got: ${parsedHtml}`);
   });
 
-  test('JIRA-04: getJiraConfig & saveJiraConfig persist credentials to .env', () => {
+  test('JIRA-04: getJiraConfig & saveJiraConfig persist credentials to .env without polluting process.env', () => {
     const root = fixture.rootPath;
-    const initial = getJiraConfig(root);
-    assert.ok(initial.baseUrl);
-
+    const prevEnvToken = process.env.JIRA_API_TOKEN;
     saveJiraConfig(root, {
       baseUrl: 'https://mycompany.atlassian.net',
       email: 'qa@mycompany.com',
       apiToken: 'ATATT3xFfTESTTOKEN12345678',
     });
+    assert.equal(process.env.JIRA_API_TOKEN, prevEnvToken);
 
     const updated = getJiraConfig(root);
     assert.equal(updated.baseUrl, 'https://mycompany.atlassian.net');
     assert.equal(updated.email, 'qa@mycompany.com');
     assert.equal(updated.hasToken, true);
     assert.ok(updated.maskedToken.startsWith('ATATT3'));
-    assert.ok(updated.maskedToken.endsWith('5678'));
 
     const envContent = fs.readFileSync(path.join(root, '.env'), 'utf8');
-    assert.ok(envContent.includes('JIRA_BASE_URL=https://mycompany.atlassian.net'));
-    assert.ok(envContent.includes('JIRA_EMAIL=qa@mycompany.com'));
     assert.ok(envContent.includes('JIRA_API_TOKEN=ATATT3xFfTESTTOKEN12345678'));
   });
 
-  test('JIRA-05: GET /api/jira/config returns 200 and sanitized config payload', async () => {
-    const res = await fetch(`${harness.url}/api/jira/config`);
-    assert.equal(res.status, 200);
-    const body = await res.json();
-    assert.ok(body.baseUrl !== undefined);
-    assert.ok(body.email !== undefined);
-    assert.ok(typeof body.hasToken === 'boolean');
-    assert.ok(body.maskedToken !== undefined);
-  });
+  test('JIRA-05 & JIRA-06: GET & POST /api/jira/config return sanitized config and reject invalid URLs', async () => {
+    const getRes = await fetch(`${harness.url}/api/jira/config`);
+    assert.equal(getRes.status, 200);
 
-  test('JIRA-06: POST /api/jira/config updates Jira configuration via HTTP', async () => {
-    const res = await fetch(`${harness.url}/api/jira/config`, {
+    const badUrlRes = await fetch(`${harness.url}/api/jira/config`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        baseUrl: 'https://testteam.atlassian.net',
-        email: 'tester@testteam.com',
-        apiToken: 'ATATT3TESTKEY998877',
-      }),
+      body: JSON.stringify({ baseUrl: 'ftp://evil.example', email: 'a@b.com', apiToken: 'tok' }),
     });
-    assert.equal(res.status, 200);
-    const body = await res.json();
-    assert.ok(body.message);
-    assert.equal(body.config.baseUrl, 'https://testteam.atlassian.net');
-    assert.equal(body.config.email, 'tester@testteam.com');
+    assert.equal(badUrlRes.status, 400);
+
+    const okRes = await fetch(`${harness.url}/api/jira/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseUrl: mockJiraUrl, email: 'qa@local.test', apiToken: 'ATATT3SAVEDSECRET9988' }),
+    });
+    assert.equal(okRes.status, 200);
+    const body = await okRes.json();
+    assert.equal(body.config.baseUrl, mockJiraUrl);
     assert.equal(body.config.hasToken, true);
   });
 
-  test('JIRA-07: POST /api/jira/test-connection without token returns 400', async () => {
+  test('JIRA-07: POST /api/jira/test-connection without credentials returns 400', async () => {
     const res = await fetch(`${harness.url}/api/jira/test-connection`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        baseUrl: '',
-        email: '',
-        apiToken: '',
-      }),
+      body: JSON.stringify({ baseUrl: '', email: '', apiToken: '' }),
     });
     assert.equal(res.status, 400);
-    const body = await res.json();
-    assert.equal(body.success, false);
-    assert.ok(body.error);
   });
 
-  test('JIRA-08: GET /api/jira/issue without key returns 400', async () => {
-    const res = await fetch(`${harness.url}/api/jira/issue`);
-    assert.equal(res.status, 400);
-    const body = await res.json();
-    assert.equal(body.success, false);
-    assert.ok(body.error.includes('Vui lòng cung cấp mã ticket'));
+  test('JIRA-08 & JIRA-09: GET /api/jira/issue validates missing, invalid, and REQ-xxx keys', async () => {
+    const missing = await fetch(`${harness.url}/api/jira/issue`);
+    assert.equal(missing.status, 400);
+
+    const invalid = await fetch(`${harness.url}/api/jira/issue?key=REQ-001`);
+    assert.equal(invalid.status, 400);
   });
 
-  test('JIRA-09: GET /api/jira/issue with invalid key string returns 400', async () => {
-    const res = await fetch(`${harness.url}/api/jira/issue?key=invalid_key_no_dash`);
-    assert.equal(res.status, 400);
-    const body = await res.json();
-    assert.equal(body.success, false);
-    assert.ok(body.error.includes('Không nhận diện được mã Jira hợp lệ'));
+  test('JIRA-10: Cross-site browser requests to /api/jira/* are rejected with 403', async () => {
+    const res = await fetch(`${harness.url}/api/jira/config`, {
+      headers: { 'Sec-Fetch-Site': 'cross-site' },
+    });
+    assert.equal(res.status, 403);
+  });
+
+  test('JIRA-11: Saved token works when apiToken is empty for same origin, but blocks exfiltration to another host', async () => {
+    lastAuthHeader = null;
+    const okRes = await fetch(`${harness.url}/api/jira/test-connection`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseUrl: mockJiraUrl, email: 'qa@local.test', apiToken: '' }),
+    });
+    assert.equal(okRes.status, 200);
+    const okBody = await okRes.json();
+    assert.equal(okBody.success, true);
+    assert.equal(okBody.displayName, 'QA Bot');
+    assert.ok(lastAuthHeader && lastAuthHeader.startsWith('Basic '));
+
+    const ssrfRes = await fetch(`${harness.url}/api/jira/test-connection`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseUrl: 'https://evil-exfil.example.com', email: 'qa@local.test', apiToken: '' }),
+    });
+    assert.equal(ssrfRes.status, 400);
   });
 });

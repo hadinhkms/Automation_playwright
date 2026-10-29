@@ -10,10 +10,10 @@ import {
   renderJiraIssueError,
 } from './jiraSettingsRenderer.js';
 
-let jiraInitialized = false;
-
 export function initJiraSettings() {
-  const root = document.getElementById('settings-view') || document;
+  const root = document.getElementById('settings-view');
+  if (!root) return;
+
   const baseUrlInput = root.querySelector('#settings-jira-base-url');
   const emailInput = root.querySelector('#settings-jira-email');
   const tokenInput = root.querySelector('#settings-jira-token');
@@ -31,6 +31,8 @@ export function initJiraSettings() {
   const fetchBtn = root.querySelector('#btn-fetch-jira-test');
   const fetchResult = root.querySelector('#jira-fetch-result');
 
+  if (!saveBtn) return;
+
   function notify(msg) {
     if (typeof window.notify === 'function') window.notify(msg);
     else if (window.eventBus) window.eventBus.emit('ui:notify', { message: msg });
@@ -40,7 +42,7 @@ export function initJiraSettings() {
     try {
       const res = await fetch('/api/jira/config').then((r) => r.json());
       if (baseUrlInput && res.baseUrl) baseUrlInput.value = res.baseUrl;
-      if (emailInput && res.email) emailInput.value = res.email;
+      if (emailInput && res.email !== undefined) emailInput.value = res.email;
       updateJiraStatusBadge(statusBadge, tokenInput, res);
     } catch (err) {
       console.error('[JiraSettings] Lỗi nạp cấu hình:', err);
@@ -49,8 +51,8 @@ export function initJiraSettings() {
 
   loadConfig();
 
-  if (jiraInitialized) return;
-  jiraInitialized = true;
+  if (saveBtn.dataset.jiraBound === 'true') return;
+  saveBtn.dataset.jiraBound = 'true';
 
   alertClose?.addEventListener('click', () => { if (alertBox) alertBox.hidden = true; });
 
@@ -102,7 +104,7 @@ export function initJiraSettings() {
     }
   });
 
-  saveBtn?.addEventListener('click', async () => {
+  saveBtn.addEventListener('click', async () => {
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Đang lưu...';
     try {
