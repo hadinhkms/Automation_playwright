@@ -8,86 +8,11 @@
  * Đặc biệt quan trọng với logic `excludes`: một bản mô phỏng bỏ qua excludes sẽ báo
  * sai hàng loạt file (vd. core/local, core/config/dashboardConfig.json).
  */
-// master-process-disable-size-check: Hub-to-Spoke sync manifest with dynamic multi-machine satellite resolution
 
-const fs = require('fs');
 const path = require('path');
+const { resolveSatellitePath } = require('./satelliteSyncHelper');
 
 const HUB_ROOT = path.resolve(__dirname, '..', '..');
-
-/**
- * Tự động phân giải đường dẫn cục bộ của vệ tinh mà không phụ thuộc vào một đường dẫn tuyệt đối duy nhất.
- * Hỗ trợ làm việc trên nhiều máy tính, ổ đĩa khác nhau (C:, D:, E:...) và tên thư mục khác nhau.
- */
-function resolveSatellitePath(sat, hubRoot = HUB_ROOT) {
-  // 1. Biến môi trường tường minh
-  const envKey = sat.envVar || `SATELLITE_${sat.name.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}_PATH`;
-  if (process.env[envKey] && fs.existsSync(process.env[envKey])) {
-    return path.resolve(process.env[envKey]);
-  }
-  if (process.env.QA_SATELLITES_DIR) {
-    const fromBase = path.join(process.env.QA_SATELLITES_DIR, sat.name);
-    if (fs.existsSync(fromBase)) return path.resolve(fromBase);
-  }
-
-  const candidates = [];
-  if (sat.candidates) candidates.push(...sat.candidates);
-  if (sat.localPath) candidates.push(sat.localPath);
-
-  // 2. Thư mục đồng cấp (anh em) tương đối với HUB_ROOT
-  const parentDir = path.dirname(hubRoot);
-  const normName = String(sat.name || '').toLowerCase();
-  if (normName.includes('vieclam24h') || normName.includes('sieuviet')) {
-    candidates.push(
-      path.join(parentDir, '_SV_Automation'),
-      path.join(parentDir, '_SieuVietGroup'),
-      path.join(parentDir, 'Vieclam24h-Automation_JS'),
-      path.join(parentDir, 'Vieclam24h'),
-      path.join(parentDir, 'SieuVietGroup')
-    );
-  } else if (normName.includes('carthings')) {
-    candidates.push(
-      path.join(parentDir, 'Carthings', '_automation_carthings'),
-      path.join(parentDir, '_automation_carthings'),
-      path.join(parentDir, '_CarThings', 'Automation_Carthings'),
-      path.join(parentDir, 'Automation_Carthings'),
-      path.join(parentDir, 'Carthings', 'Automation_Carthings'),
-      path.join(parentDir, 'Carthings'),
-      path.join(parentDir, '_CarThings')
-    );
-  }
-
-  // 3. Kiểm tra các ứng viên trên đĩa (chỉ nhận thư mục là code repo thực thụ)
-  for (const cand of candidates) {
-    if (cand && fs.existsSync(cand)) {
-      const isRepo = fs.existsSync(path.join(cand, 'package.json')) || fs.existsSync(path.join(cand, '.git'));
-      if (isRepo) {
-        return path.resolve(cand);
-      }
-    }
-  }
-
-  // 4. Quét tự động các thư mục anh em đối chiếu git remote URL
-  try {
-    if (fs.existsSync(parentDir)) {
-      const entries = fs.readdirSync(parentDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const entryPath = path.join(parentDir, entry.name);
-        const gitConfigPath = path.join(entryPath, '.git', 'config');
-        if (fs.existsSync(gitConfigPath)) {
-          const configContent = fs.readFileSync(gitConfigPath, 'utf8');
-          if (sat.repo && configContent.toLowerCase().includes(sat.repo.toLowerCase())) {
-            return path.resolve(entryPath);
-          }
-        }
-      }
-    }
-  } catch (_) {}
-
-  // 5. Fallback về đường dẫn đầu tiên hoặc mặc định
-  return path.resolve(sat.localPath || path.join(parentDir, sat.name));
-}
 
 const RAW_SATELLITES = [
   {
@@ -140,7 +65,7 @@ const FORBIDDEN_SYNC_MODULES = ['data', 'tests', 'pages', 'requirements', 'test-
  *
  * Cổng vẫn BÁO ra những dòng sắp mất, nhưng không dừng việc giao hàng.
  */
-const ALWAYS_DELIVERED_MODULES = ['dashboard'];
+const ALWAYS_DELIVERED_MODULES = ['dashboard', '.agents/skills'];
 
 const MODULES_TO_SYNC = [
   { src: 'dashboard', dest: 'dashboard' },
@@ -167,6 +92,7 @@ const MODULES_TO_SYNC = [
       'scripts/pre-sync-drift.js',
       'scripts/lib/sync-manifest.js',
       'scripts/lib/sync-manifest.test.js',
+      'scripts/lib/satelliteSyncHelper.js',
       'scripts/lib/hubHistory.js',
       'scripts/lib/hubHistory.test.js',
     ],
@@ -184,6 +110,7 @@ const MODULES_TO_SYNC = [
   },
   { src: 'tools', dest: 'tools' },
   { src: 'audit', dest: 'audit' },
+  { src: '.agents/skills', dest: '.agents/skills' },
 ];
 
 /**
@@ -277,7 +204,6 @@ function filesOverwrittenAnyway(blockedFiles = []) {
   return blockedFiles.filter((f) => ALWAYS_DELIVERED_MODULES.includes(moduleOf(f)));
 }
 
-
 module.exports = {
   HUB_ROOT,
   SATELLITES,
@@ -295,5 +221,5 @@ module.exports = {
   filesOverwrittenAnyway,
   ALWAYS_DELIVERED_MODULES,
   ROOT_MODULE,
-  resolveSatellitePath,
+  resolveSatellitePath: (sat, hubRoot = HUB_ROOT) => resolveSatellitePath(sat, hubRoot),
 };

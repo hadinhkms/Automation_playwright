@@ -6,7 +6,7 @@
  *
  * Chạy: node --test scripts/lib/sync-manifest.test.js
  */
-// master-process-disable-size-check: Comprehensive sync contract test suite covering Hub-to-Spoke predicates and package merges
+// Kiểm thử toàn diện hợp đồng Hub-to-Spoke sync & package merges
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -73,7 +73,7 @@ test('công cụ vận hành riêng của Hub không bị đẩy sang vệ tinh'
   for (const f of ['sync-satellites.js', 'pre-sync-drift.js']) {
     assert.equal(isExcluded(dest('scripts', f), ex), true, f);
   }
-  for (const f of ['sync-manifest.js', 'sync-manifest.test.js']) {
+  for (const f of ['sync-manifest.js', 'sync-manifest.test.js', 'satelliteSyncHelper.js']) {
     assert.equal(isExcluded(dest('scripts', 'lib', f), ex), true, f);
   }
   assert.equal(isExcluded(dest('scripts', 'check-framework-structure.js'), ex), false);
@@ -305,23 +305,25 @@ test('modulesToSkip gộp trùng và giữ đúng tập', () => {
   );
 });
 
-test('dashboard/ KHÔNG BAO GIỜ bị giữ lại, dù vệ tinh có nội dung riêng trong đó', () => {
-  // dashboard/ không có exclude nào, tức mọi thứ trong đó được thiết kế để bị ghi đè.
+test('dashboard/ và .agents/skills KHÔNG BAO GIỜ bị giữ lại, dù vệ tinh có nội dung riêng trong đó', () => {
+  // dashboard/ và .agents/skills không có exclude nào, tức mọi thứ trong đó được thiết kế để bị ghi đè.
   // Giữ nó lại vì drift là tự mâu thuẫn, và hậu quả là chặn vĩnh viễn mọi tính năng
-  // dashboard mới tới vệ tinh — đúng thứ họ cần nhất.
-  assert.deepEqual(ALWAYS_DELIVERED_MODULES, ['dashboard']);
+  // dashboard và skill mới tới vệ tinh — đúng thứ họ cần nhất.
+  assert.deepEqual(ALWAYS_DELIVERED_MODULES, ['dashboard', '.agents/skills']);
 
   const blocked = [
     'dashboard/public/app.js',
     'dashboard/services/resourceService.js',
+    '.agents/skills/playwright_test/SKILL.md',
     'core/utils/commonUtils.js',
   ];
   const skip = modulesToSkip(blocked);
   assert.ok(!skip.includes('dashboard'), 'dashboard phải luôn được giao');
+  assert.ok(!skip.includes('.agents/skills'), '.agents/skills phải luôn được giao');
   assert.deepEqual(skip, ['core'], 'chỉ core bị giữ lại');
 
-  // Chỉ một mình drift trong dashboard/ thì không giữ lại gì cả.
-  assert.deepEqual(modulesToSkip(['dashboard/public/index.html']), []);
+  // Chỉ một mình drift trong dashboard/ hoặc .agents/skills thì không giữ lại gì cả.
+  assert.deepEqual(modulesToSkip(['dashboard/public/index.html', '.agents/skills/playwright_test/SKILL.md']), []);
 });
 
 test('những gì sẽ bị ghi đè phải liệt kê được, không được mất trong im lặng', () => {

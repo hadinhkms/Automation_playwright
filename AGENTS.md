@@ -26,7 +26,7 @@ Mọi yêu cầu phát triển phần mềm, thay đổi UI/UX hoặc cải ti�
 | Thực thi Plan | [Execute Plan prompt](.master_process/prompts/12_Execute_Implementation_Plan.prompt.md) |
 | Code / Dev | Prompt B ([05_B_Dev_Implementation](.master_process/prompts/05_B_Dev_Implementation.prompt.md)) & [Modular Guide](.master_process/02_MODULAR_ARCHITECTURE_AND_EXTENSIBILITY_GUIDE.md) |
 | Code Review | Prompt C ([06_C_Code_Review_Gate3](.master_process/prompts/06_C_Code_Review_Gate3.prompt.md)) |
-| QA Verification | Prompt D ([07_D_QA_Verification_Gate4](.master_process/prompts/07_D_QA_Verification_Gate4.prompt.md)) |
+| QA Verification | Prompt D ([07_D_QA_Verification_Gate4](.master_process/prompts/07_D_QA_Verification_Gate4.prompt.md)), skills [qa-logic-gaps](.agents/skills/qa-logic-gaps/SKILL.md), [qa-api-testing](.agents/skills/qa-api-testing/SKILL.md), [qa-system-testing](.agents/skills/qa-system-testing/SKILL.md), [qa-ui-review](.agents/skills/qa-ui-review/SKILL.md) |
 | **Đóng phase / nghiệm thu** | [Acceptance Gates](.master_process/03_ACCEPTANCE_GATES.md): contract AC/TC, ma trận scenarios, receipts JUnit và review độc lập |
 | Curate knowledge | Prompt [11_Knowledge_Curator_Gate0_5](.master_process/prompts/11_Knowledge_Curator_Gate0_5.prompt.md) & [Knowledge Guide](.master_process/01_TOKEN_OPTIMIZATION_AND_KNOWLEDGE_SCALING.md) |
 
@@ -60,9 +60,15 @@ Mọi tri thức tự học, quyết định kỹ thuật, quy tắc bất biế
 
 ## 3. Chỉ Dẫn Chuyên Sâu Từng Module (Subsystem Guidelines)
 
-### A. Playwright Automation
-Khi làm việc với các file Playwright test, Page Objects, fixtures:
+### A. Playwright Automation & QA Testing Skills
+Khi làm việc với các file Playwright test, Page Objects, fixtures, `requirements/`, `test-cases/`:
 - Đọc và tuân thủ tuyệt đối [ai/shared/AI_PROMPTS.md](file:///ai/shared/AI_PROMPTS.md) và [ai/shared/TEST_AUTOMATION_LESSONS.md](file:///ai/shared/TEST_AUTOMATION_LESSONS.md).
+- Sử dụng bộ skills chuyên sâu trong `.agents/skills/` (đồng bộ từ `D:\_QA_Test_Automation`):
+  * Viết/sửa Playwright test script (POM/BDD): [.agents/skills/playwright_test/SKILL.md](file:///.agents/skills/playwright_test/SKILL.md)
+  * Rà soát Logic Gaps, độ phủ `REQ -> AC -> TC -> Spec` & Selective Learning: [.agents/skills/qa-logic-gaps/SKILL.md](file:///.agents/skills/qa-logic-gaps/SKILL.md)
+  * Thiết kế & viết Deep API Testing (OWASP API Top 10, BVA, Race Condition): [.agents/skills/qa-api-testing/SKILL.md](file:///.agents/skills/qa-api-testing/SKILL.md)
+  * Phân tích PRD/SRS, thiết kế Test Matrix đa tầng & E2E Multi-portal: [.agents/skills/qa-system-testing/SKILL.md](file:///.agents/skills/qa-system-testing/SKILL.md)
+  * Audit UI/UX, Responsive, Accessibility & Visual Evidence: [.agents/skills/qa-ui-review/SKILL.md](file:///.agents/skills/qa-ui-review/SKILL.md)
 - Không load tài liệu Dashboard trừ khi task có chỉnh sửa `dashboard/`.
 - Chạy kiểm tra quy chuẩn kiến trúc tự động: `npm run check:framework`.
 
