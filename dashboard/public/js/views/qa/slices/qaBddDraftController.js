@@ -111,3 +111,4 @@ export function toggleBddDraftFullscreen(qaSlice, forceState) {
   if (expandLabel) expandLabel.textContent = isFull ? 'Thu nhỏ' : 'Phóng to';
   if (expandBtn) expandBtn.title = isFull ? 'Thu nhỏ khung xem (Esc)' : 'Phóng to toàn màn hình';
 }
+

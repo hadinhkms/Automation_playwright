@@ -86,3 +86,4 @@ export function renderExtractedScaffoldPreview(root, res) {
   }
   if (previewBox) previewBox.style.display = 'block';
 }
+

@@ -65,3 +65,4 @@ function findMissingAwaits(bodyLines, firstLineNo, asyncMatchers = ASYNC_MATCHER
 }
 
 module.exports = { ASYNC_MATCHERS, findMissingAwaits };
+

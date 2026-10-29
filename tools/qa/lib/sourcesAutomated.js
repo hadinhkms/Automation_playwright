@@ -191,3 +191,4 @@ function loadAutomatedTests(root, options = {}) {
 }
 
 module.exports = { loadAutomatedTests };
+
