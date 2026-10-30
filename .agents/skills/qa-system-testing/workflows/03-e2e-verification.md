@@ -78,6 +78,11 @@ Khi phát hiện một test fail hoặc hành vi bất thường, **bắt buộc
 
 ---
 
+### Bước 4.5: Ghi Kết Quả Vào Checklist Test Case
+Nếu task có checklist test case (`test-cases/REQ-xxx-*.md`, Jira issue hoặc tài liệu user đưa), thực hiện theo [qa-test-execution](../../qa-test-execution/SKILL.md): mark trạng thái từng test case kèm bằng chứng và bổ sung test case còn thiếu vào checklist.
+
+---
+
 ### Bước 5: Chạy Cổng Kiểm Chứng Cuối (Final Quality Gates)
 Sau khi cập nhật spec, test case hoặc requirement, chạy tuần tự:
 1. Trong `playwright/`: `npm run verify` (đảm bảo pass TypeScript, ESLint và `playwright test --list`).
