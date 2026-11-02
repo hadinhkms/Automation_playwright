@@ -55,3 +55,18 @@ test('không nhận nhầm domain giả mạo có chứa example.com', () => {
   const issues = checkSource('pages/desktop/SpoofPage.js', "const u = 'https://example.com.evil.vn/login';\n");
   assert.equal(issues.length, 1);
 });
+
+test('chặn Page Object vượt trần 250 dòng ngay trong check:framework', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-limit-'));
+  try {
+    const rel = 'pages/desktop/TooLargePage.js';
+    fs.mkdirSync(path.join(root, path.dirname(rel)), { recursive: true });
+    const body = Array.from({ length: 255 }, (_, i) => `const field${i} = ${i};`).join('\n') + '\n';
+    fs.writeFileSync(path.join(root, rel), body);
+    const result = runFrameworkCheck({ root, targetArgs: [rel] });
+    assert.equal(result.passed, false);
+    assert.ok(result.issues.some((issue) => issue.includes('vượt trần cứng 250 dòng')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

@@ -26,11 +26,13 @@ function buildPackageJson(name, projectName) {
       'dashboard:start': 'node dashboard/start-server.js',
       'dashboard:stop': 'node dashboard/stop-server.js',
       'suite:smoke': 'playwright test --project="Desktop Smoke Tests"',
-      'suite:regression': 'playwright test --project="Desktop Regression Tests"',
+      'suite:regression': 'playwright test --project="Desktop Smoke Tests" --project="Desktop Regression Tests"',
       'suite:desktop': 'playwright test --project="Desktop Smoke Tests"',
       'suite:api': 'playwright test --project="API Tests"',
       report: 'playwright show-report',
       'check:framework': 'node scripts/check-framework-structure.js',
+      'check:limits': 'node scripts/check-code-limits.js',
+      'check:limits:strict': 'node scripts/check-code-limits.js --strict',
       'update:framework': 'node scripts/update-framework.js',
       'cleanup:reports': 'node scripts/cleanup-reports.js',
     },
@@ -145,7 +147,7 @@ function generateStarterFiles(targetDir, config) {
   fs.writeFileSync(path.join(targetDir, '.gitignore'), 'node_modules/\ntest-results/\nplaywright-report/\n.tmp/\n.env\n', 'utf8');
 
   // 7. ai/ lessons
-  const lessonHead = `> **This file belongs to THIS project. The Hub never overwrites it.**\n`;
+  const lessonHead = '> **This file belongs to THIS project. The Hub never overwrites it.**\n';
   fs.mkdirSync(path.join(targetDir, 'ai', 'shared'), { recursive: true });
   fs.mkdirSync(path.join(targetDir, 'ai', 'dashboard'), { recursive: true });
   fs.writeFileSync(path.join(targetDir, 'ai', 'shared', 'TEST_AUTOMATION_LESSONS.md'), `# Lessons - ${projectName}\n${lessonHead}`, 'utf8');

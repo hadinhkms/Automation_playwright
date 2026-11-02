@@ -33,6 +33,7 @@ Trước khi viết code:
 3. Tìm method/action đã có trước khi tạo method mới.
 4. Nếu yêu cầu hoặc expected result thiếu thông tin quan trọng, nêu assumption rõ ràng; không tự biến một hành vi chưa xác nhận thành optional.
 5. **Rà soát xung đột (Conflict Check):** Đối chiếu kỹ giữa requirement, test case và UI/code thực tế. Nếu phát hiện điểm mâu thuẫn, lệch bước hoặc conflict giữa các tài liệu, phải xác nhận và điều chỉnh cho đồng nhất trước khi bắt đầu viết script.
+6. **Kiểm tra số dòng file hiện hữu trước khi thêm hàm/test:** Nếu Page Object, Helper hoặc Spec định sửa đã chạm vùng vàng `>= 80%` trần số dòng (xem mục 4.1), phải lên phương án tách nhỏ module ngay từ đầu thay vì viết dồn vào một file rồi bị Git `pre-commit` chặn.
 
 Không đọc hoặc gửi cho AI các thư mục sinh tự động như `node_modules/`, `playwright-report/`, `test-results/`, `evidence/` trừ khi đang phân tích một artifact lỗi cụ thể.
 
@@ -132,7 +133,7 @@ Chỉ **đề xuất**. Không tự viết thêm script ngoài phạm vi đượ
 
 - E2E test đặt tại `tests/e2e/` và có hậu tố `.spec.js`.
 - Page Object đặt tại `pages/` và export class rõ ràng.
-- Helper/fixture đặt tại `core/utils/` hoặc `core/fixtures/`.
+- Helper/fixture nền tảng đặt tại `core/utils/` hoặc `core/fixtures/`; helper/service riêng của dự án vệ tinh đặt tại `core/local/`.
 - Test data đặt tại `data/`; không hard-code bộ dữ liệu nghiệp vụ lớn trong spec.
 - Cấu hình môi trường nằm tại `core/config/env.js` và được dùng qua `baseURL` trong `playwright.config.js`.
 - **Không hard-code link/domain trong script (spec, Page Object, fixture, helper).** Domain thay đổi theo môi trường (`qc`/`staging`/`prod`) nên phải khai báo theo từng môi trường trong `environments` của `dashboardConfig.json` và đọc qua `core/config/env.js`:
@@ -145,6 +146,25 @@ Chỉ **đề xuất**. Không tự viết thêm script ngoài phạm vi đượ
 - Locator thuộc Page Object. Action dùng lại `UiActions` trong `core/utils/commonUtils.js` khi action tương ứng đã tồn tại.
 - Không import `fs` trong spec. File I/O và evidence phải đi qua helper.
 - Không dùng API private như `page.context()._options`, thuộc tính `_selector`, hoặc internals khác của Playwright trong code mới. Điều hướng dùng URL tương đối, ví dụ `page.goto('/')`, thông qua Page Object.
+
+### 4.1 Giới hạn kích thước code & Vùng vàng 80% trước khi Commit (Code Size Budget)
+
+Git `pre-commit` (Master Process `quality-policy.json`) và `npm run check:framework` / `npm run check:limits:strict` cưỡng chế nghiêm ngặt kích thước file. AI **bắt buộc tự kiểm tra và tách nhỏ file ngay trong lúc viết script**, tuyệt đối không để người dùng phải sửa/tách lại trước khi commit:
+
+| Vai trò file (`role`) | Ví dụ đường dẫn trong dự án | Trần cứng (100%) | Vùng vàng (80%) — Mục tiêu khi viết/thêm code |
+|---|---|---:|---:|
+| **`test`** | `tests/e2e/**/*.spec.js`, `tests/api/**/*.spec.js`, `**/*.test.js` | **800 dòng** | **< 640 dòng** |
+| **`module`** | `pages/**/*.js` (Page Object), `core/fixtures/**/*.js`, `core/local/*.js` (module), `tests/**/support/*.js` | **250 dòng** | **< 200 dòng** |
+| **`service`** | `*service*.js`, `*api*.js`, `*client*.js`, `services/**` (ngoài `tests/`) | **200 dòng** | **< 160 dòng** |
+| **`utils`** | `*utils*.js`, `*helper*.js`, `utils/**`, `helpers/**` (ngoài `tests/`) | **150 dòng** | **< 120 dòng** |
+| **`component` / `hook`** | `components/**`, `hooks/**`, `use*.js` | **150 dòng** | **< 120 dòng** |
+
+- **Luật vùng vàng 80% (`SPLIT REQUIRED`):** Khi một file đã đạt `>= 80%` trần số dòng, việc tạo mới hoặc thêm hàm/class/`test()` mới (hoặc thêm `> 10` dòng code thực chất) sẽ bị `pre-commit` và `npm run check:limits` **chặn cứng**. Phải chủ động phân rã ngay:
+  - *Page Object chạm 200 dòng*: Tách theo màn hình con hoặc khối UI độc lập (Modal, FilterBar, FormSection) kế thừa `BasePage`.
+  - *Spec chạm 640 dòng*: Tách theo nhóm luồng nghiệp vụ / AC (`*.smoke.spec.js`, `*.validation.spec.js`, `*.negative.spec.js`), giữ nguyên `@REQ-xxx` ở `test.describe` và tiền tố `TC-xxx - AC-yyy`.
+  - *Helper / API Client trong `core/local/`*: Tách theo từng domain resource (`< 120` dòng cho `utils`, `< 160` dòng cho `service`), đưa dataset lớn sang `data/*.json`.
+- **Giới hạn dòng & dung lượng:** Không có dòng đơn nào `> 500` ký tự; độ dài dòng trung bình `<= 100` ký tự (với file `>= 50` dòng — cấm nén nhiều lệnh lên 1 dòng để lách trần số dòng); dung lượng file `<= 150,000` bytes.
+- **Cách ly file nháp AI:** Mọi file thăm dò/nháp (`*.ai-test.*`, `*.scratch.*`, `draft_*`, `temp_*`) chỉ được đặt trong `scratch/` hoặc `tests/scratch/`. Đặt nhầm vào `tests/` hay `pages/` sẽ bị `check:framework` và `check:limits` chặn ngay.
 
 ## 5. Cấu trúc BDD và Quy tắc Precondition
 
@@ -209,11 +229,11 @@ Dùng web-first assertion như `await expect(locator).toBeVisible()`. Không dù
 Sau khi sửa:
 
 1. Kiểm tra mọi Page Object method được gọi trong spec thực sự tồn tại.
-2. Chạy `npm run check:framework` và `npm run qa:gaps`.
+2. Chạy `npm run check:framework`, `npm run check:limits:strict` (hoặc `npm run mp:audit:changed`) và `npm run qa:gaps`. Nếu có bất kỳ file mới/đã sửa nào chạm vùng vàng `>= 80%` hoặc vượt trần dòng code (mục 4.1), bắt buộc tách nhỏ file ngay tại chỗ trước khi chuyển sang bước tiếp theo.
 3. Chạy unit test của helper bị ảnh hưởng, nếu có.
 4. Chạy đúng spec/project bị ảnh hưởng bằng Playwright. Không mặc định chạy toàn bộ suite khi một targeted test đủ chứng minh thay đổi.
 5. Nếu fail do code vừa sửa, phân tích log và sửa lại. Tối đa 3 vòng tự động; sau đó báo blocker và evidence thay vì tiếp tục tiêu quota không giới hạn.
-6. Không tuyên bố pass nếu chưa chạy. Phân biệt rõ: static check pass, unit test pass, Playwright test pass hoặc chưa chạy được.
+6. Không tuyên bố pass nếu chưa chạy. Phân biệt rõ: static check pass, code-limits check pass, unit test pass, Playwright test pass hoặc chưa chạy được.
 7. Ghi nhận ngược theo mục 3.5: cập nhật business rule mới phát hiện, và liệt kê test case lân cận
    đáng automation. Bỏ qua bước này thì nghiệp vụ vừa học được sẽ mất cùng với context của phiên làm việc.
 
@@ -239,6 +259,7 @@ Chỉ coi task hoàn tất khi:
 - Cấu trúc thư mục và POM đúng quy định.
 - Spec không chứa UI locator/action trực tiếp.
 - Không thêm hard sleep, domain thật, Playwright private API hoặc error swallowing.
+- **Đạt 100% giới hạn kích thước code trước khi commit (mục 4.1):** mọi file tạo mới hoặc chỉnh sửa đều nằm dưới ngưỡng vùng vàng 80% khi thêm logic mới (Spec `< 640`, Page Object/Fixture/Module `< 200`, Service `< 160`, Utils `< 120`), dòng đơn `<= 500` ký tự, không có file nháp ngoài `scratch/`, và đã pass `npm run check:limits:strict`.
 - Locator đủ ổn định và assertion kiểm tra đúng expected result.
 - Method giữa spec và Page Object nhất quán.
 - Mọi assertion truy được về một acceptance criterion; không có hành vi nào trong spec mà tài liệu

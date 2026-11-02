@@ -70,7 +70,7 @@ Khi làm việc với các file Playwright test, Page Objects, fixtures, `requir
   * Phân tích PRD/SRS, thiết kế Test Matrix đa tầng & E2E Multi-portal: [.agents/skills/qa-system-testing/SKILL.md](file:///.agents/skills/qa-system-testing/SKILL.md)
   * Audit UI/UX, Responsive, Accessibility & Visual Evidence: [.agents/skills/qa-ui-review/SKILL.md](file:///.agents/skills/qa-ui-review/SKILL.md)
 - Không load tài liệu Dashboard trừ khi task có chỉnh sửa `dashboard/`.
-- Chạy kiểm tra quy chuẩn kiến trúc tự động: `npm run check:framework`.
+- **Kiểm tra bắt buộc trước khi bàn giao / commit:** Chạy `npm run check:framework` và `npm run check:limits:strict` (hoặc `npm run mp:audit:changed`) để đảm bảo 100% file mới/đã sửa không lố trần dòng code và không thêm logic vào vùng vàng `>= 80%` (Spec `< 640/800`, Page Object/Fixture/Module `< 200/250`, Service `< 160/200`, Utils `< 120/150`).
 
 ### B. Dashboard Web Studio
 Khi làm việc với Dashboard (`dashboard/`):

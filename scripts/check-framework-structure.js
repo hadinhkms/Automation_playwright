@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { findHardcodedSecrets } = require('./lib/secretScan');
+const { runCodeLimitsCheck } = require('./lib/codeLimits');
 
 // URL tuyệt đối mở đầu một string literal. Chỉ cho phép host dự phòng (example.*) và loopback dùng cho sample/mock.
 const ALLOWED_URL_HOST = String.raw`(?:(?:[\w-]+\.)*example\.(?:com|org|net)|localhost|127\.0\.0\.1)(?=[/:'"\x60?#]|$)`;
@@ -83,6 +84,16 @@ function runFrameworkCheck({ root = process.cwd(), targetArgs = [] } = {}) {
 
   issues.push(...findHardcodedSecrets({ root, files: targetArgs.length > 0 ? files : null }));
 
+  const limitsResult = runCodeLimitsCheck(
+    targetArgs.length > 0
+      ? { root, targetArgs }
+      : { root, scope: 'automation-changed' },
+  );
+  for (const v of limitsResult.violations) {
+    issues.push(v.message);
+  }
+  const warnings = limitsResult.warnings.map((w) => w.message);
+
   const passed = issues.length === 0;
   const summary = passed
     ? `Framework checks passed (${specFiles.length} specs, ${pageFiles.length} page objects).`
@@ -93,6 +104,7 @@ function runFrameworkCheck({ root = process.cwd(), targetArgs = [] } = {}) {
     passed,
     summary,
     issues,
+    warnings,
     specCount: specFiles.length,
     pageCount: pageFiles.length,
   };
@@ -101,6 +113,9 @@ function runFrameworkCheck({ root = process.cwd(), targetArgs = [] } = {}) {
 if (require.main === module) {
   const targetArgs = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
   const result = runFrameworkCheck({ root: process.cwd(), targetArgs });
+  for (const warning of result.warnings || []) {
+    console.warn(`[YELLOW ZONE >=80%] ${warning}`);
+  }
   if (!result.passed) {
     console.error('Framework rule violations found:');
     for (const issue of result.issues) console.error(`- ${issue}`);

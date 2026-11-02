@@ -32,8 +32,9 @@ Load these reference guides when designing test cases or writing Playwright API 
    ```bash
    npm run qa:impact -- <REQ-id>
    npm run qa:gaps
+   npm run qa:limits
    ```
-   Always read [AGENTS.md](../../../AGENTS.md) and `.github/copilot-instructions.md` (or fallback to `D:/_QA_Test_Automation/.github/copilot-instructions.md` when invoked from another project) before modifying `requirements/`, `test-cases/`, or `playwright/tests/`.
+   Always read [AGENTS.md](../../../AGENTS.md) and `.github/copilot-instructions.md` (or fallback to `D:/_QA_Test_Automation/.github/copilot-instructions.md` when invoked from another project) before modifying `requirements/`, `test-cases/`, or `playwright/tests/` (strictly enforce Rule 15 line limits: `Util/Helper ≤ 150`, `Service/ApiClient ≤ 200`, `Module/Fixture ≤ 250`, `Test/Spec ≤ 800`, and split proactively at the `≥ 80%` yellow zone `120/160/200/650` before adding new logic).
 
 2. **Configure Canonical Metadata in `requirements/REQ-xxx-*.md`**:
    `tools/qa` enforces strict metadata rules (`missing-ui-coverage`, `missing-xss-coverage`). Configure the requirement header based on the API scope:
