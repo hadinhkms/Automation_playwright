@@ -177,6 +177,8 @@ module.exports = {
   extractHeuristicFromSpecText,
   extractWithAi,
   extractScaffoldFromRaw,
+  synthesizeScaffoldContents,
+  formatScaffoldResult,
   buildTestCaseDocument,
   appendTestCasesToDocument,
 };

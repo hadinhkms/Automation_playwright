@@ -2,97 +2,141 @@
 
 /**
  * dashboard/public/js/views/qa/slices/qaScaffoldSlice.js
- * Quản lý Scaffold Wizard khởi tạo Requirement, Test Case và Spec.
+ * Quản lý Scaffold Wizard 3 chế độ (raw / new / infer) khởi tạo Requirement, Test Case và Spec.
  */
 
 import { apiClient } from '../../../core/apiClient.js';
-import { toast } from '../../../core/toast.js';
+import {
+  setBtnContent,
+  resetScaffoldForm,
+  applyScaffoldMetaToDom,
+  renderExtractedScaffoldPreview,
+} from './qaScaffoldPreviewRenderer.js';
 
 export class QaScaffoldSlice {
   constructor(qaSlice) {
     this.qaSlice = qaSlice;
+    this._scaffoldRawExtracted = null;
   }
 
   async openScaffoldModal() {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-scaffold-modal');
+    if (!root) return;
+    const modal = root.querySelector('#qa-scaffold-modal');
     if (!modal) return;
 
-    try {
-      const meta = await apiClient.get('/api/qa/scaffold-meta');
-      const reqInput = modal.querySelector('#qa-scaffold-req-id');
-      const domainSelect = modal.querySelector('#qa-scaffold-domain');
-
-      if (reqInput && meta.nextReqId) reqInput.value = meta.nextReqId;
-      if (domainSelect && meta.existingDomains) {
-        domainSelect.innerHTML = '';
-        meta.existingDomains.forEach((d) => {
-          const opt = document.createElement('option');
-          opt.value = d;
-          opt.textContent = d;
-          domainSelect.appendChild(opt);
-        });
-      }
-    } catch (_) {}
-
+    this._scaffoldRawExtracted = null;
+    resetScaffoldForm(root);
     try { modal.showModal(); } catch (_) { modal.setAttribute('open', ''); }
+
+    try {
+      const meta = await apiClient.get('/api/qa/scaffold/meta');
+      applyScaffoldMetaToDom(root, meta);
+    } catch (_) {}
   }
 
   async extractRawScaffold() {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-scaffold-modal');
-    if (!modal) return;
-
-    const rawTextarea = modal.querySelector('#qa-scaffold-raw-content');
-    const rawContent = rawTextarea ? rawTextarea.value.trim() : '';
+    if (!root) return null;
+    const rawContent = root.querySelector('#qa-scaffold-raw-content')?.value.trim() || '';
     if (!rawContent) {
-      toast.warn('Vui lòng dán nội dung kịch bản hoặc spec thô.');
-      return;
+      this.qaSlice.notify('Vui lòng dán nội dung Spec văn bản hoặc Playwright Test Script vào ô nội dung.');
+      return null;
     }
 
-    const previewSection = modal.querySelector('#qa-scaffold-preview-section');
-    const previewFiles = modal.querySelector('#qa-scaffold-preview-files');
-    const titleInput = modal.querySelector('#qa-scaffold-title');
+    const reqId = root.querySelector('#qa-scaffold-raw-req-id')?.value.trim() || '';
+    const domain = root.querySelector('#qa-scaffold-raw-domain')?.value.trim() || '';
+    const extractBtn = root.querySelector('#qa-btn-extract-raw');
+    if (extractBtn) { extractBtn.disabled = true; setBtnContent(extractBtn, 'ph-bold ph-spinner ph-spin', 'Đang phân tích...'); }
 
     try {
-      const res = await apiClient.post('/api/qa/extract-scaffold', { rawContent });
-      if (res && res.preview) {
-        if (titleInput && res.preview.title) titleInput.value = res.preview.title;
-        if (previewFiles && res.preview.files) {
-          previewFiles.innerHTML = res.preview.files.map((f) => `<li><code>${f}</code></li>`).join('');
-        }
-        if (previewSection) previewSection.style.display = 'block';
-        toast.success(`Đã trích xuất ${res.preview.acCount} AC và ${res.preview.tcCount} TC!`);
-      }
+      const startAi = window.AiRequest && typeof window.AiRequest.startAiRequest === 'function';
+      const res = startAi
+        ? await window.AiRequest.startAiRequest({
+          url: '/api/qa/scaffold/extract',
+          body: { rawContent, reqId, domain },
+          timeoutMs: 60000,
+          owner: this.qaSlice,
+        }).promise
+        : await apiClient.post('/api/qa/scaffold/extract', { rawContent, reqId, domain });
+
+      this._scaffoldRawExtracted = res;
+      renderExtractedScaffoldPreview(root, res);
+      this.qaSlice.notify(`Đã phân tích thành công (${res.preview?.acCount ?? 0} ACs, ${res.preview?.tcCount ?? 0} Test Cases).`);
+      return res;
     } catch (err) {
-      toast.error(`Lỗi trích xuất: ${err.message}`);
+      this.qaSlice.notify(`Lỗi phân tích: ${err.message}`);
+      return null;
+    } finally {
+      if (extractBtn) { extractBtn.disabled = false; setBtnContent(extractBtn, 'ph-bold ph-lightning', 'Phân tích & Xem trước'); }
     }
   }
 
   async submitScaffold() {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-scaffold-modal');
-    if (!modal) return;
+    if (!root) return;
+    const modal = root.querySelector('#qa-scaffold-modal');
+    const submitBtn = root.querySelector('#qa-btn-submit-scaffold');
+    const mode = root.querySelector('input[name="qa-scaffold-mode"]:checked')?.value || 'raw';
 
-    const reqId = modal.querySelector('#qa-scaffold-req-id')?.value.trim();
-    const title = modal.querySelector('#qa-scaffold-title')?.value.trim();
-    const domain = modal.querySelector('#qa-scaffold-domain')?.value.trim();
-    const acCount = parseInt(modal.querySelector('#qa-scaffold-ac-count')?.value || '2', 10);
-
-    if (!reqId || !title) {
-      toast.warn('Vui lòng nhập đầy đủ Mã REQ và Tiêu đề.');
+    if (mode === 'raw') {
+      const extracted = this._scaffoldRawExtracted || await this.extractRawScaffold();
+      if (!extracted) return;
+      if (submitBtn) { submitBtn.disabled = true; setBtnContent(submitBtn, 'ph-bold ph-spinner ph-spin', 'Đang khởi tạo...'); }
+      try {
+        const res = await apiClient.post('/api/qa/scaffold', {
+          mode: 'raw_create',
+          reqId: extracted.preview.reqId,
+          title: extracted.preview.title,
+          slug: extracted.preview.slug,
+          customFiles: extracted.generated,
+        });
+        if (modal) { try { modal.close(); } catch (_) {} }
+        this.qaSlice.notify(res.message || `Đã khởi tạo thành công 3 files cho ${extracted.preview.reqId}.`);
+        await this.qaSlice.reload(true);
+        if (res.primaryFile) await this.qaSlice.openDocument(res.primaryFile);
+      } catch (err) {
+        this.qaSlice.notify(`Lỗi khởi tạo 3 files: ${err.message}`);
+      } finally {
+        if (submitBtn) { submitBtn.disabled = false; setBtnContent(submitBtn, 'ph-bold ph-file-plus', 'Khởi tạo bộ tài liệu'); }
+      }
       return;
     }
 
+    if (mode === 'infer') {
+      const specPath = root.querySelector('#qa-scaffold-spec-path')?.value.trim();
+      if (!specPath) { this.qaSlice.notify('Vui lòng nhập đường dẫn spec để suy luận ngược.'); return; }
+      if (submitBtn) submitBtn.disabled = true;
+      try {
+        const res = await apiClient.post('/api/qa/scaffold', { inferFromSpecPath: specPath });
+        if (modal) { try { modal.close(); } catch (_) {} }
+        this.qaSlice.notify(res.message || 'Đã suy luận tài liệu từ spec thành công.');
+        await this.qaSlice.reload(true);
+      } catch (err) {
+        this.qaSlice.notify(`Lỗi suy luận: ${err.message}`);
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+      return;
+    }
+
+    const reqId = root.querySelector('#qa-scaffold-req-id')?.value.trim().toUpperCase();
+    const title = root.querySelector('#qa-scaffold-title')?.value.trim();
+    const domain = root.querySelector('#qa-scaffold-domain')?.value.trim() || 'general';
+    const acCount = parseInt(root.querySelector('#qa-scaffold-ac-count')?.value, 10) || 2;
+    if (!reqId || !/^REQ-\d{3}$/.test(reqId)) { this.qaSlice.notify('Mã Requirement không hợp lệ (yêu cầu dạng REQ-001).'); return; }
+    if (!title) { this.qaSlice.notify('Vui lòng nhập tiêu đề tính năng.'); return; }
+
+    if (submitBtn) submitBtn.disabled = true;
     try {
       const res = await apiClient.post('/api/qa/scaffold', { reqId, title, domain, acCount });
-      if (res.ok) {
-        toast.success(`Đã khởi tạo ${res.created?.length || 3} file thành công!`);
-        try { modal.close(); } catch (_) {}
-        await this.qaSlice.reload(true);
-      }
+      if (modal) { try { modal.close(); } catch (_) {} }
+      this.qaSlice.notify(res.message || `Đã tạo thành công bộ kịch bản cho ${reqId}.`);
+      await this.qaSlice.reload(true);
     } catch (err) {
-      toast.error(`Lỗi tạo scaffold: ${err.message}`);
+      this.qaSlice.notify(`Lỗi khởi tạo: ${err.message}`);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
     }
   }
 }

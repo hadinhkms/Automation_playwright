@@ -13,6 +13,7 @@ import { ConflictStudioHelper } from './conflictStudioHelper.js';
 import { bindQaEvents } from './qaSliceEvents.js';
 import { reloadQaData } from './qaDataLoader.js';
 import { createEl, createRow, createCell, setEmptyContent, showQaAlert, hideQaAlert, formatDegradedMessage } from './qaDomUtils.js';
+import './smartLinkerHelper.js';
 
 import { QaOverviewSlice } from './slices/qaOverviewSlice.js';
 import { QaDocsSlice } from './slices/qaDocsSlice.js';
@@ -22,6 +23,8 @@ import { QaBatchSlice } from './slices/qaBatchSlice.js';
 import { QaScaffoldSlice } from './slices/qaScaffoldSlice.js';
 import { QaCandidatesSlice } from './slices/qaCandidatesSlice.js';
 import { QaDecisionsSlice } from './slices/qaDecisionsSlice.js';
+
+const TAB_PANELS = ['docs', 'candidates', 'findings', 'decisions', 'process-studio'];
 
 export class QaSlice {
   constructor() {
@@ -33,16 +36,20 @@ export class QaSlice {
     this._fixChanges = [];
     this.candidates = [];
     this.decisions = null;
-    this.activeTab = (typeof localStorage !== 'undefined' && localStorage.getItem('dashboard_qa_subtab')) || 'docs';
+    const savedTab = typeof localStorage !== 'undefined' && localStorage.getItem('dashboard_qa_subtab');
+    this.activeTab = TAB_PANELS.includes(savedTab) ? savedTab : 'docs';
     this.priorityFilter = 'all';
     this.documents = [];
     this.activeDocPath = null;
     this.docFilter = '';
     this._activeDoc = null;
+    this._activeDocAcs = [];
     this._openQuestions = [];
     this._degraded = [];
     this.pickedIds = new Set();
     this.draftText = '';
+    this._lastAuthor = '';
+    this._recentlyAddedTcIds = null;
     this._summarySeq = 0;
 
     // Sub-modules & Tab Slices
@@ -75,6 +82,7 @@ export class QaSlice {
     if (typeof this.reqAnalyzer?.destroy === 'function') this.reqAnalyzer.destroy();
     if (typeof this.batch?.destroy === 'function') this.batch.destroy();
     if (typeof this.conflictStudio?.destroy === 'function') this.conflictStudio.destroy();
+    if (typeof this.processStudio?.destroy === 'function') this.processStudio.destroy();
     this._disposers.forEach((d) => { try { d(); } catch (_) {} });
     this._disposers = [];
   }
@@ -87,30 +95,33 @@ export class QaSlice {
   _root() { return document.getElementById('qa-view'); }
   _bindDomEvents() { bindQaEvents(this, this._root()); }
 
-  switchTab(tabName) {
-    if (!tabName) return;
-    this.activeTab = tabName;
-    try { localStorage.setItem('dashboard_qa_subtab', tabName); } catch (_) {}
-    const root = this._root();
-    if (!root) return;
-
+  _syncTabVisibility(root, tabName) {
     root.querySelectorAll('[data-qa-tab]').forEach((btn) => {
       const active = btn.dataset.qaTab === tabName;
       btn.classList.toggle('active', active);
       btn.setAttribute('aria-selected', String(active));
     });
-
-    ['docs', 'candidates', 'findings', 'decisions', 'process-studio'].forEach((name) => {
+    TAB_PANELS.forEach((name) => {
       const panel = root.querySelector(`#qa-panel-${name}`);
       if (panel) panel.hidden = name !== tabName;
     });
+  }
 
-    if (tabName === 'docs') this.docsSlice.renderDocs(root);
-    if (tabName === 'candidates') this.candidatesSlice.renderCandidates(root);
-    if (tabName === 'findings') this.batchSlice.renderFindings(root);
-    if (tabName === 'decisions') this.decisionsSlice.renderDecisions(root);
-    if (tabName === 'process-studio' && this.processStudio) this.processStudio.loadStatus(root);
-    if (tabName === 'conflicts') this.conflictSlice.renderConflicts(root);
+  switchTab(tabName) {
+    if (!tabName) return;
+    const safeTab = TAB_PANELS.includes(tabName) ? tabName : 'docs';
+    this.activeTab = safeTab;
+    try { localStorage.setItem('dashboard_qa_subtab', safeTab); } catch (_) {}
+    const root = this._root();
+    if (!root) return;
+
+    this._syncTabVisibility(root, safeTab);
+
+    if (safeTab === 'docs') this.docsSlice.renderDocs(root);
+    if (safeTab === 'candidates') this.candidatesSlice.renderCandidates(root);
+    if (safeTab === 'findings') this.batchSlice.renderFindings(root);
+    if (safeTab === 'decisions') this.decisionsSlice.renderDecisions(root);
+    if (safeTab === 'process-studio' && this.processStudio) this.processStudio.loadStatus(root);
   }
 
   async reload(force = false) { await reloadQaData(this, force); }
@@ -123,6 +134,13 @@ export class QaSlice {
     if (!root || !this._mounted) return;
     this._flushRenderDisposers();
 
+    if (this.activeDocPath && !this.documents.some((d) => d.path === this.activeDocPath)) {
+      this.activeDocPath = null;
+      this._activeDoc = null;
+    }
+
+    if (!TAB_PANELS.includes(this.activeTab)) this.activeTab = 'docs';
+
     this.overviewSlice.renderSourceBar(root, this.summary);
     this.overviewSlice.renderStats(root, this.trace);
     this.overviewSlice.renderExecutiveScorecard(root, this.summary, this.trace);
@@ -133,29 +151,37 @@ export class QaSlice {
     this.candidatesSlice.renderCandidates(root);
     this.decisionsSlice.renderDecisions(root);
 
-    this.switchTab(this.activeTab);
+    this._syncTabVisibility(root, this.activeTab);
+    if (this.activeTab === 'process-studio' && this.processStudio) {
+      this.processStudio.loadStatus(root);
+    }
   }
 
   async loadAll() { await this.reload(true); }
 
   showOverview() { this.docsSlice.showOverview(); }
-  openDocument(p) { this.docsSlice.openDocument(p); }
+  openDocument(p) { return this.docsSlice.openDocument(p); }
   openAnswerForm() { this.docsSlice.openAnswerForm(); }
   openEditForm() { this.docsSlice.openEditForm(); }
-  openInferModal() { this.inferenceSlice.openInferModal(); }
-  openAutoFixModal() { this.batchSlice.openAutoFixModal(); }
-  applyAutoFix() { this.batchSlice.applyAutoFix(); }
-  openScaffoldModal() { this.scaffoldSlice.openScaffoldModal(); }
-  extractRawScaffold() { this.scaffoldSlice.extractRawScaffold(); }
-  submitScaffold() { this.scaffoldSlice.submitScaffold(); }
-  generateDraft() { this.candidatesSlice.generateDraft(); }
+  openInferModal() { return this.inferenceSlice.openInferModal(); }
+  runInference() { return this.inferenceSlice.runInference(); }
+  toggleAllInferred(s) { this.inferenceSlice.toggleAllInferred(s); }
+  submitInferredTestCases() { return this.inferenceSlice.submitInferredTestCases(); }
+  openAutoFixModal() { return this.batchSlice.openAutoFixModal(); }
+  applyAutoFix() { return this.batchSlice.applyAutoFix(); }
+  openScaffoldModal() { return this.scaffoldSlice.openScaffoldModal(); }
+  extractRawScaffold() { return this.scaffoldSlice.extractRawScaffold(); }
+  submitScaffold() { return this.scaffoldSlice.submitScaffold(); }
+  generateDraft() { return this.candidatesSlice.generateDraft(); }
   clearPicks() { this.candidatesSlice.clearPicks(); }
-  copyDraft() { this.candidatesSlice.copyDraft(); }
-  toggleDraftFullscreen() { this.candidatesSlice.toggleDraftFullscreen(); }
+  copyDraft() { return this.candidatesSlice.copyDraft(); }
+  toggleDraftFullscreen(f) { this.candidatesSlice.toggleDraftFullscreen(f); }
   _closeDraft() { this.candidatesSlice.closeDraft(); }
   toggleAllPicks(c) { this.candidatesSlice.toggleAllPicks(c); }
-  openReleaseBriefingModal() { this.overviewSlice.openReleaseBriefingModal(); }
-  openDeleteRequirementModal(d) { this.conflictSlice.openDeleteRequirementModal(d); }
+  openReleaseBriefingModal() { return this.overviewSlice.openReleaseBriefingModal(); }
+  openDeleteRequirementModal(d) { return this.conflictSlice.openDeleteRequirementModal(d); }
+  submitDeleteRequirement() { return this.conflictSlice.submitDeleteRequirement(); }
+  _checkDeleteConfirmInput() { this.conflictSlice.checkDeleteConfirmInput(); }
 
   notify(msg) { eventBus.emit('ui:notify', { message: msg }); }
   _el(tag, text, className) { return createEl(tag, text, className); }

@@ -25,7 +25,7 @@ export function updateJiraStatusBadge(statusBadge, tokenInput, res) {
   if (!statusBadge) return;
   if (res.hasToken) {
     statusBadge.className = 'settings-badge-status is-active';
-    statusBadge.innerHTML = `<i class="ph-fill ph-check-circle"></i> Đã kết nối (${res.maskedToken || 'Token hợp lệ'})`;
+    statusBadge.innerHTML = `<i class="ph-fill ph-check-circle"></i> Đã kết nối (${escapeHtml(res.maskedToken || 'Token hợp lệ')})`;
     if (tokenInput) tokenInput.placeholder = 'Đã có token (Nhập token mới nếu muốn thay đổi)';
   } else {
     statusBadge.className = 'settings-badge-status';
@@ -43,7 +43,8 @@ export function renderJiraIssueResult(container, res) {
     + `background: rgba(59,130,246,0.15); color: #3b82f6;">${escapeHtml(res.issueType)}</span>`;
   const badgeStatus = `<span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; `
     + `background: rgba(16,185,129,0.15); color: #10b981;">${escapeHtml(res.status)}</span>`;
-  const jiraLink = `<a href="${escapeHtml(res.url)}" target="_blank" rel="noopener" `
+  const safeUrl = /^https?:\/\//i.test(String(res.url || '')) ? escapeHtml(res.url) : '#';
+  const jiraLink = `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" `
     + `style="font-size: 12px; color: var(--accent); display: flex; align-items: center; gap: 4px;">`
     + `<i class="ph ph-arrow-square-out"></i> Mở trên Jira</a>`;
   const acBlock = acItems
@@ -53,7 +54,7 @@ export function renderJiraIssueResult(container, res) {
       + `<ul style="margin: 4px 0 0; padding-left: 18px; font-size: 12px; color: var(--text);">${acItems}</ul>`
       + `</div>`
     : '';
-  const preStyle = 'margin: 0; padding: 10px; background: rgba(0,0,0,0.25); border-radius: 6px; '
+  const preStyle = 'margin: 0; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; '
     + 'font-size: 11.5px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; '
     + 'font-family: var(--font-mono); color: var(--text);';
 

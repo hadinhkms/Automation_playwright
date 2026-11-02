@@ -2,11 +2,10 @@
 
 /**
  * dashboard/public/js/views/qa/slices/qaBatchSlice.js
- * Quản lý tab Static Findings và quy trình Auto-Fix.
+ * Quản lý tab Static Findings và quy trình Auto-Fix (DOM-safe, không dùng innerHTML dữ liệu repo).
  */
 
 import { apiClient } from '../../../core/apiClient.js';
-import { toast } from '../../../core/toast.js';
 
 const SEVERITY_LABEL = { major: 'Nghiêm trọng', minor: 'Cần xử lý', info: 'Ghi nhận' };
 
@@ -79,45 +78,80 @@ export class QaBatchSlice {
 
   async openAutoFixModal() {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-fix-modal');
-    if (!modal) return;
+    if (!root) return;
+    const modal = root.querySelector('#qa-fix-modal');
+    const summaryText = root.querySelector('#qa-fix-summary-text');
+    const listEl = root.querySelector('#qa-fix-changes-list');
+    const applyBtn = root.querySelector('#qa-btn-apply-fix');
+    if (!modal || !summaryText || !listEl || !applyBtn) return;
 
-    const list = modal.querySelector('#qa-fix-preview-list');
-    if (list) list.innerHTML = '<p style="color: var(--muted);">Đang phân tích thay đổi dự kiến…</p>';
+    summaryText.textContent = 'Đang quét phân tích và chuẩn hóa ma trận (dry-run)...';
+    listEl.textContent = '';
+    const loadingLi = document.createElement('li');
+    loadingLi.textContent = 'Đang tải thông tin...';
+    listEl.appendChild(loadingLi);
+    applyBtn.disabled = true;
+
     try { modal.showModal(); } catch (_) { modal.setAttribute('open', ''); }
 
     try {
       const res = await apiClient.post('/api/qa/fix', { dryRun: true });
-      if (!res || !res.changes) throw new Error('Không nhận được kế hoạch sửa');
-      this.qaSlice._fixChanges = res.changes;
-      if (list) {
-        list.innerHTML = '';
-        if (!res.changes.length) {
-          list.innerHTML = '<p style="color: var(--muted); padding: 12px 0;">Không có lỗi nào cần sửa tự động.</p>';
-          return;
+      listEl.textContent = '';
+      this.qaSlice._fixChanges = res.changes || [];
+
+      if (!res.ok && res.error) {
+        summaryText.textContent = `Lỗi: ${res.message || res.error}`;
+        applyBtn.disabled = true;
+        return;
+      }
+
+      summaryText.textContent = res.message || 'Hoàn tất quét xem trước.';
+      if (this.qaSlice._fixChanges.length === 0) {
+        const emptyLi = document.createElement('li');
+        emptyLi.style.color = 'var(--success, #10b981)';
+        emptyLi.textContent = 'Tất cả liên kết spec và candidate đã ở trạng thái chuẩn.';
+        listEl.appendChild(emptyLi);
+        applyBtn.disabled = true;
+      } else {
+        applyBtn.disabled = false;
+        for (const change of this.qaSlice._fixChanges) {
+          const li = document.createElement('li');
+          if (change.kind === 'chuan-hoa-duong-dan-spec') {
+            li.textContent = `[Đường dẫn] ${change.file}:${change.line} -> ${change.to}`;
+          } else if (change.kind === 'them-test-case-chua-khai-bao') {
+            li.textContent = `[Candidate mới] ${change.file}:${change.line} -> ${change.tcId} (${change.acId}) [${change.spec}]`;
+          } else {
+            li.textContent = `[Thay đổi] ${change.file}:${change.line || ''} -> ${change.kind || change.description || ''}`;
+          }
+          listEl.appendChild(li);
         }
-        res.changes.forEach((c) => {
-          const item = document.createElement('div');
-          item.style.cssText = 'padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 12.5px;';
-          item.textContent = `${c.file || ''}: ${c.description || c.action || ''}`;
-          list.appendChild(item);
-        });
       }
     } catch (err) {
-      if (list) list.innerHTML = `<p style="color: var(--danger);">Lỗi phân tích: ${err.message}</p>`;
+      summaryText.textContent = `Lỗi kết nối khi quét Auto-Fix: ${err.message}`;
+      listEl.textContent = '';
+      applyBtn.disabled = true;
     }
   }
 
   async applyAutoFix() {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-fix-modal');
+    if (!root) return;
+    const modal = root.querySelector('#qa-fix-modal');
+    const applyBtn = root.querySelector('#qa-btn-apply-fix');
+    const summaryText = root.querySelector('#qa-fix-summary-text');
+    if (!applyBtn) return;
+
+    applyBtn.disabled = true;
+    if (summaryText) summaryText.textContent = 'Đang thực thi live fix và đồng bộ ma trận...';
+
     try {
       const res = await apiClient.post('/api/qa/fix', { dryRun: false });
-      toast.success(`Đã tự động sửa ${res.updatedFiles || 0} file thành công!`);
       if (modal) { try { modal.close(); } catch (_) {} }
+      this.qaSlice.notify(res.message || 'Đã chuẩn hóa thành công các liên kết.');
       await this.qaSlice.reload(true);
     } catch (err) {
-      toast.error(`Lỗi khi áp dụng sửa: ${err.message}`);
+      if (summaryText) summaryText.textContent = `Lỗi khi thực thi: ${err.message}`;
+      applyBtn.disabled = false;
     }
   }
 

@@ -65,6 +65,7 @@ export async function reloadQaData(slice, force = false) {
       if (!slice._mounted || seq !== slice._summarySeq) return;
       if (slice.batch) slice.batch.setScanPending(false);
       slice._degraded.push({ part: 'bộ chỉ số QA Core', reason: err });
+      slice.overviewSlice.renderSourceBar(root, slice.summary);
     });
   } catch (err) {
     toast.error(`Lỗi cập nhật dữ liệu QA: ${err.message}`);

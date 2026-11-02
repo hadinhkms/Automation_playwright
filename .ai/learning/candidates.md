@@ -44,3 +44,7 @@
   1. Onboarding seeker nằm trong `#common__modal`; dropdown ngành nghề render qua portal `[data-test-id="common__select-dropdown"]` → chọn option ngoài modal. Trên mobile picker toàn màn hình không có nút Đóng (chạm vùng trống để thoát); màn đồng ý DLCN phải cuộn hết mới bật "Đồng ý".
   2. Kiểm tra "hội thoại mới" của chatbot bằng `conversation_id` trong `POST apigw/api/v1/chatbot/chats`, không dựa vào UI. Tracking chatbot không phát ra phía client trên QC → không kết luận tracking qua network.
 - **Trạng thái:** PENDING
+- **Role quan sát:** Senior QA (Gate 4) — JS-8873 Zalo OTP (2026-11-02)
+- **Quan sát & Nguyên tắc:** Request OTP seeker đi qua `GET /<nonce>?phone=…&platform=…&m=s[&channel=zalo]` cùng origin (không chứa chữ "otp") → chặn/mock phải match `?phone=`, nếu không sẽ gửi OTP thật. Response dạng text `1|seconds|request_id|expiredAt` / `0|CODE|message|reason|duration|seconds|expiredAt`.
+- **Trạng thái:** PENDING
+- [2026-11-02] Checklist Appbox lưu ở issue property `com.appbox.ai.checklist-ticket-checklist(_0)` (compress-json); mark DONE = `done:true` + status Completed `241b6786-…` + cập nhật section/stats, sửa tại chỗ và verify round-trip. QC giới hạn ~3 lần gửi OTP/SĐT → dùng user mới cho mỗi luồng login.

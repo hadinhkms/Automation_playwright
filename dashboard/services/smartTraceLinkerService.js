@@ -16,6 +16,7 @@ const { rankMatchingRequirements } = require('./smartLinkMatcher');
 const { draftLinkToExistingReq, draftNewReqScaffold } = require('./smartLinkDrafter');
 const { detectSpecDelta } = require('./specDeltaService');
 const { executeApply } = require('./smartLinkApply');
+const { slugify } = require('./qaInferenceService');
 
 /** Phân tích kịch bản kiểm thử và trả về đề xuất so khớp thông minh */
 async function analyzeSmartLink(root, { specPath, specContent } = {}) {
@@ -127,11 +128,19 @@ async function analyzeSmartLink(root, { specPath, specContent } = {}) {
 
 /** Áp dụng liên kết requirement được bảo vệ bởi withWriteLock */
 async function applySmartLink(root, params) {
-  if (params && params.specPath) {
-    assertSpecPath(root, params.specPath);
+  const safeParams = params && typeof params === 'object' && !Array.isArray(params) ? { ...params } : {};
+  assertSpecPath(root, safeParams.specPath);
+  if (safeParams.newReqData && typeof safeParams.newReqData === 'object') {
+    const rawSlug = safeParams.newReqData.slug;
+    if (rawSlug !== undefined && rawSlug !== null && String(rawSlug).trim() !== '') {
+      if (/[\\/]|\.\./.test(String(rawSlug))) {
+        throw httpError(400, 'INVALID_SLUG', 'Slug requirement không hợp lệ.');
+      }
+      safeParams.newReqData = { ...safeParams.newReqData, slug: slugify(String(rawSlug)) };
+    }
   }
   return await withWriteLock(root, async () => {
-    return await executeApply(root, params);
+    return await executeApply(root, safeParams);
   });
 }
 

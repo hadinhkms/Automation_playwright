@@ -95,23 +95,27 @@ const server = http.createServer(async (request, response) => {
   }
 
   const context = { root: ROOT, engineDir: ENGINE_DIR, appName: APP_NAME, port: currentPort, agentService, shutdown };
-
-  if (await handleSystemRoutes(request, response, url, context)) return;
-  if (await handleAiRoutes(request, response, url, context)) return;
-  if (await handleJiraRoutes(request, response, url, context)) return;
-  if (await handleRunnerRoutes(request, response, url, context)) return;
-  if (await handleRecorderRoutes(request, response, url, context)) return;
-  if (await handleGitRoutes(request, response, url, context)) return;
-  if (await handleDataGenerateRoutes(request, response, url, context)) return;
-  if (await handleDataRoutes(request, response, url, context)) return;
-  if (await handleBddRoutes(request, response, url, context)) return;
-  if (await handlePageRoutes(request, response, url, context)) return;
-  if (await handleFixtureRoutes(request, response, url, context)) return;
-  if (await handleQaSpecRoutes(request, response, url, context)) return;
-  if (await handleQaBatchRoutes(request, response, url, context)) return;
-  if (await handleQaRoutes(request, response, url, context)) return;
-  if (await handleMasterProcessRoutes(request, response, url, context)) return;
-  if (await handleResourceRoutes(request, response, url, context)) return;
+  try {
+    if (await handleSystemRoutes(request, response, url, context)) return;
+    if (await handleAiRoutes(request, response, url, context)) return;
+    if (await handleJiraRoutes(request, response, url, context)) return;
+    if (await handleRunnerRoutes(request, response, url, context)) return;
+    if (await handleRecorderRoutes(request, response, url, context)) return;
+    if (await handleGitRoutes(request, response, url, context)) return;
+    if (await handleDataGenerateRoutes(request, response, url, context)) return;
+    if (await handleDataRoutes(request, response, url, context)) return;
+    if (await handleBddRoutes(request, response, url, context)) return;
+    if (await handlePageRoutes(request, response, url, context)) return;
+    if (await handleFixtureRoutes(request, response, url, context)) return;
+    if (await handleQaSpecRoutes(request, response, url, context)) return;
+    if (await handleQaBatchRoutes(request, response, url, context)) return;
+    if (await handleQaRoutes(request, response, url, context)) return;
+    if (await handleMasterProcessRoutes(request, response, url, context)) return;
+    if (await handleResourceRoutes(request, response, url, context)) return;
+  } catch (err) {
+    if (!response.headersSent) sendJson(response, Number.isInteger(err.status) ? err.status : 500, { error: err.message || 'Lỗi máy chủ nội bộ.' });
+    return;
+  }
 
   if (request.method === 'GET') {
     const requested = url.pathname === '/' ? '/index.html' : url.pathname;
@@ -122,15 +126,10 @@ const server = http.createServer(async (request, response) => {
 
 const maxPortAttempts = 20;
 let portAttempts = 0;
-const {
-  stateFilePath, ensureStateFileIgnored, isStateFileTracked, untrackCommand,
-} = require('./services/serverStateService');
-
+const { stateFilePath, ensureStateFileIgnored, isStateFileTracked, untrackCommand } = require('./services/serverStateService');
 const STATE_PATH = stateFilePath(ROOT);
 
-function tryListen(port) {
-  server.listen(port, '127.0.0.1');
-}
+function tryListen(port) { server.listen(port, '127.0.0.1'); }
 
 server.on('listening', () => {
   const actualPort = server.address().port;
@@ -181,9 +180,7 @@ function shutdown() {
   if (fs.existsSync(STATE_PATH)) {
     try { fs.rmSync(STATE_PATH, { force: true }); } catch (_) {}
   }
-  if (typeof server.closeAllConnections === 'function') {
-    server.closeAllConnections();
-  }
+  if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 1000).unref();
 }

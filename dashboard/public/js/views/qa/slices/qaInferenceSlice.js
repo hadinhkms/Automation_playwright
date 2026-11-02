@@ -2,153 +2,163 @@
 
 /**
  * dashboard/public/js/views/qa/slices/qaInferenceSlice.js
- * Quản lý giao diện suy luận test case từ Open Questions (Heuristic / AI) và ghi vào document.
+ * Quản lý giao diện suy luận test case từ Open Questions (Heuristic / AI) và ghi vào test-cases/.
  */
 
 import { apiClient } from '../../../core/apiClient.js';
-import { toast } from '../../../core/toast.js';
+import {
+  refreshInferAiBadge,
+  highlightAddedTcInReader,
+  renderInferredCardList,
+  collectSelectedInferredTestCases,
+} from './qaInferenceCardRenderer.js';
 
 export class QaInferenceSlice {
   constructor(qaSlice) {
     this.qaSlice = qaSlice;
+    this._inferredItems = [];
+    this._inferredTcPath = null;
+    this._inferredReqId = null;
   }
 
-  openInferModal() {
+  async openInferModal() {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-infer-modal');
+    if (!root || !this.qaSlice._activeDoc) return;
+    const modal = root.querySelector('#qa-infer-modal');
     if (!modal) return;
 
-    const docPath = this.qaSlice.activeDocPath;
-    const pathEl = modal.querySelector('#qa-infer-req-path');
-    if (pathEl) pathEl.textContent = docPath || '—';
+    const subtitle = root.querySelector('#qa-infer-modal-subtitle');
+    if (subtitle) subtitle.textContent = `Phân tích câu hỏi đã chốt của ${this.qaSlice._activeDoc.path} và đề xuất Test Cases`;
 
-    const cardsContainer = modal.querySelector('#qa-infer-cards');
-    if (cardsContainer) cardsContainer.innerHTML = '';
-    const footer = modal.querySelector('#qa-infer-footer');
-    if (footer) footer.style.display = 'none';
+    const radioHeuristic = root.querySelector('input[name="qa-infer-mode"][value="heuristic"]');
+    if (radioHeuristic) radioHeuristic.checked = true;
 
+    refreshInferAiBadge(root, apiClient);
     try { modal.showModal(); } catch (_) { modal.setAttribute('open', ''); }
+    await this.runInference();
   }
 
   async runInference() {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-infer-modal');
-    if (!modal) return;
+    if (!root || !this.qaSlice._activeDoc) return;
 
-    const reqPath = this.qaSlice.activeDocPath;
-    if (!reqPath) {
-      toast.warn('Vui lòng mở một tài liệu Requirement trước.');
-      return;
-    }
+    const loading = root.querySelector('#qa-infer-loading');
+    const empty = root.querySelector('#qa-infer-empty');
+    const results = root.querySelector('#qa-infer-results');
+    const submitBtn = root.querySelector('#qa-infer-submit-btn');
+    const mode = root.querySelector('input[name="qa-infer-mode"]:checked')?.value || 'heuristic';
 
-    const mode = modal.querySelector('input[name="qa-infer-mode"]:checked')?.value || 'heuristic';
-    const statusEl = modal.querySelector('#qa-infer-status');
-    const cardsContainer = modal.querySelector('#qa-infer-cards');
-    if (statusEl) {
-      statusEl.style.display = 'block';
-      statusEl.textContent = mode === 'ai' ? 'Đang gọi AI suy luận test case…' : 'Đang chạy Heuristic BVA…';
-    }
+    if (loading) loading.style.display = 'block';
+    if (empty) empty.style.display = 'none';
+    if (results) results.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = true;
+
+    const showEmptyState = (title, desc) => {
+      if (!empty) return;
+      empty.style.display = 'block';
+      const emptyTitle = root.querySelector('#qa-infer-empty-title');
+      const emptyDesc = root.querySelector('#qa-infer-empty-desc');
+      if (emptyTitle) emptyTitle.textContent = title;
+      if (emptyDesc) emptyDesc.textContent = desc;
+    };
 
     try {
-      const res = await apiClient.post('/api/qa/infer-test-cases', { reqPath, mode });
-      if (statusEl) statusEl.style.display = 'none';
-      if (!res.success) throw new Error(res.message || 'Lỗi suy luận test case');
-      this.renderInferredCards(modal, res.items || [], mode);
-      toast.success(`Đã tìm thấy ${res.count} test case đề xuất!`);
-    } catch (err) {
-      if (statusEl) {
-        statusEl.style.display = 'block';
-        statusEl.textContent = `Lỗi: ${err.message}`;
+      const startAi = window.AiRequest && typeof window.AiRequest.startAiRequest === 'function';
+      const res = startAi
+        ? await window.AiRequest.startAiRequest({
+          url: '/api/qa/infer-testcases',
+          body: { reqPath: this.qaSlice._activeDoc.path, mode },
+          timeoutMs: 60000,
+          owner: this.qaSlice,
+        }).promise
+        : await apiClient.post('/api/qa/infer-testcases', { reqPath: this.qaSlice._activeDoc.path, mode });
+
+      if (loading) loading.style.display = 'none';
+      const items = res.items || res.testCases || [];
+      if (!items.length) {
+        showEmptyState('Không tìm thấy test case mới cần bổ sung', res.message || 'Các câu hỏi đã chốt đã được bao phủ hoặc không tìm thấy quy tắc biên mới.');
+        return;
       }
-      toast.error(`Lỗi suy luận: ${err.message}`);
+
+      if (results) results.style.display = 'flex';
+      this.renderInferredCards(items, res.tcPath, res.reqId);
+    } catch (err) {
+      if (loading) loading.style.display = 'none';
+      showEmptyState('Lỗi phân tích', err.message || 'Không thể suy luận test case.');
     }
   }
 
-  renderInferredCards(modal, items, mode) {
-    const container = modal.querySelector('#qa-infer-cards');
-    const footer = modal.querySelector('#qa-infer-footer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    if (!items.length) {
-      container.innerHTML = '<p style="padding: 20px; text-align: center; color: var(--muted);">Không có test case nào được sinh ra.</p>';
-      if (footer) footer.style.display = 'none';
-      return;
-    }
-
-    items.forEach((item, idx) => {
-      const card = document.createElement('div');
-      card.className = 'qa-inferred-card';
-      const stepsHtml = (item.steps || []).map((s) => `
-        <tr><td>${s.step}</td><td>${s.action}</td><td>${s.expected}</td></tr>
-      `).join('');
-
-      card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-          <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer;">
-            <input type="checkbox" class="qa-infer-pick" data-index="${idx}" checked>
-            <span class="qa-inferred-id-badge">${item.suggestedId}</span>
-            <span>${item.title}</span>
-          </label>
-          <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--surface); border: 1px solid var(--line);">${item.priority}</span>
-        </div>
-        ${item.rationale ? `<p style="font-size: 12px; color: var(--muted); margin: 6px 0;">${item.rationale}</p>` : ''}
-        ${stepsHtml ? `
-          <table class="qa-inferred-steps-table" style="margin-top: 6px;">
-            <thead><tr><th style="width: 40px;">#</th><th>Thao tác</th><th>Kỳ vọng</th></tr></thead>
-            <tbody>${stepsHtml}</tbody>
-          </table>
-        ` : ''}
-      `;
-      container.appendChild(card);
-    });
+  renderInferredCards(items, tcPath, reqId) {
+    const root = this.qaSlice._root();
+    if (!root) return;
+    const list = root.querySelector('#qa-infer-cards-list');
+    const summaryText = root.querySelector('#qa-infer-summary-text');
+    if (!list) return;
 
     this._inferredItems = items;
-    if (footer) footer.style.display = 'flex';
-    this.updateInferredSelectedCount(modal);
+    this._inferredTcPath = tcPath || null;
+    this._inferredReqId = reqId || 'REQ-001';
+    if (summaryText) summaryText.textContent = `Tìm thấy ${items.length} test case tiềm năng từ các câu hỏi đã chốt:`;
+
+    renderInferredCardList(this.qaSlice, list, items, () => this.updateInferredSelectedCount());
+    this.updateInferredSelectedCount();
   }
 
-  toggleAllInferred(checked) {
+  toggleAllInferred(select) {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-infer-modal');
-    if (!modal) return;
-    modal.querySelectorAll('.qa-infer-pick').forEach((cb) => {
-      cb.checked = checked;
+    if (!root) return;
+    root.querySelectorAll('.qa-inferred-card').forEach((card) => {
+      const chk = card.querySelector('.qa-inferred-chk');
+      if (chk) { chk.checked = select; card.classList.toggle('is-selected', select); }
     });
-    this.updateInferredSelectedCount(modal);
+    this.updateInferredSelectedCount();
   }
 
-  updateInferredSelectedCount(modal) {
-    const picked = modal.querySelectorAll('.qa-infer-pick:checked').length;
-    const btn = modal.querySelector('#qa-btn-submit-inferred');
-    if (btn) btn.textContent = `Thêm ${picked} Test Case Vào Tài Liệu`;
+  updateInferredSelectedCount() {
+    const root = this.qaSlice._root();
+    if (!root) return;
+    const selected = root.querySelectorAll('.qa-inferred-chk:checked');
+    const total = root.querySelectorAll('.qa-inferred-chk');
+    const countText = root.querySelector('#qa-infer-selected-count');
+    const submitBtn = root.querySelector('#qa-infer-submit-btn');
+    const submitLabel = root.querySelector('#qa-infer-submit-label');
+    if (countText) countText.textContent = `Đã chọn: ${selected.length} / ${total.length} test case`;
+    if (submitBtn) submitBtn.disabled = selected.length === 0;
+    if (submitLabel) submitLabel.textContent = `Thêm vào test-cases (${selected.length})`;
   }
 
   async submitInferredTestCases() {
     const root = this.qaSlice._root();
-    const modal = root?.querySelector('#qa-infer-modal');
-    if (!modal || !this._inferredItems) return;
+    if (!root || !this._inferredItems?.length) return;
+    const modal = root.querySelector('#qa-infer-modal');
+    const submitBtn = root.querySelector('#qa-infer-submit-btn');
+    const submitLabel = root.querySelector('#qa-infer-submit-label');
 
-    const checkboxes = modal.querySelectorAll('.qa-infer-pick:checked');
-    const selected = Array.from(checkboxes).map((cb) => this._inferredItems[parseInt(cb.dataset.index, 10)]);
-
-    if (!selected.length) {
-      toast.warn('Vui lòng chọn ít nhất 1 test case.');
-      return;
-    }
+    const toSubmit = collectSelectedInferredTestCases(root, this._inferredItems);
+    if (!toSubmit.length) { this.qaSlice.notify('Vui lòng chọn ít nhất 1 test case để thêm.'); return; }
+    if (submitBtn) submitBtn.disabled = true;
+    if (submitLabel) submitLabel.textContent = 'Đang thêm test cases...';
 
     try {
-      const res = await apiClient.post('/api/qa/append-inferred-cases', {
-        reqPath: this.qaSlice.activeDocPath,
-        testCases: selected,
+      const res = await apiClient.post('/api/qa/append-testcases', {
+        reqId: this._inferredReqId || 'REQ-001',
+        tcPath: this._inferredTcPath,
+        testCases: toSubmit,
       });
-      if (res.success) {
-        toast.success(`Đã thêm ${res.addedCount} test case thành công!`);
-        try { modal.close(); } catch (_) {}
-        await this.qaSlice.reload(true);
+      if (modal) { try { modal.close(); } catch (_) {} }
+      this.qaSlice._recentlyAddedTcIds = new Set(toSubmit.map((tc) => tc.suggestedId));
+      const tcPathToOpen = res.tcPath || this._inferredTcPath;
+
+      await this.qaSlice.reload(false);
+      if (tcPathToOpen) {
+        await this.qaSlice.openDocument(tcPathToOpen);
+        highlightAddedTcInReader(root, toSubmit[0]?.suggestedId);
       }
+      this.qaSlice.notify(res.message || `Đã thêm thành công ${toSubmit.length} test case vào ${tcPathToOpen || 'test-cases'}.`);
     } catch (err) {
-      toast.error(`Lỗi khi lưu test cases: ${err.message}`);
+      this.qaSlice.notify(`Lỗi thêm test case: ${err.message}`);
+    } finally {
+      this.updateInferredSelectedCount();
     }
   }
 }

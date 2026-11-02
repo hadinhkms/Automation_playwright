@@ -8,12 +8,11 @@ description: >-
 
 # QA Logic Gaps Analysis Skill
 
+> **Live Source + Built-in Fallback:** Nếu trên máy tồn tại `D:/_QA_Test_Automation/.agents/skills/qa-logic-gaps/`, ưu tiên đọc `SKILL.md` và `references/*` trực tiếp từ `D:/_QA_Test_Automation/.agents/skills/qa-logic-gaps/` để lấy bản mới nhất; nếu không có trên máy, sử dụng ngay bản tích hợp sẵn tại thư mục hiện tại.
+
 This skill provides a systematic two-layer methodology (**Automated Static Analysis** + **Deep Semantic Business Logic Audit**) augmented by a **Selective Learning Knowledge Base** to uncover **Logic Gaps** across `requirements/`, `test-cases/`, and `playwright/tests/`.
 
-For frontend source or rendered UI/UX review, use the sibling
-[qa-ui-review skill](../qa-ui-review/SKILL.md). This skill owns coverage and assertion
-quality; the sibling owns application UI findings. For mixed requests, connect findings
-through REQ/AC/TC, avoid duplicates, and preserve workspace rule 14 for confirmed bugs.
+For PRD/SRS/System Design review & Test Pyramid generation, use [qa-system-testing](../qa-system-testing/SKILL.md). For frontend source or rendered UI/UX review, use [qa-ui-review](../qa-ui-review/SKILL.md). This skill owns coverage and assertion quality; connect findings through REQ/AC/TC, avoid duplicates, and preserve workspace rule 14 for confirmed bugs.
 
 ---
 
@@ -33,7 +32,7 @@ through REQ/AC/TC, avoid duplicates, and preserve workspace rule 14 for confirme
    - **Script quality holes**: `spec-thieu-assertion` (0 `expect` calls), `assertion-thieu-await` (false-positive async matcher), `test-bi-skip-am-tham`, `spec-chi-assert-url` (navigation-only assertion heuristic)
 
 2. **Read Workspace Rules Before Any Edits**:
-   - Always read [.github/copilot-instructions.md](../../../.github/copilot-instructions.md) (referenced by [AGENTS.md](../../../AGENTS.md)) before modifying anything in `requirements/`, `test-cases/`, or `playwright/tests/`.
+   - Always read [AGENTS.md](../../../AGENTS.md) and `.github/copilot-instructions.md` (or fallback to `D:/_QA_Test_Automation/.github/copilot-instructions.md` when invoked from another project) before modifying anything in `requirements/`, `test-cases/`, or `playwright/tests/`.
 
 3. **Load Effective Knowledge Base (Shared `ship` + Project `own` Overlay)**:
    - Read the Selective Learning policy and shared catalogs (relative to this skill directory):
@@ -99,18 +98,33 @@ Inspect the corresponding `.spec.ts` files and Page Objects (`playwright/tests/p
 | Triệu chứng lỗi (Bug Symptom) | Capability Tag | Helper bắt buộc (`playwright/tests/support/`) |
 |---|---|---|
 | Tràn khung ngang trên Desktop/Mobile | `ui-geometry` | `expectNoHorizontalScroll(page)` (`ui-checks.ts`) |
-| Cắt cụt chữ (`scrollWidth > clientWidth`) không có `title` | `ui-geometry` | `expectNoTextOverflow(rootLocator)` (`ui-checks.ts`) |
-| Nút bấm bị sticky header/toast/modal đè tâm điểm | `ui-geometry` | `expectNotOccluded(targetLocator)` (`ui-checks.ts`) |
-| Nút/input/link thiếu tên tiếp cận (`accessibleName`) | `a11y` | `expectInteractiveA11y(rootLocator)` (`ui-checks.ts`) |
+| Cắt cụt chữ (`scrollWidth > clientWidth`) không có `title` | `ui-geometry` | `expectNoTextOverflow(page, rootLocator)` (`ui-checks.ts`) |
+| Nút bấm bị sticky header/toast/modal đè tâm điểm | `ui-geometry` | `expectNotOccluded(page, targetLocator)` (`ui-checks.ts`) |
+| Nút/input/link thiếu tên tiếp cận (`accessibleName`) | `a11y` | `expectInteractiveA11y(page, rootLocator)` (`ui-checks.ts`) |
 | Vỡ layout khi đổi qua Desktop / Tablet / Mobile | `responsive` | `expectResponsiveIntegrity(page, { requiredLocators, optionalLocators })` (`ui-checks.ts`) |
-| Double-click gửi 2+ request `POST`/`PUT`/`PATCH`/`DELETE` | `idempotency` | `expectIdempotentSubmit(page, submitLocator, urlPattern)` (`deep-guards.ts`) |
-| Payload `<script>` / `onerror` thực thi hoặc lọt vào DOM sink | `xss` | `expectSafeXssRender(page, inputAction, { sinkLocator })` (`deep-guards.ts`) |
-| Optimistic UI mất dữ liệu sau khi `page.reload()` | `persistence` | `expectStatePersistence(page, assertFn)` (`deep-guards.ts`) |
-| Giá trị biên / rỗng / quá dài vẫn bắn request thành công | `boundary` | `expectBoundaryRejected(page, trigger, errorLocator, options)` (`deep-guards.ts`) |
+| Double-click gửi 2+ request `POST`/`PUT`/`PATCH`/`DELETE` | `idempotency` | `expectIdempotentSubmit(page, { submitLocator, urlPattern })` (`deep-guards.ts`) |
+| Payload `<script>` / `onerror` thực thi hoặc lọt vào DOM sink | `xss` | `expectSafeXssRender(page, { inputLocator, submitLocator, sinkLocator })` (`deep-guards.ts`) |
+| Optimistic UI mất dữ liệu sau khi `page.reload()` | `persistence` | `expectStatePersistence(page, { act, verify })` (`deep-guards.ts`) |
+| Giá trị biên / rỗng / quá dài vẫn bắn request thành công | `boundary` | `expectBoundaryRejected(page, { inputLocator, submitLocator, errorLocator, invalidValues })` (`deep-guards.ts`) |
+| Lỗi 500/rớt mạng làm treo nút Submit hoặc mất chữ vừa nhập | `resilience` | `expectNetworkFaultRecovery(page, trigger, { urlPattern, errorLocator, submitButton, preservedInputs })` (`deep-guards.ts`) |
+| Mở 2 tab cùng sửa bản ghi bị ghi đè âm thầm hoặc rò phiên | `concurrency` | `expectMultiTabConcurrency(page, { setupBothTabs, tabAAction, tabBConflictingAction, verifyConflictOrIsolation })` (`deep-guards.ts`) |
 
 ---
 
-### Step 4: Output Structured Logic Gaps Report
+### Step 4: Zero False-Positive Bug Confirmation Gate & Structured Report
+Before reporting any application defect (`BUG-xx`) discovered during deep testing or test execution, enforce the **Zero False-Positive & Reproducibility Gate** (never guess or report a bug based on a single accidental failure):
+
+1. **Rule Out Test Script & Environment Faults First**:
+   - Inspect whether the failure was caused by the **test script itself**: wrong/fragile selector, missing `await`, interacting before hydration/animation settles, dirty/colliding test data from a prior run, or expired fixture credentials.
+   - If caused by the test script or environment setup: **fix the test script immediately and re-run**. Never report a test-script mistake as an application bug.
+2. **Prove Deterministic Reproducibility**:
+   - Re-run the exact scenario in a clean state (`npx playwright test <spec> --repeat-each=3` or isolated executions) to verify reproducibility.
+   - A finding is only classified as a **Confirmed Bug (`BUG-xx`)** if it reproduces consistently with the same symptom and root cause.
+   - If a failure disappears on re-run, do **not** guess it is a bug: either fix the test's async waiting, or—if suspecting an application race condition—construct a concurrency probe (`Promise.all`, `expectIdempotentSubmit`, `expectMultiTabConcurrency`) that reliably reproduces the defect.
+3. **Require Dual Evidence & Clear Bug Presentation**:
+   - Every reported `BUG-xx` must include: (a) concrete runtime proof (`runtimeTrap` log, HTTP status/response body, or DOM geometry measurement) **and** (b) exact application source location (`file:line`) when source code is accessible, or a minimal reproducible `Steps to Reproduce` / `curl` command.
+   - **Wording & Visual Focus**: Write bug descriptions in plain, concise, easy-to-visualize language. Title the business scenario field strictly **`Bối cảnh nghiệp vụ`** (never use meta-titles like *"Giải thích dễ hiểu cho Dev"*). Whenever attaching a UI screenshot (`Visual Evidence`), **always draw a red highlight box around the defective element** (e.g., via `captureAnnotatedBugEvidence` in `playwright/tests/support/evidence.ts`) so the reader immediately sees where to focus.
+
 Present the findings clearly grouped by severity. Whenever a gap corresponds to a catalog entry, **cite the Knowledge ID (`DH-xx`, `PA-xx`, `PDH-xxx`, `PPA-xxx`) alongside concrete `REQ/AC/TC` or `spec:line` evidence**:
 
 ```markdown
@@ -140,10 +154,11 @@ If the user asks to fix the discovered Logic Gaps:
 1. Update `requirements/REQ-xxx-*.md` (add missing ACs, rules, or `Open questions`).
 2. Update `test-cases/REQ-xxx-*.md` (add missing `TC-xxx` rows and update the `Traceability` table).
 3. Implement or strengthen Playwright tests in `playwright/tests/` (ensure `@REQ-xxx` on `test.describe`, title `TC-xxx - AC-yyy <description>`, and priority tag `@p0`..`@p3`).
-4. Validate strictly before finishing:
-   - Run `npm run verify` inside `playwright/`
+   - **Respect Code Size Budgets Before Adding Tests/Helpers (Workspace Rule 15)**: Never bloat a `.spec.ts` into $\ge 640$ lines (80% warning zone of 800) or a Page Object / Fixture / Support / Data / `ApiClient` file inside `tests/` into $\ge 200$ lines (80% warning zone of `module` ceiling 250; outside `tests/`: `service` $< 160/200$, `utils` $< 120/150$). If adding remediation tests or methods would reach the 80% threshold, proactively split into a companion spec (e.g., `<feature>.validation.spec.ts` or `<feature>.security.spec.ts` carrying `{ tag: '@REQ-xxx' }`) or sub-Page Object first, keep lines $\le 500$ chars and average line length $\le 100$ chars, and never use `*.ai-test.*` / `*.scratch.*` filenames.
+4. Validate strictly before finishing (and self-split any file flagged by `qa:limits` before handing off):
+   - Run `npm run verify` inside `playwright/` (typecheck + ESLint `max-lines`/`max-len` + `limits` + `--list`)
    - Run `npm run qa:matrix` at repository root
-   - Run `npm run qa:check` at repository root (must pass with 0 `blocker`/`major` findings)
+   - Run `npm run qa:limits -- --strict` and `npm run qa:check` at repository root (must pass with 0 `blocker`/`major` findings; in external repos without `tools/qa`, run `python D:/_Master_process/master.py audit <repo> --changed-only` and verify line counts $< 80\%$)
    - Run `npm test` at repository root
 
 ---

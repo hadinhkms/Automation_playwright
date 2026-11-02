@@ -9,6 +9,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { locateTitle, titleTags } = require('./qaFixTitle');
 
@@ -21,24 +22,41 @@ try {
 } catch (_) { /* satellite chưa có tools/qa */ }
 
 const RE_ESM = /^\s*(?:import[\s{*'"]|export\s)/m;
+const SYNTAX_CACHE = new Map();
+const MAX_SYNTAX_CACHE = 128;
+let tmpSeq = 0;
 
 function checkWithNode(code, root) {
+  const digest = crypto.createHash('sha256').update(code).digest('hex');
+  if (SYNTAX_CACHE.has(digest)) return SYNTAX_CACHE.get(digest);
+
   const dir = path.join(root || process.cwd(), '.dashboard-drafts', 'qa-batch');
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `syntax-${process.pid}-${Date.now()}.mjs`);
+  const file = path.join(dir, `syntax-${process.pid}-${Date.now()}-${++tmpSeq}.mjs`);
   fs.writeFileSync(file, code, 'utf8');
+  let outcome;
   try {
     const res = spawnSync(process.execPath, ['--check', file], {
       encoding: 'utf8',
       windowsHide: true,
       timeout: 10_000,
     });
-    if (res.status === 0) return { ok: true };
-    const message = String(res.stderr || '').split(/\r?\n/).find((l) => /Error/.test(l)) || 'node --check thất bại';
-    return { ok: false, reasonCode: 'SYNTAX_INVALID', message };
+    if (res.status === 0) {
+      outcome = { ok: true };
+    } else {
+      const message = String(res.stderr || '').split(/\r?\n/).find((l) => /Error/.test(l)) || 'node --check thất bại';
+      outcome = { ok: false, reasonCode: 'SYNTAX_INVALID', message };
+    }
   } finally {
     fs.rmSync(file, { force: true });
   }
+
+  if (SYNTAX_CACHE.size >= MAX_SYNTAX_CACHE) {
+    const oldest = SYNTAX_CACHE.keys().next().value;
+    SYNTAX_CACHE.delete(oldest);
+  }
+  SYNTAX_CACHE.set(digest, outcome);
+  return outcome;
 }
 
 /**
@@ -50,7 +68,7 @@ function validateSyntax(relPath, content, { root } = {}) {
   const ext = path.extname(String(relPath)).toLowerCase();
   if (ext === '.md') return { ok: true };
   if (!['.js', '.cjs', '.mjs'].includes(ext)) return { ok: false, reasonCode: 'UNSUPPORTED_FILE' };
-  const code = String(content).replace(/^﻿/, '').replace(/^#![^\n]*/, '');
+  const code = String(content).replace(/^\uFEFF/, '').replace(/^#![^\n]*/, '');
   if (ext === '.mjs' || RE_ESM.test(code)) return checkWithNode(code, root);
   try {
     // eslint-disable-next-line no-new

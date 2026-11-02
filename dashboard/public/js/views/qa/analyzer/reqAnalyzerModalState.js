@@ -9,6 +9,26 @@
 import { apiClient } from '../../../core/apiClient.js';
 import { toast } from '../../../core/toast.js';
 
+export const SAMPLE_REQUIREMENT_TEXT = [
+  'Tính năng: Bổ sung trường "Trung tâm sát hạch" trên Hồ sơ Giáo viên',
+  '1. Bối cảnh:',
+  '- Hồ sơ giáo viên có thêm trường "Trung tâm sát hạch" đứng cạnh "Trung tâm đang công tác".',
+  '- Cho phép chọn từ danh sách hoặc "Thêm trung tâm mới".',
+  '- Có nút "Dùng lại trung tâm đang công tác".',
+  '',
+  '2. Quy tắc nghiệp vụ:',
+  '- MST KHÔNG bắt buộc khi tạo trung tâm sát hạch mới.',
+  '- Bắt buộc cả khi tạo mới và cập nhật.',
+  '- Nâng giới hạn chọn phường/xã từ 6 lên 10 mục.',
+  '- Nút dùng lại tự động ẩn sau khi bấm.'
+].join('\n');
+
+export function setAnalyzerText(textarea, text) {
+  if (!textarea) return;
+  textarea.value = text;
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 export function setLoadingState(root, isLoading, isError = false) {
   const inputSection = root.querySelector('#qa-req-analyzer-input-section');
   const loadingSection = root.querySelector('#qa-req-analyzer-loading');
@@ -68,7 +88,7 @@ export async function fetchJiraTicket(root, jiraKeyInput, fetchJiraBtn) {
     const res = await apiClient.get(`/api/jira/issue?key=${encodeURIComponent(key)}`);
     if (!res?.success) throw new Error(res?.error || 'Không thể tải ticket từ Jira');
     const textarea = root.querySelector('#qa-req-analyzer-text');
-    if (textarea) textarea.value = res.formattedForReq || res.summary;
+    setAnalyzerText(textarea, res.formattedForReq || res.summary);
     if (jiraKeyInput) jiraKeyInput.value = res.key;
     toast.success(`Đã nạp ticket ${res.key} từ Jira thành công!`);
   } catch (e) {
