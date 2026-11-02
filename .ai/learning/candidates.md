@@ -37,3 +37,10 @@
   1. Ô input SĐT của Seeker giới hạn cứng `maxLength = 10` và tự động cắt từ ký tự thứ 11 (kể cả khi paste số 11 chữ số hoặc mã vùng `+84`/`84`), đồng thời hiển thị dòng cảnh báo `"Số điện thoại không hợp lệ"` bên dưới ô input là **hành vi chủ đích của đội phát triển (By Design)**, không phải bug.
   2. Khi kiểm thử ô input SĐT React trong HeadlessUI modal (`[role="dialog"]`), luôn scope locator vào `dialog`, xóa giá trị cũ bằng `click()` + `Control+A` + `Backspace` trước khi `pressSequentially()`, và dùng `.getByText(/Số điện thoại không hợp lệ/i)` thay vì nối chuỗi CSS với `text=`.
 - **Trạng thái:** PENDING
+
+### [2026-10-30] Chớp Web – test luồng đăng nhập/onboarding trên QC
+- **Role quan sát:** Senior QA (Gate 4)
+- **Quan sát & Nguyên tắc:**
+  1. Onboarding seeker nằm trong `#common__modal`; dropdown ngành nghề render qua portal `[data-test-id="common__select-dropdown"]` → chọn option ngoài modal. Trên mobile picker toàn màn hình không có nút Đóng (chạm vùng trống để thoát); màn đồng ý DLCN phải cuộn hết mới bật "Đồng ý".
+  2. Kiểm tra "hội thoại mới" của chatbot bằng `conversation_id` trong `POST apigw/api/v1/chatbot/chats`, không dựa vào UI. Tracking chatbot không phát ra phía client trên QC → không kết luận tracking qua network.
+- **Trạng thái:** PENDING
