@@ -10,12 +10,12 @@
 - **Không hard-code link/domain:** URL/domain thuộc cấu hình môi trường (`dashboardConfig.json` → `environments.<env>` → `core/config/env.js`). Script dùng path tương đối với `baseURL`, `env.apiBaseURL` hoặc key `*URL` riêng cho domain phụ. Chi tiết: `ai/shared/AI_PROMPTS.md` §4; được `npm run check:framework` kiểm tra tự động.
 
 ## 2. Cấu Trúc File Test
-- Unit test: Nằm cạnh file mã nguồn (`[name].test.ts` hoặc trong `__tests__/`).
-- E2E test: Tập trung tại thư mục `tests/` hoặc `e2e/`.
+- Unit test: Nằm cạnh file mã nguồn (`[name].test.js` / `[name].test.ts` hoặc trong `__tests__/`).
+- E2E test: Tập trung tại thư mục `tests/e2e/` (`desktop/`, `mobile-web/`) và `tests/api/`.
 
 ## 3. Quy Chuẩn Kiểm Thử API & Tính Năng Mới (Mandatory Non-200 Prevention)
 - **Kiểm thử bao phủ 100% Endpoints mới:** Mọi page, dialog hoặc tính năng mới thêm vào phải được test toàn bộ endpoint API (GET, POST, PUT, DELETE) bằng cả API test tự động lẫn click UI thực tế trên browser.
-- **Phân định rõ HTTP Status:** 
+- **Phân định rõ HTTP Status:**
   - Lệnh chẩn đoán, quét mã nguồn, audit, hay probes hoàn tất thực thi BẮT BUỘC trả về HTTP 200 kèm payload kết quả (kể cả khi công cụ kết thúc với exit code 1 do phát hiện cảnh báo/lỗi).
   - Tuyệt đối không trả về HTTP 400 cho các lệnh chạy thành công có phát hiện. HTTP 400 chỉ dành cho request cú pháp sai hoặc dữ liệu đầu vào không hợp lệ; HTTP 403 cho vi phạm quyền/whitelist; HTTP 409 cho xung đột Mutex.
 - **Nghiệm thu thực tế:** Không đóng phase khi chưa assert mã 200 cho toàn bộ nút thao tác của tính năng mới trên rendered DOM.
@@ -28,3 +28,11 @@
 - **Độ ổn định trước khi capture:** Chờ skeleton loader, spinner và animation kết thúc trước khi capture; không capture trạng thái loading trung gian chớp nhoáng.
 - **Chế độ chụp modal/fullpage:** Khi có popup/modal hiển thị, chỉ chụp viewport để tập trung vào modal; khi không có modal, chụp full page.
 
+## 5. Giới Hạn Kích Thước Code & Cổng Vùng Vàng 80% Trước Khi Commit
+- **Ngưỡng bắt buộc (đồng bộ Master Process `pre-commit`):**
+  - Spec/Test (`*.spec.js`, `*.test.js`): trần **800 dòng** (vùng vàng 80%: **640 dòng** — tạo mới/thêm test giữ `< 640`).
+  - Page Object (`pages/**/*.js`), Fixture, Module: trần **250 dòng** (vùng vàng 80%: **200 dòng** — tạo mới/thêm hàm giữ `< 200`).
+  - Service / API client ngoài `tests/` (`*service*`, `*api*`, `*client*`): trần **200 dòng** (vùng vàng 80%: **160 dòng**).
+  - Utils / Helper ngoài `tests/` (`*utils*`, `*helper*`, `utils/`, `helpers/`): trần **150 dòng** (vùng vàng 80%: **120 dòng**).
+  - Dòng đơn `<= 500` ký tự, trung bình dòng `<= 100` ký tự (file `>= 50` dòng), dung lượng `<= 150KB`; file nháp (`*.ai-test.*`, `*.scratch.*`, `draft_*`, `temp_*`) chỉ được nằm trong `scratch/` hoặc `tests/scratch/`.
+- **Kiểm định trước khi bàn giao:** Luôn chạy `npm run check:framework` và `npm run check:limits:strict` (hoặc `npm run mp:audit:changed`), tự tách nhỏ Page Object/Helper/Spec ngay khi chạm vùng vàng 80%.

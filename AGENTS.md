@@ -77,7 +77,7 @@ Khi làm việc với các file Playwright test, Page Objects, fixtures, `requir
   * Audit UI/UX, Responsive, Accessibility & Visual Evidence: [.agents/skills/qa-ui-review/SKILL.md](file:///.agents/skills/qa-ui-review/SKILL.md)
   * Review tracking analytics Mixpanel (event cần bắn, checklist `TR-xx`, report khai thác được; helper `core/deep-testing/mixpanel-capture.js`): [.agents/skills/qa-tracking-analytics/SKILL.md](file:///.agents/skills/qa-tracking-analytics/SKILL.md)
 - Không load tài liệu Dashboard trừ khi task có chỉnh sửa `dashboard/`.
-- Chạy kiểm tra quy chuẩn kiến trúc tự động: `npm run check:framework`.
+- **Kiểm tra bắt buộc trước khi bàn giao / commit:** Chạy `npm run check:framework` và `npm run check:limits:strict` (hoặc `npm run mp:audit:changed`) để đảm bảo 100% file mới/đã sửa không lố trần dòng code và không thêm logic vào vùng vàng `>= 80%` (Spec `< 640/800`, Page Object/Fixture/Module `< 200/250`, Service `< 160/200`, Utils `< 120/150`).
 
 ### B. Dashboard Web Studio
 Khi làm việc với Dashboard (`dashboard/`):
