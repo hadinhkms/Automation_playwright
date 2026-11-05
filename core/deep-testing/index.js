@@ -4,10 +4,12 @@ const uiChecks = require('./ui-checks');
 const deepGuards = require('./deep-guards');
 const resilienceGuards = require('./resilience-guards');
 const runtimeTrap = require('./runtime-trap');
+const mixpanelCapture = require('./mixpanel-capture');
 
 module.exports = {
   ...uiChecks,
   ...deepGuards,
   ...resilienceGuards,
   ...runtimeTrap,
+  ...mixpanelCapture,
 };

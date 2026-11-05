@@ -32,8 +32,9 @@ Load these reference guides when designing test cases or writing Playwright API 
    ```bash
    npm run qa:impact -- <REQ-id>
    npm run qa:gaps
+   npm run qa:limits
    ```
-   Always read [AGENTS.md](../../../AGENTS.md) and `.github/copilot-instructions.md` (or fallback to `D:/_QA_Test_Automation/.github/copilot-instructions.md` when invoked from another project) before modifying `requirements/`, `test-cases/`, or `playwright/tests/`.
+   Always read [AGENTS.md](../../../AGENTS.md) and `.github/copilot-instructions.md` (or fallback to `D:/_QA_Test_Automation/.github/copilot-instructions.md` when invoked from another project) before modifying `requirements/`, `test-cases/`, or `playwright/tests/` (strictly enforce Rule 15 line limits: `Util/Helper ≤ 150`, `Service/ApiClient ≤ 200`, `Module/Fixture ≤ 250`, `Test/Spec ≤ 800`, and split proactively at the `≥ 80%` yellow zone `120/160/200/650` before adding new logic).
 
 2. **Configure Canonical Metadata in `requirements/REQ-xxx-*.md`**:
    `tools/qa` enforces strict metadata rules (`missing-ui-coverage`, `missing-xss-coverage`). Configure the requirement header based on the API scope:
@@ -48,8 +49,10 @@ Load these reference guides when designing test cases or writing Playwright API 
      Keep `- **UI coverage**: Required` and pair backend API contract tests with UI geometry/XSS checks.
 
 3. **Respect Capability Tag Rules in `test-cases/REQ-xxx-*.md`**:
-   - In `tools/qa`, adding `- **Capabilities**: idempotency` (or tag `@idempotency`) to a TC triggers static rule `missing-idempotency-guard`, which requires calling `expectIdempotentSubmit(page, ...)` from `support/deep-guards.ts`.
-   - Use `- **Capabilities**: idempotency` when testing UI-triggered API submission locking. For **pure API concurrency / `Idempotency-Key` header** tests without a DOM button, omit `- **Capabilities**: idempotency` (use tags `@api @p1 @security` instead) so static analysis does not demand a DOM button locator.
+   - In `tools/qa`, adding `- **Capabilities**: ...` to a TC triggers static verification that the corresponding guard helper is invoked in the spec:
+     - `idempotency`: Call `expectIdempotentSubmit(page, ...)` (`support/deep-guards.ts`) for UI submission locking, or `expectIdempotentApiMutation(sendFn, ...)` (`support/api-guards.ts`) for pure API concurrency / `Idempotency-Key` probes.
+     - `api-contract`: Call `expectApiSchemaContract(response, ...)` (`support/api-guards.ts`) to validate status, JSON schema types, and forbidden over-exposed fields.
+     - `api-security`: Call `expectBolaForbidden(response, ...)` or `expectMassAssignmentIgnored(response, ...)` (`support/api-guards.ts`) for BOLA/IDOR, BFLA, and Mass Assignment tests.
 
 ---
 
