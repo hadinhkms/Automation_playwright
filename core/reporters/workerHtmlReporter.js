@@ -16,13 +16,16 @@ class WorkerHtmlReporter {
   onTestEnd(test, result = {}) {
     const parallelIndex = Number.isInteger(result.parallelIndex) ? result.parallelIndex : 0;
     if (!this.resultsByWorker.has(parallelIndex)) {
-      this.resultsByWorker.set(parallelIndex, []);
+      this.resultsByWorker.set(parallelIndex, new Map());
     }
 
-    this.resultsByWorker.get(parallelIndex).push({
+    const workerResults = this.resultsByWorker.get(parallelIndex);
+    const id = test.id || test.titlePath?.().join(' > ') || test.title;
+    workerResults.set(id, {
+      id,
       title: test.titlePath?.().join(' › ') || test.title,
       project: test.parent?.project()?.name || '',
-      status: result.status || 'unknown',
+      status: result.status || 'failed',
       duration: result.duration || 0,
       error: result.error?.message || '',
     });
@@ -31,12 +34,12 @@ class WorkerHtmlReporter {
   async onEnd() {
     await fs.promises.mkdir(this.outputDir, { recursive: true });
 
-    for (const [parallelIndex, results] of this.resultsByWorker) {
+    for (const [parallelIndex, workerResults] of this.resultsByWorker) {
       const workerDir = path.join(this.outputDir, `worker-${parallelIndex}`);
       await fs.promises.mkdir(workerDir, { recursive: true });
       await fs.promises.writeFile(
         path.join(workerDir, 'index.html'),
-        this.render(parallelIndex, results),
+        this.render(parallelIndex, [...workerResults.values()]),
         'utf8'
       );
     }
@@ -52,7 +55,13 @@ class WorkerHtmlReporter {
   }
 
   render(parallelIndex, results) {
-    const passed = results.filter((result) => result.status === 'passed').length;
+    const counts = results.reduce((summary, result) => {
+      summary.total += 1;
+      if (result.status === 'passed') summary.passed += 1;
+      else if (result.status === 'skipped') summary.skipped += 1;
+      else summary.failed += 1;
+      return summary;
+    }, { total: 0, passed: 0, failed: 0, skipped: 0 });
     const rows = results.map((result) => `
       <tr>
         <td>${this.escapeHtml(result.title)}</td>
@@ -79,7 +88,7 @@ class WorkerHtmlReporter {
 </head>
 <body><main>
   <h1>Worker ${parallelIndex} report</h1>
-  <div class="meta">Run: ${this.escapeHtml(this.runId)} · Passed: ${passed}/${results.length}</div>
+  <div class="meta">Run: ${this.escapeHtml(this.runId)} · Total: ${counts.total} · Passed: ${counts.passed} · Failed: ${counts.failed} · Skipped: ${counts.skipped}</div>
   <table><thead><tr><th>Test</th><th>Project</th><th>Status</th><th>Duration</th><th>Error</th></tr></thead>
   <tbody>${rows}</tbody></table>
 </main></body></html>`;
