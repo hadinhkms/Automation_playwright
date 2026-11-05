@@ -1,0 +1,18 @@
+{
+  "event": "Job Search Performed",
+  "scenarios": {
+    "noProvince": {
+      "expected": { "province_number": null, "filter_version": null, "district_number": null }
+    },
+    "oldHaNoi": {
+      "version": "old",
+      "province": "Hà Nội",
+      "expected": { "province_number": 1, "filter_version": "1.0", "district_number": 0, "action": "province" }
+    },
+    "newNationwide": {
+      "version": "new",
+      "province": "Toàn quốc",
+      "expected": { "province_number": 34, "filter_version": "2.0", "district_number": 0, "action": "province" }
+    }
+  }
+}

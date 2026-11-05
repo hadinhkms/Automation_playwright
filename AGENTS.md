@@ -69,6 +69,7 @@ Khi làm việc với các file Playwright test, Page Objects, fixtures, `requir
   * Thiết kế & viết Deep API Testing (OWASP API Top 10, BVA, Race Condition): [.agents/skills/qa-api-testing/SKILL.md](file:///.agents/skills/qa-api-testing/SKILL.md)
   * Phân tích PRD/SRS, thiết kế Test Matrix đa tầng & E2E Multi-portal: [.agents/skills/qa-system-testing/SKILL.md](file:///.agents/skills/qa-system-testing/SKILL.md)
   * Audit UI/UX, Responsive, Accessibility & Visual Evidence: [.agents/skills/qa-ui-review/SKILL.md](file:///.agents/skills/qa-ui-review/SKILL.md)
+  * Review tracking analytics Mixpanel (event cần bắn, checklist `TR-xx`, report khai thác được; helper `core/deep-testing/mixpanel-capture.js`): [.agents/skills/qa-tracking-analytics/SKILL.md](file:///.agents/skills/qa-tracking-analytics/SKILL.md)
 - Không load tài liệu Dashboard trừ khi task có chỉnh sửa `dashboard/`.
 - Chạy kiểm tra quy chuẩn kiến trúc tự động: `npm run check:framework`.
 

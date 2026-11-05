@@ -21,6 +21,7 @@ Sinh lại bằng máy:
 | REQ-008 | Việc làm dành riêng & Gợi ý tiêu chí tìm việc cá nhân hóa | 4 | 11 | 11 |
 | REQ-009 | Job Near Me v1.1 – Tìm việc làm theo bán kính quanh vị trí | 3 | 3 | 2 |
 | REQ-012 | Xác thực OTP qua Zalo (mặc định) và SMS | 2 | 4 | 2 |
+| REQ-013 | Tracking tìm kiếm theo tỉnh thành (JS-8939) | 3 | 3 | 1 |
 
 Ghi chú: REQ-001 có 15 test case trên 14 file spec vì file spec API chứa hai test case.
 AC-011 thuộc REQ-003 nhưng cũng được phủ bởi các test case của REQ-004, vì danh sách việc làm đã
@@ -103,6 +104,9 @@ AC-011 thuộc REQ-003 nhưng cũng được phủ bởi các test case của RE
 | TC-151 | REQ-012 | AC-050 | Mobile web | P0 | Có | tests/e2e/mobile-web/register_by_phone_zalo_otp-bdd.mobile.spec.js |
 | TC-152 | REQ-012 | AC-051 | Desktop | P0 | Có | tests/e2e/desktop/register_by_phone_zalo_otp-bdd.spec.js |
 | TC-153 | REQ-012 | AC-051 | Mobile web | P0 | Có | tests/e2e/mobile-web/register_by_phone_zalo_otp-bdd.mobile.spec.js |
+| TC-172 | REQ-013 | AC-071 | Desktop | P1 | Có | tests/e2e/desktop/tracking-tim-kiem-tinh-thanh-js-8939.spec.js |
+| TC-173 | REQ-013 | AC-072 | Desktop | P1 | Có | tests/e2e/desktop/tracking-tim-kiem-tinh-thanh-js-8939.spec.js |
+| TC-174 | REQ-013 | AC-073 | Desktop | P1 | Có | tests/e2e/desktop/tracking-tim-kiem-tinh-thanh-js-8939.spec.js |
 | TC-160 | REQ-009 | AC-060 | Desktop | P0 | Có | tests/e2e/desktop/job_near_me_radius_filter-bdd.spec.js |
 | TC-161 | REQ-009 | AC-061 | Desktop | P1 | Có | tests/e2e/desktop/job_near_me_radius_filter-bdd.spec.js |
 | TC-162 | REQ-009 | AC-062 | Mobile web | P1 | Có | tests/e2e/mobile-web/job_near_me_radius_filter-bdd.mobile.spec.js |
