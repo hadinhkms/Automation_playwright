@@ -12,6 +12,8 @@
 | TC-022 | AC-019 | Tải lên và chuyển đổi CV tại trang Hồ sơ trên mobile web | P1 | Có | tests/e2e/mobile-web/upload_cv_profile-bdd.mobile.spec.js |
 | TC-046 | AC-015 AC-016 AC-019 | Hoàn thiện hồ sơ và chuyển đổi CV | P2 | Có | tests/e2e/desktop/hoan-thien-ho-so-chuyen-doi-cv.spec.js |
 | TC-047 | AC-017 | Xác minh OTP khi bật tìm kiếm hồ sơ | P2 | Có | tests/e2e/desktop/xac-minh-otp-tim-kiem-ho-so.spec.js |
+| TC-170 | AC-070 | Chuẩn hóa kỹ năng: ẩn nút Thêm khi trùng thư viện, thêm skill mới, lưu tên chuẩn trên desktop | P1 | Có | tests/e2e/desktop/chuan-hoa-ky-nang-ho-so-js-8828.spec.js |
+| TC-171 | AC-070 | Chuẩn hóa kỹ năng: ẩn nút Thêm khi trùng thư viện, thêm skill mới, lưu tên chuẩn trên mobile web | P1 | Có | tests/e2e/mobile-web/chuan-hoa-ky-nang-ho-so-js-8828.mobile.spec.js |
 
 
 ## Chi tiết
@@ -48,6 +50,21 @@
   - Việc kiểm tra kết quả chuyển đổi và áp dữ liệu — Ẩn trong Page Object. Đây là bước nghiệp vụ quan trọng nhất của test case nhưng không audit được từ spec.
   - Chuyển sang Tiêu chí tìm việc được — Ẩn trong Page Object.
 - **Ghi chú độ ổn định**: thời gian chờ đặt bốn phút vì bước nhận dạng nội dung CV tốn thời gian.
+
+### TC-170 và TC-171 — Chuẩn hóa kỹ năng khi thêm vào hồ sơ (JS-8828)
+
+- **Precondition**: tài khoản ứng viên mới tạo qua authSetup, đã đăng nhập, hồ sơ chưa có kỹ năng.
+- **Dữ liệu**: `data/skillNormalizationData.json` — "  reactjs  " → "ReactJS", "restful  api" → "RESTful API", "  QA Regression Skill  " (không có trong thư viện).
+- **Các bước**:
+  1. Vào Hồ sơ của tôi, mở modal Kỹ năng (Desktop) / trang Kỹ năng → chạm ô tìm kiếm mở bottom sheet "Thêm kỹ năng" (Mobile Web).
+  2. Tìm "  reactjs  " → chọn "ReactJS"; tìm "restful  api" → chọn "RESTful API".
+  3. Tìm "  QA Regression Skill  " → bấm "Thêm mới: QA Regression Skill".
+  4. Lưu ("Lưu thông tin" / "Lưu kỹ năng"), tải lại trang Hồ sơ.
+- **Expected result (đều có assertion)**:
+  - Bước 2: gợi ý skill thư viện hiển thị, **không** có nút "Thêm mới"; bộ đếm "Đã chọn x/20" tăng 1 mỗi lần chọn.
+  - Bước 3: nút "Thêm mới: QA Regression Skill" (đã trim) hiển thị; thêm xong chip xuất hiện, bộ đếm tăng 1.
+  - Bước 4: request lưu hồ sơ trả 2xx; sau khi tải lại, hồ sơ có "ReactJS", "RESTful API", "QA Regression Skill" và không có "reactjs".
+- **Không phủ (kiểm thủ công)**: event Mixpanel "Skills Saved", trạng thái mạng chậm (BUG-01), giới hạn 20 skill.
 
 ## Ứng viên automation cho REQ-005
 

@@ -15,10 +15,12 @@ Sinh lại bằng máy:
 | REQ-002 | Onboarding tiêu chí tìm việc | 3 | 5 | 5 |
 | REQ-003 | Ứng tuyển bằng CV hoặc hồ sơ trực tuyến | 4 | 9 | 9 |
 | REQ-004 | Ứng tuyển việc không cần CV | 3 | 6 | 6 |
-| REQ-005 | Quản lý hồ sơ cá nhân | 5 | 8 | 8 |
+| REQ-005 | Quản lý hồ sơ cá nhân | 6 | 10 | 10 |
 | REQ-006 | Trợ lý AI hoàn thiện hồ sơ | 2 | 3 | 3 |
-| REQ-007 | Tìm kiếm việc làm qua trợ lý Chop AI chatbot | 1 | 5 | 5 |
+| REQ-007 | Tìm kiếm việc làm qua trợ lý Chop AI chatbot | 4 | 8 | 7 |
 | REQ-008 | Việc làm dành riêng & Gợi ý tiêu chí tìm việc cá nhân hóa | 4 | 11 | 11 |
+| REQ-009 | Job Near Me v1.1 – Tìm việc làm theo bán kính quanh vị trí | 3 | 3 | 2 |
+| REQ-012 | Xác thực OTP qua Zalo (mặc định) và SMS | 2 | 4 | 2 |
 
 Ghi chú: REQ-001 có 15 test case trên 14 file spec vì file spec API chứa hai test case.
 AC-011 thuộc REQ-003 nhưng cũng được phủ bởi các test case của REQ-004, vì danh sách việc làm đã
@@ -78,6 +80,10 @@ AC-011 thuộc REQ-003 nhưng cũng được phủ bởi các test case của RE
 | TC-048 | REQ-006 | AC-020 AC-021 | Desktop | P2 | Có | tests/e2e/desktop/kiem-thu-tuong-tac-tro-ly-ai-hoan-thien-ho-so.spec.js |
 | TC-049 | REQ-007 | AC-022 | Desktop | P2 | Có | tests/e2e/desktop/kiem-thu-hien-thi-va-dieu-huong-phan-trang-danh-sach-viec-la.spec.js |
 | TC-050 | REQ-007 | AC-022 | Desktop | P2 | Có | tests/e2e/desktop/kiem-thu-quan-ly-vong-doi-va-tinh-toan-ven-phien-hoi-thoai-c.spec.js |
+| TC-107 | REQ-007 | AC-027 | Desktop | P1 | Có | tests/e2e/desktop/chop-web-cau-mau-theo-config-bdd.spec.js |
+| TC-107 | REQ-007 | AC-027 | Mobile web | P1 | Có | tests/e2e/mobile-web/chop-web-cau-mau-theo-config-bdd.mobile.spec.js |
+| TC-108 | REQ-007 | AC-028 | Desktop | P1 | Có | tests/e2e/desktop/chop-web-cau-mau-theo-config-bdd.spec.js |
+| TC-109 | REQ-007 | AC-029 | Desktop | P1 | Có | tests/e2e/desktop/chop-web-cau-mau-theo-config-bdd.spec.js |
 | TC-093 | REQ-007 | AC-022 | Desktop | P2 | Có | tests/e2e/desktop/job_search_by_cities-bdd.spec.js |
 | TC-094 | REQ-007 | AC-022 | Desktop | P2 | Có | tests/e2e/desktop/job_search_filter_detail-bdd.spec.js |
 | TC-095 | REQ-008 | AC-023 AC-024 AC-025 AC-026 | Desktop | P1 | Có | tests/e2e/desktop/personalize_job_recommendation-bdd.spec.js |
@@ -91,6 +97,15 @@ AC-011 thuộc REQ-003 nhưng cũng được phủ bởi các test case của RE
 | TC-103 | REQ-008 | AC-024 | Desktop | P2 | Có | tests/e2e/desktop/personalize-bo-chon-va-chon-lai-khu-vuc.spec.js |
 | TC-104 | REQ-008 | AC-023 | Desktop | P0 | Có | tests/e2e/desktop/personalize-deeplink-bat-buoc-login.spec.js |
 | TC-106 | REQ-008 | AC-024 | Desktop | P1 | Có | tests/e2e/desktop/personalize-onboarding-truc-tiep-tren-trang.spec.js |
+| TC-170 | REQ-005 | AC-070 | Desktop | P1 | Có | tests/e2e/desktop/chuan-hoa-ky-nang-ho-so-js-8828.spec.js |
+| TC-171 | REQ-005 | AC-070 | Mobile web | P1 | Có | tests/e2e/mobile-web/chuan-hoa-ky-nang-ho-so-js-8828.mobile.spec.js |
+| TC-150 | REQ-012 | AC-050 | Desktop | P0 | Có | tests/e2e/desktop/register_by_phone_zalo_otp-bdd.spec.js |
+| TC-151 | REQ-012 | AC-050 | Mobile web | P0 | Có | tests/e2e/mobile-web/register_by_phone_zalo_otp-bdd.mobile.spec.js |
+| TC-152 | REQ-012 | AC-051 | Desktop | P0 | Có | tests/e2e/desktop/register_by_phone_zalo_otp-bdd.spec.js |
+| TC-153 | REQ-012 | AC-051 | Mobile web | P0 | Có | tests/e2e/mobile-web/register_by_phone_zalo_otp-bdd.mobile.spec.js |
+| TC-160 | REQ-009 | AC-060 | Desktop | P0 | Có | tests/e2e/desktop/job_near_me_radius_filter-bdd.spec.js |
+| TC-161 | REQ-009 | AC-061 | Desktop | P1 | Có | tests/e2e/desktop/job_near_me_radius_filter-bdd.spec.js |
+| TC-162 | REQ-009 | AC-062 | Mobile web | P1 | Có | tests/e2e/mobile-web/job_near_me_radius_filter-bdd.mobile.spec.js |
 
 ## Chất lượng bằng chứng của từng test case
 
@@ -99,7 +114,7 @@ cấp, đọc từ chính spec.
 
 | Mức | Nghĩa | Test case |
 |---|---|---|
-| Mạnh | Có assertion ngay trong spec chứng minh kết quả nghiệp vụ | TC-001 đến TC-050, TC-093 đến TC-104, TC-106 |
+| Mạnh | Có assertion ngay trong spec chứng minh kết quả nghiệp vụ | TC-001 đến TC-050, TC-093 đến TC-104, TC-106 đến TC-109 |
 
 ### Quan hệ với cảnh báo của công cụ
 

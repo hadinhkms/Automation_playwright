@@ -1,0 +1,13 @@
+{
+  "_comment": "Dữ liệu cho tests chop-web-cau-mau-theo-config (REQ-007 AC-027..AC-029). Câu mẫu kỳ vọng KHÔNG hard-code: luôn đọc từ cấu hình admin seeker_chatbot_default_prompts mà trang tải về.",
+  "jobGoalWithoutSalary": {
+    "provinces": [119],
+    "occupation_ids": [17],
+    "job_title": "Kế toán",
+    "salary_range": 11,
+    "salary_min": 0,
+    "salary_max": 0,
+    "experience": 3
+  },
+  "personalizedPromptPrefix": "Tôi muốn tìm việc"
+}

@@ -1,0 +1,12 @@
+{
+  "manualLocation": {
+    "query": "Chợ Bến Thành",
+    "suggestion": "Chợ Bến Thành, Phường Bến Thành, Quận 1, Thành phố Hồ Chí Minh"
+  },
+  "presetRadiusKm": 10,
+  "customRadiusKm": 25,
+  "gps": {
+    "coords": { "latitude": 10.7725, "longitude": 106.698 },
+    "radiusKm": 15
+  }
+}

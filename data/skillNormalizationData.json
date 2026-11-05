@@ -1,0 +1,18 @@
+{
+  "librarySkills": [
+    {
+      "keyword": "  reactjs  ",
+      "canonicalName": "ReactJS",
+      "rule": "Trim đầu/cuối + không phân biệt hoa/thường"
+    },
+    {
+      "keyword": "restful  api",
+      "canonicalName": "RESTful API",
+      "rule": "Gộp khoảng trắng kép + không phân biệt hoa/thường"
+    }
+  ],
+  "manualSkill": {
+    "keyword": "  QA Regression Skill  ",
+    "savedName": "QA Regression Skill"
+  }
+}

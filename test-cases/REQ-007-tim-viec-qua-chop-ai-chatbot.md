@@ -9,6 +9,9 @@
 | TC-094 | AC-022 | Tìm kiếm việc làm từ trang chủ, áp dụng bộ lọc và xem chi tiết tin tuyển dụng | P2 | Có | tests/e2e/desktop/job_search_filter_detail-bdd.spec.js |
 | TC-049 | AC-022 | Kiểm thử hiển thị và điều hướng phân trang danh sách việc làm trong Job Drawer của Chatbot (các trường hợp 0 kết quả, 1 trang, nhiều trang, nút biên trang đầu/cuối và tải danh sách lớn) | P2 | Có | tests/e2e/desktop/kiem-thu-hien-thi-va-dieu-huong-phan-trang-danh-sach-viec-la.spec.js |
 | TC-050 | AC-022 | Kiểm thử quản lý vòng đời và tính toàn vẹn phiên hội thoại Chatbot (khôi phục ngữ cảnh < 24 giờ, hết hạn sau 24 giờ, các mốc thời gian biên, xóa cache/storage và đồng bộ đa tab) | P2 | Có | tests/e2e/desktop/kiem-thu-quan-ly-vong-doi-va-tinh-toan-ven-phien-hoi-thoai-c.spec.js |
+| TC-107 | AC-027 | Khách vãng lai thấy 3 câu mẫu đầu của cấu hình admin ở floating panel, dialog Hỏi Chớp và dropdown tìm kiếm | P1 | Có | tests/e2e/desktop/chop-web-cau-mau-theo-config-bdd.spec.js<br>tests/e2e/mobile-web/chop-web-cau-mau-theo-config-bdd.mobile.spec.js |
+| TC-108 | AC-028 | Khách chọn câu mẫu ở floating panel, gửi và đăng nhập thì Chớp nhận đúng câu đã chọn | P1 | Có | tests/e2e/desktop/chop-web-cau-mau-theo-config-bdd.spec.js |
+| TC-109 | AC-029 | Ứng viên có job goal không có mức lương thấy chip lương lấy câu salary_min đầu tiên của cấu hình | P1 | Có | tests/e2e/desktop/chop-web-cau-mau-theo-config-bdd.spec.js |
 
 
 ## Chi tiết
@@ -110,3 +113,35 @@
 | 5 | Kiểm tra khi vượt quá 24 giờ (24:00:00 hoặc 25 giờ) | Phiên cũ hết hạn; hệ thống tự động khởi tạo phiên mới sạch hoàn toàn |
 | 6 | Xóa Cookies & LocalStorage của trình duyệt và mở Chatbot | Hệ thống khởi tạo phiên mới sạch sẽ, an toàn, không gây crash giao diện |
 
+### TC-107 — Câu mẫu Chớp hiển thị theo cấu hình admin (khách vãng lai)
+
+- **Loại:** Chức năng / Regression | **Ưu tiên:** P1 | **Nền tảng:** Desktop 1920, Mobile Web (Pixel 7)
+- **Tiền điều kiện:** Khách vãng lai, chưa đăng nhập. Popup quảng cáo hằng ngày và popup nhắc đăng nhập được tắt trong precondition (ngoài phạm vi).
+- **Dữ liệu:** câu mẫu kỳ vọng đọc trực tiếp từ cấu hình `seeker_chatbot_default_prompts` (không hard-code), nên test vẫn đúng khi admin đổi câu mẫu.
+
+| Bước | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Mở trang chủ | Floating panel hiển thị đúng 3 câu đầu của cấu hình, đúng thứ tự |
+| 2 | Đóng floating panel, bấm "Hỏi Chớp" | Dialog "Hỏi Chớp bất cứ điều gì" hiển thị đúng 3 câu đầu của cấu hình |
+| 3 | Đóng dialog, bấm vào ô tìm kiếm | Section "Hỏi Chớp - Trợ lý AI" trong dropdown hiển thị đúng 3 câu đầu của cấu hình |
+
+### TC-108 — Gửi câu mẫu từ floating panel tới Chớp
+
+- **Loại:** E2E | **Ưu tiên:** P1 | **Nền tảng:** Desktop
+- **Tiền điều kiện:** Khách vãng lai; tài khoản đăng nhập tạo từ API đăng ký.
+
+| Bước | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Chọn câu mẫu đầu tiên ở floating panel | Câu được điền vào ô nhập của panel |
+| 2 | Bấm gửi | Chuyển tới trang Chớp (`/chop-tro-ly-ai.html?chat_entry=…`) và yêu cầu đăng nhập |
+| 3 | Đăng nhập bằng SĐT + OTP | Hội thoại Chớp chứa đúng câu mẫu đã chọn |
+
+### TC-109 — Câu mẫu dự phòng cho slot lương
+
+- **Loại:** E2E | **Ưu tiên:** P1 | **Nền tảng:** Desktop
+- **Tiền điều kiện:** Tài khoản tạo từ API; job goal đặt qua API `POST /seeker/fe/onboarding/job-goals` (Hà Nội / Kế toán / lương Thoả thuận), dữ liệu ở `data/chopWebData.json`.
+
+| Bước | Thao tác | Kết quả mong đợi |
+|---|---|---|
+| 1 | Đăng nhập ở trang chủ, mở dialog "Hỏi Chớp" | Có 3 chip |
+| 2 | Kiểm tra chip | Chip 1–2 bắt đầu bằng "Tôi muốn tìm việc" (cá nhân hoá theo job goal); chip 3 là câu `salary_min` đầu tiên trong cấu hình |

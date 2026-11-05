@@ -1,4 +1,5 @@
 const { BasePage } = require('../BasePage');
+const { LoginOtpRequest } = require('./login/LoginOtpRequest');
 
 class LoginPopup extends BasePage {
   /**
@@ -75,6 +76,12 @@ class LoginPopup extends BasePage {
 
     this.resendOtpBtn = page.getByRole('button', { name: /Gửi lại mã|Gửi lại OTP|Gửi lại/i }).or(page.getByText(/Gửi lại mã/i)).first();
     this.otpCountdown = page.locator('[class*="countdown"], [class*="timer"], span:has-text("s")').first();
+
+    // Yêu cầu OTP (Zalo mặc định / SMS / "Tiếp tục") — REQ-012, xem pages/desktop/login/LoginOtpRequest.js
+    this.otpRequest = new LoginOtpRequest(this);
+    ({ zaloOtpBtn: this.zaloOtpBtn, smsOtpBtn: this.smsOtpBtn, otherMethodsBtn: this.otherMethodsBtn, otpExpiryText: this.otpExpiryText } = this.otpRequest);
+    // Giữ API public cũ của LoginPopup: ủy quyền sang LoginOtpRequest.DELEGATED_METHODS
+    for (const name of LoginOtpRequest.DELEGATED_METHODS) this[name] = (...args) => this.otpRequest[name](...args);
   }
 
   async clickLoginHeader() {
@@ -159,52 +166,6 @@ class LoginPopup extends BasePage {
     } catch {
       return false;
     }
-  }
-
-  async clickContinueUntilOtpVisible(options = {}) {
-    const {
-      maxAttempts = 3,
-      otpTimeout = 10000,
-      loadingTimeout = 15000,
-    } = options;
-
-    let lastOtpError;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      await this.actions.waitForVisible(this.continueBtn, { timeout: 5000 });
-      await this.clickContinue({ timeout: 15000 });
-
-      try {
-        await this.waitForOtpVisible({ timeout: otpTimeout });
-        return;
-      } catch (error) {
-        lastOtpError = error;
-      }
-
-      if (await this.isRegisterFormVisible(1000)) {
-        throw new Error('Login precondition account was not found; register form appeared instead of OTP screen.');
-      }
-
-      await this.waitForGlobalLoadingHidden(loadingTimeout);
-
-      let canRetry = false;
-      try {
-        canRetry = await this.continueBtn.isVisible();
-      } catch (error) {
-        canRetry = false;
-      }
-
-      if (!canRetry || attempt === maxAttempts) {
-        break;
-      }
-
-      console.warn(`OTP screen did not appear after Continue attempt ${attempt}; retrying.`);
-    }
-
-    throw new Error(
-      `OTP screen did not appear after clicking Continue ${maxAttempts} time(s). ` +
-      `Last wait error: ${lastOtpError?.message || 'unknown'}`
-    );
   }
 
   async waitForRegisterFormVisible() {

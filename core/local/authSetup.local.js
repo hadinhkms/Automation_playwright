@@ -153,14 +153,15 @@ async function loginUserFromDataForPrecondition(page, providedUser = null, pageC
     await expect(loginPopup.emailInput).toHaveValue(email);
   }
 
-  // Verify continue button is enabled before clicking
-  await loginPopup.continueBtn.waitFor({ state: 'visible', timeout: 5000 });
-  await expect(loginPopup.continueBtn).toBeEnabled();
-  await loginPopup.clickContinueUntilOtpVisible({
-    maxAttempts: 3,
-    otpTimeout: 10000,
-    loadingTimeout: 15000,
-  });
+  const otpRequestOptions = { maxAttempts: 3, otpTimeout: 10000, loadingTimeout: 15000 };
+  if (phone) {
+    // Popup mặc định "Nhận OTP qua Zalo" (JS-8873): OTP cố định 1111 của QC chỉ áp dụng kênh SMS
+    await loginPopup.requestSmsOtp(otpRequestOptions);
+  } else {
+    await loginPopup.continueBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(loginPopup.continueBtn).toBeEnabled();
+    await loginPopup.clickContinueUntilOtpVisible(otpRequestOptions);
+  }
 
   // Wait for OTP inputs to be visible
   await loginPopup.otpInputs.first().waitFor({ state: 'visible', timeout: 15000 });
