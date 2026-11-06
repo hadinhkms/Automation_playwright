@@ -19,7 +19,7 @@
 | TC-033 | AC-002 | Kiểm tra thất bại khi nhập sai mã OTP xác thực | P0 | Có | tests/e2e/desktop/kiem-tra-that-bai-khi-nhap-sai-ma-otp-xac-thuc.spec.js |
 | TC-034 | AC-001 | Kiểm tra báo lỗi khi nhập email sai định dạng | P1 | Có | tests/e2e/desktop/kiem-tra-bao-loi-khi-nhap-email-sai-dinh-dang.spec.js |
 | TC-039 | AC-002 | Bấm gửi lại mã OTP khi đăng ký bằng số điện thoại | P2 | Có | tests/e2e/desktop/gui-lai-ma-otp-dang-ky.spec.js |
-| TC-040 | AC-001 AC-002 | Kiểm thử chuỗi giá trị biên, tính hợp lệ dữ liệu và xác thực đăng ký tài khoản (SĐT tùy chọn/sai định dạng/đã tồn tại, mật khẩu chuẩn biên 8 ký tự, OTP môi trường test) | P2 | Có | tests/e2e/desktop/kiem-thu-chuoi-gia-tri-bien-tinh-hop-le-du-lieu-va-xac-thuc.spec.js |
+| TC-040 | AC-001 AC-002 | Kiểm thử chuỗi giá trị biên, tính hợp lệ dữ liệu và xác thực đăng ký tài khoản (SĐT sai định dạng/đã tồn tại/mới, Email tùy chọn, OTP môi trường test) | P2 | Có | tests/e2e/desktop/kiem-thu-chuoi-gia-tri-bien-tinh-hop-le-du-lieu-va-xac-thuc.spec.js |
 
 
 ## Chi tiết
@@ -218,16 +218,16 @@ Các test case dưới đây **chưa được viết thành tài liệu chính t
 - **Tiền điều kiện:** Chưa đăng nhập, đang ở trang chủ hoặc popup Đăng ký tài khoản.
 - **Dữ liệu kiểm thử:**
   - SĐT sai định dạng: `0912abcXYZ`
-  - SĐT đã tồn tại: `0988888888`
+  - SĐT đã tồn tại: tạo mới qua Register API mỗi lần chạy (QC giới hạn 5 lần gửi OTP/ngày/SĐT; `0988888888` chỉ là dự phòng)
   - SĐT mới hợp lệ: `0912345678`
-  - Mật khẩu chuẩn biên 8 ký tự: `a1234567` (1 chữ, 7 số)
   - Mã OTP môi trường test: `1111`
-> *Ghi chú nghiệp vụ:* Kịch bản tích hợp hợp nhất từ các kiểm thử biên đơn lẻ trước đây. Kiểm tra toàn diện từ validation trường bắt buộc/tùy chọn (Q-1), kiểm tra biên mật khẩu (Q-2) đến xác thực mã OTP cố định (Q-4).
+> *Ghi chú nghiệp vụ:* Kịch bản tích hợp hợp nhất từ các kiểm thử biên đơn lẻ trước đây. Kiểm tra toàn diện từ validation trường bắt buộc/tùy chọn (Q-1) đến xác thực mã OTP cố định (Q-4).
+> *Cập nhật 2026-11-06 (QC):* bỏ kiểm biên mật khẩu (Q-2) vì form đăng ký bằng SĐT không có trường mật khẩu (AC-002 Confirmed). Popup mặc định "Nhận OTP qua Zalo"; automation yêu cầu OTP qua SMS ("Phương thức khác" → "Nhận OTP qua SMS") vì OTP cố định `1111` chỉ áp dụng kênh SMS. Bước 2 ghi theo hành vi quan sát trên QC (popup gộp Đăng nhập/Đăng ký) — chờ PO xác nhận.
 
 | Bước | Thao tác | Kết quả mong đợi |
 |---|---|---|
-| 1 | Mở form đăng ký, nhập số điện thoại sai định dạng `0912abcXYZ` | Hệ thống báo lỗi 'Số điện thoại không hợp lệ', vô hiệu hóa nút gửi |
-| 2 | Nhập số điện thoại đã tồn tại trong hệ thống `0988888888` và mật khẩu hợp lệ | Hệ thống thông báo lỗi tài khoản đã tồn tại, chặn chuyển sang bước OTP |
-| 3 | Nhập số điện thoại mới, để trống trường Email (trường tùy chọn) và nhập mật khẩu đạt biên 8 ký tự `a1234567` | Form chấp nhận dữ liệu hợp lệ, không báo lỗi và chuyển sang màn hình nhập OTP |
-| 4 | Nhập mã OTP '1111' trên môi trường test và xác nhận | Hoàn tất tạo tài khoản thành công, người dùng được cấp phiên đăng nhập |
+| 1 | Mở popup Đăng ký/Đăng nhập, nhập số điện thoại sai định dạng `0912abcXYZ` | Hệ thống báo lỗi 'Số điện thoại không hợp lệ' hoặc vô hiệu hóa nút gửi OTP |
+| 2 | Nhập số điện thoại đã tồn tại trong hệ thống và yêu cầu OTP | Popup chuyển sang màn "Xác thực OTP" cho đúng số đã nhập (luồng đăng nhập tài khoản có sẵn), không mở form "Tạo tài khoản mới" *(quan sát trên QC — chờ PO xác nhận)* |
+| 3 | Bấm "Sửa số điện thoại" để quay lại, nhập số điện thoại mới hợp lệ và yêu cầu OTP | Không báo lỗi và chuyển sang màn hình nhập OTP |
+| 4 | Nhập mã OTP '1111' trên môi trường test, điền Họ tên, để trống Email (tùy chọn) và bấm Hoàn tất | Hoàn tất tạo tài khoản thành công, người dùng được cấp phiên đăng nhập |
 

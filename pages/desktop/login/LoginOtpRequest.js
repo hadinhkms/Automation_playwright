@@ -15,6 +15,30 @@ class LoginOtpRequest {
     this.smsOtpBtn = this.page.getByRole('button', { name: /Nhận OTP qua SMS\s*$/ }).first();
     this.otherMethodsBtn = this.page.getByRole('button', { name: /^\s*Phương thức khác/ }).first();
     this.otpExpiryText = this.page.getByText(/Mã OTP hết hiệu lực trong/i).first();
+    // Nút gửi chính của bước nhập SĐT, không phụ thuộc kênh: "Nhận OTP qua Zalo" (mặc định) hoặc "Tiếp tục" (Zalo tắt)
+    this.requestOtpBtn = this.zaloOtpBtn.or(popup.continueBtn).first();
+    // Nút bút chì cạnh SĐT trên màn "Xác thực OTP": quay lại bước nhập số
+    this.editPhoneBtn = this.page.getByRole('button', { name: 'Sửa số điện thoại' });
+  }
+
+  /** Màn "Xác thực OTP" hiển thị đúng SĐT vừa yêu cầu (dạng "SMS số <strong>phone</strong>"). */
+  async expectOtpScreenForPhone(phone) {
+    await this.popup.waitForOtpVisible();
+    await expect(this.page.getByText(phone, { exact: true })).toBeVisible();
+  }
+
+  /** Từ màn OTP quay lại bước nhập SĐT (không phải đóng/mở lại popup). */
+  async backToPhoneStep() {
+    if (await this.editPhoneBtn.isVisible().catch(() => false)) {
+      await this.actions.click(this.editPhoneBtn);
+    }
+    await this.popup.phoneInput.waitFor({ state: 'visible', timeout: 10000 });
+  }
+
+  /** Bấm yêu cầu OTP qua SMS nhưng không chờ màn OTP (dùng cho case số đã tồn tại / bị chặn). */
+  async clickRequestSmsOtp() {
+    if (await this.isZaloOtpEnabled()) return this.clickReceiveOtpViaSms();
+    return this.popup.clickContinue();
   }
 
   async isZaloOtpEnabled(timeout = 5000) {
@@ -52,11 +76,25 @@ class LoginOtpRequest {
   async requestSmsOtp(options = {}) {
     if (await this.isZaloOtpEnabled()) {
       await this.clickReceiveOtpViaSms();
-      await this.popup.waitForOtpVisible();
+      await this.waitForOtpOrRetryAfterCooldown();
       return 'sms';
     }
     await this.clickContinueUntilOtpVisible(options);
     return 'continue';
+  }
+
+  /**
+   * QC chặn gửi lại OTP cho cùng SĐT trong ~2 phút ("Yêu cầu đã tồn tại. Vui lòng thử lại sau m:ss", nút OTP bị khoá)
+   * → chờ nút SMS mở lại rồi gửi lại. Chờ đúng ô nhập mã OTP: otpModalTitle cũng khớp chữ "OTP" của nút gửi.
+   */
+  async waitForOtpOrRetryAfterCooldown() {
+    const otpCodeInput = this.page.locator('input[autocomplete="one-time-code"], input[aria-label*="verification code" i]').first();
+    const cooldownMsg = this.page.getByText(/Vui lòng thử lại sau/i).first();
+    await otpCodeInput.or(cooldownMsg).first().waitFor({ state: 'visible', timeout: 30000 });
+    if (await otpCodeInput.isVisible()) return;
+    await expect(this.smsOtpBtn).toBeEnabled({ timeout: 180000 });
+    await this.actions.click(this.smsOtpBtn);
+    await otpCodeInput.waitFor({ state: 'visible', timeout: 30000 });
   }
 
   /** Sau khi số chưa có tài khoản: form Đăng ký hiện và ô SĐT điền sẵn số vừa nhập. */
@@ -123,7 +161,7 @@ class LoginOtpRequest {
 LoginOtpRequest.DELEGATED_METHODS = [
   'isZaloOtpEnabled', 'expectZaloIsDefaultChannel', 'clickReceiveOtpViaZalo', 'expandOtherMethods',
   'clickReceiveOtpViaSms', 'requestSmsOtp', 'expectOtpScreenForChannel', 'clickContinueUntilOtpVisible',
-  'expectRegisterPhonePrefilled',
+  'expectRegisterPhonePrefilled', 'clickRequestSmsOtp', 'backToPhoneStep', 'expectOtpScreenForPhone',
 ];
 
 module.exports = { LoginOtpRequest };

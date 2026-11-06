@@ -1,3 +1,5 @@
+const { expect } = require('@playwright/test');
+
 class ProfileSectionsHelper {
   constructor(pageInstance) {
     this.owner = pageInstance;
@@ -63,13 +65,17 @@ class ProfileSectionsHelper {
   }
 
   async fillSkill(skillName) {
-    const skillInput = this.owner.page.getByRole('textbox', { name: /Nhập kỹ năng/i })
+    const anySkillInput = this.owner.page.getByRole('textbox', { name: /Nhập kỹ năng/i })
       .or(this.owner.txtCommonInput)
-      .or(this.owner.page.locator('input[placeholder*="kỹ năng" i]'))
-      .first();
+      .or(this.owner.page.locator('input[placeholder*="kỹ năng" i]'));
+    // Mobile: ô "Nhập kỹ năng" trên trang là readonly, chạm vào mới mở bottom sheet chứa ô nhập thật.
+    // Desktop: ô đầu tiên đã nhập được → cả hai locator trỏ cùng một phần tử.
+    const trigger = anySkillInput.first();
+    const skillInput = anySkillInput.and(this.owner.page.locator('input:not([readonly])')).filter({ visible: true }).first();
 
-    await skillInput.waitFor({ state: 'visible', timeout: 15000 });
-    await skillInput.click();
+    await trigger.waitFor({ state: 'visible', timeout: 15000 });
+    await trigger.click();
+    await skillInput.waitFor({ state: 'visible', timeout: 10000 });
     await skillInput.fill(skillName);
 
     const escaped = skillName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -84,6 +90,28 @@ class ProfileSectionsHelper {
     } catch (_e) {
       await skillInput.press('Enter');
     }
+    await this.commitSkillSheetIfVisible();
+  }
+
+  /** Mobile: bottom sheet "Thêm kỹ năng" có nút riêng "Lưu kỹ năng", che nút Lưu của trang cho tới khi đóng. */
+  async commitSkillSheetIfVisible() {
+    const btnSaveSkills = this.owner.page.getByRole('button', { name: 'Lưu kỹ năng' });
+    if (await btnSaveSkills.isVisible().catch(() => false)) {
+      await this.owner.clickElement(btnSaveSkills);
+      await btnSaveSkills.waitFor({ state: 'hidden', timeout: 10000 });
+    }
+    // Mobile: màn "Kỹ năng" toàn trang (skills-v2) vẫn mở sau khi sheet đóng; nút "Lưu" của nó chỉ hiện chớp nhoáng
+    // trong lúc sheet đóng dần → không kiểm tra một lần mà lặp tới khi modal đóng: có "Lưu" thì bấm, không thì bấm back.
+    const skillsModal = this.owner.page.locator('[data-test-id="user-profile__skills-v2-modal"]').filter({ visible: true });
+    if ((await skillsModal.count()) === 0) return;
+    await expect(async () => {
+      if ((await skillsModal.count()) === 0) return;
+      const modal = skillsModal.first();
+      const saveBtn = modal.getByRole('button', { name: /^\s*Lưu/i }).filter({ visible: true }).first();
+      const target = (await saveBtn.count()) ? saveBtn : modal.getByRole('button').first();
+      await target.click({ timeout: 2000 }).catch(() => null);
+      await expect(skillsModal).toHaveCount(0, { timeout: 2000 });
+    }).toPass({ timeout: 20000 });
   }
 
   async fillCertificate(certName) {

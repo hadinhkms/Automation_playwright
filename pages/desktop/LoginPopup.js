@@ -69,8 +69,8 @@ class LoginPopup extends BasePage {
     this.otpError = page.locator(
       '[class*="error"], [class*="helper"], [class*="feedback"], [class*="text-danger"], [role="alert"]'
     ).filter({
-      hasText: /mã xác thực|otp.*không đúng|không chính xác/i,
-    }).or(page.getByText(/mã xác thực.*không đúng|otp.*không đúng|không chính xác/i)).first();
+      hasText: /mã xác thực|otp.*(?:không|chưa) đúng|không chính xác/i,
+    }).or(page.getByText(/mã xác thực.*không đúng|otp.*(?:không|chưa) đúng|không chính xác/i)).first(); // QC: "Mã OTP chưa đúng, vui lòng thử lại."
 
     this.loginPasswordInput = page.getByPlaceholder(/nhập mật khẩu của bạn|nhập mật khẩu/i).first();
 
@@ -79,7 +79,7 @@ class LoginPopup extends BasePage {
 
     // Yêu cầu OTP (Zalo mặc định / SMS / "Tiếp tục") — REQ-012, xem pages/desktop/login/LoginOtpRequest.js
     this.otpRequest = new LoginOtpRequest(this);
-    ({ zaloOtpBtn: this.zaloOtpBtn, smsOtpBtn: this.smsOtpBtn, otherMethodsBtn: this.otherMethodsBtn, otpExpiryText: this.otpExpiryText } = this.otpRequest);
+    ({ zaloOtpBtn: this.zaloOtpBtn, smsOtpBtn: this.smsOtpBtn, otherMethodsBtn: this.otherMethodsBtn, otpExpiryText: this.otpExpiryText, requestOtpBtn: this.requestOtpBtn } = this.otpRequest);
     // Giữ API public cũ của LoginPopup: ủy quyền sang LoginOtpRequest.DELEGATED_METHODS
     for (const name of LoginOtpRequest.DELEGATED_METHODS) this[name] = (...args) => this.otpRequest[name](...args);
   }

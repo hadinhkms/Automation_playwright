@@ -27,7 +27,7 @@ test.describe('Feature: Đăng ký tài khoản người tìm việc bằng Số
       await loginPopup.waitForModalVisible();
       await loginPopup.fillPhone(randomPhone);
       await loginPopup.capture('phone_entered_before_otp');
-      await loginPopup.clickContinueUntilOtpVisible({ maxAttempts: 3 });
+      await loginPopup.requestSmsOtp({ maxAttempts: 3 }); // Zalo OTP mặc định: OTP cố định 1111 của QC chỉ áp dụng kênh SMS
 
       await loginPopup.waitForOtpVisible();
       await expect(loginPopup.otpModalTitle.or(loginPopup.otpInputs.first())).toBeVisible();
@@ -42,7 +42,9 @@ test.describe('Feature: Đăng ký tài khoản người tìm việc bằng Số
     await test.step('Then [1] Hệ thống hiển thị thông báo lỗi mã xác thực không chính xác và chặn tiến vào form', async () => {
       // Hệ thống báo lỗi mã OTP sai hoặc giữ nguyên màn hình OTP và không mở form Tạo tài khoản mới
       await expect(loginPopup.registerFormTitle).toBeHidden();
-      await expect(loginPopup.otpError.or(loginPopup.otpModalTitle).or(loginPopup.otpInputs.first())).toBeVisible();
+      // Kiểm tra đúng thông báo lỗi (chain .or() cũ quá lỏng và vi phạm strict mode); vẫn ở màn OTP.
+      await expect(loginPopup.otpError).toBeVisible({ timeout: 10000 });
+      await expect(loginPopup.otpInputs.first()).toBeVisible();
       await loginPopup.capture('wrong_otp_rejected');
     });
   });

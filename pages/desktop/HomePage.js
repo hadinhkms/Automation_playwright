@@ -1,4 +1,7 @@
 const { BasePage } = require('../BasePage');
+const { HomePopupHelper } = require('./home/HomePopupHelper');
+
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 class HomePage extends BasePage {
   /**
@@ -20,21 +23,23 @@ class HomePage extends BasePage {
     this.jobMenuBtn = page.getByRole('button', { name: /Việc làm/ });
     this.findJobSubMenuBtn = page.getByRole('button', { name: 'Tìm việc làm' });
     this.noCVJobLink = page.getByRole('link', { name: 'Việc không cần CV' });
+    this.homePopupHelper = new HomePopupHelper(this);
     this.lotteJobLink = page.getByRole('link', { name: 'Nhân Viên Bán Hàng - Lotte' });
-    this.banSiBanLeCategoryLink = page.getByRole('heading', { name: /Bán sỉ - Bán lẻ/i }).getByRole('link').first();
   }
 
+  /**
+   * Mở trang ngành nghề từ khối "ngành nghề" ở Home (UI 11/2026: thẻ <a href="/viec-lam-...-oN.html">, không còn nằm trong heading).
+   * Không fallback sang menu "Tìm việc làm": fallback cũ khiến test chạy trên trang tìm kiếm chung mà vẫn báo pass bước chọn ngành.
+   * @param {string} categoryName Tên ngành (khớp một phần, vd. 'Bán sỉ - Bán lẻ')
+   */
   async selectJobCategory(categoryName = 'Bán sỉ - Bán lẻ') {
     await this.closeAllPopupsIfVisible();
-    const catLink = this.page.getByRole('heading', { name: new RegExp(categoryName, 'i') }).getByRole('link').first();
-    if (await catLink.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await Promise.all([
-        this.page.waitForURL(/\/tim-kiem-viec-lam-nhanh|category|\/viec-lam/i, { timeout: 30000 }).catch(() => null),
-        this.actions.click(catLink),
-      ]);
-    } else {
-      await this.openJobSearch();
-    }
+    const catLink = this.page.getByRole('link', { name: new RegExp(escapeRegex(categoryName), 'i') }).first();
+    await catLink.waitFor({ state: 'visible', timeout: 15000 });
+    await Promise.all([
+      this.page.waitForURL(/\/viec-lam-[^/]+-o\d+\.html/i, { timeout: 30000 }),
+      this.actions.click(catLink),
+    ]);
     await this.page.waitForLoadState('domcontentloaded');
   }
 
@@ -62,90 +67,12 @@ class HomePage extends BasePage {
     ]);
   }
 
-  async closeBlockingModalIfVisible() {
-    await this.closeAllPopupsIfVisible();
-
-    if (await this.privacyConsentAgreeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await this.actions.click(this.privacyConsentAgreeBtn, { force: true });
-      await this.privacyConsentAgreeBtn.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => null);
-    }
-
-    if (await this.genericModalCloseBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await this.actions.click(this.genericModalCloseBtn, { force: true });
-      await this.genericModalCloseBtn.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => null);
-    }
-
-    const dialog = this.page.getByRole('dialog');
-    if (await dialog.isVisible({ timeout: 2000 }).catch(() => false)) {
-      const closeEl = dialog.locator('i, svg, button, [class*="close" i]').last();
-      if (await closeEl.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await closeEl.click({ force: true }).catch(() => null);
-      }
-      await this.page.keyboard.press('Escape').catch(() => null);
-      if (await dialog.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await this.page.evaluate(() => {
-          document.querySelectorAll('.ReactModalPortal').forEach(el => el.remove());
-        }).catch(() => null);
-      }
-    }
-  }
+  // --- HomePopupHelper (pages/desktop/home/HomePopupHelper.js) ---
+  async closeBlockingModalIfVisible() { return this.homePopupHelper.closeBlockingModalIfVisible(); }
+  async closeAdsIfVisible() { return this.homePopupHelper.closeAdsIfVisible(); }
 
   async navigate() {
     await super.navigate('/');
-  }
-
-  async closeAdsIfVisible() {
-    try {
-      await this.closeBlockingModalIfVisible();
-
-      // Dismiss notification banner ("Tải app ngay", thông báo nâng cấp hệ thống...)
-      // Banner này thường ở sticky top, không có nút X nhưng có button dẫn đến app
-      const notificationBanner = this.page.locator(
-        'div:has(img[alt*="notification" i]):has(button), ' +
-        'div:has(img[alt*="mobile" i]):has(button), ' +
-        '[class*="notification-bar"], [class*="notify-bar"], [class*="app-banner"], ' +
-        '[class*="top-bar"]:has(button)'
-      ).first();
-      if (await notificationBanner.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // Tìm nút X / close trong banner
-        const bannerClose = notificationBanner.locator(
-          'button:not(:has-text("Tải app")):not(:has-text("Download")), [class*="close" i], i.svicon-close'
-        ).first();
-        if (await bannerClose.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await bannerClose.click({ force: true }).catch(() => null);
-        } else {
-          // Nếu không có nút close, ẩn bằng JS
-          await this.page.evaluate(() => {
-            document.querySelectorAll(
-              'div:has(img[alt*="notification"]), div:has(img[alt*="mobile"]), [class*="notification-bar"], [class*="app-banner"]'
-            ).forEach(el => { if (el.offsetHeight < 100) el.style.display = 'none'; });
-          }).catch(() => null);
-        }
-      }
-
-      if (await this.mobileEntryPopup.isVisible({ timeout: 2000 }).catch(() => false)) {
-        const mbepClose = this.mobileEntryPopup.locator('button:has(.svicon-close), [class*="close" i], button, i, svg').first();
-        if (await mbepClose.isVisible({ timeout: 1000 }).catch(() => false)) {
-          await mbepClose.click({ force: true }).catch(() => null);
-        }
-        await this.mobileEntryPopup.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => null);
-        if (await this.mobileEntryPopup.isVisible().catch(() => false)) {
-          await this.page.evaluate(() => {
-            document.querySelectorAll('.mbep-popup').forEach(el => el.remove());
-          }).catch(() => null);
-        }
-      }
-
-      const count = await this.closeAdsBtns.count();
-      for (let i = 0; i < count; i++) {
-        const btn = this.closeAdsBtns.nth(i);
-        if (await btn.isVisible().catch(() => false)) {
-          await btn.click({ force: true }).catch(() => null);
-        }
-      }
-    } catch (error) {
-      // Bỏ qua nếu không có popup
-    }
   }
 
   async getAllLinksHrefs() {

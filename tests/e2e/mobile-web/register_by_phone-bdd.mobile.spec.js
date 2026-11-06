@@ -3,8 +3,8 @@ const userData = require('../../../data/users.json');
 const { generateRandomVNPhone, generateRandomEmail } = require('../../../core/utils/commonUtils');
 
 test.describe('Mobile Feature: Đăng ký tài khoản người tìm việc bằng Số điện thoại trên Mobile Web @guest @no-auth @register @smoke @smoke-mobile @mobile @e2e @REQ-001', () => {
-  test('TC-004 - AC-002 Đăng ký tài khoản bằng số điện thoại kèm xác minh OTP trên mobile web', async ({ loginPopup, homePage, popupConsent }, testInfo) => {
-    test.setTimeout(120000);
+  test('TC-004 - AC-002 Đăng ký tài khoản bằng số điện thoại kèm xác minh OTP trên mobile web', async ({ loginPopup, homePage, popupConsent, onboardingPopup }, testInfo) => {
+    test.setTimeout(180000);
 
     testInfo.annotations.push({
       type: 'Precondition',
@@ -15,6 +15,8 @@ test.describe('Mobile Feature: Đăng ký tài khoản người tìm việc bằ
     let randomPhone;
 
     await test.step('Given Tiền điều kiện: Người dùng mobile chưa đăng nhập và truy cập trang chủ', async () => {
+      // Popup "Khoan đã, Hình như bạn chưa đăng nhập?" bật sau ~30s và che nút Đăng nhập ở header
+      await homePage.registerGuestPopupAutoHandlers();
       await homePage.navigate();
       await homePage.expectHomepageVisible();
       await homePage.capture('after_mobile_homepage_loaded');
@@ -39,7 +41,7 @@ test.describe('Mobile Feature: Đăng ký tài khoản người tìm việc bằ
       randomPhone = generateRandomVNPhone();
       await loginPopup.fillPhone(randomPhone);
       await loginPopup.capture('after_mobile_fill_phone');
-      await loginPopup.clickContinueUntilOtpVisible({ maxAttempts: 3 });
+      await loginPopup.requestSmsOtp({ maxAttempts: 3 }); // Zalo OTP mặc định: OTP cố định 1111 của QC chỉ áp dụng kênh SMS
     });
 
     await test.step('And Tôi nhập mã OTP (nếu có)', async () => {
@@ -67,6 +69,8 @@ test.describe('Mobile Feature: Đăng ký tài khoản người tìm việc bằ
     await test.step('And Tôi bấm nút Đăng ký để hoàn tất trên mobile', async () => {
       await expect(loginPopup.submitBtn).toBeVisible();
       await loginPopup.clickSubmit();
+      // Mobile: sau đăng ký mở onboarding toàn màn hình "Chào <tên> … 1/5 câu hỏi" → đóng để về trang chủ
+      await onboardingPopup.closeIfVisible(undefined, { modalTimeout: 15000, closeBtnTimeout: 5000, modalHiddenTimeout: 10000 });
       await popupConsent.waitForConsentOrHomepageReady(homePage);
     });
 

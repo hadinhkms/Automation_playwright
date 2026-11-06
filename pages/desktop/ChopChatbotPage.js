@@ -1,7 +1,7 @@
-// master-process-disable-size-check: Legacy module, queued for modular decomposition
-const { expect } = require('@playwright/test');
 const { BasePage } = require('../BasePage');
 const { LoginPopup } = require('./LoginPopup');
+const { ChopChatbotFilterHelper } = require('./chatbot/ChopChatbotFilterHelper');
+const { ChopChatbotSessionHelper } = require('./chatbot/ChopChatbotSessionHelper');
 
 /**
  * ChopChatbotPage — Page Object cho cửa sổ popup Chop AI chatbot.
@@ -52,6 +52,8 @@ class ChopChatbotPage extends BasePage {
     this.drawerJobCards = this.page.locator('.overflow-y-auto.overscroll-contain.no-scrollbar').locator('> div > div');
     this.drawerTotalJobsBanner = this.page.getByText(/Chớp đã tìm được \d+ công việc/i).first();
     this.botGuidanceFallback = this.page.getByText(/Chào bạn, mình là Chớp|Bạn đang tìm kiếm công việc thuộc lĩnh vực nào/i).first();
+    this.filterHelper = new ChopChatbotFilterHelper(this);
+    this.sessionHelper = new ChopChatbotSessionHelper(this);
   }
 
   /**
@@ -64,7 +66,8 @@ class ChopChatbotPage extends BasePage {
     if (await loginPopup.phoneInput.isVisible({ timeout: 5000 }).catch(() => false)) {
       const phone = user.phone || user.username;
       await loginPopup.fillPhone(phone);
-      await loginPopup.clickContinueUntilOtpVisible({
+      // Popup mặc định "Nhận OTP qua Zalo" (không còn nút "Tiếp tục"); OTP cố định 1111 của QC chỉ áp dụng kênh SMS.
+      await loginPopup.requestSmsOtp({
         maxAttempts: 3,
         otpTimeout: 10000,
         loadingTimeout: 15000,
@@ -124,240 +127,44 @@ class ChopChatbotPage extends BasePage {
     await suggestedJobsTitle.waitFor({ state: 'visible', timeout: 20000 }).catch(() => null);
   }
 
-  // Industry / Occupation filter
-  async openIndustryFilter() {
-    const trigger = this.occupationTrigger.last();
-    await this.actions.waitForVisible(trigger, { timeout: 15000 });
-    await trigger.click();
-  }
+  // --- ChopChatbotFilterHelper (pages/desktop/chatbot/ChopChatbotFilterHelper.js) ---
+  async openIndustryFilter() { return this.filterHelper.openIndustryFilter(); }
+  async selectIndustry(industryName) { return this.filterHelper.selectIndustry(industryName); }
+  async confirmFilter() { return this.filterHelper.confirmFilter(); }
+  async clearActiveFilter() { return this.filterHelper.clearActiveFilter(); }
+  async openLocationFilter() { return this.filterHelper.openLocationFilter(); }
+  async selectLocationOption(name) { return this.filterHelper.selectLocationOption(name); }
+  async applyLocationFilter() { return this.filterHelper.applyLocationFilter(); }
+  async clearLocationFilter() { return this.filterHelper.clearLocationFilter(); }
+  async openSalaryFilterAfterScroll() { return this.filterHelper.openSalaryFilterAfterScroll(); }
+  async selectSalaryOption(salaryOption) { return this.filterHelper.selectSalaryOption(salaryOption); }
+  async clearSalaryFilter() { return this.filterHelper.clearSalaryFilter(); }
+  async scrollToExperienceFilterBar() { return this.filterHelper.scrollToExperienceFilterBar(); }
+  async openExperienceFilter() { return this.filterHelper.openExperienceFilter(); }
+  async selectExperienceOption(expOption) { return this.filterHelper.selectExperienceOption(expOption); }
+  async clearAllFilters() { return this.filterHelper.clearAllFilters(); }
+  async openFirstJobCard() { return this.filterHelper.openFirstJobCard(); }
+  async closeJobDetailModal() { return this.filterHelper.closeJobDetailModal(); }
+  async expectJobCountVisible() { return this.filterHelper.expectJobCountVisible(); }
+  async expectLocationFilterDisplayed(locationDisplay) { return this.filterHelper.expectLocationFilterDisplayed(locationDisplay); }
+  async expectSalaryFilterDisplayed(salaryDisplay) { return this.filterHelper.expectSalaryFilterDisplayed(salaryDisplay); }
+  async expectExperienceFilterDisplayed(expDisplay) { return this.filterHelper.expectExperienceFilterDisplayed(expDisplay); }
 
-  async selectIndustry(industryName) {
-    const option = this.page.getByRole('button', { name: industryName }).first();
-    await this.actions.waitForVisible(option, { timeout: 10000 });
-    await option.click();
-  }
-
-  async confirmFilter() {
-    await this.actions.waitForVisible(this.doneBtn, { timeout: 10000 });
-    await this.doneBtn.click();
-  }
-
-  async clearActiveFilter() {
-    await this.actions.waitForVisible(this.clearSingleFilterBtn, { timeout: 10000 });
-    await this.clearSingleFilterBtn.click();
-  }
-
-  // Location filter
-  async openLocationFilter() {
-    const trigger = this.locationFilterTrigger.last();
-    await this.actions.waitForVisible(trigger, { timeout: 15000 });
-    await trigger.click();
-  }
-
-  async selectLocationOption(name) {
-    const trimmed = name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const dropdown = this.page.locator('[data-test-id="select-dropdown__option-list"]');
-    const option = dropdown.getByRole('button', { name: new RegExp(`^${trimmed}\\s*$`, 'i') })
-      .or(dropdown.locator('button').filter({ hasText: new RegExp(`^${trimmed}\\s*$`, 'i') }))
-      .first();
-    await this.actions.waitForVisible(option, { timeout: 15000 });
-    await option.click();
-  }
-
-  async applyLocationFilter() {
-    const applyBtn = this.page.getByRole('button', { name: 'Áp dụng' }).last();
-    await this.actions.waitForVisible(applyBtn, { timeout: 10000 });
-    await applyBtn.click();
-  }
-
-  async clearLocationFilter() {
-    await this.openLocationFilter();
-    const clearBtn = this.page.getByRole('button', { name: 'Xoá bộ lọc' }).last();
-    await this.actions.waitForVisible(clearBtn, { timeout: 10000 });
-    await clearBtn.click();
-  }
-
-  // Salary filter
-  async openSalaryFilterAfterScroll() {
-    const scrollRight = this.page.getByLabel('Scroll right').last();
-    if (await scrollRight.isEnabled({ timeout: 1000 }).catch(() => false)) {
-      await scrollRight.click().catch(() => null);
-    }
-    const salaryTrigger = this.salaryFilterTrigger.last();
-    await this.actions.waitForVisible(salaryTrigger, { timeout: 15000 });
-    await salaryTrigger.click();
-  }
-
-  async selectSalaryOption(salaryOption) {
-    const validOption = this.page.locator('button:not([disabled])').filter({ hasText: new RegExp(`^${salaryOption.trim()}$`, 'i') })
-      .or(this.page.locator('.text-secondary-100, span').filter({ hasText: new RegExp(`^${salaryOption.trim()}$`, 'i') }))
-      .last();
-    await this.actions.waitForVisible(validOption, { timeout: 10000 });
-    await validOption.click();
-  }
-
-  async confirmFilter() {
-    const doneBtn = this.page.getByRole('button', { name: 'Hoàn tất' })
-      .or(this.page.getByRole('button', { name: 'Áp dụng' }))
-      .last();
-    await this.actions.waitForVisible(doneBtn, { timeout: 10000 });
-    await doneBtn.click();
-  }
-
-  async clearSalaryFilter() {
-    await this.openSalaryFilterAfterScroll();
-    const clearBtn = this.page.getByRole('button', { name: 'Xoá bộ lọc' }).last();
-    await this.actions.waitForVisible(clearBtn, { timeout: 10000 });
-    await clearBtn.click();
-  }
-
-  // Experience filter
-  async scrollToExperienceFilterBar() {
-    const scrollRight = this.page.getByLabel('Scroll right').last();
-    if (await scrollRight.isEnabled({ timeout: 1000 }).catch(() => false)) {
-      await scrollRight.click().catch(() => null);
-    }
-  }
-
-  async openExperienceFilter() {
-    const scrollRight = this.page.getByLabel('Scroll right').last();
-    if (await scrollRight.isEnabled({ timeout: 1000 }).catch(() => false)) {
-      await scrollRight.click().catch(() => null);
-    }
-    const expTrigger = this.experienceFilterTrigger.last();
-    await this.actions.waitForVisible(expTrigger, { timeout: 15000 });
-    await expTrigger.click();
-  }
-
-  async selectExperienceOption(expOption) {
-    const validOption = this.page.locator('button:not([disabled])').filter({ hasText: new RegExp(`^${expOption.trim()}$`, 'i') })
-      .or(this.page.locator('.text-secondary-100, span').filter({ hasText: new RegExp(`^${expOption.trim()}$`, 'i') }))
-      .last();
-    await this.actions.waitForVisible(validOption, { timeout: 10000 });
-    await validOption.click();
-  }
-
-  async clearAllFilters() {
-    const btn = this.clearAllFiltersBtn.last();
-    await this.actions.waitForVisible(btn, { timeout: 10000 });
-    await btn.click();
-  }
-
-  // Job card
-  async openFirstJobCard() {
-    const jobCards = this.page.locator('.flex.flex-col.gap-3 > .flex.items-center.justify-between')
-      .or(this.page.locator('div').filter({ hasText: /Còn \d+ ngày/i }));
-    await this.actions.waitForVisible(jobCards.first(), { timeout: 15000 });
-    await jobCards.first().click();
-  }
-
-  async closeJobDetailModal() {
-    const closeBtn = this.page.locator('[data-test-id="common__modal__close-btn"], [data-test-id="common__close-button"], button:has(svg)').last();
-    await this.actions.waitForVisible(closeBtn, { timeout: 10000 });
-    await closeBtn.click();
-  }
-
-  // Assertions
-  async expectJobCountVisible() {
-    const btn = this.jobCountBtn.last();
-    await expect(btn).toBeVisible({ timeout: 25000 });
-  }
-
-  async expectLocationFilterDisplayed(locationDisplay) {
-    await expect(this.page.getByText(new RegExp(locationDisplay, 'i')).first()).toBeVisible({ timeout: 10000 });
-  }
-
-  async expectSalaryFilterDisplayed(salaryDisplay) {
-    const chip = this.salaryFilterTrigger.last();
-    await expect(chip).toBeVisible({ timeout: 10000 });
-    await expect(chip).toContainText(salaryDisplay);
-  }
-
-  async expectExperienceFilterDisplayed(expDisplay) {
-    const chip = this.experienceFilterTrigger.last();
-    await expect(chip).toBeVisible({ timeout: 10000 });
-    await expect(chip).toContainText(expDisplay);
-  }
-
-  // --- REAL CHATBOT TC-049 & TC-050 METHODS ---
-  async navigateToChatbot() {
-    await this.page.goto('/chop-tro-ly-ai.html', { waitUntil: 'domcontentloaded' });
-  }
-
-  async setupRealChatbotPrecondition(user) {
-    await this.navigateToChatbot();
-    await this.loginIfVisible(user);
-    await this.dismissIntroIfVisible();
-    await this.actions.waitForVisible(this.chatInput, { timeout: 15000 });
-  }
-
-  async sendChatbotQuery(query) {
-    await this.actions.waitForVisible(this.chatInput, { timeout: 15000 });
-    await this.chatInput.click();
-    await this.chatInput.fill(query);
-    await this.sendBtn.last().click();
-  }
-
-  async expectFallbackGuidanceVisible() {
-    const fallback = this.page.getByText(/Chào bạn, mình là Chớp|Bạn đang tìm kiếm công việc thuộc lĩnh vực nào/i).first();
-    await expect(fallback).toBeVisible({ timeout: 20000 });
-  }
-
-  async expectJobDrawerHidden() {
-    await expect(this.jobDrawerTitle).toBeHidden();
-  }
-
-  async openJobDrawer() {
-    const btn = this.page.getByRole('button', { name: /Có \d+ công việc phù hợp/i }).last();
-    await this.actions.waitForVisible(btn, { timeout: 35000 });
-    await btn.click();
-    await expect(this.jobDrawerTitle).toBeVisible({ timeout: 20000 });
-  }
-
-  async closeJobDrawer() {
-    await this.actions.waitForVisible(this.drawerCloseBtn, { timeout: 10000 });
-    await this.drawerCloseBtn.click();
-    await expect(this.jobDrawerTitle).toBeHidden({ timeout: 10000 });
-  }
-
-  async reopenJobDrawer() {
-    const btn = this.page.getByRole('button', { name: /Có \d+ công việc phù hợp/i }).first();
-    await this.actions.waitForVisible(btn, { timeout: 15000 });
-    await btn.click();
-    await expect(this.jobDrawerTitle).toBeVisible({ timeout: 20000 });
-  }
-
-  async scrollDrawerToLoadMore() {
-    const responsePromise = this.page.waitForResponse(
-      (res) => res.url().includes('get-job-list') && res.status() === 200,
-      { timeout: 10000 }
-    ).catch(() => null);
-    await this.page.evaluate(() => {
-      const el = document.querySelector('.overflow-y-auto.overscroll-contain.no-scrollbar');
-      if (el) el.scrollTop = el.scrollHeight;
-    });
-    await responsePromise;
-  }
-
-  async getDrawerItemsCount() {
-    return await this.drawerJobCards.count();
-  }
-
-  // --- TC-050 Methods ---
-  async reloadChatbot() {
-    await this.page.reload({ waitUntil: 'domcontentloaded' });
-    await this.actions.waitForVisible(this.chatInput, { timeout: 20000 });
-  }
-
-  async expectGreetingVisible() {
-    const welcomeMsg = this.page.getByText(/Chào .* Mình là Chớp/i).first();
-    await expect(welcomeMsg).toBeVisible({ timeout: 15000 });
-  }
-
-  async expectChatHistoryContains(text) {
-    const el = this.page.getByText(text, { exact: false }).first();
-    await expect(el).toBeVisible({ timeout: 20000 });
-  }
+  // --- ChopChatbotSessionHelper (pages/desktop/chatbot/ChopChatbotSessionHelper.js) ---
+  async navigateToChatbot() { return this.sessionHelper.navigateToChatbot(); }
+  async setupRealChatbotPrecondition(user) { return this.sessionHelper.setupRealChatbotPrecondition(user); }
+  async sendChatbotQuery(query) { return this.sessionHelper.sendChatbotQuery(query); }
+  async expectFallbackGuidanceVisible() { return this.sessionHelper.expectFallbackGuidanceVisible(); }
+  async expectJobDrawerHidden() { return this.sessionHelper.expectJobDrawerHidden(); }
+  async openJobDrawer() { return this.sessionHelper.openJobDrawer(); }
+  async closeJobDrawer() { return this.sessionHelper.closeJobDrawer(); }
+  async reopenJobDrawer() { return this.sessionHelper.reopenJobDrawer(); }
+  async scrollDrawerToLoadMore() { return this.sessionHelper.scrollDrawerToLoadMore(); }
+  async getDrawerItemsCount() { return this.sessionHelper.getDrawerItemsCount(); }
+  async reloadChatbot() { return this.sessionHelper.reloadChatbot(); }
+  async expectGreetingVisible() { return this.sessionHelper.expectGreetingVisible(); }
+  async expectChatHistoryContains(text) { return this.sessionHelper.expectChatHistoryContains(text); }
+  async clearStorageAndCookies(user = null) { return this.sessionHelper.clearStorageAndCookies(user); }
 
   async openSecondTabChatbot() {
     const context = this.page.context();
@@ -368,19 +175,6 @@ class ChopChatbotPage extends BasePage {
     return chatbotB;
   }
 
-  async clearStorageAndCookies(user = null) {
-    await this.page.context().clearCookies();
-    await this.page.evaluate(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-    await this.page.reload({ waitUntil: 'domcontentloaded' });
-    if (user) {
-      await this.loginIfVisible(user);
-    }
-    await this.dismissIntroIfVisible();
-    await this.actions.waitForVisible(this.chatInput, { timeout: 20000 });
-  }
 }
 
 module.exports = { ChopChatbotPage };

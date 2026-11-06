@@ -91,13 +91,17 @@ class JobApplySectionsHelper {
   }
 
   async fillSkill(skillName) {
-    const skillInput = this.owner.page.getByRole('textbox', { name: /Nhập kỹ năng/i })
+    const anySkillInput = this.owner.page.getByRole('textbox', { name: /Nhập kỹ năng/i })
       .or(this.owner.txtCommonInput)
-      .or(this.owner.page.locator('input[placeholder*="kỹ năng" i]'))
-      .first();
+      .or(this.owner.page.locator('input[placeholder*="kỹ năng" i]'));
+    // Mobile: ô "Nhập kỹ năng" trên trang là readonly, chạm vào mới mở bottom sheet chứa ô nhập thật.
+    // Desktop: ô đầu tiên đã nhập được → cả hai locator trỏ cùng một phần tử.
+    const trigger = anySkillInput.first();
+    const skillInput = anySkillInput.and(this.owner.page.locator('input:not([readonly])')).filter({ visible: true }).first();
 
-    await skillInput.waitFor({ state: 'visible', timeout: 15000 });
-    await skillInput.click();
+    await trigger.waitFor({ state: 'visible', timeout: 15000 });
+    await trigger.click();
+    await skillInput.waitFor({ state: 'visible', timeout: 10000 });
     await skillInput.fill(skillName);
 
     const escaped = skillName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -111,6 +115,12 @@ class JobApplySectionsHelper {
       await this.owner.clickElement(targetOption);
     } catch (_e) {
       await skillInput.press('Enter');
+    }
+    // Mobile: bottom sheet "Thêm kỹ năng" có nút riêng "Lưu kỹ năng", che nút Lưu của modal cho tới khi đóng.
+    const btnSaveSkills = this.owner.page.getByRole('button', { name: 'Lưu kỹ năng' });
+    if (await btnSaveSkills.isVisible().catch(() => false)) {
+      await this.owner.clickElement(btnSaveSkills);
+      await btnSaveSkills.waitFor({ state: 'hidden', timeout: 10000 });
     }
   }
 

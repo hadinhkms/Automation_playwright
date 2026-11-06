@@ -17,8 +17,8 @@ const { test, expect } = require('../../../core/fixtures/baseTest');
 test.describe('Ticket JS-8865: Kiểm thử chuyên sâu xử lý URL dài và HTTP 431 @e2e @regression @search @JS-8865', () => {
 
   // Chuẩn nghiệp vụ Seeker: districts chỉ gồm dãy ID số ngăn cách bằng dấu phẩy, không có chữ
-  const generateLongDistrictsQuery = (count = 100) => {
-    return Array.from({ length: count }, (_, i) => 1000 + i).join(',');
+  const generateLongDistrictsQuery = (count = 100, start = 1000) => {
+    return Array.from({ length: count }, (_, i) => start + i).join(',');
   };
 
   test('TC-JS8865-01: Kiểm tra loại bỏ cookie phình to và giới hạn độ dài cookie sv_p_r <= 200 chars', async ({
@@ -86,6 +86,7 @@ test.describe('Ticket JS-8865: Kiểm thử chuyên sâu xử lý URL dài và H
   test('TC-JS8865-03: Kiểm tra luồng khôi phục tự động qua ?_restore=1 và sessionStorage khi URL dài', async ({
     page,
     pages,
+    context,
   }, testInfo) => {
     testInfo.annotations.push({
       type: 'Requirement',
@@ -93,14 +94,23 @@ test.describe('Ticket JS-8865: Kiểm thử chuyên sâu xử lý URL dài và H
     });
 
     const jobSearchPage = pages.jobSearchPage;
-    const longDistricts = generateLongDistrictsQuery(150);
+    // ~6,3 KB URL (dưới ngưỡng Search API) + cookie đệm 1,5 KB để request vượt ~8 KB của Node server → 431.
+    // URL ngắn (vd. 150 quận) không bao giờ chạm 431 nên không kiểm được luồng khôi phục.
+    const longDistricts = generateLongDistrictsQuery(900, 100000);
+    await jobSearchPage.padRequestHeaders(context, testInfo.project.use.baseURL, 1500);
+    const documents = jobSearchPage.startDocumentStatusRecorder();
+    const searchCalls = jobSearchPage.startSearchApiRecorder();
+
     await jobSearchPage.openCustomUrl(`/tim-kiem-viec-lam-nhanh?districts=${longDistricts}`);
+    await page.waitForURL((url) => url.searchParams.get('districts') === longDistricts, { timeout: 20000 });
+    await jobSearchPage.expectSearchFormReady();
 
-    await page.waitForLoadState('networkidle').catch(() => null);
-    await jobSearchPage.expectJobSearchPageVisible();
-
-    const currentUrl = page.url();
-    expect(currentUrl).not.toContain('_restore=1');
+    const statuses = documents.map((d) => d.status);
+    expect(statuses, 'Request URL dài phải bị server trả 431').toContain(431);
+    expect(documents.some((d) => d.url.includes('_restore=1')), 'Phải đi qua trang khôi phục ?_restore=1').toBe(true);
+    expect(page.url()).not.toContain('_restore=1');
+    expect(searchCalls.some((c) => c.hasDistricts), 'Search API phải được gọi lại với đầy đủ districts ở client').toBe(true);
+    await jobSearchPage.expectWarningToastHidden();
   });
 
   test('TC-JS8865-04: Kiểm tra chặn gọi Search API và hiển thị toast warning khi URL vượt ngưỡng ~8 KB (>= 750 quận)', async ({
@@ -113,18 +123,18 @@ test.describe('Ticket JS-8865: Kiểm thử chuyên sâu xử lý URL dài và H
     });
 
     const jobSearchPage = pages.jobSearchPage;
-    let searchApiCalled = false;
-    await page.route('**/api/**/job*search*', (route) => {
-      searchApiCalled = true;
-      route.continue();
-    });
+    const documents = jobSearchPage.startDocumentStatusRecorder();
+    const searchCalls = jobSearchPage.startSearchApiRecorder();
 
-    // 750 ID số thuần túy theo đúng mô tả ticket (750 quận tương đương ~8 KB)
-    const extremeDistricts = Array.from({ length: 750 }, (_, i) => 1000000000 + i).join(',');
+    // ~7,7 KB: vượt giới hạn Search API nhưng dưới ngưỡng ~8,2 KB của nginx.
+    // (750 ID 10 chữ số = 8,3 KB bị nginx trả 414 — ticket ghi rõ luồng đó không tái hiện được.)
+    const extremeDistricts = generateLongDistrictsQuery(700, 1000000000);
     await jobSearchPage.openCustomUrl(`/tim-kiem-viec-lam-nhanh?districts=${extremeDistricts}`);
     await jobSearchPage.expectWarningToastVisible();
 
-    expect(searchApiCalled, 'Search API không được gọi khi URL vượt quá giới hạn 8 KB').toBe(false);
+    expect(documents.map((d) => d.status), 'Request URL dài phải đi qua 431 → ?_restore=1').toContain(431);
+    expect(page.url(), 'URL quay về trang tìm kiếm mặc định, không giữ link dài').not.toContain('districts=');
+    expect(searchCalls.filter((c) => c.hasDistricts), 'Search API không được gọi với link vượt giới hạn').toHaveLength(0);
   });
 
   test('TC-JS8865-05: Kiểm tra KHÔNG gửi tracking events khi đang ở trang khôi phục ?_restore=1', async ({

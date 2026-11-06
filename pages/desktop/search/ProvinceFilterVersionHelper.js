@@ -15,8 +15,8 @@ class ProvinceFilterVersionHelper {
   constructor(pageInstance) {
     this.owner = pageInstance;
     const { page } = pageInstance;
-    // Trigger hiện là button "Lọc theo tỉnh thành" (locator textbox cũ của JobSearchPage không còn khớp).
-    this.trigger = page.getByRole('button', { name: /Lọc theo tỉnh thành/ }).first();
+    // Dùng trigger chung của JobSearchPage: label đổi thành tên tỉnh sau khi Áp dụng nên không neo theo text.
+    this.trigger = pageInstance.locTheoTinhThanhTrigger;
     this.searchByLabel = page.getByText('Tìm theo:').first();
     this.coachMarkOkBtn = page.getByRole('button', { name: 'Tôi đã hiểu' });
     this.applyBtn = page.getByRole('button', { name: 'Áp dụng' }).last();

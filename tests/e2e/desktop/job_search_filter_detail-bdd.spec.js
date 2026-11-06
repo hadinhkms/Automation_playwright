@@ -19,7 +19,8 @@ test.describe('Feature: Tìm kiếm, lọc việc làm và xem chi tiết công 
     pages,
   }, testInfo) => {
     test.slow();
-    test.setTimeout(240000);
+    // 8 bộ lọc tuần tự, mỗi bước ~15-20s trên QC → chạy đơn ~220s, chạy song song dễ vượt 240s.
+    test.setTimeout(360000);
 
     const homePage = pages.homePage;
     const jobSearchPage = pages.jobSearchPage;
@@ -55,7 +56,7 @@ test.describe('Feature: Tìm kiếm, lọc việc làm và xem chi tiết công 
       // Thao tác 2: Bấm chọn danh mục Bán sỉ - Bán lẻ và chuyển sang danh sách tìm kiếm việc làm
       await homePage.selectJobCategory('Bán sỉ - Bán lẻ');
       await jobSearchPage.expectJobSearchPageVisible();
-      await expect(page).toHaveURL(/tim-kiem-viec-lam/i);
+      await expect(page).toHaveURL(/\/viec-lam-ban-si-ban-le[^/]*-o\d+\.html/i);
       await jobSearchPage.capture('02_category_ban_si_ban_le_selected');
     });
 

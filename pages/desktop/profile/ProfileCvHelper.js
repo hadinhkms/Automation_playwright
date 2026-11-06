@@ -101,9 +101,26 @@ class ProfileCvHelper {
     await this.owner.clickElement(btnConfirm);
   }
 
+  /**
+   * Hai luồng chuyển đổi CV:
+   * - Mới (QC 11/2026): Upload → màn "Kiểm tra thông tin" → "Thêm vào Hồ sơ của tôi" (confirmCVConversion) áp dữ liệu ngay, không còn toast.
+   * - Cũ: toast "Chuyển đổi thành công" → bấm toast → modal áp dữ liệu.
+   * Luồng mới được xác nhận bằng nội dung của data/TemplateCV.pdf hiện trên Hồ sơ sau khi màn kiểm tra đóng.
+   */
   async verifyAndApplyCVData() {
-    const txtSuccess = this.owner.page.getByText('Chuyển đổi thành công');
-    await expect(txtSuccess).toBeVisible({ timeout: 60000 });
+    const { page } = this.owner;
+    const txtSuccess = page.getByText('Chuyển đổi thành công');
+    const reviewScreen = page.getByText('Kiểm tra thông tin', { exact: true });
+    const appliedCvContent = page.getByText(/Office Manager with over 6 years/i).first(); // từ data/TemplateCV.pdf
+    await expect(async () => {
+      if (await txtSuccess.isVisible()) return;
+      expect(await reviewScreen.isVisible(), 'Màn "Kiểm tra thông tin" phải đóng sau khi xác nhận').toBe(false);
+      expect(await appliedCvContent.isVisible(), 'Hồ sơ phải hiển thị dữ liệu từ CV đã chuyển đổi').toBe(true);
+    }).toPass({ timeout: 60000 });
+    if (!(await txtSuccess.isVisible())) {
+      if (typeof this.owner.capture === 'function') await this.owner.capture('cv_data_applied_to_profile', false);
+      return;
+    }
 
     if (typeof this.owner.capture === 'function') await this.owner.capture('cv_conversion_success_toast', false);
 

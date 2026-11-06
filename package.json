@@ -11,6 +11,7 @@
     "core",
     "dashboard",
     "pages/BasePage.js",
+    "pages/base",
     "index.js"
   ],
   "scripts": {

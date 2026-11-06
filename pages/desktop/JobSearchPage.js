@@ -1,7 +1,9 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('../BasePage');
 const { JobSearchFilterHelper } = require('./search/JobSearchFilterHelper');
+const { JobSearchCityPickerHelper } = require('./search/JobSearchCityPickerHelper');
 const { JobSearchRestoreHelper } = require('./search/JobSearchRestoreHelper');
+const { JobSearchListHelper } = require('./search/JobSearchListHelper');
 
 class JobSearchPage extends BasePage {
   /**
@@ -19,6 +21,8 @@ class JobSearchPage extends BasePage {
       .filter({ hasNotText: /\u0110\u00e3 \u1ee9ng tuy\u1ec3n|B\u1ea1n v\u1eeba \u1ee9ng tuy\u1ec3n/i })
       .first();
     this.jobSearchResultTitle = page.getByRole('heading', { level: 1 }).first();
+    // Điều hướng client-side (menu Việc làm > Tìm việc làm) render trang 404 ~6s trước khi tự điều hướng lại.
+    this.notFoundHeading = page.getByRole('heading', { level: 1, name: /Không tìm thấy trang/i });
     this.jobCheckboxes = page.locator('.job-item-checkbox');
     this.bulkApplyBtn = page.getByRole('button', { name: 'Ứng tuyển hàng loạt' });
     this.confirmBulkApplyBtn = page.locator('.bulk-apply-modal').getByRole('button', { name: 'Xác nhận' });
@@ -28,11 +32,17 @@ class JobSearchPage extends BasePage {
     this.chopIntroBtn = page.getByRole('img', { name: 'Chop Introduction' });
 
     // Bộ lọc việc làm & tìm kiếm
-    this.locTheoTinhThanhInput = page
-      .getByRole('textbox', { name: 'Lọc theo tỉnh thành' })
-      .or(page.locator('input[placeholder*="tỉnh thành"]'))
+    // Picker tỉnh thành (UI 11/2026): trigger là div role=button, label đổi thành tên tỉnh sau khi Áp dụng;
+    // panel là dialog "Chọn địa điểm" dạng checkbox, phải bấm "Áp dụng" để commit lựa chọn.
+    this.locTheoTinhThanhTrigger = page
+      .locator('[data-test-id="location-search__anchor"]')
+      .or(page.getByRole('button', { name: 'Lọc theo tỉnh thành' }))
       .first();
-    this.cityDropdownContainer = page.locator('.fixed.z-\\[50\\], [class*="fixed"][class*="z-50"], .w-\\[200\\%\\]').first();
+    this.cityDropdownContainer = page.getByRole('dialog', { name: 'Chọn địa điểm' });
+    this.cityPickerApplyBtn = this.cityDropdownContainer.getByRole('button', { name: 'Áp dụng', exact: true });
+    this.cityPickerClearAllBtn = this.cityDropdownContainer.getByRole('button', { name: 'Bỏ chọn tất cả', exact: true });
+    this.cityPickerOldVersionRadio = this.cityDropdownContainer.getByRole('radio', { name: /Tỉnh\/thành cũ/ });
+    this.cityPickerCoachMarkBtn = page.getByRole('button', { name: 'Tôi đã hiểu' });
     this.timKiemBtn = page.getByRole('button', { name: 'Tìm kiếm' }).first();
     this.xoaLocBtn = page.getByText('Xoá lọc');
 
@@ -50,7 +60,8 @@ class JobSearchPage extends BasePage {
     this.defaultExperienceBtn = page.getByRole('button', { name: /Tất cả kinh nghiệm/i }).first();
 
     // Locators cho kiểm thử URL dài & HTTP 431 restore (JS-8865)
-    this.toastWarning = page.getByText(/Bạn đã chọn quá nhiều khu vực/i).first();
+    // Text thực tế trên QC (đã verify trong JS-8865) khác câu trong mô tả ticket → chấp nhận cả hai.
+    this.toastWarning = page.getByText(/Kết quả sẽ tốt hơn khi chọn ít khu vực|Bạn đã chọn quá nhiều khu vực/i).first();
     this.robotsMeta = page.locator('meta[name="robots"], meta[name="googlebot"]').first();
     this.fallbackErrorMsg = page.getByText(/Không thể mở liên kết này/i).first();
     this.retrySearchBtn = page.getByRole('button', { name: /Tìm lại/i }).first();
@@ -59,7 +70,9 @@ class JobSearchPage extends BasePage {
 
     // Modular helpers
     this.filterHelper = new JobSearchFilterHelper(this);
+    this.cityPickerHelper = new JobSearchCityPickerHelper(this);
     this.restoreHelper = new JobSearchRestoreHelper(this);
+    this.listHelper = new JobSearchListHelper(this);
   }
 
   async navigate() {
@@ -74,95 +87,33 @@ class JobSearchPage extends BasePage {
     await this.navigate();
   }
 
-  async clickFirstJob() {
-    const pagePromise = this.page.waitForEvent('popup');
-    const targetJob = await this.firstUnappliedJobLink.isVisible({ timeout: 5000 })
-      ? this.firstUnappliedJobLink
-      : this.firstJobLink;
-    await this.clickElement(targetJob);
-    const jobPage = await pagePromise;
-    await jobPage.waitForLoadState('domcontentloaded');
-    return jobPage;
-  }
-
-  async closeGuestPromptModalIfVisible() {
-    const dialog = this.page.getByRole('dialog');
-    if (await dialog.isVisible({ timeout: 2500 }).catch(() => false)) {
-      const closeBtn = dialog.locator('button, [class*="close" i], i, svg, [cursor="pointer"]').last();
-      if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await closeBtn.click({ force: true }).catch(() => null);
-      } else {
-        await this.page.keyboard.press('Escape').catch(() => null);
-      }
-      await dialog.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {
-        return this.page.evaluate(() => {
-          document.querySelectorAll('.ReactModalPortal').forEach(el => el.remove());
-        }).catch(() => null);
-      });
-    }
-  }
-
-  async openChopChatbot() {
-    await this.closeGuestPromptModalIfVisible();
-    const popupPromise = this.page.waitForEvent('popup');
-    try {
-      await this.clickElement(this.chopIntroBtn, { timeout: 5000 });
-    } catch (err) {
-      await this.closeGuestPromptModalIfVisible();
-      await this.clickElement(this.chopIntroBtn);
-    }
-    const chatbotPopup = await popupPromise;
-    await chatbotPopup.waitForLoadState('domcontentloaded');
-    return chatbotPopup;
-  }
+  // --- JobSearchListHelper (pages/desktop/search/JobSearchListHelper.js) ---
+  async clickFirstJob() { return this.listHelper.clickFirstJob(); }
+  async closeGuestPromptModalIfVisible() { return this.listHelper.closeGuestPromptModalIfVisible(); }
+  async openChopChatbot() { return this.listHelper.openChopChatbot(); }
+  async selectJobsForBulkApply(numberOfJobs) { return this.listHelper.selectJobsForBulkApply(numberOfJobs); }
+  async clickBulkApplyButton() { return this.listHelper.clickBulkApplyButton(); }
+  async confirmBulkApply() { return this.listHelper.confirmBulkApply(); }
+  async expectBulkApplySuccessMessageVisible() { return this.listHelper.expectBulkApplySuccessMessageVisible(); }
+  async clickJobByTitle(title) { return this.listHelper.clickJobByTitle(title); }
 
   async expectJobSearchPageVisible() {
     await this.page.waitForLoadState('domcontentloaded');
     const heading = this.jobSearchResultTitle.or(this.page.getByRole('heading', { level: 1 })).first();
     await expect(heading).toBeVisible({ timeout: 15000 });
-  }
-
-  async selectJobsForBulkApply(numberOfJobs) {
-    const allCheckboxes = await this.jobCheckboxes.all();
-    for (let i = 0; i < Math.min(numberOfJobs, allCheckboxes.length); i++) {
-      await allCheckboxes[i].check();
-    }
-  }
-
-  async clickBulkApplyButton() { await this.clickElement(this.bulkApplyBtn); }
-  async confirmBulkApply() { await this.clickElement(this.confirmBulkApplyBtn); }
-  async expectBulkApplySuccessMessageVisible() {
-    await expect(this.bulkApplySuccessMsg).toBeVisible({ timeout: 15000 });
-  }
-
-  async clickJobByTitle(title) {
-    await this.closeAllPopupsIfVisible();
-    await this.page.waitForLoadState('domcontentloaded');
-    const jobLink = title
-      ? this.page.getByRole('link', { name: new RegExp(title, 'i') }).first()
-      : this.page.locator('a[href*="-c"][href*="id"], a[href*="id200"], a[href*=".html?open_from="], a:has(h3)').first();
-
-    await jobLink.scrollIntoViewIfNeeded({ timeout: 10000 }).catch(() => null);
-    await jobLink.waitFor({ state: 'visible', timeout: 15000 });
-    const popupPromise = this.page.waitForEvent('popup', { timeout: 8000 }).catch(() => null);
-    await jobLink.click({ force: true });
-    const newTab = await popupPromise;
-    if (newTab) {
-      await newTab.waitForLoadState('domcontentloaded');
-      return newTab;
-    }
-    await this.page.waitForLoadState('domcontentloaded');
-    return this.page;
+    // H1 404 cũng là heading level 1: chờ trang tìm kiếm thật, nếu thao tác lọc trong lúc này
+    // lần điều hướng lại muộn sẽ ghi đè bộ lọc vừa chọn.
+    await expect(this.notFoundHeading).toBeHidden({ timeout: 20000 });
   }
 
   // --- Delegation: Search Filters ---
-  async expectCityFilterApplied(cityName, districtName) { return this.filterHelper.expectCityFilterApplied(cityName, districtName); }
+  async expectCityFilterApplied(cityName, districtName) { return this.cityPickerHelper.expectCityFilterApplied(cityName, districtName); }
   async expectExperienceFilterApplied(expLabel) { return this.filterHelper.expectExperienceFilterApplied(expLabel); }
   async expectFiltersReset() { return this.filterHelper.expectFiltersReset(); }
-  async openCityDropdown() { return this.filterHelper.openCityDropdown(); }
-  async selectCityOption(cityName, districtName) { return this.filterHelper.selectCityOption(cityName, districtName); }
-  async clickSearch() { return this.filterHelper.clickSearch(); }
-  async filterByCity(cityName, districtName) { return this.filterHelper.filterByCity(cityName, districtName); }
+  async openCityDropdown() { return this.cityPickerHelper.openCityDropdown(); }
+  async selectCityOption(cityName, districtName) { return this.cityPickerHelper.selectCityOption(cityName, districtName); }
+  async clickSearch() { return this.cityPickerHelper.clickSearch(); }
+  async filterByCity(cityName, districtName) { return this.cityPickerHelper.filterByCity(cityName, districtName); }
   async filterByTuyenNhanh() { return this.filterHelper.filterByTuyenNhanh(); }
   async filterByViecKhongCanCv() { return this.filterHelper.filterByViecKhongCanCv(); }
   async filterByExperience(expLabel) { return this.filterHelper.filterByExperience(expLabel); }
@@ -180,6 +131,11 @@ class JobSearchPage extends BasePage {
   async expectWarningToastVisible() { return this.restoreHelper.expectWarningToastVisible(); }
   async getRobotsMetaDirective() { return this.restoreHelper.getRobotsMetaDirective(); }
   async expectFallbackErrorVisible() { return this.restoreHelper.expectFallbackErrorVisible(); }
+  async padRequestHeaders(context, baseURL, bytes) { return this.restoreHelper.padRequestHeaders(context, baseURL, bytes); }
+  startSearchApiRecorder() { return this.restoreHelper.startSearchApiRecorder(); }
+  startDocumentStatusRecorder() { return this.restoreHelper.startDocumentStatusRecorder(); }
+  async expectSearchFormReady() { return this.restoreHelper.expectSearchFormReady(); }
+  async expectWarningToastHidden() { return this.restoreHelper.expectWarningToastHidden(); }
 }
 
 module.exports = { JobSearchPage };

@@ -67,7 +67,13 @@ class JobApplyPage extends BasePage {
     this.lblLanguage = this.page.getByText('Chọn ngoại ngữ').first();
 
     // Submit Application & Final steps
-    this.chkAllowSearch = this.page.locator('[data-test-id="common__checkbox"] input[type="checkbox"]').first();
+    this.chkAllowSearch = this.page.locator('[data-test-id="common__checkbox"]')
+      .filter({ hasText: /Nhà tuyển dụng tìm kiếm hồ sơ/i })
+      .locator('input[type="checkbox"]')
+      .or(this.page.locator('[data-test-id="common__checkbox"] input[type="checkbox"]'))
+      .first();
+    // Nút chốt của modal "Ứng tuyển với Hồ sơ của tôi": UI 11/2026 là "Hoàn thành hồ sơ" (trước đây "Lưu")
+    this.btnSubmitProfile = this.page.getByRole('button', { name: /Hoàn thành hồ sơ/i }).or(this.btnCommonSave).first();
     this.msgSuccess = this.page.getByText('Ứng tuyển thành công!').first();
     this.msgBulkApplySuccess = this.page.getByText(/Ứng tuyển thành công(?:\s*\d+\s*vị trí)?!?/i).first();
     this.chkConfirmAll = this.page.locator('[data-test-id="common__checkall"]').first();
@@ -159,7 +165,7 @@ class JobApplyPage extends BasePage {
 
   async submitApplication() {
     await this.actions.check(this.chkAllowSearch);
-    await this.clickElement(this.btnCommonSave);
+    await this.clickElement(this.btnSubmitProfile);
   }
 
   // --- Delegation: Section Actions ---

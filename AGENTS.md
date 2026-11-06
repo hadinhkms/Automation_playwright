@@ -63,6 +63,12 @@ Mọi tri thức tự học, quyết định kỹ thuật, quy tắc bất biế
 ### A. Playwright Automation & QA Testing Skills
 Khi làm việc với các file Playwright test, Page Objects, fixtures, `requirements/`, `test-cases/`:
 - Đọc và tuân thủ tuyệt đối [ai/shared/AI_PROMPTS.md](file:///ai/shared/AI_PROMPTS.md) và [ai/shared/TEST_AUTOMATION_LESSONS.md](file:///ai/shared/TEST_AUTOMATION_LESSONS.md).
+- **Nguồn skill & Live Skill Discovery (áp dụng cho Claude, Codex, Gemini và mọi agent đọc file này):** skill QA chuẩn nằm ở repo `hadinhkms/Support_doc_n_TestCase`, nhánh `main`, thư mục `.agents/skills/` (clone cục bộ: `D:/_QA_Test_Automation`). Chỉ dùng bản **đã commit và push**; không đọc working tree đang sửa dở. Lấy skill theo thứ tự, dừng ở mức đầu tiên làm được:
+  1. **Clone cục bộ, nhánh `origin/main`** (chạy được lệnh git): `git -C D:/_QA_Test_Automation fetch origin main` (lỗi mạng thì bỏ qua, dùng `origin/main` đang có); liệt kê skill `git -C D:/_QA_Test_Automation ls-tree -d --name-only origin/main .agents/skills/`; đọc `git -C D:/_QA_Test_Automation show "origin/main:./.agents/skills/<skill>/SKILL.md"` (giữ `./` và dấu nháy để chạy được cả PowerShell lẫn Git Bash); file phụ `git -C D:/_QA_Test_Automation ls-tree -r --name-only origin/main .agents/skills/<skill>/` rồi `git -C D:/_QA_Test_Automation show "origin/main:./<đường dẫn>"` từng file cần.
+  2. **GitHub** (không có clone, có mạng): `https://raw.githubusercontent.com/hadinhkms/Support_doc_n_TestCase/main/.agents/skills/<skill>/SKILL.md` (repo public, không cần token); danh sách skill xem tại `https://github.com/hadinhkms/Support_doc_n_TestCase/tree/main/.agents/skills`.
+  3. **Bản cục bộ** `.agents/skills/` của repo này và danh sách bên dưới (CI, offline, hoặc agent không chạy được lệnh/mạng).
+  - Chọn skill theo `name` + `description` trong front-matter của từng `SKILL.md`, kể cả skill mới chưa có trong danh sách bên dưới. Dòng "Live Source" trong `SKILL.md` được hiểu theo đúng thứ tự trên.
+  - Ghi rõ đã dùng mức nào (và commit hash `git -C D:/_QA_Test_Automation rev-parse --short origin/main` nếu mức 1) khi kết quả dùng cho release/sign-off.
 - Sử dụng bộ skills chuyên sâu trong `.agents/skills/` (đồng bộ từ `D:\_QA_Test_Automation`):
   * Viết/sửa Playwright test script (POM/BDD): [.agents/skills/playwright_test/SKILL.md](file:///.agents/skills/playwright_test/SKILL.md)
   * Rà soát Logic Gaps, độ phủ `REQ -> AC -> TC -> Spec` & Selective Learning: [.agents/skills/qa-logic-gaps/SKILL.md](file:///.agents/skills/qa-logic-gaps/SKILL.md)

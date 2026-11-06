@@ -4,7 +4,6 @@
 > Đây là nơi chứa các bài học, quan sát, quy tắc mới được AI và các Role trích xuất sau khi hoàn thành Feature, Bug fix, Review hoặc QA.
 > Các candidate ở đây CHƯA PHẢI LÀ STANDARD cho đến khi được Knowledge Curator duyệt qua Gate 0.5.
 
-<!-- Mẫu ứng viên học hỏi:
 ### [LEARN-026] Chuẩn Hóa Dropdown Kỹ Năng Tùy Chỉnh / Hệ Thống & Bẫy Selector Nút Lưu Tại Actions-Button
 - **Nguồn trích xuất:** TASK-PROFILE-AND-APPLY-SKILL-BEHAVIOR-FIX (REQ-005 & REQ-001)
 - **Role quan sát:** Senior Automation QA Engineer (Gate 4)
@@ -21,15 +20,6 @@
   1. Xử lý dropdown kỹ năng bằng selector đa tầng: tìm option `text=/Thêm mới:\s*<skill>/i`, fallback sang exact match hoặc partial match, và dự phòng phím `Enter` nếu dropdown không xuất hiện.
   2. Tuyệt đối không chọn nút Save chung chung bằng `.first()` trong `common__actions-button`; luôn lọc tường minh qua text: `.filter({ hasText: /Lưu/i })` hoặc `getByRole('button', { name: /Lưu/i })`.
   3. Với các luồng composite dài trên QC, luôn chủ động tăng timeout phù hợp trước khi gọi `test.slow()`.
-### [LEARN-027] Kiểm Thử Cơ Chế Phục Hồi HTTP 431 (?_restore=1), Cookie Bloat & Client URL Guard
-- **Nguồn trích xuất:** Ticket JS-8865 (Fix HTTP 431 Request Header Or Cookie Too Large)
-- **Role quan sát:** Senior Automation QA Engineer (Gate 4)
-- **Quan sát & Nguyên tắc:**
-  1. Với cơ chế self-healing URL dài qua `?_restore=1` và `sessionStorage`, kiểm thử tự động cần intercept tracking network để xác nhận 0 request analytics và assert `<meta name="robots" content="noindex, nofollow">` trên trang restore.
-  2. Cookie bloat phòng ngừa bằng cách kiểm tra context cookies không tồn tại các cookie tìm kiếm cũ và `sv_p_r` $\le$ 200 ký tự.
-  3. URL vượt ngưỡng API $\ge$ 8 KB (~750 quận): Xác nhận client chặn thành công Search API request và hiển thị đúng Toast warning thay vì để server 431.
-- **Trạng thái:** PENDING
-
 ### [LEARN-028] Quy Tắc Validation Ô Input SĐT SMS OTP (JS-8819) & Tương Tác Controlled Input Trong Modal
 - **Nguồn trích xuất:** Ticket JS-8819 (Cải thiện SMS OTP: kiểm tra đầu số SĐT & countdown)
 - **Role quan sát:** Senior Automation QA Engineer (Gate 4)
@@ -38,14 +28,27 @@
   2. Khi kiểm thử ô input SĐT React trong HeadlessUI modal (`[role="dialog"]`), luôn scope locator vào `dialog`, xóa giá trị cũ bằng `click()` + `Control+A` + `Backspace` trước khi `pressSequentially()`, và dùng `.getByText(/Số điện thoại không hợp lệ/i)` thay vì nối chuỗi CSS với `text=`.
 - **Trạng thái:** PENDING
 
-### [2026-10-30] Chớp Web – test luồng đăng nhập/onboarding trên QC
+### [CAND-20261030-CHOP-ONBOARDING] Chớp Web – test luồng đăng nhập/onboarding trên QC
 - **Role quan sát:** Senior QA (Gate 4)
 - **Quan sát & Nguyên tắc:**
   1. Onboarding seeker nằm trong `#common__modal`; dropdown ngành nghề render qua portal `[data-test-id="common__select-dropdown"]` → chọn option ngoài modal. Trên mobile picker toàn màn hình không có nút Đóng (chạm vùng trống để thoát); màn đồng ý DLCN phải cuộn hết mới bật "Đồng ý".
   2. Kiểm tra "hội thoại mới" của chatbot bằng `conversation_id` trong `POST apigw/api/v1/chatbot/chats`, không dựa vào UI. Tracking chatbot không phát ra phía client trên QC → không kết luận tracking qua network.
 - **Trạng thái:** PENDING
-- **Role quan sát:** Senior QA (Gate 4) — JS-8873 Zalo OTP (2026-11-02)
-- **Quan sát & Nguyên tắc:** Request OTP seeker đi qua `GET /<nonce>?phone=…&platform=…&m=s[&channel=zalo]` cùng origin (không chứa chữ "otp") → chặn/mock phải match `?phone=`, nếu không sẽ gửi OTP thật. Response dạng text `1|seconds|request_id|expiredAt` / `0|CODE|message|reason|duration|seconds|expiredAt`.
+
+### [CAND-20261102-APPBOX-CHECKLIST] Checklist Appbox trong Jira issue property
+- **Quan sát:** [2026-11-02] Checklist Appbox lưu ở issue property `com.appbox.ai.checklist-ticket-checklist(_0)` (compress-json); mark DONE = `done:true` + status Completed `241b6786-…` + cập nhật section/stats, sửa tại chỗ và verify round-trip; mỗi property Jira ≤ 32.768 byte (PUT 400 nếu vượt) → đo byte trước khi ghi, đừng ghi header/stats trước data; status khác: Blocked `9433c363-…`, Skipped `4ae1bba0-…` (isDone). Headless lặp nhiều lần trên QC bị chặn autocomplete/reverse-geocode (reCAPTCHA) → chuyển sang browser thật. QC giới hạn ~3 lần gửi OTP/SĐT → dùng user mới cho mỗi luồng login.
 - **Trạng thái:** PENDING
-- [2026-11-02] Checklist Appbox lưu ở issue property `com.appbox.ai.checklist-ticket-checklist(_0)` (compress-json); mark DONE = `done:true` + status Completed `241b6786-…` + cập nhật section/stats, sửa tại chỗ và verify round-trip; mỗi property Jira ≤ 32.768 byte (PUT 400 nếu vượt) → đo byte trước khi ghi, đừng ghi header/stats trước data; status khác: Blocked `9433c363-…`, Skipped `4ae1bba0-…` (isDone). Headless lặp nhiều lần trên QC bị chặn autocomplete/reverse-geocode (reCAPTCHA) → chuyển sang browser thật. QC giới hạn ~3 lần gửi OTP/SĐT → dùng user mới cho mỗi luồng login.
-- **Role quan sát:** Senior QA (Gate 4) — JS-8873 (2026-11-03): paste OTP do script tạo (`new ClipboardEvent`) có `isTrusted=false`; component OTP có nhánh riêng cho paste trusted 4 số → không kết luận bug paste từ event giả, phải xác nhận trên thiết bị/Playwright `page.keyboard` với clipboard thật. **Trạng thái:** PENDING
+- **Đề xuất Curator:** REJECTED — ngoài phạm vi repo automation (thao tác Jira/Appbox); đã lưu vào memory cá nhân của agent. Cần Owner ký duyệt trong promotion-log.
+
+### [CAND-20261103-OTP-PASTE-TRUSTED] Paste OTP bằng ClipboardEvent giả có isTrusted=false
+- **Role quan sát:** Senior QA (Gate 4) — JS-8873 (2026-11-03): paste OTP do script tạo (`new ClipboardEvent`) có `isTrusted=false`; component OTP có nhánh riêng cho paste trusted 4 số → không kết luận bug paste từ event giả, phải xác nhận trên thiết bị/Playwright `page.keyboard` với clipboard thật.
+- **Trạng thái:** PENDING
+- **Đề xuất Curator:** giữ PENDING (1 evidence, Severity NORMAL).
+
+### [CAND-20261106-REACT-DOM-REMOVE] Xoá node React để đóng popup làm hỏng router (404 → redirect)
+- **Role quan sát:** Senior QA (Gate 4) — TC-094 (2026-11-06): `el.remove()` trên `.ReactModalPortal`/`.mbep-popup` (BasePage.closeAllPopupsIfVisible, auto-handler) làm hỏng cây React → điều hướng client-side kế tiếp render 404 "Không tìm thấy trang" ~6s rồi redirect về `/tim-kiem-viec-lam-nhanh`, ghi đè bộ lọc → dễ báo nhầm bug sản phẩm. Chỉ ẩn (`style.display='none'`), không remove node React; repro "bug" phải chạy không can thiệp DOM. Ngành ở Home là `<a href="/viec-lam-...-oN.html">` (không còn trong heading).
+- **Trạng thái:** PENDING
+- **Severity:** HIGH
+- **Đề xuất Curator:** RESOLVED — cùng nguyên nhân gốc với lesson 2026-11-05 "Shared popup helpers close or corrupt feature modals"; đã mở rộng lesson đó (triệu chứng 404/redirect, helper chung nay chỉ ẩn). Cần Owner ký duyệt trong promotion-log.
+- **Merged Into (đề xuất):** ai/shared/TEST_AUTOMATION_LESSONS.md
+
