@@ -57,12 +57,14 @@ test.describe('Feature: Guest ứng tuyển việc không cần CV @guest @no-au
 
     await test.step('And [1] Người dùng điền số điện thoại đã có tài khoản trong hệ thống', async () => {
       await jobApplyNoCVPage.fillGuestContact(guestDataWithExistingPhone);
+      // Form ứng tuyển khách (UI 11/2026) bắt buộc Địa điểm, Giới thiệu, Năm sinh, Học vấn trước khi Nộp hồ sơ
+      await jobApplyNoCVPage.fillMiniProfile(guestDataWithExistingPhone);
       await jobApplyNoCVPage.capture('guest_contact_filled_with_existing_phone');
     });
 
     await test.step('Then [1] Hệ thống nhận diện số điện thoại đã tồn tại và hiển thị thông báo hoặc yêu cầu đăng nhập', async () => {
       await jobApplyNoCVPage.submitGuestProfile(guestDataWithExistingPhone.phone);
-      await expect(jobApplyNoCVPage.accountExistsNotice.or(jobApplyNoCVPage.applyModal)).toBeVisible();
+      await expect(jobApplyNoCVPage.accountExistsNotice.or(jobApplyNoCVPage.applyModal).first()).toBeVisible();
       await jobApplyNoCVPage.capture('existing_phone_account_handled');
     });
   });

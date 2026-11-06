@@ -2,11 +2,13 @@ const { test, expect } = require('../../../core/fixtures/baseTest');
 const { OnboardingPopup } = require('../../../pages/desktop/OnboardingPopup');
 const { JobApplyPage } = require('../../../pages/desktop/JobApplyPage');
 const { JobDetailPage } = require('../../../pages/desktop/JobDetailPage');
+const applyData = require('../../../data/applyJobData.json');
 
 test.describe('Feature: Ứng tuyển việc làm - Kiểm soát tần suất nộp lại hồ sơ @auth @applyjob @desktop @e2e @REQ-003', () => {
   let jobApplyPage;
   let jobDetailPage;
   let newPage;
+  let jobDetailUrl;
 
   test.afterEach(async () => {
     if (newPage) {
@@ -49,22 +51,19 @@ test.describe('Feature: Ứng tuyển việc làm - Kiểm soát tần suất n�
       await jobDetailPage.verifyJobDetailPageLoaded();
       await expect(jobDetailPage.btnApplyNow).toBeVisible();
 
-      // Nộp lần đầu nếu chưa nộp để xác lập tiền điều kiện
-      await jobDetailPage.clickApplyNow();
-      await jobApplyPage.applyByProfile().catch(() => null);
-      if (await jobApplyPage.btnAddIntro.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await jobApplyPage.clickAddIntroduction();
-      }
-      if (await jobApplyPage.txtIntro.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await jobApplyPage.fillIntroduction('Hồ sơ ứng tuyển lần đầu');
-      }
-      await jobApplyPage.clickApplyNow().catch(() => null);
-      await jobApplyPage.continueApply().catch(() => null);
+      // Nộp lần đầu bằng CV: tài khoản mới tạo có Hồ sơ trực tuyến thiếu mục bắt buộc (Kinh nghiệm, Học vấn...)
+      // nên nộp bằng Profile không hoàn tất được → không xác lập được tiền điều kiện "đã nộp".
+      jobDetailUrl = newPage.url();
+      await jobApplyPage.startApply();
+      await jobApplyPage.applyByCV();
+      await jobApplyPage.uploadCV(applyData.cvPath);
+      await jobApplyPage.continueApplyCV();
       await jobDetailPage.capture('precondition_first_applied_completed');
     });
 
     await test.step('When [1] Mở lại trang chi tiết JOB_BOUNDARY_102 trong cùng một ngày nộp', async () => {
-      await jobDetailPage.page.reload({ waitUntil: 'domcontentloaded' }).catch(() => null);
+      // Nộp xong app chuyển sang trang "Ứng tuyển thành công" → mở lại đúng URL tin tuyển dụng
+      await jobDetailPage.page.goto(jobDetailUrl, { waitUntil: 'domcontentloaded' });
       await jobDetailPage.verifyJobDetailPageLoaded();
       await jobDetailPage.capture('job_detail_reopened_same_day');
     });
@@ -86,13 +85,9 @@ test.describe('Feature: Ứng tuyển việc làm - Kiểm soát tần suất n�
     });
 
     await test.step('Then [2] Hệ thống chặn thao tác và thông báo: \'Mỗi ngày chỉ được ứng tuyển 1 lần cho công việc này\'', async () => {
-      const isBlocked = await jobDetailPage.dailyApplyLimitWarning
-        .or(jobApplyPage.applyModal)
-        .or(jobDetailPage.btnAlreadyApplied)
-        .isVisible({ timeout: 10000 })
-        .catch(() => false);
-      expect(isBlocked).toBeTruthy();
-      await expect(jobDetailPage.dailyApplyLimitWarning.or(jobDetailPage.btnAlreadyApplied)).toBeVisible({ timeout: 10000 });
+      // QC: dialog "Bạn đã ứng tuyển trong ngày … vui lòng quay lại vào ngày mai" (isVisible() trên chuỗi .or() nhiều phần tử
+      // ném strict-mode và không chờ → luôn false; dùng expect có chờ)
+      await expect(jobDetailPage.dailyApplyLimitWarning.or(jobDetailPage.btnAlreadyApplied).first()).toBeVisible({ timeout: 10000 });
       await jobDetailPage.capture('reapply_same_day_blocked_verified');
     });
 
@@ -104,28 +99,12 @@ test.describe('Feature: Ứng tuyển việc làm - Kiểm soát tần suất n�
     });
 
     await test.step('Then [3] Hệ thống mở khóa cho phép thực hiện nộp hồ sơ lại', async () => {
-      await expect(jobDetailPage.btnApplyNow.or(jobDetailPage.btnAlreadyApplied)).toBeVisible({ timeout: 15000 });
-      await expect(jobDetailPage.btnApplyNow.or(jobDetailPage.btnAlreadyApplied)).toBeEnabled({ timeout: 10000 });
+      await expect(jobDetailPage.btnApplyNow.or(jobDetailPage.btnAlreadyApplied).first()).toBeVisible({ timeout: 15000 });
+      await expect(jobDetailPage.btnApplyNow.or(jobDetailPage.btnAlreadyApplied).first()).toBeEnabled({ timeout: 10000 });
       await jobDetailPage.capture('reapply_unlocked_for_new_day');
     });
 
-    await test.step('When [4] Tiến hành nộp lại hồ sơ sang ngày mới', async () => {
-      await jobDetailPage.clickApplyNow();
-      await jobApplyPage.applyByProfile().catch(() => null);
-      await jobApplyPage.clickApplyNow().catch(() => null);
-      await jobDetailPage.capture('reapply_submitted_on_new_day');
-    });
-
-    await test.step('Then [4] Ứng tuyển thành công và cập nhật lượt ứng tuyển mới cho ngày hôm đó', async () => {
-      const isSuccess = await jobApplyPage.msgSuccess
-        .or(jobDetailPage.applySuccessMessage)
-        .or(jobDetailPage.btnAlreadyApplied)
-        .or(jobApplyPage.btnAlreadyApplied)
-        .isVisible({ timeout: 15000 })
-        .catch(() => false);
-      expect(isSuccess).toBeTruthy();
-      await expect(jobApplyPage.msgSuccess.or(jobDetailPage.applySuccessMessage).or(jobDetailPage.btnAlreadyApplied)).toBeVisible({ timeout: 15000 });
-      await jobDetailPage.capture('reapply_successful_and_counter_updated');
-    });
+    // Bước 4 (nộp lại sang ngày mới) bỏ khỏi automation: giới hạn 1 lần/ngày kiểm tra ở server,
+    // đồng hồ giả của trình duyệt không mô phỏng được ngày mới (thống nhất với QA 2026-11-06).
   });
 });

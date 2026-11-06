@@ -46,7 +46,8 @@ class AppliedJobsHelper {
     }
 
     await this.owner.clickElement(this.owner.accountMenuButton);
-    await this.owner.capture('account_menu_opened');
+    // Viewport: ảnh fullPage làm modal onboarding (tài khoản chưa onboarding) mở lại và chặn click menu
+    await this.owner.capture('account_menu_opened', false);
 
     // On mobile web, "Quản lý việc làm" is an accordion menu that needs to be expanded first
     const jobManagementAccordion = this.owner.page.getByRole('button', { name: /Quản lý việc làm/i })
@@ -71,11 +72,11 @@ class AppliedJobsHelper {
           this.owner.clickElement(appliedLink, { timeout: 10000 }),
         ]);
       } else {
-        await this.owner.navigate('/ntv-trang-quan-tri-viec-lam-da-ung-tuyen.html');
+        await this.owner.page.goto('/ntv-trang-quan-tri-viec-lam-da-ung-tuyen.html', { waitUntil: 'domcontentloaded' }); // HomePage.navigate() bỏ qua path
       }
     } catch (_err) {
       if (!targetUrlPattern.test(this.owner.page.url())) {
-        await this.owner.navigate('/ntv-trang-quan-tri-viec-lam-da-ung-tuyen.html');
+        await this.owner.page.goto('/ntv-trang-quan-tri-viec-lam-da-ung-tuyen.html', { waitUntil: 'domcontentloaded' }); // HomePage.navigate() bỏ qua path
       }
     }
   }

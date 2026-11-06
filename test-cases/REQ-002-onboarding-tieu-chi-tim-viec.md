@@ -8,7 +8,7 @@
 | TC-008 | AC-005 AC-006 AC-007 | Hoàn tất năm bước onboarding trên mobile web | P1 | Có | tests/e2e/mobile-web/onboarding-bdd.mobile.spec.js |
 | TC-031 | AC-005 | Xác nhận thành công khi bỏ trống trường tùy chọn (trường tùy chọn theo quyết định) | P2 | Có | tests/e2e/desktop/xac-nhan-thanh-cong-khi-bo-trong-truong-tuy-chon-truong-tuy-.spec.js |
 | TC-035 | AC-005 | Kiểm tra đóng modal onboarding giữa chừng và kiểm tra trạng thái trang chủ | P1 | Có | tests/e2e/desktop/dong-modal-onboarding-giua-chung.spec.js |
-| TC-041 | AC-005 | Kiểm thử luồng Bỏ qua Onboarding (Skip flow) và duy trì trạng thái tài khoản khi đăng nhập lại | P2 | Có | tests/e2e/desktop/kiem-thu-luong-bo-qua-onboarding-skip-flow-va-duy-tri-trang.spec.js |
+| TC-041 | AC-005 | Kiểm thử luồng Bỏ qua Onboarding (Skip flow) và hiển thị lại Onboarding khi đăng nhập lại mà tiêu chí còn thiếu | P2 | Có | tests/e2e/desktop/kiem-thu-luong-bo-qua-onboarding-skip-flow-va-duy-tri-trang.spec.js |
 
 
 ## Chi tiết
@@ -69,19 +69,19 @@
 | 2 | Kiểm tra giao diện trang chủ | Nội dung trang chủ hiển thị đầy đủ, không còn overlay chặn tương tác |
 
 
-### TC-041 — Kiểm thử luồng Bỏ qua Onboarding (Skip flow) và duy trì trạng thái tài khoản khi đăng nhập lại
+### TC-041 — Kiểm thử luồng Bỏ qua Onboarding (Skip flow) và hiển thị lại Onboarding khi đăng nhập lại mà tiêu chí còn thiếu
 
 - **Loại:** Chức năng / Tích hợp | **Ưu tiên:** P2 | **Kỹ thuật:** Luồng kiểm thử trạng thái / Lifecycle
 - **Automation:** Có
 - **Spec:** `tests/e2e/desktop/kiem-thu-luong-bo-qua-onboarding-skip-flow-va-duy-tri-trang.spec.js`
 - **Tiền điều kiện:** Tài khoản người dùng mới tạo chưa từng onboarding, đang ở màn hình trang chủ sau khi đăng nhập lần đầu.
-- **Dữ liệu kiểm thử:** Tài khoản test mới: `user_test_skip_onboarding@example.com`
-> *Ghi chú nghiệp vụ:* Kịch bản hợp nhất từ các case kiểm thử phân mảnh trước đây theo các quyết định chốt Q-1 và Q-2. Đảm bảo tính năng bỏ qua Onboarding hoạt động trơn tru ngay từ bước đầu tiên và hệ thống ghi nhớ trạng thái bền vững, không hiển thị lại modal khi người dùng đăng nhập lại trong các phiên sau. (Lưu ý: Luồng đồng bộ dữ liệu Onboarding sang Tiêu chí tìm việc được kiểm chứng tập trung tại kịch bản kiểm thử thuộc REQ-005).
+- **Dữ liệu kiểm thử:** Tài khoản test mới tạo qua API cho mỗi lần chạy (đăng nhập lại bằng SĐT, OTP SMS `1111`)
+> *Ghi chú nghiệp vụ:* Kịch bản hợp nhất từ các case kiểm thử phân mảnh trước đây theo các quyết định chốt Q-1 và Q-2. Đảm bảo tính năng bỏ qua Onboarding hoạt động trơn tru ngay từ bước đầu tiên. **Cập nhật 2026-11-06 (QA xác nhận):** môi trường testing cấu hình Onboarding hiển thị hơn 1 lần/ngày — khi tiêu chí tìm việc (thông tin Onboarding) còn thiếu, Onboarding hiển thị lại mỗi khi người dùng quay lại trang chủ / đăng nhập lại; đây là hành vi đúng, không phải bug. (Lưu ý: Luồng đồng bộ dữ liệu Onboarding sang Tiêu chí tìm việc được kiểm chứng tập trung tại kịch bản kiểm thử thuộc REQ-005).
 
 | Bước | Thao tác | Kết quả mong đợi |
 |---|---|---|
 | 1 | Đăng nhập tài khoản mới vào hệ thống | Modal Onboarding hiển thị tại Bước 1 kèm nút 'Bỏ qua' (Skip) |
 | 2 | Nhấn nút 'Bỏ qua' (Skip) trên modal Onboarding | Modal đóng lại ngay lập tức, overlay biến mất, người dùng truy cập trang chủ bình thường |
 | 3 | Thực hiện Đăng xuất khỏi hệ thống | Đăng xuất thành công, chuyển hướng về trang Đăng nhập |
-| 4 | Đăng nhập lại với tài khoản vừa thao tác | Đăng nhập thành công vào trang chủ, modal Onboarding KHÔNG tự động hiển thị lại |
+| 4 | Đăng nhập lại với tài khoản vừa thao tác | Đăng nhập thành công; do tiêu chí tìm việc còn thiếu nên modal Onboarding hiển thị lại từ Bước 1 kèm nút 'Bỏ qua', bấm 'Bỏ qua' thì modal đóng và trang chủ dùng bình thường |
 

@@ -1,3 +1,4 @@
+const { expect } = require('@playwright/test');
 const { BasePage } = require('../BasePage');
 const { getDashboardConfig } = require('../../core/config/dashboardConfig');
 
@@ -16,10 +17,28 @@ class PopupConsent extends BasePage {
       .first();
   }
 
+  /** "Đồng ý" bị khoá tới khi cuộn hết văn bản consent: cuộn mọi vùng cuộn được trong dialog tới khi nút mở. */
+  async scrollContentToEndIfDisabled() {
+    await expect(async () => {
+      if (await this.agreeBtn.isEnabled()) return;
+      await this.popupTitle.evaluate((title) => {
+        const root = title.closest('[role="dialog"], .ReactModalPortal') || document.body;
+        root.querySelectorAll('*').forEach((el) => {
+          if (el.scrollHeight > el.clientHeight + 4) {
+            el.scrollTop = el.scrollHeight;
+            el.dispatchEvent(new Event('scroll', { bubbles: true }));
+          }
+        });
+      });
+      await expect(this.agreeBtn).toBeEnabled({ timeout: 2000 });
+    }).toPass({ timeout: 15000 }).catch(() => null);
+  }
+
   async agreeIfVisible() {
     try {
       await this.actions.waitForVisible(this.popupTitle, { timeout: 5000 });
       await this.capture('popup_consent_visible');
+      await this.scrollContentToEndIfDisabled();
       await this.actions.click(this.agreeBtn);
     } catch (error) {
       if (process.env.DEBUG_OPTIONAL_POPUPS === '1' || getDashboardConfig().runtime.debugOptionalPopups) {
@@ -37,6 +56,7 @@ class PopupConsent extends BasePage {
   async agree() {
     await this.actions.waitForVisible(this.popupTitle, { timeout: 15000 });
     await this.capture('popup_consent_visible');
+    await this.scrollContentToEndIfDisabled();
     await this.actions.click(this.agreeBtn);
     await this.popupTitle.waitFor({ state: 'hidden', timeout: 15000 });
   }

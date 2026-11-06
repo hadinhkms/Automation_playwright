@@ -1,9 +1,8 @@
 const { test, expect } = require('../../../core/fixtures/baseTest');
-const userData = require('../../../data/users.json');
 const { LoginPopup } = require('../../../pages/desktop/LoginPopup');
 
 test.describe('Feature: Đăng ký tài khoản người tìm việc @guest @no-auth @register @desktop @e2e @REQ-001', () => {
-  test('TC-032 - AC-001 Kiểm tra xử lý khi đăng ký bằng email đã tồn tại', async ({ page, pages }, testInfo) => {
+  test('TC-032 - AC-001 Kiểm tra xử lý khi đăng ký bằng email đã tồn tại', async ({ page, pages, workerUserData }, testInfo) => {
     const homePage = pages.homePage;
     const loginPopup = new LoginPopup(page);
     test.setTimeout(180000);
@@ -13,9 +12,9 @@ test.describe('Feature: Đăng ký tài khoản người tìm việc @guest @no-
       description: 'Chưa đăng nhập (Khách vãng lai tại màn hình nhập email đăng ký)',
     });
 
-    // Sử dụng email tài khoản đã tồn tại trong hệ thống
-    const existingUser = userData[0];
-    const existingEmail = existingUser.email || 'candidate_test@example.com';
+    // Email đã tồn tại: tài khoản tạo qua API cho worker (data/users.json không còn lưu email cố định)
+    const existingEmail = workerUserData.user?.email;
+    expect(existingEmail, 'workerUserData phải có email tài khoản đã đăng ký').toBeTruthy();
 
     await test.step('Given Tiền điều kiện: Người dùng chưa đăng nhập và mở popup Đăng ký', async () => {
       await homePage.navigate();

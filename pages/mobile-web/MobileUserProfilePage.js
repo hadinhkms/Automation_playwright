@@ -1,5 +1,6 @@
 const { UserProfilePage } = require('../desktop/UserProfilePage');
 const { MobileProfileCvHelper } = require('./MobileProfileCvHelper');
+const { waitForLoggedInHeader } = require('../base/SessionHydrationHelper');
 
 class MobileUserProfilePage extends UserProfilePage {
   constructor(page, featureName) {
@@ -38,6 +39,7 @@ class MobileUserProfilePage extends UserProfilePage {
   }
 
   async navigateToMyProfile() {
+    await waitForLoggedInHeader(this.page);
     try {
       const currentUrl = this.page.url();
       if (currentUrl.includes('/ho-so-cua-toi.html')) {

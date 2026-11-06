@@ -30,7 +30,7 @@ test.describe('Feature: Đăng ký tài khoản người tìm việc bằng Số
       await loginPopup.requestSmsOtp({ maxAttempts: 3 }); // Zalo OTP mặc định: OTP cố định 1111 của QC chỉ áp dụng kênh SMS
 
       await loginPopup.waitForOtpVisible();
-      await expect(loginPopup.otpModalTitle.or(loginPopup.otpInputs.first())).toBeVisible();
+      await expect(loginPopup.otpModalTitle.or(loginPopup.otpInputs.first()).first()).toBeVisible();
       await loginPopup.capture('otp_screen_visible');
     });
 

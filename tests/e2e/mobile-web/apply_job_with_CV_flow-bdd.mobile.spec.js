@@ -3,6 +3,9 @@ const applyData = require('../../../data/applyJobData.json');
 const usersData = require('../../../data/users.json');
 
 test.describe('Mobile Feature: Ứng tuyển việc làm bằng CV trên Mobile Web @auth @applyjob @mobile @e2e @REQ-003', () => {
+  // Timeout cấp describe để áp dụng cả lúc setup fixture authenticatedUser (đăng nhập chậm trên WebKit)
+  test.describe.configure({ timeout: 480000 });
+
   let jobApplyPage;
   let newPage;
 
@@ -17,8 +20,6 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng CV trên Mobile 
     jobSearchPage,
     createJobApplyPage,
   }) => {
-    test.slow();
-    test.setTimeout(480000);
 
     await test.step('Given Tiền điều kiện: Người dùng mobile đã đăng nhập và sẵn sàng tại trang chủ', async () => {
       await onboardingPopup.closeIfVisible();

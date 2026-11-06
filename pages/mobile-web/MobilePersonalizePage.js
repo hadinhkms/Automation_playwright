@@ -1,4 +1,7 @@
+const { expect } = require('@playwright/test');
 const { PersonalizePage } = require('../desktop/PersonalizePage');
+const { generateRandomVNPhone } = require('../../core/utils/commonUtils');
+const { MobilePersonalizeLocationHelper } = require('./personalize/MobilePersonalizeLocationHelper');
 
 class MobilePersonalizePage extends PersonalizePage {
   /**
@@ -7,18 +10,17 @@ class MobilePersonalizePage extends PersonalizePage {
    */
   constructor(page, featureName) {
     super(page, featureName);
+    this.locationHelper = new MobilePersonalizeLocationHelper(this);
 
     // Popup mời cài app đặc thù trên Mobile Web
     this.appInstallPopup = page.locator('.mbep-popup');
     this.appInstallPopupCloseBtn = this.appInstallPopup.locator('button:has(.svicon-close), button.close, [class*="close"]');
 
     // Input mức lương tối thiểu trên mobile
-    this.minSalaryInput = page.locator('input[placeholder*="VD" i], input[role="textbox"]').first().or(page.getByRole('textbox', { name: /VD/i }));
+    this.minSalaryInput = page.locator('input[placeholder*="VD" i], input[role="textbox"]').or(page.getByRole('textbox', { name: /VD/i })).first();
   }
 
-  /**
-   * Đóng popup cài app trên mobile nếu xuất hiện
-   */
+  /** Đóng popup cài app trên mobile nếu xuất hiện */
   async closeAppInstallPopupIfVisible() {
     try {
       const popup = this.appInstallPopup.first();
@@ -51,10 +53,6 @@ class MobilePersonalizePage extends PersonalizePage {
   async navigateToPersonalizedPage() {
     await super.navigateToPersonalizedPage();
     await this.closeBannerIfVisible();
-  }
-
-  async navigate() {
-    await this.navigateToPersonalizedPage();
   }
 
   /**
@@ -97,8 +95,12 @@ class MobilePersonalizePage extends PersonalizePage {
 
     await this.capture('onboarding_02_job_title_entered');
 
+    // WebKit: drawer gợi ý còn animate nên click force có thể rơi vào khoảng trống → lặp tới khi sang Bước 2
     const nextBtn = this.page.getByRole('button', { name: /Tiếp theo|Tiếp tục/i }).first();
-    await nextBtn.click({ force: true });
+    await expect(async () => {
+      await nextBtn.click({ timeout: 5000 });
+      await expect(this.chonToiDa5Text).toBeVisible({ timeout: 5000 });
+    }).toPass({ timeout: 30000 });
   }
 
   /**
@@ -111,9 +113,7 @@ class MobilePersonalizePage extends PersonalizePage {
     await this.capture('onboarding_03_locations_before_select');
 
     for (const loc of locations) {
-      const btn = this.page.getByRole('button', { name: new RegExp(`^${loc}`, 'i') })
-        .or(this.page.locator('button, [role="button"]').filter({ hasText: new RegExp(`^${loc}`, 'i') }))
-        .first();
+      const btn = this.getLocationBtn(loc);
       await this.waitForElement(btn, 10000);
       await btn.click({ force: true });
     }
@@ -170,94 +170,18 @@ class MobilePersonalizePage extends PersonalizePage {
     await this.capture('onboarding_step2_locations_ready');
   }
 
-  /**
-   * Chọn lần lượt 5 khu vực hợp lệ ban đầu trên Mobile Web
-   */
-  async select5Locations(options = {}) {
-    await this.waitForElement(this.chonToiDa5Text, 15000);
-    const locationNames = ['TP.HCM', 'Hà Nội', 'Bình Dương', 'Đồng Nai', 'Cần Thơ'];
-    for (const name of locationNames) {
-      const btn = this.page.getByRole('button', { name: new RegExp(`^${name}`, 'i') })
-        .or(this.page.locator('button, [role="button"]').filter({ hasText: new RegExp(`^${name}`, 'i') }))
-        .first();
-      await this.waitForElement(btn, 10000);
-      await btn.click({ force: true });
-    }
-    if (options.capture !== false) {
-      await this.capture('step2_5_locations_selected');
-    }
+  /** Nút khu vực trên Mobile Web (không có step2Modal như desktop) */
+  getLocationBtn(name) {
+    const rx = new RegExp(`^${name}`, 'i');
+    return this.page.getByRole('button', { name: rx }).or(this.page.locator('button, [role="button"]').filter({ hasText: rx })).first();
   }
 
-  /**
-   * Bỏ chọn một khu vực làm việc trên Mobile Web
-   */
-  async deselectLocation(btnName = 'Cần Thơ', options = {}) {
-    const btn = this.page.getByRole('button', { name: new RegExp(`^${btnName}`, 'i') })
-      .or(this.page.locator('button, [role="button"]').filter({ hasText: new RegExp(`^${btnName}`, 'i') }))
-      .first();
-    await btn.click({ force: true });
-    if (options.capture) {
-      await this.capture('location_deselected');
-    }
-  }
-
-  /**
-   * Chọn lại một khu vực làm việc trên Mobile Web
-   */
-  async selectSingleLocation(btnName = 'Cần Thơ', options = {}) {
-    const btn = this.page.getByRole('button', { name: new RegExp(`^${btnName}`, 'i') })
-      .or(this.page.locator('button, [role="button"]').filter({ hasText: new RegExp(`^${btnName}`, 'i') }))
-      .first();
-    await btn.click({ force: true });
-    if (options.capture) {
-      await this.capture('location_selected');
-    }
-  }
-
-  /**
-   * Mở danh sách khu vực mở rộng trên mobile
-   */
-  async openExtendedLocationsDropdown() {
-    const khacBtn = this.page.getByRole('button', { name: /Khác/i }).first();
-    if (await khacBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await khacBtn.click({ force: true });
-      await this.sixthLocationBtn.waitFor({ state: 'attached', timeout: 3000 }).catch(() => null);
-    }
-  }
-
-  /**
-   * Thử chọn khu vực thứ 6 vượt biên tối đa 5 trên mobile và đóng drawer bằng nút 'Áp dụng'
-   */
-  async select6thLocationIfAvailable() {
-    try {
-      const khacBtn = this.page.getByRole('button', { name: /Khác/i }).first();
-      if (await khacBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await khacBtn.click({ force: true });
-        const sixthLocation = this.page.getByRole('button', { name: /An Giang/i }).first();
-        await sixthLocation.waitFor({ state: 'attached', timeout: 3000 }).catch(() => null);
-        if (await sixthLocation.isVisible().catch(() => false)) {
-          const isDisabled = await sixthLocation.isDisabled().catch(() => false);
-          if (!isDisabled) {
-            await sixthLocation.click({ force: true }).catch(() => null);
-          }
-        }
-      }
-    } catch (_) {
-    } finally {
-      await this.capture('step2_6th_location_boundary_checked');
-      // Đóng drawer Khác trên mobile bằng nút "Áp dụng" hoặc phím Escape
-      const applyBtn = this.page.getByRole('button', { name: /Áp dụng/i })
-        .or(this.page.locator('button:has-text("Áp dụng")'))
-        .first();
-      if (await applyBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await applyBtn.click({ force: true }).catch(() => null);
-      } else {
-        await this.page.keyboard.press('Escape').catch(() => null);
-      }
-      await applyBtn.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => null);
-      await this.tiepTheoBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => null);
-    }
-  }
+  // --- MobilePersonalizeLocationHelper (personalize/MobilePersonalizeLocationHelper.js) ---
+  async select5Locations(options) { return this.locationHelper.select5Locations(options); }
+  async deselectLocation(btnName, options) { return this.locationHelper.deselectLocation(btnName, options); }
+  async selectSingleLocation(btnName, options) { return this.locationHelper.selectSingleLocation(btnName, options); }
+  async openExtendedLocationsDropdown() { return this.locationHelper.openExtendedLocationsDropdown(); }
+  async select6thLocationIfAvailable() { return this.locationHelper.select6thLocationIfAvailable(); }
 }
 
 module.exports = { MobilePersonalizePage, PersonalizePage: MobilePersonalizePage };

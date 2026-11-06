@@ -41,7 +41,7 @@ test.describe('Feature: Đăng ký tài khoản người tìm việc bằng Emai
     await test.step('Then [1] Hệ thống hiển thị thông báo lỗi định dạng email và chặn tạo tài khoản', async () => {
       // Hệ thống báo lỗi định dạng email hoặc chặn mở form tạo tài khoản
       await expect(loginPopup.registerFormTitle).toBeHidden();
-      await expect(loginPopup.emailError.or(loginPopup.emailInput)).toBeVisible();
+      await expect(loginPopup.emailError).toBeVisible();
       await loginPopup.capture('malformed_email_rejected');
     });
   });

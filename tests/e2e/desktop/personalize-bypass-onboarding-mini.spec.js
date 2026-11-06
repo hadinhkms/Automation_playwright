@@ -16,7 +16,8 @@ test.describe('Feature: Cá nhân hóa tiêu chí tìm việc & gợi ý việc 
       await personalizePage.closeBannerIfVisible();
 
       // Đảm bảo tiền điều kiện: nếu tài khoản kiểm thử chưa có tiêu chí, hoàn tất thiết lập ban đầu
-      const isMiniOnboardingVisible = await personalizePage.banDangTimCongHeading.isVisible({ timeout: 5000 }).catch(() => false);
+      // isVisible() không chờ: onboarding mini render muộn → chờ thật trước khi kết luận tài khoản chưa có tiêu chí
+      const isMiniOnboardingVisible = await personalizePage.banDangTimCongHeading.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false);
       if (isMiniOnboardingVisible) {
         await personalizePage.completeStep1JobTitle('nhân viên bán hàng');
         await personalizePage.completeStep2Locations(['TP.HCM']);

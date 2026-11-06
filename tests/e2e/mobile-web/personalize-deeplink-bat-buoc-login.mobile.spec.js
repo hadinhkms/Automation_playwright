@@ -29,7 +29,7 @@ test.describe('Mobile Feature: Cá nhân hóa tiêu chí tìm việc & gợi ý 
       // Form bắt buộc đăng nhập hoặc đăng ký hiển thị rõ ràng
       await expect(personalizePage.loginOrRegisterHeading).toBeVisible({ timeout: 10000 });
       await expect(personalizePage.nhapSoDienThoaiInput).toBeVisible({ timeout: 10000 });
-      await expect(personalizePage.tiepTucBtn).toBeVisible({ timeout: 10000 });
+      await expect(personalizePage.requestOtpBtn).toBeVisible({ timeout: 10000 });
 
       // Không hiển thị danh sách việc làm gợi ý
       expect(await personalizePage.getJobCardsCount()).toBe(0);

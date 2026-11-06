@@ -54,6 +54,16 @@ class MobileJobApplyNoCVPage extends JobApplyNoCVPage {
         console.log('Mobile intro fill fallback notice:', err.message);
       }
     }
+
+    // Một số tin bắt buộc Giới tính ("Vui lòng chọn giới tính"); radio UI mới không còn thẻ <i> trong label
+    if (data.gender) {
+      const radio = this.page.getByRole('radio', { name: data.gender, exact: true })
+        .or(this.page.locator('label').filter({ hasText: new RegExp(`^\s*${data.gender}\s*$`) }))
+        .first();
+      if (await radio.isVisible().catch(() => false) && !(await radio.isChecked().catch(() => false))) {
+        await this.clickElement(radio, { force: true });
+      }
+    }
   }
 
   /**

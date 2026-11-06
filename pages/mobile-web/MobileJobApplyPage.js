@@ -1,4 +1,5 @@
 const { JobApplyPage } = require('../desktop/JobApplyPage');
+const { waitForLoggedInHeader } = require('../base/SessionHydrationHelper');
 
 class MobileJobApplyPage extends JobApplyPage {
   constructor(page, featureName) {
@@ -89,6 +90,7 @@ class MobileJobApplyPage extends JobApplyPage {
    * Nếu menu header bị ẩn vào drawer/hamburger, điều hướng URL tương đối hoặc mở drawer
    */
   async openAppliedJobs() {
+    await waitForLoggedInHeader(this.page);
     try {
       await super.openAppliedJobs();
       return;

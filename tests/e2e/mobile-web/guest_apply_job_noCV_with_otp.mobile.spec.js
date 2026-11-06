@@ -39,6 +39,8 @@ test.describe('Mobile Feature: Guest ứng tuyển việc không cần CV bằng
     };
 
     await test.step('Given Tiền điều kiện: Người dùng mobile chưa đăng nhập và truy cập trang chủ', async () => {
+      // Popup guest "Khoan đã…" (img Banner) bật sau ~30s và chặn click link "Việc không cần CV"
+      await homePage.registerGuestPopupAutoHandlers();
       await homePage.navigate();
       await homePage.expectHomepageVisible();
       await homePage.capture('guest_mobile_homepage_opened');

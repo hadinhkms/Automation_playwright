@@ -26,9 +26,10 @@ class BaseInteractionHelper {
   }
 
   async scrollToElementIfOutsideViewport(locator) {
-    const isInViewport = await this.owner.isElementInViewport(locator);
+    const isInViewport = await this.owner.isElementInViewport(locator).catch(() => false);
     if (!isInViewport) {
-      await locator.scrollIntoViewIfNeeded();
+      // WebKit: form re-render làm node cũ bị detach giữa chừng; bỏ qua vì thao tác click/fill sau đó tự cuộn lại
+      await locator.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => null);
     }
   }
 

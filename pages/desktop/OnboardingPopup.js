@@ -11,7 +11,10 @@ class OnboardingPopup extends BasePage {
     this.screenshotHelper = new ScreenshotHelper(page, 'onboarding-flow');
 
     this.nextBtn = page.locator('button:has-text("Tiếp theo")').first();
-    this.submitBtn = page.locator('button:has-text("Xem công việc phù hợp")').first();
+    // UI 11/2026: bước cuối đổi nút "Xem công việc phù hợp" → "Hoàn tất"
+    this.submitBtn = page.getByRole('button', { name: /Xem công việc phù hợp|Hoàn tất/ }).first();
+    // Sau "Hoàn tất": màn Chớp hỏi "Xem công việc Chớp gợi ý cho bạn" / "Tôi muốn tự khám phá" (vẫn trong modal)
+    this.exploreSelfBtn = page.getByRole('button', { name: 'Tôi muốn tự khám phá' });
     this.modal = page.locator('#common__modal, [data-test-id="common__form-modal"], [role="dialog"]').filter({
       hasText: /Bạn đang tìm việc ở khu vực nào\?|Bạn đang quan tâm đến ngành nghề nào\?|Bạn đang muốn tìm công việc gì\?/i,
     }).first();
@@ -44,6 +47,14 @@ class OnboardingPopup extends BasePage {
     this.yearsOption2 = this.modal.getByRole('button', { name: '2 năm', exact: true });
   }
 
+  /**
+   * Chụp theo viewport: ảnh fullPage của Playwright (giả lập viewport cao) làm app mount lại và
+   * MỞ LẠI modal onboarding vừa đóng (đã xác minh: cuộn/resize thật không gây ra).
+   */
+  async capture(stepName, fullPage = false, options = {}) {
+    return super.capture(stepName, fullPage, options);
+  }
+
   async clickLocationInput() {
     return this.clickElement(this.locationInput, { force: true });
   }
@@ -72,11 +83,19 @@ class OnboardingPopup extends BasePage {
   }
 
   async clickSubmit() {
-    return this.clickElement(this.submitBtn);
+    await this.clickElement(this.submitBtn);
+    if (await this.exploreSelfBtn.waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false)) {
+      await this.clickElement(this.exploreSelfBtn);
+    }
   }
 
   async clickClose() {
-    return this.clickElement(this.closeBtn);
+    // Modal mount lại khi app tải xong hồ sơ: đóng quá sớm thì nó hiện lại → bấm tới khi đóng ổn định 3s
+    await expect(async () => {
+      if (await this.modal.isVisible()) await this.closeBtn.click({ timeout: 5000 });
+      await expect(this.modal).toBeHidden({ timeout: 3000 });
+      await expect(this.modal).toBeVisible({ timeout: 3000 }).then(() => { throw new Error('Onboarding modal mở lại'); }, () => null);
+    }).toPass({ timeout: 45000 });
   }
 
   async clickSkip() {
@@ -94,59 +113,12 @@ class OnboardingPopup extends BasePage {
   }
 
   async closeIfVisible(captureName, opts = {}) {
-    const modal = this.modal;
-    const closeButton = this.closeBtn;
-    const modalTimeout = opts.modalTimeout ?? 15000;
-    const closeBtnTimeout = opts.closeBtnTimeout ?? 5000;
-    const modalHiddenTimeout = opts.modalHiddenTimeout ?? 5000;
-
-    try {
-      await modal.waitFor({ state: 'visible', timeout: modalTimeout });
-    } catch (err) {
-      return;
-    }
-
+    const visible = await this.modal.waitFor({ state: 'visible', timeout: opts.modalTimeout ?? 15000 }).then(() => true, () => false);
+    if (!visible) return;
     if (captureName) {
       await this.capture(captureName);
     }
-
-    const attempts = opts.attempts ?? 3;
-    let lastErr = null;
-    for (let i = 0; i < attempts; i++) {
-      try {
-        await this.actions.waitForVisible(closeButton, { timeout: closeBtnTimeout });
-
-        try {
-          await closeButton.click();
-        } catch (clickErr) {
-          await closeButton.click({ force: true });
-        }
-
-        try {
-          await modal.waitFor({ state: 'hidden', timeout: modalHiddenTimeout });
-        } catch (hiddenErr) {
-          try {
-            if (await this.overlayLoading.isVisible({ timeout: 1000 }).catch(() => false)) {
-              await this.overlayLoading.waitFor({ state: 'hidden', timeout: opts.overlayTimeout ?? 15000 });
-            }
-          } catch (ovErr) {
-            console.warn('Overlay did not hide promptly after close click:', ovErr.message || ovErr);
-          }
-          await this.page.keyboard.press('Escape');
-          await modal.waitFor({ state: 'hidden', timeout: modalHiddenTimeout });
-        }
-
-        lastErr = null;
-        break;
-      } catch (err) {
-        lastErr = err;
-        console.warn(`Attempt ${i + 1} to close onboarding modal failed:`, err.message || err);
-      }
-    }
-
-    if (lastErr) {
-      throw lastErr;
-    }
+    await this.clickClose();
   }
 
   async selectLocationButton(location) {
@@ -197,41 +169,6 @@ class OnboardingPopup extends BasePage {
     return this.clickElement(yearsBtn);
   }
 
-  /**
-   * Debug helper: returns visibility, counts and bounding boxes for key onboarding elements.
-   * Useful when close doesn't work to inspect why the element isn't clickable (overlay, iframe, etc.).
-   */
-  async debugState() {
-    const info = {};
-    try {
-      info.closeBtnCount = await this.page.locator('[data-test-id="common__close-button"]').count();
-      info.closeBtnVisible = info.closeBtnCount > 0 ? await this.page.locator('[data-test-id="common__close-button"]').first().isVisible() : false;
-      info.modalCount = await this.page.locator('form:has(h2:has-text("Bạn đang tìm việc ở khu vực nào?"))').count();
-      info.modalVisible = info.modalCount > 0 ? await this.page.locator('form:has(h2:has-text("Bạn đang tìm việc ở khu vực nào?"))').first().isVisible() : false;
-
-      const cbLoc = await this.page.locator('[data-test-id="common__close-button"]').first();
-      info.closeBtnBox = null;
-      try {
-        const box = await cbLoc.boundingBox();
-        if (box) info.closeBtnBox = { x: box.x, y: box.y, width: box.width, height: box.height };
-      } catch (e) {
-        info.closeBtnBox = 'boundingBox-error';
-      }
-
-      info.overlayCount = await this.page.locator('.overlay-loading').count();
-      info.overlayVisible = info.overlayCount > 0 ? await this.page.locator('.overlay-loading').first().isVisible() : false;
-
-      // Get outerHTML snippets (truncated) for diagnosis
-      info.closeBtnOuter = await this.page.locator('[data-test-id="common__close-button"]').first().evaluate((el) => el.outerHTML.slice(0, 1000)).catch(() => null);
-      info.modalOuter = await this.page.locator('form:has(h2:has-text("Bạn đang tìm việc ở khu vực nào?"))').first().evaluate((el) => el.outerHTML.slice(0, 2000)).catch(() => null);
-
-      // Frames info — list frame urls and names
-      info.frames = this.page.frames().map(f => ({ name: f.name(), url: f.url() }));
-    } catch (err) {
-      info.error = String(err.message || err);
-    }
-    return info;
-  }
 }
 
 module.exports = { OnboardingPopup };
