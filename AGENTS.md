@@ -60,6 +60,16 @@ Mọi tri thức tự học, quyết định kỹ thuật, quy tắc bất biế
 
 ## 3. Chỉ Dẫn Chuyên Sâu Từng Module (Subsystem Guidelines)
 
+### Định tuyến yêu cầu "test" (áp dụng cho Claude, Codex, Gemini và mọi agent)
+User có 2 kiểu test. Xác định kiểu trước khi làm:
+
+| User nói | Nghĩa | Làm gì |
+|---|---|---|
+| "test / testing cho dashboard", "test dashboard" | Test **Dashboard Web Studio** (`dashboard/`, công cụ nội bộ của repo), **không** phải màn hình dashboard của sản phẩm | Theo mục B: `ai/dashboard/DASHBOARD_AI_PROMPT.md` (mục "Mandatory Senior QA protocol"), `ai/dashboard/AI_LESSONS.md`, skill `dashboard-maintainer`. Chạy những gì repo có: unit test `node --test dashboard`, `npm run test:dashboard:api` khi có `tests/dashboard-api/`, `npm run test:dashboard:regression` khi có `playwright.dashboard.config.js`, `node scripts/verify-dashboard-features.js` (đủ 5 mảnh của mỗi view). Rồi mở dashboard (`npm run dashboard:start`) và **chạy lại từng tính năng của repo qua giao diện** (Run Test, BDD Studio, Page Manager, Test Suites, các view QA/Master Process…): liệt kê view theo `dashboard/public/js/main.js`, mỗi view thao tác happy path + lỗi/rỗng, đối chiếu kết quả với lệnh CLI tương ứng (`npm run …` / `node tools/qa …`), xem console trình duyệt và log server. Báo cáo theo từng tính năng: PASS / FAIL (UI lỗi trong khi CLI chạy được) / BLOCKED, kèm bằng chứng. |
+| "test / testing cho ticket", "test ticket JS-xxxx / KAN-xxx", "test chuyên sâu task …" | Test **sản phẩm** theo một Jira issue / REQ | Skill `qa-test-execution` (lấy theo Live Skill Discovery bên dưới), thêm `qa-system-testing`, `qa-api-testing`, `qa-ui-review`, `qa-tracking-analytics` khi phạm vi cần |
+| Màn hình dashboard nằm trong sản phẩm (VD dashboard của provider) | Test sản phẩm | Xử lý như test ticket |
+| Không rõ là kiểu nào | | Hỏi lại đúng một câu trước khi làm |
+
 ### A. Playwright Automation & QA Testing Skills
 Khi làm việc với các file Playwright test, Page Objects, fixtures, `requirements/`, `test-cases/`:
 - Đọc và tuân thủ tuyệt đối [ai/shared/AI_PROMPTS.md](file:///ai/shared/AI_PROMPTS.md) và [ai/shared/TEST_AUTOMATION_LESSONS.md](file:///ai/shared/TEST_AUTOMATION_LESSONS.md).
@@ -78,7 +88,7 @@ Khi làm việc với các file Playwright test, Page Objects, fixtures, `requir
   * Review tracking analytics Mixpanel (event cần bắn, checklist `TR-xx`, report khai thác được; helper `core/deep-testing/mixpanel-capture.js`): [.agents/skills/qa-tracking-analytics/SKILL.md](file:///.agents/skills/qa-tracking-analytics/SKILL.md)
   * Contract testing producer/consumer (schema evolution, async delivery, idempotency, eventual consistency): [.agents/skills/qa-contract-testing/SKILL.md](file:///.agents/skills/qa-contract-testing/SKILL.md)
   * Test chuyên sâu / test lại / regression theo checklist test case (mark PASS/FAIL/BLOCKED kèm bằng chứng, bổ sung TC còn thiếu rồi chạy luôn): [.agents/skills/qa-test-execution/SKILL.md](file:///.agents/skills/qa-test-execution/SKILL.md)
-- Không load tài liệu Dashboard trừ khi task có chỉnh sửa `dashboard/`.
+- Không load tài liệu Dashboard trừ khi task chỉnh sửa hoặc test `dashboard/`.
 - **Kiểm tra bắt buộc trước khi bàn giao / commit:** Chạy `npm run check:framework` và `npm run check:limits:strict` (hoặc `npm run mp:audit:changed`) để đảm bảo 100% file mới/đã sửa không lố trần dòng code và không thêm logic vào vùng vàng `>= 80%` (Spec `< 640/800`, Page Object/Fixture/Module `< 200/250`, Service `< 160/200`, Utils `< 120/150`).
 
 ### B. Dashboard Web Studio
