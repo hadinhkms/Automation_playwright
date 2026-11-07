@@ -18,7 +18,7 @@ class HtmlSummaryReporter {
 
   onTestEnd(test, result = {}) {
     const id = test.id || test.titlePath?.().join(' > ') || test.title;
-    this.results.set(id, result.status || 'passed');
+    this.results.set(id, result.status || 'failed');
   }
 
   async onEnd() {
@@ -151,13 +151,13 @@ class HtmlSummaryReporter {
   <div class="qa-summary-dashboard__header">
     <div>
       <h1 class="qa-summary-dashboard__title">Test Suite Summary</h1>
-      <p class="qa-summary-dashboard__subtitle">Passed scripts vs total scripts</p>
+      <p class="qa-summary-dashboard__subtitle">Passed tests vs total tests</p>
     </div>
     <div class="qa-summary-dashboard__percent">${stats.percent}%</div>
   </div>
   <div class="qa-summary-dashboard__grid">
     <div class="qa-summary-dashboard__stat">
-      <span class="qa-summary-dashboard__label">Total scripts</span>
+      <span class="qa-summary-dashboard__label">Total tests</span>
       <span class="qa-summary-dashboard__value">${stats.total}</span>
     </div>
     <div class="qa-summary-dashboard__stat">
