@@ -76,6 +76,8 @@ Khi làm việc với các file Playwright test, Page Objects, fixtures, `requir
   * Phân tích PRD/SRS, thiết kế Test Matrix đa tầng & E2E Multi-portal: [.agents/skills/qa-system-testing/SKILL.md](file:///.agents/skills/qa-system-testing/SKILL.md)
   * Audit UI/UX, Responsive, Accessibility & Visual Evidence: [.agents/skills/qa-ui-review/SKILL.md](file:///.agents/skills/qa-ui-review/SKILL.md)
   * Review tracking analytics Mixpanel (event cần bắn, checklist `TR-xx`, report khai thác được; helper `core/deep-testing/mixpanel-capture.js`): [.agents/skills/qa-tracking-analytics/SKILL.md](file:///.agents/skills/qa-tracking-analytics/SKILL.md)
+  * Contract testing producer/consumer (schema evolution, async delivery, idempotency, eventual consistency): [.agents/skills/qa-contract-testing/SKILL.md](file:///.agents/skills/qa-contract-testing/SKILL.md)
+  * Test chuyên sâu / test lại / regression theo checklist test case (mark PASS/FAIL/BLOCKED kèm bằng chứng, bổ sung TC còn thiếu rồi chạy luôn): [.agents/skills/qa-test-execution/SKILL.md](file:///.agents/skills/qa-test-execution/SKILL.md)
 - Không load tài liệu Dashboard trừ khi task có chỉnh sửa `dashboard/`.
 - Chạy kiểm tra quy chuẩn kiến trúc tự động: `npm run check:framework`.
 
