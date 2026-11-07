@@ -3,6 +3,7 @@ const applyData = require('../../../data/applyJobData.json');
 const userData = require('../../../data/users.json');
 const { OnboardingPopup } = require('../../../pages/desktop/OnboardingPopup');
 const { JobApplyNoCVPage } = require('../../../pages/desktop/JobApplyNoCVPage');
+const { LoginPopup } = require('../../../pages/desktop/LoginPopup');
 
 test.describe('Feature: Guest ứng tuyển việc không cần CV @guest @no-auth @applyjob @desktop @e2e @REQ-004', () => {
   test('TC-038 - AC-013 Khách vãng lai ứng tuyển với số điện thoại đã có tài khoản', async ({
@@ -63,8 +64,12 @@ test.describe('Feature: Guest ứng tuyển việc không cần CV @guest @no-au
     });
 
     await test.step('Then [1] Hệ thống nhận diện số điện thoại đã tồn tại và hiển thị thông báo hoặc yêu cầu đăng nhập', async () => {
-      await jobApplyNoCVPage.submitGuestProfile(guestDataWithExistingPhone.phone);
-      await expect(jobApplyNoCVPage.accountExistsNotice.or(jobApplyNoCVPage.applyModal).first()).toBeVisible();
+      // SĐT đã có tài khoản: không vào bước OTP tạo tài khoản mà yêu cầu đăng nhập (modal điền sẵn SĐT)
+      await jobApplyNoCVPage.dismissGuestLoginModalIfVisible();
+      await jobApplyNoCVPage.submitProfile();
+      // Modal "Đăng nhập hoặc Đăng ký" điền sẵn SĐT hoặc thẳng bước "Xác thực OTP" (UI Zalo OTP 11/2026)
+      const loginPopup = new LoginPopup(jobApplyNoCVPage.page);
+      await expect(loginPopup.modalTitle.or(loginPopup.otpModalTitle).first()).toBeVisible({ timeout: 20000 });
       await jobApplyNoCVPage.capture('existing_phone_account_handled');
     });
   });

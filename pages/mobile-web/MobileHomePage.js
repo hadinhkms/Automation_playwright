@@ -72,6 +72,16 @@ class MobileHomePage extends HomePage {
 
     await this.navigate('/tim-kiem-viec-lam-nhanh.html');
   }
+
+  /** WebKit: click trước khi hydrate có thể mở danh sách chưa lọc → đảm bảo URL có is_cv_optional=1 */
+  async clickNoCVJobLink() {
+    await this.closeNavigationPopups();
+    await this.clickElement(this.noCVJobLink);
+    const filtered = await this.page.waitForURL(/is_cv_optional=1/, { timeout: 15000 }).then(() => true, () => false);
+    if (!filtered) {
+      await this.page.goto('/tim-kiem-viec-lam-nhanh?is_cv_optional=1', { waitUntil: 'domcontentloaded' });
+    }
+  }
 }
 
 module.exports = { MobileHomePage };

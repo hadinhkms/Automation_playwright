@@ -4,6 +4,7 @@ const { expect, request: playwrightRequest } = require('@playwright/test');
 const { generateRandomVNPhone, generateRandomEmail } = require('../utils/commonUtils');
 const { RegistrationApiHelper } = require('../utils/registrationApiHelper');
 const { LoginPopup } = require('../../pages/desktop/LoginPopup');
+const { openLoginModal } = require('../../pages/base/LoginModalHelper');
 const { HomePage } = require('../../pages/desktop/HomePage');
 const { PopupConsent } = require('../../pages/desktop/PopupConsent');
 
@@ -131,8 +132,7 @@ async function loginUserFromDataForPrecondition(page, providedUser = null, pageC
   await page.waitForLoadState('domcontentloaded');
   await homePage.closeAdsIfVisible();
 
-  await loginPopup.clickLoginHeader();
-  await expect(loginPopup.modalTitle).toBeVisible();
+  await openLoginModal(loginPopup); // WebKit: bấm lại tới khi modal hiện
 
   const userProfile = createdUser || {};
   const email = userProfile.email || '';
