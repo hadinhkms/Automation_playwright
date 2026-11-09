@@ -11,6 +11,7 @@ const { cleanupQueueFixture } = require('./cleanupRegistry');
 const { RESERVED_FIXTURE_NAMES } = require('./reservedFixtureNames');
 const { customFixtures } = require('./custom');
 const { assertNotFrozen } = require('../utils/circuitBreaker');
+const { installGuestPopupGuard } = require('../utils/guestPopupGuard');
 
 function resolvePlatform({ pageObjectsPlatform, isMobile, testInfo }) {
   // 1. Explicit override option has highest precedence
@@ -54,6 +55,11 @@ for (const [key, fixtureVal] of Object.entries(customFixtures || {})) {
  * và cung cấp Lazy Page Container (pages) đạt chuẩn 10/10.
  */
 const test = base.extend({
+  // Tự đóng popup banner/nhắc đăng nhập bật ngẫu nhiên (~25-30s) trên mọi trang — xem core/utils/guestPopupGuard.js
+  page: async ({ page }, use) => {
+    await installGuestPopupGuard(page.context());
+    await use(page);
+  },
   workerUserData: async ({}, use, testInfo) => {
     const runtimeUserData = await createRuntimeUserData(testInfo.parallelIndex ?? testInfo.workerIndex ?? 0);
     try {

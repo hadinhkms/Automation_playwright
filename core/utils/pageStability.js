@@ -11,7 +11,14 @@ async function waitForPageStable(page, options = {}) {
 
       const hasRunningAnimations = () => {
         if (typeof document.getAnimations !== 'function') return false;
-        return document.getAnimations({ subtree: true }).some((a) => a.playState === 'running' || a.pending);
+        // Bỏ qua animation lặp vô hạn (VD bong bóng "Thử tìm việc cùng Chớp nhé!" — floatingTextLoop):
+        // chúng không bao giờ dừng nên mỗi lần chờ luôn hết maxWaitMs (~5s/lần, 2 lần/capture),
+        // và page.screenshot đã tự tắt CSS animation khi chụp.
+        return document.getAnimations({ subtree: true }).some((a) => {
+          if (!(a.playState === 'running' || a.pending)) return false;
+          const timing = a.effect && typeof a.effect.getComputedTiming === 'function' ? a.effect.getComputedTiming() : null;
+          return !(timing && timing.iterations === Infinity);
+        });
       };
 
       const getLayoutSignature = () => {
