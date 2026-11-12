@@ -9,7 +9,7 @@ const { event: SEARCH_EVENT, scenarios } = trackingData;
  * Chỉ assert hành vi đã chốt (JS-8939 + solution PO): không chọn tỉnh -> null; số tỉnh và filter_version
  * theo phiên bản danh sách. Hành vi F5 sau khi chọn Toàn quốc còn Open question nên KHÔNG assert ở đây.
  */
-test.describe('Feature: Tracking tìm kiếm theo tỉnh thành (JS-8939) @guest @no-auth @regression @desktop @e2e @tracking @REQ-013', () => {
+test.describe('Feature: Tracking tìm kiếm theo tỉnh thành (JS-8939) @guest @no-auth  @desktop @e2e @tracking @REQ-013 @regression', () => {
   test.describe.configure({ timeout: 180000 });
 
   /** Mở trang tìm kiếm với capture bật sẵn; trả về mốc index để chỉ xét event phát sinh sau thao tác. */

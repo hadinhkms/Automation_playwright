@@ -4,7 +4,7 @@ const { JobApplyPage } = require('../../../pages/desktop/JobApplyPage');
 const { JobDetailPage } = require('../../../pages/desktop/JobDetailPage');
 const applyData = require('../../../data/applyJobData.json');
 
-test.describe('Feature: Ứng tuyển việc làm - Kiểm soát tần suất nộp lại hồ sơ @auth @applyjob @desktop @e2e @REQ-003', () => {
+test.describe('Feature: Ứng tuyển việc làm - Kiểm soát tần suất nộp lại hồ sơ @auth @applyjob @desktop @e2e @REQ-003 @regression', () => {
   let jobApplyPage;
   let jobDetailPage;
   let newPage;

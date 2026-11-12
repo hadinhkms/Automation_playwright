@@ -1,7 +1,7 @@
 const { test, expect } = require('../../../core/fixtures/baseTest');
 const { OnboardingPopup } = require('../../../pages/desktop/OnboardingPopup');
 
-test.describe('Quản lý hồ sơ - Chuyển đổi CV và đồng bộ Onboarding @auth @profile @desktop @e2e @REQ-005', () => {
+test.describe('Quản lý hồ sơ - Chuyển đổi CV và đồng bộ Onboarding @auth @profile @desktop @e2e @REQ-005 @regression', () => {
   test('TC-046 - AC-015 AC-016 AC-019: Hoàn thiện hồ sơ và chuyển đổi CV', async ({
     page,
     authenticatedUser,

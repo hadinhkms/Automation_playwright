@@ -80,7 +80,7 @@
 | Bước | Thao tác | Kết quả mong đợi |
 |---|---|---|
 | 1 | Mở "Việc làm đã ứng tuyển" từ menu tài khoản cá nhân | Trang danh sách việc làm đã ứng tuyển hiển thị |
-| 2 | Kiểm tra danh sách | Việc làm vừa nộp hiển thị trong danh sách với trạng thái hồ sơ đã nộp thành công |
+| 2 | Kiểm tra danh sách | Đúng việc làm vừa nộp (khớp id tin) có trong danh sách, cột "Ngày nộp" là hôm nay, cột "Trạng thái" là "Hồ sơ đã đến nhà tuyển dụng" (đã đến NTD) hoặc "Ứng tuyển thành công" (đang chờ Admin duyệt) |
 
 
 ### TC-042 — Hồ sơ trực tuyến chưa hoàn thiện bị chặn nộp, nộp bằng CV thành công không cần đủ 7 mục hồ sơ

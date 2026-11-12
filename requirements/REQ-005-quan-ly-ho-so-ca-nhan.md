@@ -2,7 +2,7 @@
 id: REQ-005
 title: Quản lý hồ sơ cá nhân của người tìm việc
 status: Inferred
-version: 1.1
+version: 1.2
 risk: high
 owner: QA
 test_cases: test-cases/REQ-005-quan-ly-ho-so-ca-nhan.md
@@ -13,7 +13,7 @@ test_cases: test-cases/REQ-005-quan-ly-ho-so-ca-nhan.md
 | Thuộc tính | Giá trị |
 |---|---|
 | Mã | REQ-005 |
-| Phiên bản | 1.1 |
+| Phiên bản | 1.2 |
 | Vai trò | Người tìm việc đã đăng nhập |
 | Nguồn dựng | Automation hiện có, dựng ngược theo AI_PROMPTS.md mục 3.4 |
 | Trạng thái tổng thể | Inferred |
@@ -102,6 +102,57 @@ Việc cho phép nhà tuyển dụng tìm thấy hồ sơ là một hành độn
 - Lỗi đã biết: khi API gợi ý chậm, nút "Thêm mới" hiện trong lúc chờ kết quả kể cả với skill thư viện (BUG-01 của JS-8828).
 - Nguồn: tests/e2e/desktop/chuan-hoa-ky-nang-ho-so-js-8828.spec.js, tests/e2e/mobile-web/chuan-hoa-ky-nang-ho-so-js-8828.mobile.spec.js
 
+### AC-074 — Hiển thị gợi ý kỹ năng theo job title (Skill Standardization v1.1 – JS-8837)
+
+**Given** tôi đã đăng nhập, Job goal có "Vị trí công việc" (job title) và hồ sơ chưa đủ 20 kỹ năng
+**When** tôi mở modal Kỹ năng (Desktop) hoặc trang Kỹ năng (Mobile Web) tại Hồ sơ của tôi
+**Then** hệ thống hiển thị khu vực "Chớp gợi ý kỹ năng cho vị trí công việc" kèm đúng job title, nằm tách riêng phía trên ô tìm kiếm và danh sách kỹ năng đã chọn
+**And** khu vực hiển thị tối đa 5 chip gợi ý, không trùng lặp, theo đúng thứ tự hệ thống gợi ý trả về
+**And** khi Job goal chưa có job title, hệ thống không sinh gợi ý và không hiển thị khu vực này
+
+- Trạng thái: Confirmed — PRD v1.1 (US1; US2 mục 2.1) và kiểm thử thủ công checklist JS-8837 trên mr-781 (2026-11-10).
+- Nguồn gợi ý duy nhất là job title trong Job goal; job title không có skill phù hợp thì không hiển thị khu vực gợi ý (PO chốt, comment PRD 23/10).
+- Mỗi lần mở modal là một phiên gợi ý mới; hệ thống ghi nhận lượt hiển thị (impression) đúng các skill đang hiện.
+- Skill người dùng đã có trong hồ sơ được hệ thống loại khỏi danh sách gợi ý ngay từ đầu (quan sát 2026-11-10, Inferred).
+- Nguồn: tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js, tests/e2e/mobile-web/goi-y-ky-nang-ai-js-8837.mobile.spec.js
+
+### AC-075 — Chọn kỹ năng gợi ý (JS-8837)
+
+**Given** khu vực gợi ý đang hiển thị và hồ sơ chưa đủ 20 kỹ năng
+**When** tôi chọn một chip gợi ý
+**Then** skill đó chuyển xuống danh sách kỹ năng đã chọn ở vị trí đầu tiên và bộ đếm tăng 1
+**And** skill gợi ý kế tiếp xuất hiện ở cuối khu vực gợi ý để duy trì tối đa 5 chip
+**And** skill chỉ được lưu vào hồ sơ khi tôi bấm lưu
+
+- Trạng thái: Confirmed — PRD v1.1 (US2 mục 2.3, 2.4) và kiểm thử thủ công JS-8837 (2026-11-10).
+- Hủy hoặc đóng modal thì skill đã chọn từ gợi ý không được lưu; bỏ chọn một skill thì chip không quay lại khu vực gợi ý trong phiên đó (quan sát 2026-11-10, chờ PO xác nhận Q6).
+- Mobile Web: nút "Lưu kỹ năng" của bottom sheet tìm kiếm lưu luôn cả skill đã chọn từ gợi ý (quan sát 2026-11-10).
+- Nguồn: tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js, tests/e2e/mobile-web/goi-y-ky-nang-ai-js-8837.mobile.spec.js
+
+### AC-076 — Chọn gợi ý trùng với kỹ năng đã có (JS-8837)
+
+**Given** danh sách kỹ năng đã chọn có một skill trùng với một chip gợi ý (đã lưu, hoặc vừa thêm trong phiên và chưa lưu)
+**When** tôi chọn chip gợi ý trùng đó
+**Then** hệ thống không tạo thêm skill trùng và tổng số kỹ năng đã chọn giữ nguyên
+**And** skill đã có được đưa lên đầu danh sách, chip trùng biến mất và chip kế tiếp bù vào
+
+- Trạng thái: Confirmed — PRD v1.1 (US3) và kiểm thử thủ công JS-8837 (2026-11-10).
+- So trùng không phân biệt hoa/thường với skill tự nhập (quan sát 2026-11-10: "BÁO CÁO THUẾ" trùng chip "Báo cáo thuế").
+- Nguồn: tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js
+
+### AC-077 — Giới hạn 20 kỹ năng với khu vực gợi ý (JS-8837)
+
+**Given** hồ sơ được phép tối đa 20 kỹ năng
+**When** tôi mở modal Kỹ năng khi hồ sơ đã đủ 20/20
+**Then** hệ thống không hiển thị khu vực gợi ý
+**And** khi tôi chạm mốc 20/20 trong lúc đang thao tác, khu vực gợi ý vẫn giữ nguyên hiển thị
+**And** nếu tôi tiếp tục bấm một chip gợi ý, hệ thống không thêm skill đó và bộ đếm vẫn là 20/20
+
+- Trạng thái: Confirmed — PRD v1.1 (US2 mục 2.2, 2.5) và kiểm thử thủ công JS-8837 (2026-11-10).
+- Hồ sơ có 18/20 hoặc 19/20 khi mở vẫn hiển thị tối đa 5 chip, không giới hạn theo số chỗ còn trống (PO chốt, comment PRD 23/10).
+- Bộ đếm chuyển màu đỏ và có thông báo "Bạn đã thêm đủ 20 kỹ năng rồi nhé!" — chỉ kiểm thủ công (kiểm tra thị giác).
+- Nguồn: tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js
+
 ## Nghiệp vụ và độ phủ Automation
 
 | Nhánh nghiệp vụ | Tình trạng | Test Case / Ghi chú |
@@ -111,6 +162,8 @@ Việc cho phép nhà tuyển dụng tìm thấy hồ sơ là một hành độn
 | Chu trình bảo mật OTP (Email & SĐT) kích hoạt hồ sơ | **Đã phủ** | TC-048 (tests/e2e/desktop/kiem-thu-chu-trinh-xac-minh-bao-mat-otp-email-sdt-khi-kich-h.spec.js) |
 | Sửa và xóa một mục hồ sơ đã lưu | Chưa phủ | Kiểm tra chỉnh sửa/xóa các bản ghi kinh nghiệm, học vấn |
 | Chuẩn hóa kỹ năng — ẩn nút Thêm khi trùng thư viện (JS-8828) | **Đã phủ** | TC-170 (Desktop), TC-171 (Mobile Web) |
+| AI gợi ý kỹ năng theo job title — hiển thị, chọn, chip trùng, giới hạn 20 (JS-8837) | **Đã phủ** | TC-175 → TC-179 (Desktop), TC-180, TC-181 (Mobile Web) |
+| AI gợi ý kỹ năng trong luồng Ứng tuyển với hồ sơ (JS-8837) | Chưa phủ | Đã kiểm thủ công 2026-11-10; thuộc REQ-003 |
 | Tắt lại cho phép tìm kiếm hồ sơ | Chưa phủ | Kiểm tra trạng thái hồ sơ khi tắt toggle tìm kiếm |
 
 ## Open questions
@@ -126,3 +179,4 @@ Việc cho phép nhà tuyển dụng tìm thấy hồ sơ là một hành độn
 | Version | Ngày | Thay đổi |
 |---|---|---|
 | 1.1 | 2026-11-05 | Thêm AC-070 Chuẩn hóa kỹ năng (Skill Normalization v1.1 – JS-8828) |
+| 1.2 | 2026-11-10 | Thêm AC-074 → AC-077 AI gợi ý kỹ năng theo job title (Skill Standardization v1.1 – JS-8837) |

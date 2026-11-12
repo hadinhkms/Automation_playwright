@@ -1,3 +1,4 @@
+const { expect } = require('@playwright/test');
 const { JobSearchPage } = require('../desktop/JobSearchPage');
 
 class MobileJobSearchPage extends JobSearchPage {
@@ -37,6 +38,24 @@ class MobileJobSearchPage extends JobSearchPage {
   }
 
   /**
+   * Mobile Web mở chi tiết tin dạng lớp phủ trên trang tìm kiếm (URL không đổi, không có H1):
+   * kiểm tra tiêu đề tin vừa bấm và nút "Ứng tuyển" trong lớp phủ. Nếu app điều hướng sang trang chi tiết thì kiểm tra trên trang đó.
+   * @param {import('@playwright/test').Page} [detailPage]
+   */
+  async expectJobDetailOpened(detailPage = this.page) {
+    const title = this.lastOpenedJobTitle;
+    if (!title) throw new Error('Chưa mở tin tuyển dụng nào qua clickFirstJob()');
+    const detailTitle = detailPage.locator('.fixed').getByRole('heading', { name: title, exact: true })
+      .or(detailPage.getByRole('heading', { level: 1, name: title }))
+      .first();
+    await expect(detailTitle, `Chi tiết tin "${title}" phải hiển thị`).toBeVisible({ timeout: 20000 });
+    await expect(
+      detailPage.getByRole('button', { name: /^\s*(Ứng tuyển( ngay)?|Nộp lại hồ sơ)\s*$/i }).first(),
+      'Chi tiết tin phải có nút Ứng tuyển'
+    ).toBeVisible({ timeout: 15000 });
+  }
+
+  /**
    * Click vào công việc đầu tiên trên mobile:
    * Tự động đóng popup cản trở, hỗ trợ cả trường hợp mở tab mới (popup) hoặc điều hướng tại chỗ (in-tab/SPA)
    */
@@ -48,11 +67,21 @@ class MobileJobSearchPage extends JobSearchPage {
       : this.firstJobLink;
 
     const href = await targetJob.getAttribute('href').catch(() => null);
+    // Dùng để đối chiếu tin vừa mở với danh sách Việc làm đã ứng tuyển (URL trang có thể chưa kịp đổi)
+    this.lastOpenedJobHref = href;
+    this.lastOpenedJobTitle = (await targetJob.getByRole('heading', { level: 3 }).first().innerText().catch(() => '')).trim();
 
     let popup = null;
-    const popupPromise = this.page.waitForEvent('popup', { timeout: 3000 }).catch((_err) => null);
-    await this.clickElement(targetJob);
-    popup = await popupPromise;
+    const popupPromise = this.page.waitForEvent('popup', { timeout: 15000 }).catch((_err) => null);
+    // Dialog "Khám phá việc làm gần tôi" có thể bật muộn và chặn click → đóng rồi bấm lại
+    await expect(async () => {
+      await this.closeBlockingDialogsIfVisible();
+      await targetJob.click({ timeout: 5000 });
+    }).toPass({ timeout: 40000 });
+    popup = await Promise.race([
+      popupPromise,
+      this.page.waitForURL(/id\d+\.html/, { timeout: 15000 }).then(() => null, () => null),
+    ]);
 
     if (popup) {
       await popup.waitForLoadState('domcontentloaded');

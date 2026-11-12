@@ -5,7 +5,7 @@ const usersData = require('../../../data/users.json');
 const { OnboardingPopup } = require('../../../pages/desktop/OnboardingPopup');
 const { JobApplyPage } = require('../../../pages/desktop/JobApplyPage');
 
-test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e @REQ-003', () => {
+test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e @REQ-003 @smoke @smoke-desktop', () => {
   let jobApplyPage;
   let newPage; // Page của tab chi tiết việc làm
 
@@ -36,6 +36,7 @@ test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e 
       await homePage.capture('after_homepage_loaded');
     });
 
+    let appliedJobUrl;
     await test.step('When Tôi mở một việc làm chi tiết và bấm "Ứng tuyển ngay"', async () => {
       await homePage.closeBlockingModalIfVisible();
       await homePage.openJobSearch();
@@ -46,6 +47,7 @@ test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e 
       jobApplyPage = new JobApplyPage(newPage);
 
       await jobApplyPage.capture('after_job_detail_opened');
+      appliedJobUrl = newPage.url();
       await jobApplyPage.startApply({ otpCode: usersData[0]?.otp });
     });
 
@@ -71,6 +73,11 @@ test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e 
     await test.step('Then Việc làm hiển thị trong danh sách đã ứng tuyển', async () => {
       await jobApplyPage.openAppliedJobs();
       await jobApplyPage.expectAppliedJobsVisible();
+      const applyStatus = await jobApplyPage.expectAppliedJobStatus(appliedJobUrl);
+      test.info().annotations.push({
+        type: 'Trạng thái hồ sơ',
+        description: applyStatus === 'delivered' ? 'Hồ sơ đã đến nhà tuyển dụng' : 'Ứng tuyển thành công (đang chờ Admin duyệt)',
+      });
       await jobApplyPage.capture('applied_jobs_list_visible', true);
     });
   });

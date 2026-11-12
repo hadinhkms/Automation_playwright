@@ -14,7 +14,7 @@
 
 const { test, expect } = require('../../../core/fixtures/baseTest');
 
-test.describe('Ticket JS-8865: Kiểm thử chuyên sâu xử lý URL dài và HTTP 431 @e2e @regression @search @JS-8865', () => {
+test.describe('Ticket JS-8865: Kiểm thử chuyên sâu xử lý URL dài và HTTP 431 @e2e  @search @JS-8865', () => {
 
   // Chuẩn nghiệp vụ Seeker: districts chỉ gồm dãy ID số ngăn cách bằng dấu phẩy, không có chữ
   const generateLongDistrictsQuery = (count = 100, start = 1000) => {

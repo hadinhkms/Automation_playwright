@@ -5,7 +5,7 @@ const { OnboardingPopup } = require('../../../pages/desktop/OnboardingPopup');
 const { JobApplyNoCVPage } = require('../../../pages/desktop/JobApplyNoCVPage');
 const { LoginPopup } = require('../../../pages/desktop/LoginPopup');
 
-test.describe('Feature: Guest ứng tuyển việc không cần CV @guest @no-auth @applyjob @desktop @e2e @REQ-004', () => {
+test.describe('Feature: Guest ứng tuyển việc không cần CV @guest @no-auth @applyjob @desktop @e2e @REQ-004 @regression', () => {
   test('TC-038 - AC-013 Khách vãng lai ứng tuyển với số điện thoại đã có tài khoản', async ({
     page,
     pages,

@@ -4,7 +4,7 @@ const usersData = require('../../../data/users.json');
 const { OnboardingPopup } = require('../../../pages/desktop/OnboardingPopup');
 const { JobApplyNoCVPage } = require('../../../pages/desktop/JobApplyNoCVPage');
 
-test.describe('Feature: Hoàn thành profile mini và ứng tuyển job không cần CV @auth @applyjob @desktop @e2e @REQ-004', () => {
+test.describe('Feature: Hoàn thành profile mini và ứng tuyển job không cần CV @auth @applyjob @desktop @e2e @REQ-004 @smoke @smoke-desktop', () => {
 
   test('TC-013 - AC-012 Thành viên ứng tuyển việc không cần CV bằng hồ sơ rút gọn', async ({
     page,
@@ -34,6 +34,7 @@ test.describe('Feature: Hoàn thành profile mini và ứng tuyển job không c
       await homePage.closeBlockingModalIfVisible();
     });
 
+    let appliedJobUrl;
     await test.step('When Người dùng chọn Xem việc không cần CV và mở chi tiết việc làm', async () => {
       await homePage.closeBlockingModalIfVisible();
       await homePage.clickNoCVJobLink();
@@ -44,6 +45,7 @@ test.describe('Feature: Hoàn thành profile mini và ứng tuyển job không c
 
       jobApplyNoCVPage = new JobApplyNoCVPage(newPage);
       await jobApplyNoCVPage.capture('job_detail_opened', true);
+      appliedJobUrl = newPage.url();
       await jobApplyNoCVPage.startApplyNoCV({ otpCode: usersData[0]?.otp });
     });
 
@@ -65,6 +67,11 @@ test.describe('Feature: Hoàn thành profile mini và ứng tuyển job không c
     await test.step('Then Việc làm hiển thị trong danh sách đã ứng tuyển', async () => {
       await jobApplyNoCVPage.openAppliedJobs();
       await jobApplyNoCVPage.expectAppliedJobsVisible();
+      const applyStatus = await jobApplyNoCVPage.expectAppliedJobStatus(appliedJobUrl);
+      test.info().annotations.push({
+        type: 'Trạng thái hồ sơ',
+        description: applyStatus === 'delivered' ? 'Hồ sơ đã đến nhà tuyển dụng' : 'Ứng tuyển thành công (đang chờ Admin duyệt)',
+      });
       await expect(jobApplyNoCVPage.appliedJobsList).toBeVisible({ timeout: 30000 });
       await jobApplyNoCVPage.capture('applied_jobs_list_visible', true);
     });

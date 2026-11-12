@@ -2,6 +2,7 @@ const { BasePage } = require('../BasePage');
 const { ScreenshotHelper } = require('../../core/utils/commonUtils');
 const { JobApplySectionsHelper } = require('./apply/JobApplySectionsHelper');
 const { JobApplyBulkApplyHelper } = require('./apply/JobApplyBulkApplyHelper');
+const { JobApplyStartHelper } = require('./apply/JobApplyStartHelper');
 
 class JobApplyPage extends BasePage {
   constructor(page) {
@@ -96,6 +97,7 @@ class JobApplyPage extends BasePage {
     // Modular helpers
     this.sectionsHelper = new JobApplySectionsHelper(this);
     this.bulkApplyHelper = new JobApplyBulkApplyHelper(this);
+    this.startHelper = new JobApplyStartHelper(this);
   }
 
   async waitForApplyModalStable(options = {}) {
@@ -130,12 +132,7 @@ class JobApplyPage extends BasePage {
 
   async closeOtpPopup() { await this.clickElement(this.otpCloseBtn); }
 
-  async startApply(options = {}) {
-    await this.clickElement(this.btnApplyNow);
-    await this.handlePhoneVerificationAfterApplyIfVisible(options.otpCode);
-    await this.actions.waitForVisible(this.optProfileMethod);
-    await this.waitForApplyModalStable();
-  }
+  async startApply(options = {}) { return this.startHelper.startApply(options); }
 
   async applyByProfile() {
     await this.clickElement(this.optProfileMethod);

@@ -15,7 +15,7 @@ Sinh lại bằng máy:
 | REQ-002 | Onboarding tiêu chí tìm việc | 3 | 5 | 5 |
 | REQ-003 | Ứng tuyển bằng CV hoặc hồ sơ trực tuyến | 4 | 9 | 9 |
 | REQ-004 | Ứng tuyển việc không cần CV | 3 | 6 | 6 |
-| REQ-005 | Quản lý hồ sơ cá nhân | 6 | 10 | 10 |
+| REQ-005 | Quản lý hồ sơ cá nhân | 10 | 17 | 12 |
 | REQ-006 | Trợ lý AI hoàn thiện hồ sơ | 2 | 3 | 3 |
 | REQ-007 | Tìm kiếm việc làm qua trợ lý Chop AI chatbot | 4 | 8 | 7 |
 | REQ-008 | Việc làm dành riêng & Gợi ý tiêu chí tìm việc cá nhân hóa | 4 | 11 | 11 |
@@ -100,6 +100,13 @@ AC-011 thuộc REQ-003 nhưng cũng được phủ bởi các test case của RE
 | TC-106 | REQ-008 | AC-024 | Desktop | P1 | Có | tests/e2e/desktop/personalize-onboarding-truc-tiep-tren-trang.spec.js |
 | TC-170 | REQ-005 | AC-070 | Desktop | P1 | Có | tests/e2e/desktop/chuan-hoa-ky-nang-ho-so-js-8828.spec.js |
 | TC-171 | REQ-005 | AC-070 | Mobile web | P1 | Có | tests/e2e/mobile-web/chuan-hoa-ky-nang-ho-so-js-8828.mobile.spec.js |
+| TC-175 | REQ-005 | AC-074 | Desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-176 | REQ-005 | AC-074 | Desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-177 | REQ-005 | AC-075 | Desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-178 | REQ-005 | AC-076 | Desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-179 | REQ-005 | AC-077 | Desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-180 | REQ-005 | AC-074 | Mobile web | P1 | Có | tests/e2e/mobile-web/goi-y-ky-nang-ai-js-8837.mobile.spec.js |
+| TC-181 | REQ-005 | AC-075 | Mobile web | P1 | Có | tests/e2e/mobile-web/goi-y-ky-nang-ai-js-8837.mobile.spec.js |
 | TC-150 | REQ-012 | AC-050 | Desktop | P0 | Có | tests/e2e/desktop/register_by_phone_zalo_otp-bdd.spec.js |
 | TC-151 | REQ-012 | AC-050 | Mobile web | P0 | Có | tests/e2e/mobile-web/register_by_phone_zalo_otp-bdd.mobile.spec.js |
 | TC-152 | REQ-012 | AC-051 | Desktop | P0 | Có | tests/e2e/desktop/register_by_phone_zalo_otp-bdd.spec.js |

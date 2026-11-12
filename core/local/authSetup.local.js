@@ -7,6 +7,7 @@ const { LoginPopup } = require('../../pages/desktop/LoginPopup');
 const { openLoginModal } = require('../../pages/base/LoginModalHelper');
 const { HomePage } = require('../../pages/desktop/HomePage');
 const { PopupConsent } = require('../../pages/desktop/PopupConsent');
+const { extendTimeoutForLoginPrecondition, trustRuntimeEmailVerification } = require('./loginPreconditionSupport');
 
 function getRuntimeUserDirectory() {
   return path.join(__dirname, '../../test-results/runtime-users');
@@ -92,33 +93,8 @@ async function createRegisteredUserForPrecondition() {
   }
 }
 
-async function trustRuntimeEmailVerification(page) {
-  const markEmailVerified = async (route) => {
-    const requestUrl = new URL(route.request().url());
-    if (requestUrl.pathname !== '/seeker/fe/me') {
-      await route.continue();
-      return;
-    }
-
-    const response = await route.fetch();
-    const body = await response.json().catch(() => null);
-    if (!body) {
-      await route.fulfill({ response });
-      return;
-    }
-
-    if (body?.data?.token_email === 'no_verified') {
-      body.data.token_email = 'verified';
-    }
-
-    await route.fulfill({ response, json: body });
-  };
-
-  await page.route('**/seeker/fe/me', markEmailVerified);
-  await page.route('**/seeker/fe/me?*', markEmailVerified);
-}
-
 async function loginUserFromDataForPrecondition(page, providedUser = null, pageClasses = {}) {
+  extendTimeoutForLoginPrecondition();
   const LoginPopupClass = pageClasses.LoginPopupClass || LoginPopup;
   const HomePageClass = pageClasses.HomePageClass || HomePage;
   const PopupConsentClass = pageClasses.PopupConsentClass || PopupConsent;

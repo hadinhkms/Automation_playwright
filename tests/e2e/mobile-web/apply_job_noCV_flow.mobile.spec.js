@@ -2,7 +2,7 @@ const { test, expect } = require('../../../core/fixtures/mobileWebTest');
 const applyData = require('../../../data/applyJobData.json');
 const usersData = require('../../../data/users.json');
 
-test.describe('Mobile Feature: Hoàn thành profile mini và ứng tuyển job không cần CV @auth @applyjob @mobile @e2e @REQ-004', () => {
+test.describe('Mobile Feature: Hoàn thành profile mini và ứng tuyển job không cần CV @auth @applyjob @mobile @e2e @REQ-004 @smoke @smoke-mobile', () => {
   test('TC-014 - AC-012 Thành viên ứng tuyển việc không cần CV bằng hồ sơ rút gọn trên mobile web', async ({
     authenticatedUser,
     onboardingPopup,
@@ -27,6 +27,7 @@ test.describe('Mobile Feature: Hoàn thành profile mini và ứng tuyển job k
       });
     });
 
+    let appliedJobUrl;
     await test.step('When Người dùng mobile mở danh sách việc không cần CV và chi tiết việc làm', async () => {
       await homePage.closeBlockingModalIfVisible();
       await homePage.clickNoCVJobLink();
@@ -35,6 +36,7 @@ test.describe('Mobile Feature: Hoàn thành profile mini và ứng tuyển job k
       const jobPage = await jobSearchPage.clickFirstJob();
       jobApplyNoCVPage = createJobApplyNoCVPage(jobPage);
       await jobApplyNoCVPage.capture('mobile_job_detail_opened', true);
+      appliedJobUrl = jobSearchPage.lastOpenedJobHref || jobPage.url();
       await jobApplyNoCVPage.startApplyNoCV({ otpCode: usersData[0]?.otp });
     });
 
@@ -56,6 +58,11 @@ test.describe('Mobile Feature: Hoàn thành profile mini và ứng tuyển job k
     await test.step('Then Việc làm hiển thị trong danh sách đã ứng tuyển trên mobile', async () => {
       await jobApplyNoCVPage.openAppliedJobs();
       await jobApplyNoCVPage.expectAppliedJobsVisible();
+      const applyStatus = await jobApplyNoCVPage.expectAppliedJobStatus(appliedJobUrl, { jobTitle: jobSearchPage.lastOpenedJobTitle });
+      test.info().annotations.push({
+        type: 'Trạng thái hồ sơ',
+        description: applyStatus === 'delivered' ? 'Hồ sơ đã đến nhà tuyển dụng' : 'Ứng tuyển thành công (đang chờ Admin duyệt)',
+      });
       await expect(jobApplyNoCVPage.appliedJobsList).toBeVisible({ timeout: 30000 });
       await jobApplyNoCVPage.capture('mobile_applied_jobs_visible', true);
     });

@@ -1,7 +1,7 @@
 const { test, expect } = require('../../../core/fixtures/baseTest');
 const jnmData = require('../../../data/jobNearMeData.json');
 
-test.describe('Feature: Job Near Me – tìm việc làm theo bán kính quanh vị trí @REQ-009 @search @desktop @e2e', () => {
+test.describe('Feature: Job Near Me – tìm việc làm theo bán kính quanh vị trí @REQ-009 @search @desktop @e2e @regression', () => {
   test('TC-160 - AC-060 Khách vãng lai mở "Khám phá việc làm gần tôi" từ Home và lọc việc làm trong bán kính đã chọn', async ({ pages }, testInfo) => {
     test.slow();
     const homePage = pages.homePage;

@@ -3,7 +3,7 @@ const { OnboardingPopup } = require('../../../pages/desktop/OnboardingPopup');
 const { JobApplyPage } = require('../../../pages/desktop/JobApplyPage');
 const usersData = require('../../../data/users.json');
 
-test.describe('Ứng tuyển việc làm - Bulk Apply @auth @applyjob @desktop @e2e @REQ-003', () => {
+test.describe('Ứng tuyển việc làm - Bulk Apply @auth @applyjob @desktop @e2e @REQ-003 @regression', () => {
   let newPage;
   let jobApplyPage;
 

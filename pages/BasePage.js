@@ -152,6 +152,7 @@ class BasePage {
   // --- AppliedJobsHelper (pages/base/AppliedJobsHelper.js) ---
   async openAppliedJobs() { return this.appliedJobsHelper.openAppliedJobs(); }
   async expectAppliedJobsVisible() { return this.appliedJobsHelper.expectAppliedJobsVisible(); }
+  async expectAppliedJobStatus(jobUrl, options = {}) { return this.appliedJobsHelper.expectAppliedJobStatus(jobUrl, options); }
 }
 
 module.exports = { BasePage };

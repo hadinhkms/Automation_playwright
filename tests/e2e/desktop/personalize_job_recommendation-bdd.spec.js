@@ -3,7 +3,7 @@ const { PersonalizePage } = require('../../../pages/desktop/PersonalizePage');
 const { generateRandomVNPhone } = require('../../../core/utils/commonUtils');
 const testData = require('../../../data/personalizeJobData.json');
 
-test.describe('Feature: Cá nhân hóa tiêu chí tìm việc & gợi ý việc làm phù hợp @desktop @e2e @record @REQ-008', () => {
+test.describe('Feature: Cá nhân hóa tiêu chí tìm việc & gợi ý việc làm phù hợp @desktop @e2e @record @REQ-008 @regression', () => {
 
   test('TC-095 - AC-023 AC-024 AC-025 AC-026: Người dùng thiết lập tiêu chí tìm việc cá nhân hóa và khám phá danh sách việc làm gợi ý', async ({ page }, testInfo) => {
     test.setTimeout(240000);

@@ -4,7 +4,7 @@ const { JobApplyPage } = require('../../../pages/desktop/JobApplyPage');
 const { JobDetailPage } = require('../../../pages/desktop/JobDetailPage');
 const applyData = require('../../../data/applyJobData.json');
 
-test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e @REQ-003', () => {
+test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e @REQ-003 @regression', () => {
   test('TC-037 - AC-011 Kiểm tra trạng thái việc làm đã nộp (Nộp lại hồ sơ hoặc Đã ứng tuyển)', async ({
     page,
     authenticatedUser,
@@ -19,6 +19,8 @@ test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e 
       type: 'Precondition',
       description: 'Người dùng đã đăng nhập và có việc làm trong danh sách đã ứng tuyển',
     });
+
+    let appliedJobUrl;
 
     await test.step('Given Tiền điều kiện: Người dùng đã đăng nhập và đã ứng tuyển 1 việc làm bất kỳ bằng CV', async () => {
       await onboardingPopup.closeIfVisible(undefined, {
@@ -38,6 +40,7 @@ test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e 
       const jobDetailPage = new JobDetailPage(jobPage);
       const jobApplyPage = new JobApplyPage(jobPage);
       await jobDetailPage.verifyJobDetailPageLoaded();
+      appliedJobUrl = jobPage.url();
       await jobApplyPage.startApply();
       await jobApplyPage.applyByCV();
       await jobApplyPage.uploadCV(applyData.cvPath);
@@ -56,9 +59,13 @@ test.describe('Feature: Ứng tuyển việc làm @auth @applyjob @desktop @e2e 
       await homePage.capture('applied_jobs_menu_opened', false);
     });
 
-    await test.step('Then [1] Danh sách việc làm đã ứng tuyển hiển thị trạng thái hồ sơ đã nộp thành công', async () => {
+    await test.step('Then [1] Việc vừa nộp có trong danh sách, ngày nộp hôm nay, trạng thái hồ sơ hợp lệ', async () => {
       await homePage.expectAppliedJobsVisible();
-      await expect(homePage.appliedJobsList).toBeVisible({ timeout: 30000 });
+      const applyStatus = await homePage.expectAppliedJobStatus(appliedJobUrl);
+      testInfo.annotations.push({
+        type: 'Trạng thái hồ sơ',
+        description: applyStatus === 'delivered' ? 'Hồ sơ đã đến nhà tuyển dụng' : 'Ứng tuyển thành công (đang chờ Admin duyệt)',
+      });
       await homePage.capture('applied_jobs_list_verified');
     });
   });

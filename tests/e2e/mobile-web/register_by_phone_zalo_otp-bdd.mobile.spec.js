@@ -6,7 +6,7 @@ const { MobileHomePage } = require('../../../pages/mobile-web/MobileHomePage');
 const { MobileLoginPopup } = require('../../../pages/mobile-web/MobileLoginPopup');
 const { MobilePopupConsent } = require('../../../pages/mobile-web/MobilePopupConsent');
 
-test.describe('Mobile Feature: Xác thực OTP qua Zalo (mặc định) và SMS khi đăng ký bằng Số điện thoại trên Mobile Web @guest @no-auth @register @mobile @e2e @REQ-012', () => {
+test.describe('Mobile Feature: Xác thực OTP qua Zalo (mặc định) và SMS khi đăng ký bằng Số điện thoại trên Mobile Web @guest @no-auth @register @mobile @e2e @REQ-012 @regression', () => {
   async function openLoginPopupFromHomepage(homePage, loginPopup) {
     await homePage.navigate();
     await homePage.expectHomepageVisible();

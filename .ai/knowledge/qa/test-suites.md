@@ -18,7 +18,7 @@ Hệ thống Test Suite được thiết kế đồng bộ xuyên suốt qua 3 g
 
 | Tên Suite | Mục Đích & Phạm Vi | Filter / Tags | Lệnh Terminal (NPM) | Lệnh CLI Trực Tiếp |
 | :--- | :--- | :--- | :--- | :--- |
-| **`smoke`** | Smoke test toàn hệ thống sau deploy (Phone & Email Register) | `@smoke` (Desktop + Mobile) | `npm run suite:smoke` | `node scripts/run-suite.js smoke qc` |
+| **`smoke`** | Smoke trước release: P0 happy path (trang chủ, đăng nhập, đăng ký SĐT/Email, tìm việc → chi tiết, ứng tuyển CV/không CV + trạng thái hồ sơ, hồ sơ & tải CV) | `@smoke` (Desktop + Mobile) | `npm run suite:smoke` | `node scripts/run-suite.js smoke qc` |
 | **`smoke:desktop`** | Smoke test siêu tốc chỉ trên Desktop Chrome | `@smoke` (Desktop Chrome) | `npm run suite:smoke:desktop` | `node scripts/run-suite.js smoke:desktop qc` |
 | **`smoke:mobile`** | Smoke test chỉ trên Mobile Web (Android & iOS) | `@smoke` (Mobile Pixel 7 & iPhone 13) | `npm run suite:smoke:mobile` | `node scripts/run-suite.js smoke:mobile qc` |
 | **`applyjob`** | Toàn bộ 8 luồng ứng tuyển việc làm (Không CV, Có CV, Profile, OTP) | `@applyjob` (Tất cả nền tảng) | `npm run suite:applyjob` | `node scripts/run-suite.js applyjob qc` |
@@ -54,9 +54,12 @@ test.describe('Feature: Đăng ký tài khoản bằng Số điện thoại @reg
 ```
 
 ### Danh mục Tags tiêu chuẩn:
-- **Cấp độ**: `@smoke`, `@e2e`
+- **Cấp độ**: `@smoke`, `@regression`, `@e2e`
+  - `@smoke` (+ `@smoke-desktop` / `@smoke-mobile`): bộ chặn release, chỉ happy path P0. Spec có `@smoke` chạy trong project `* Smoke Tests` và cả `* Regression Tests` (`playwright.config.js` gỡ `grepInvert @smoke`, vì smoke là tập con của regression); chạy đồng thời cả hai project thì spec smoke chạy hai lần.
+  - `@regression`: bộ hồi quy trước release cho các luồng chính (ứng tuyển, đăng ký/OTP, tìm việc, onboarding, hồ sơ, 1 happy path cho mỗi tính năng phụ). Chạy: `node scripts/run-suite.js ci qc`.
+  - Spec chỉ có `@e2e`: kiểm thử chuyên sâu/biên, không thuộc bộ trước release.
 - **Nền tảng**: `@desktop`, `@mobile`, `@smoke-desktop`, `@smoke-mobile`
-- **Nghiệp vụ**: `@applyjob`, `@profile`, `@register`, `@onboarding`, `@ai`, `@api`
+- **Nghiệp vụ**: `@applyjob`, `@profile`, `@register`, `@login`, `@home`, `@search`, `@onboarding`, `@ai`, `@api`
 
 ---
 

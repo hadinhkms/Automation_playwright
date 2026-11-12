@@ -1,5 +1,7 @@
 const { BasePage } = require('../BasePage');
 const { HomePopupHelper } = require('./home/HomePopupHelper');
+const { HomeSessionHelper } = require('./home/HomeSessionHelper');
+const { PageHealthMonitor } = require('../base/PageHealthMonitor');
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -24,6 +26,7 @@ class HomePage extends BasePage {
     this.findJobSubMenuBtn = page.getByRole('button', { name: 'Tìm việc làm' });
     this.noCVJobLink = page.getByRole('link', { name: 'Việc không cần CV' });
     this.homePopupHelper = new HomePopupHelper(this);
+    this.sessionHelper = new HomeSessionHelper(this);
     this.lotteJobLink = page.getByRole('link', { name: 'Nhân Viên Bán Hàng - Lotte' });
   }
 
@@ -70,6 +73,18 @@ class HomePage extends BasePage {
   // --- HomePopupHelper (pages/desktop/home/HomePopupHelper.js) ---
   async closeBlockingModalIfVisible() { return this.homePopupHelper.closeBlockingModalIfVisible(); }
   async closeAdsIfVisible() { return this.homePopupHelper.closeAdsIfVisible(); }
+  // --- HomeSessionHelper (pages/desktop/home/HomeSessionHelper.js) ---
+  async expectLoggedIn() { return this.sessionHelper.expectLoggedIn(); }
+  async expectGuestHeaderVisible() { return this.sessionHelper.expectGuestHeaderVisible(); }
+  async reloadPage() { return this.sessionHelper.reloadPage(); }
+  async openAccountManagement() { return this.sessionHelper.openAccountManagement(); }
+  async expectAccountManagementVisible() { return this.sessionHelper.expectAccountManagementVisible(); }
+  async openMyProfile() { return this.sessionHelper.openMyProfile(); }
+  async logoutFromMyProfile() { return this.sessionHelper.logoutFromMyProfile(); }
+  async expectLoggedOut() { return this.sessionHelper.expectLoggedOut(); }
+  async expectMyProfileRequiresLogin() { return this.sessionHelper.expectMyProfileRequiresLogin(); }
+  /** Gắn trước khi navigate() để ghi nhận mã HTTP, response 5xx và lỗi JS của lần tải trang. */
+  startHealthMonitor() { return new PageHealthMonitor(this.page); }
 
   async navigate() {
     await super.navigate('/');
@@ -158,35 +173,7 @@ class HomePage extends BasePage {
     return immediateJobsSection;
   }
 
-  async logout() {
-    if (await this.accountMenuButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await this.clickElement(this.accountMenuButton);
-      const logoutBtn = this.page.getByRole('button', { name: /đăng xuất/i })
-        .or(this.page.getByRole('link', { name: /đăng xuất/i }))
-        .or(this.page.locator('text=/đăng xuất/i'))
-        .first();
-      if (await logoutBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await this.actions.click(logoutBtn);
-        const confirmLogoutBtn = this.page.getByRole('button', { name: /đồng ý|xác nhận|đăng xuất/i }).filter({ hasNot: logoutBtn }).first();
-        if (await confirmLogoutBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await this.actions.click(confirmLogoutBtn);
-        }
-      } else {
-        await this.page.context().clearCookies();
-        await this.page.evaluate(() => {
-          try { localStorage.clear(); sessionStorage.clear(); } catch (_) {}
-        });
-        await this.navigate('/');
-      }
-    } else {
-      await this.page.context().clearCookies();
-      await this.page.evaluate(() => {
-        try { localStorage.clear(); sessionStorage.clear(); } catch (_) {}
-      });
-      await this.navigate('/');
-    }
-    await this.page.waitForLoadState('domcontentloaded');
-  }
+  async logout() { return this.sessionHelper.logout(); }
 }
 
 module.exports = { HomePage };

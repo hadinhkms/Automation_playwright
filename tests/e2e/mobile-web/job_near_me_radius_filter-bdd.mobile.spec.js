@@ -1,7 +1,7 @@
 const { test, expect } = require('../../../core/fixtures/mobileWebTest');
 const jnmData = require('../../../data/jobNearMeData.json');
 
-test.describe('Mobile Feature: Job Near Me – tìm việc làm theo bán kính quanh vị trí hiện tại @REQ-009 @search @mobile @e2e', () => {
+test.describe('Mobile Feature: Job Near Me – tìm việc làm theo bán kính quanh vị trí hiện tại @REQ-009 @search @mobile @e2e @regression', () => {
   test.use({ geolocation: jnmData.gps.coords, permissions: ['geolocation'] });
 
   test('TC-162 - AC-062 Khách vãng lai mở Job Near Me từ Home mobile, dùng "Vị trí hiện tại" và lọc việc làm trong bán kính', async ({ pages }, testInfo) => {

@@ -11,7 +11,7 @@ const applyData = require('../../../data/applyJobData.json');
  * - Hồ sơ trực tuyến của tài khoản mới thiếu mục bắt buộc → nộp bằng Hồ sơ trực tuyến bị chặn, yêu cầu "Hoàn thành hồ sơ".
  * - Nộp bằng file CV không phụ thuộc 7 mục hồ sơ trực tuyến → nộp thành công.
  */
-test.describe('Feature: Ứng tuyển việc làm - Điều kiện hoàn thiện hồ sơ khi nộp @auth @applyjob @desktop @e2e @REQ-003', () => {
+test.describe('Feature: Ứng tuyển việc làm - Điều kiện hoàn thiện hồ sơ khi nộp @auth @applyjob @desktop @e2e @REQ-003 @regression', () => {
   let newPage;
 
   test.afterEach(async () => {

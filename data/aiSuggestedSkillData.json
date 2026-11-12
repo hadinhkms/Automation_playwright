@@ -1,0 +1,16 @@
+{
+  "_comment": "Dữ liệu cho tests goi-y-ky-nang-ai-js-8837 (REQ-005 AC-074..AC-077). Tên skill gợi ý KHÔNG hard-code: luôn đọc từ response API gợi ý mà trang tải về.",
+  "jobGoal": {
+    "provinces": [119],
+    "occupation_ids": [17],
+    "job_title": "Kế toán",
+    "salary_range": 11,
+    "salary_min": 0,
+    "salary_max": 0,
+    "experience": 3
+  },
+  "maxSkills": 20,
+  "maxChips": 5,
+  "seededSkillPrefix": "Ky nang QA",
+  "seededSkillCountNearLimit": 18
+}

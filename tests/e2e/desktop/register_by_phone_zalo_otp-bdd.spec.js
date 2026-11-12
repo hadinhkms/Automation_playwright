@@ -5,7 +5,7 @@ const { mockZaloOtpBackend } = require('../../../core/utils/zaloOtpMock');
 const { LoginPopup } = require('../../../pages/desktop/LoginPopup');
 const { PopupConsent } = require('../../../pages/desktop/PopupConsent');
 
-test.describe('Feature: Xác thực OTP qua Zalo (mặc định) và SMS khi đăng ký bằng Số điện thoại @guest @no-auth @register @desktop @e2e @REQ-012', () => {
+test.describe('Feature: Xác thực OTP qua Zalo (mặc định) và SMS khi đăng ký bằng Số điện thoại @guest @no-auth @register @desktop @e2e @REQ-012 @regression', () => {
   async function openLoginPopupFromHomepage(homePage, loginPopup) {
     await homePage.navigate();
     await homePage.expectHomepageVisible();

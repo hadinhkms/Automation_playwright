@@ -1,5 +1,6 @@
 const { expect } = require('@playwright/test');
 const { BasePage } = require('../../BasePage');
+const { SkillSuggestionHelper } = require('./SkillSuggestionHelper');
 
 const AUTOCOMPLETE_PATH = '/skill/autocomplete';
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -22,6 +23,8 @@ class ProfileSkillPage extends BasePage {
     // Dropdown gợi ý được render qua portal ngoài modal
     this.suggestionPanel = page.locator('[data-test-id="common__select-dropdown"]');
     this.btnSave = this.skillsEditor.getByRole('button', { name: 'Lưu thông tin' });
+    // Khu vực AI gợi ý kỹ năng theo job title (JS-8837)
+    this.suggestions = new SkillSuggestionHelper(this);
   }
 
   get btnAddNewSkill() {

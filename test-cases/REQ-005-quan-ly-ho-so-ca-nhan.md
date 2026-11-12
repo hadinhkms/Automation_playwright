@@ -14,6 +14,13 @@
 | TC-047 | AC-017 | Xác minh OTP khi bật tìm kiếm hồ sơ | P2 | Có | tests/e2e/desktop/xac-minh-otp-tim-kiem-ho-so.spec.js |
 | TC-170 | AC-070 | Chuẩn hóa kỹ năng: ẩn nút Thêm khi trùng thư viện, thêm skill mới, lưu tên chuẩn trên desktop | P1 | Có | tests/e2e/desktop/chuan-hoa-ky-nang-ho-so-js-8828.spec.js |
 | TC-171 | AC-070 | Chuẩn hóa kỹ năng: ẩn nút Thêm khi trùng thư viện, thêm skill mới, lưu tên chuẩn trên mobile web | P1 | Có | tests/e2e/mobile-web/chuan-hoa-ky-nang-ho-so-js-8828.mobile.spec.js |
+| TC-175 | AC-074 | AI gợi ý kỹ năng: có job title thì hiện khu vực gợi ý, tối đa 5 chip đúng thứ tự trên desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-176 | AC-074 | AI gợi ý kỹ năng: chưa có job title thì không hiện khu vực gợi ý, không gọi API gợi ý trên desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-177 | AC-075 | AI gợi ý kỹ năng: chọn chip thì skill lên đầu, chip kế bù chỗ, lưu được vào hồ sơ trên desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-178 | AC-076 | AI gợi ý kỹ năng: chọn chip trùng skill vừa thêm thì không tạo trùng, số lượng giữ nguyên trên desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-179 | AC-077 | AI gợi ý kỹ năng: chạm 20/20 vẫn hiện gợi ý nhưng không thêm được, mở lại khi đủ 20 thì không còn gợi ý trên desktop | P1 | Có | tests/e2e/desktop/goi-y-ky-nang-ai-js-8837.spec.js |
+| TC-180 | AC-074 | AI gợi ý kỹ năng: có job title thì hiện khu vực gợi ý, tối đa 5 chip đúng thứ tự trên mobile web | P1 | Có | tests/e2e/mobile-web/goi-y-ky-nang-ai-js-8837.mobile.spec.js |
+| TC-181 | AC-075 | AI gợi ý kỹ năng: chọn chip thì skill lên đầu, chip kế bù chỗ, lưu được vào hồ sơ trên mobile web | P1 | Có | tests/e2e/mobile-web/goi-y-ky-nang-ai-js-8837.mobile.spec.js |
 
 
 ## Chi tiết
@@ -65,6 +72,23 @@
   - Bước 3: nút "Thêm mới: QA Regression Skill" (đã trim) hiển thị; thêm xong chip xuất hiện, bộ đếm tăng 1.
   - Bước 4: request lưu hồ sơ trả 2xx; sau khi tải lại, hồ sơ có "ReactJS", "RESTful API", "QA Regression Skill" và không có "reactjs".
 - **Không phủ (kiểm thủ công)**: event Mixpanel "Skills Saved", trạng thái mạng chậm (BUG-01), giới hạn 20 skill.
+
+### TC-175 → TC-181 — AI gợi ý kỹ năng theo job title (JS-8837)
+
+- **Precondition chung**: tài khoản ứng viên mới tạo qua authSetup, đã đăng nhập. Job goal đặt qua API với job title "Kế toán" (trừ TC-176). Hồ sơ chưa có kỹ năng (trừ TC-179: đặt sẵn 18 kỹ năng tự nhập qua API).
+- **Dữ liệu**: `data/aiSuggestedSkillData.json`. Tên skill gợi ý **không** ghi cứng: mọi kỳ vọng về chip đọc từ response API gợi ý của chính lần mở modal (danh sách gợi ý đổi theo từng lần gọi).
+- **Môi trường**: QC. Tính năng chỉ có trên QC sau khi JS-8837 được merge (dự kiến release 2026-11-12).
+
+| TC | Các bước | Expected result (đều có assertion) |
+|---|---|---|
+| TC-175 (Desktop), TC-180 (Mobile Web) | Vào Hồ sơ của tôi → mở modal/trang Kỹ năng | API gợi ý được gọi theo job title của Job goal; khu vực "Chớp gợi ý kỹ năng cho vị trí công việc" hiện kèm job title, ở trạng thái mở rộng, nằm phía trên ô tìm kiếm; chip = tối đa 5 skill đầu của response, đúng thứ tự, không trùng; bộ đếm "Đã chọn 0/20"; request impression ghi đúng các skill đang hiện và cùng session với lần gọi gợi ý |
+| TC-176 (Desktop) | Không đặt job title → mở modal Kỹ năng | Không có khu vực gợi ý; không có request nào tới API gợi ý; bộ đếm "Đã chọn 0/20" |
+| TC-177 (Desktop), TC-181 (Mobile Web) | Mở modal/trang Kỹ năng → chọn chip thứ 2 → chọn chip thứ 1 → lưu ("Lưu thông tin" / "Lưu thay đổi") → tải lại Hồ sơ | Sau lần chọn 1: skill đứng đầu danh sách đã chọn, bộ đếm 1/20, chip thứ 6 của response xuất hiện ở cuối, request selected ghi đúng skill và session; sau lần chọn 2: bộ đếm 2/20, skill mới đứng đầu; request lưu trả 2xx, modal đóng; sau tải lại, hồ sơ hiển thị cả 2 skill |
+| TC-178 (Desktop) | Mở modal → tìm và chọn từ thư viện đúng skill đang ở chip thứ 1 (chưa lưu) → mở lại khu vực gợi ý → bấm chip đó | Trước khi bấm: bộ đếm 1/20, chip vẫn còn; sau khi bấm: bộ đếm vẫn 1/20, skill chỉ xuất hiện 1 lần và đứng đầu, chip trùng biến mất, chip kế tiếp bù để đủ 5 |
+| TC-179 (Desktop) | Hồ sơ 18/20 → mở modal → chọn 2 chip → bấm thêm 1 chip → lưu → tải lại → mở lại modal | Khi mở: 18/20 và đủ 5 chip; sau 2 lần chọn: 20/20, khu vực gợi ý vẫn hiện 5 chip; bấm thêm: bộ đếm vẫn 20/20, skill không vào danh sách, chip vẫn còn; mở lại khi đã lưu 20/20: không có khu vực gợi ý |
+
+- **Không phủ (kiểm thủ công)**: màu đỏ của bộ đếm và toast khi đủ 20; animation khi chọn chip; thu gọn/mở rộng khu vực gợi ý; job title không có skill; API gợi ý lỗi; hết pool gợi ý; event Mixpanel (Skills Opened / Skills Saved / add_new_skill); giá trị `source` / `platform` gửi API log; luồng Ứng tuyển với hồ sơ. Kết quả kiểm thủ công 2026-11-10: `evidence/JS-8837/RESULT.md`.
+- **Mobile Web**: chỉ phủ hiển thị và chọn + lưu; chip trùng và giới hạn 20 là logic chung, chỉ chạy trên Desktop.
 
 ## Ứng viên automation cho REQ-005
 

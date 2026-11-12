@@ -2,7 +2,7 @@ const { test, expect } = require('../../../core/fixtures/mobileWebTest');
 const applyData = require('../../../data/applyJobData.json');
 const usersData = require('../../../data/users.json');
 
-test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực tuyến trên Mobile Web @auth @applyjob @mobile @e2e @REQ-003', () => {
+test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực tuyến trên Mobile Web @auth @applyjob @mobile @e2e @REQ-003 @regression', () => {
   // Timeout cấp describe để áp dụng cả lúc setup fixture authenticatedUser (đăng nhập chậm trên WebKit)
   test.describe.configure({ timeout: 900000 });
 
@@ -28,6 +28,7 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
       await homePage.capture('after_mobile_homepage_loaded');
     });
 
+    let appliedJobUrl;
     await test.step('When Tôi mở việc làm chi tiết trên mobile và bấm "Ứng tuyển ngay"', async () => {
       await homePage.closeBlockingModalIfVisible();
       await homePage.openJobSearch();
@@ -38,6 +39,7 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
       jobApplyPage = createJobApplyPage(newPage);
 
       await jobApplyPage.capture('after_mobile_job_detail_opened');
+      appliedJobUrl = jobSearchPage.lastOpenedJobHref || newPage.url();
       await jobApplyPage.startApply({ otpCode: usersData[0]?.otp });
       await jobApplyPage.applyByProfile();
       await jobApplyPage.continueApply();
@@ -115,6 +117,11 @@ test.describe('Mobile Feature: Ứng tuyển việc làm bằng Profile trực t
     await test.step('Then Việc làm hiển thị trong danh sách đã ứng tuyển trên mobile', async () => {
       await jobApplyPage.openAppliedJobs();
       await jobApplyPage.expectAppliedJobsVisible();
+      const applyStatus = await jobApplyPage.expectAppliedJobStatus(appliedJobUrl, { jobTitle: jobSearchPage.lastOpenedJobTitle });
+      test.info().annotations.push({
+        type: 'Trạng thái hồ sơ',
+        description: applyStatus === 'delivered' ? 'Hồ sơ đã đến nhà tuyển dụng' : 'Ứng tuyển thành công (đang chờ Admin duyệt)',
+      });
       await jobApplyPage.capture('mobile_applied_jobs_list_visible', true);
     });
   });

@@ -84,6 +84,61 @@ class AppliedJobsHelper {
   async expectAppliedJobsVisible() {
     await expect(this.owner.appliedJobsList).toBeVisible({ timeout: 30000 });
   }
+
+  /**
+   * Kiểm tra đúng việc vừa nộp có trong danh sách, nộp hôm nay, và đọc trạng thái hồ sơ.
+   * - "Hồ sơ đã đến nhà tuyển dụng": hồ sơ đã đến NTD.
+   * - "Ứng tuyển thành công": hồ sơ đang chờ Admin duyệt (chưa đến NTD).
+   * @param {string} jobUrl URL trang chi tiết việc làm đã nộp (chứa `id<số>.html`).
+   * @param {{ requireDelivered?: boolean, timeout?: number, jobTitle?: string }} [options]
+   *   requireDelivered=true: chỉ chấp nhận trạng thái đã đến NTD (tải lại trang để chờ duyệt).
+   *   jobTitle: tiêu đề tin, dùng khi danh sách không có link tin (thẻ trên Mobile Web).
+   * @returns {Promise<'delivered'|'pending'>}
+   */
+  async expectAppliedJobStatus(jobUrl, options = {}) {
+    const { requireDelivered = false, timeout = 60000, jobTitle = '' } = options;
+    const jobId = (String(jobUrl).match(/id(\d+)\.html/i) || [])[1];
+    if (!jobId && !jobTitle) {
+      throw new Error(`Không lấy được id tin tuyển dụng từ URL: ${jobUrl}`);
+    }
+    const jobLabel = jobId ? `id${jobId}` : `"${jobTitle}"`;
+
+    const page = this.owner.page;
+    // Desktop: mỗi đơn là một <tr> có link tin. Mobile Web: mỗi đơn là một thẻ <div>, có thể không có link.
+    let jobMarker = jobId ? page.locator(`a[href*="id${jobId}.html"]`) : page.getByText(jobTitle, { exact: true });
+    if (jobId && jobTitle) jobMarker = jobMarker.or(page.getByText(jobTitle, { exact: true }));
+    const jobBlocks = this.owner.appliedJobsList.locator('tbody tr, div').filter({ has: jobMarker });
+    const expectedStatus = requireDelivered ? APPLIED_STATUS.delivered : APPLIED_STATUS.any;
+    const today = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+    const datedBlocks = jobBlocks.filter({ hasText: today });
+    // Khối sâu nhất chứa đủ tin + ngày nộp + trạng thái chính là dòng/thẻ của đơn đó
+    const entry = datedBlocks.filter({ hasText: expectedStatus }).last();
+
+    let firstAttempt = true;
+    let entryText = '';
+    await expect(async () => {
+      if (!firstAttempt) {
+        await page.reload({ waitUntil: 'domcontentloaded' });
+      }
+      firstAttempt = false;
+      await expect(this.owner.appliedJobsList).toBeVisible({ timeout: 15000 });
+      await expect(jobBlocks.last(), `Tin ${jobLabel} phải có trong danh sách Việc làm đã ứng tuyển`).toBeVisible({ timeout: 10000 });
+      await expect(datedBlocks.last(), `Tin ${jobLabel} phải có ngày nộp ${today}`).toBeVisible({ timeout: 5000 });
+      await expect(entry, `Trạng thái hồ sơ của tin ${jobLabel} phải khớp ${expectedStatus}`).toBeVisible({ timeout: 5000 });
+      entryText = await entry.innerText();
+      // Chặn trường hợp khớp nhầm khối bao nhiều đơn (ngày/trạng thái lấy từ đơn khác)
+      expect((entryText.match(/\d{2}\/\d{2}\/\d{4}/g) || []).length, `Khối khớp tin ${jobLabel} chỉ được chứa một đơn`).toBeLessThanOrEqual(2);
+      expect((entryText.match(APPLIED_STATUS.anyGlobal) || []).length, `Khối khớp tin ${jobLabel} chỉ được chứa một trạng thái`).toBe(1);
+    }).toPass({ timeout, intervals: [3000, 5000, 10000] });
+
+    return APPLIED_STATUS.delivered.test(entryText) ? 'delivered' : 'pending';
+  }
 }
+
+const APPLIED_STATUS = {
+  delivered: /Hồ sơ đã đến nhà tuyển dụng/i,
+  any: /Hồ sơ đã đến nhà tuyển dụng|Ứng tuyển thành công/i,
+  anyGlobal: /Hồ sơ đã đến nhà tuyển dụng|Ứng tuyển thành công/gi,
+};
 
 module.exports = { AppliedJobsHelper };

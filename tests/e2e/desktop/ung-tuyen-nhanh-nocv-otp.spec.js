@@ -6,7 +6,7 @@ const { OnboardingPopup } = require('../../../pages/desktop/OnboardingPopup');
 const { JobApplyNoCVPage } = require('../../../pages/desktop/JobApplyNoCVPage');
 const { PopupConsent } = require('../../../pages/desktop/PopupConsent');
 
-test.describe('Ứng tuyển không CV - Luồng biên và OTP @guest @no-auth @applyjob @desktop @e2e @REQ-004', () => {
+test.describe('Ứng tuyển không CV - Luồng biên và OTP @guest @no-auth @applyjob @desktop @e2e @REQ-004 @regression', () => {
   let jobPage;
   let jobApplyNoCVPage;
   let popupConsent;
