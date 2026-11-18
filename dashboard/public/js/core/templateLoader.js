@@ -22,6 +22,7 @@ export class TemplateLoader {
       'settings-view': 'settings',
       'git-view': 'git',
       'qa-view': 'qa',
+      'mobile-view': 'mobile',
     };
   }
 

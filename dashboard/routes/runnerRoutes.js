@@ -14,6 +14,9 @@ const {
   stopRun
 } = require('../services/runnerService');
 const { assertNotFrozen } = require('../../core/utils/circuitBreaker');
+const { getActiveMobileRun } = require('../services/mobileRunnerService');
+
+const MOBILE_BUSY = 'Đang có một lượt chạy Mobile App. Đợi xong hoặc dừng nó trước.';
 
 async function handleRunnerRoutes(request, response, url, context = {}) {
   const root = context.root || process.env.QA_PROJECT_ROOT || process.cwd();
@@ -41,6 +44,7 @@ async function handleRunnerRoutes(request, response, url, context = {}) {
 
   if (request.method === 'POST' && url.pathname === '/api/run') {
     if (getActiveRun()) return sendJson(response, 409, { error: 'Đang có một test run khác.' });
+    if (getActiveMobileRun()) return sendJson(response, 409, { error: MOBILE_BUSY });
     try {
       const options = validateOptions(await parseBody(request), root);
       assertNotFrozen({ suiteName: options.suite || options.file, projectRoot: root, exitOnError: false });
@@ -53,6 +57,7 @@ async function handleRunnerRoutes(request, response, url, context = {}) {
 
   if (request.method === 'POST' && url.pathname === '/api/ui') {
     if (getActiveRun()) return sendJson(response, 409, { error: 'Đang có một test run hoặc UI Mode khác.' });
+    if (getActiveMobileRun()) return sendJson(response, 409, { error: MOBILE_BUSY });
     try {
       const options = validateOptions(await parseBody(request), root);
       assertNotFrozen({ suiteName: options.suite || options.file, projectRoot: root, exitOnError: false });

@@ -1,0 +1,120 @@
+      <header class="hero">
+        <div>
+          <p class="eyebrow"><i class="ph-bold ph-device-mobile"></i> MOBILE APP • TEST NATIVE</p>
+          <h1>Test app Android &amp; iOS</h1>
+          <p class="subtitle">Chạy test native (WebdriverIO + Appium) trên điện thoại thật hoặc emulator, xem log và ảnh bằng chứng ngay tại đây.</p>
+        </div>
+        <div class="hero-stats-group">
+          <div class="hero-stat-card"><strong id="mobile-stat-devices">–</strong><small>Thiết bị sẵn sàng</small></div>
+          <div class="hero-stat-card"><strong id="mobile-stat-specs">–</strong><small>File test</small></div>
+          <div class="hero-stat-card"><strong id="mobile-stat-last">–</strong><small>Lần chạy gần nhất</small></div>
+          <div class="hero-stat-card"><strong id="mobile-stat-toolchain">–</strong><small>Công cụ</small></div>
+        </div>
+      </header>
+
+      <main class="suites-workspace mobile-workspace" id="mobile-workspace">
+        <aside class="panel mobile-panel" aria-labelledby="mobile-devices-title">
+          <div class="script-panel-head">
+            <div class="mobile-head-text">
+              <span class="pm-section-tag">01 · THIẾT BỊ</span>
+              <h2 id="mobile-devices-title">Thiết bị kết nối</h2>
+            </div>
+            <button id="mobile-refresh-btn" type="button" class="btn-icon-subtle" title="Làm mới danh sách thiết bị" aria-label="Làm mới danh sách thiết bị"><i class="ph-bold ph-arrows-clockwise"></i></button>
+          </div>
+          <div class="mobile-panel-body">
+            <div class="mobile-seg" role="group" aria-label="Nền tảng">
+              <button type="button" data-platform="android" aria-pressed="true"><i class="ph-bold ph-android-logo"></i> Android</button>
+              <button type="button" data-platform="ios" aria-pressed="false"><i class="ph-bold ph-apple-logo"></i> iOS</button>
+            </div>
+            <div id="mobile-ios-note" class="mobile-empty" hidden>
+              <strong>iOS sẽ có ở giai đoạn sau</strong>
+              <p>Test iOS cần Appium chạy trên máy macOS có Xcode, hoặc một dịch vụ device farm. Hiện Dashboard mới hỗ trợ Android.</p>
+            </div>
+            <div id="mobile-android-pane" class="mobile-stack">
+              <div id="mobile-device-list" class="mobile-stack" aria-live="polite"></div>
+              <div class="mobile-subhead">
+                <span>Kiểm tra môi trường</span>
+                <button id="mobile-doctor-btn" type="button" class="mobile-link-btn">Kiểm tra lại</button>
+              </div>
+              <ul id="mobile-doctor-list" class="mobile-doctor" aria-live="polite"></ul>
+            </div>
+          </div>
+        </aside>
+
+        <section class="panel mobile-panel" aria-labelledby="mobile-config-title">
+          <div class="script-panel-head">
+            <div class="mobile-head-text">
+              <span class="pm-section-tag">02 · CẤU HÌNH LƯỢT CHẠY</span>
+              <h2 id="mobile-config-title">App và test</h2>
+            </div>
+          </div>
+          <div class="mobile-panel-body">
+            <fieldset class="mobile-field">
+              <legend>App cần test</legend>
+              <div class="mobile-radio-row">
+                <label><input type="radio" name="mobile-app-mode" id="mobile-mode-apk" value="apk" checked> File APK</label>
+                <label><input type="radio" name="mobile-app-mode" id="mobile-mode-installed" value="installed"> App đã cài trên máy</label>
+              </div>
+              <div id="mobile-apk-group" class="mobile-stack">
+                <label class="mobile-label" for="mobile-apk-select">File trong thư mục apps/</label>
+                <select id="mobile-apk-select" class="mobile-input"></select>
+              </div>
+              <div id="mobile-installed-group" class="mobile-grid2" hidden>
+                <div class="mobile-stack">
+                  <label class="mobile-label" for="mobile-package-input">Package</label>
+                  <input id="mobile-package-input" class="mobile-input" type="text" placeholder="com.example.app" maxlength="120" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="mobile-stack">
+                  <label class="mobile-label" for="mobile-activity-input">Activity (tùy chọn)</label>
+                  <input id="mobile-activity-input" class="mobile-input" type="text" placeholder=".MainActivity" maxlength="160" autocomplete="off" spellcheck="false">
+                </div>
+              </div>
+            </fieldset>
+
+            <div class="mobile-field">
+              <div class="mobile-subhead">
+                <span id="mobile-spec-heading">File test</span>
+                <label class="mobile-check"><input type="checkbox" id="mobile-spec-all"> Chọn tất cả</label>
+              </div>
+              <div id="mobile-spec-list" class="mobile-spec-list"></div>
+            </div>
+
+            <div class="mobile-field">
+              <span class="mobile-label">Lọc theo tag (tùy chọn)</span>
+              <div id="mobile-tag-list" class="mobile-tags" role="group" aria-label="Lọc theo tag"></div>
+            </div>
+
+            <label class="mobile-check" id="mobile-noreset-label">
+              <input type="checkbox" id="mobile-noreset"> Giữ dữ liệu app giữa các lần chạy (noReset)
+            </label>
+          </div>
+        </section>
+
+        <section class="panel mobile-panel" aria-labelledby="mobile-run-title">
+          <div class="script-panel-head">
+            <div class="mobile-head-text">
+              <span class="pm-section-tag">03 · THỰC THI</span>
+              <h2 id="mobile-run-title">Chạy và kết quả</h2>
+            </div>
+            <span id="mobile-run-status" class="mobile-pill is-idle">Chưa chạy</span>
+          </div>
+          <div class="mobile-panel-body">
+            <div class="mobile-command">
+              <code id="mobile-command">npx wdio run ./wdio.android.conf.js</code>
+              <button id="mobile-copy-btn" type="button" class="btn-icon-subtle" title="Sao chép lệnh" aria-label="Sao chép lệnh"><i class="ph-bold ph-copy"></i></button>
+            </div>
+            <p id="mobile-run-hint" class="mobile-hint"></p>
+            <div class="mobile-actions">
+              <button id="mobile-run-btn" type="button" class="primary-button"><i class="ph-bold ph-play"></i> Chạy test</button>
+              <button id="mobile-stop-btn" type="button" class="explorer-button" disabled><i class="ph-bold ph-stop"></i> Dừng</button>
+            </div>
+            <div id="mobile-results" class="mobile-results" aria-live="polite"></div>
+            <div id="mobile-evidence" class="mobile-evidence"></div>
+            <div class="mobile-subhead">
+              <span>Log trực tiếp</span>
+              <button id="mobile-clear-log" type="button" class="mobile-link-btn">Xóa log</button>
+            </div>
+            <pre id="mobile-log" class="mobile-log" aria-live="off"></pre>
+          </div>
+        </section>
+      </main>

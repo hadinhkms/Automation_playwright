@@ -147,3 +147,8 @@ __pycache__/
 .DS_Store
 Thumbs.db
 # <<< master-process <<<
+
+# Native app binaries for Appium tests (không commit APK/IPA)
+/apps/*.apk
+/apps/*.aab
+/apps/*.ipa

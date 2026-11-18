@@ -1,0 +1,147 @@
+/**
+ * dashboard/public/js/views/mobile/mobileRender.js
+ * DOM builders for the Mobile App view. Every value is set via textContent.
+ */
+
+export function el(tag, className = '', text = '') {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
+function empty(title, message) {
+  const box = el('div', 'mobile-empty');
+  box.append(el('strong', '', title), el('p', '', message));
+  return box;
+}
+
+const STATE_LABEL = { device: 'Sẵn sàng', unauthorized: 'Chưa cho phép', offline: 'Mất kết nối' };
+
+export function renderDevices(container, data, selectedUdid) {
+  container.replaceChildren();
+  if (!data) { container.append(el('p', 'mobile-hint', 'Đang tìm thiết bị...')); return; }
+  if (!data.available) { container.append(empty('Không đọc được thiết bị', data.error)); return; }
+  if (data.devices.length === 0) {
+    container.append(empty('Chưa có thiết bị nào', 'Cắm điện thoại qua USB, bật USB debugging, hoặc mở một emulator rồi bấm làm mới.'));
+    return;
+  }
+  data.devices.forEach((d) => {
+    const card = el('button', `mobile-device${d.serial === selectedUdid ? ' is-selected' : ''}`);
+    card.type = 'button';
+    card.dataset.udid = d.serial;
+    card.disabled = !d.ready;
+    card.setAttribute('aria-pressed', String(d.serial === selectedUdid));
+    const top = el('span', 'mobile-device-top');
+    top.append(el('strong', '', d.model || d.serial), el('span', `mobile-pill ${d.ready ? 'is-passed' : 'is-warn'}`, STATE_LABEL[d.state] || d.state));
+    const meta = [d.serial, d.androidVersion ? `Android ${d.androidVersion}` : '', d.emulator ? 'Emulator' : ''].filter(Boolean).join(' · ');
+    card.append(top, el('small', 'mobile-mono', meta));
+    if (d.hint) card.append(el('small', 'mobile-hint', d.hint));
+    container.append(card);
+  });
+}
+
+export function renderDoctor(list, doctor) {
+  list.replaceChildren();
+  if (!doctor) { list.append(el('li', 'mobile-hint', 'Đang kiểm tra...')); return; }
+  if (doctor.error) { list.append(el('li', 'is-bad', `Không kiểm tra được: ${doctor.error}`)); return; }
+  doctor.checks.forEach((c) => {
+    const item = el('li', c.ok ? 'is-ok' : 'is-bad');
+    item.append(el('i', `ph-bold ${c.ok ? 'ph-check-circle' : 'ph-warning-circle'}`));
+    const text = el('span');
+    text.append(el('strong', '', c.label), el('small', '', c.ok ? c.detail : c.hint));
+    item.append(text);
+    list.append(item);
+  });
+}
+
+export function renderApkOptions(select, apps, selected) {
+  select.replaceChildren();
+  if (apps.length === 0) {
+    const opt = el('option', '', 'Chưa có file .apk trong apps/');
+    opt.value = '';
+    select.append(opt);
+    select.disabled = true;
+    return;
+  }
+  select.disabled = false;
+  apps.forEach((a) => {
+    const opt = el('option', '', `${a.name} · ${(a.sizeBytes / 1048576).toFixed(1)} MB`);
+    opt.value = a.path;
+    opt.selected = a.path === selected;
+    select.append(opt);
+  });
+}
+
+export function renderSpecs(container, specs, selected, specDir) {
+  container.replaceChildren();
+  if (specs.length === 0) {
+    container.append(empty('Chưa có file test', `Tạo file *.native.js trong ${specDir}/ rồi bấm làm mới.`));
+    return;
+  }
+  specs.forEach((s) => {
+    const row = el('label', 'mobile-spec');
+    const box = el('input');
+    box.type = 'checkbox';
+    box.dataset.spec = s.path;
+    box.checked = selected.has(s.path);
+    const text = el('span');
+    text.append(el('strong', 'mobile-mono', s.name), el('small', '', `${s.tests.length} test${s.tags.length ? ' · ' + s.tags.join(' ') : ''}`));
+    row.append(box, text);
+    container.append(row);
+  });
+}
+
+export function renderTags(container, tags, active) {
+  container.replaceChildren();
+  if (tags.length === 0) { container.append(el('span', 'mobile-hint', 'Chưa có tag nào trong tên test.')); return; }
+  tags.forEach((t) => {
+    const btn = el('button', `mobile-tag${t === active ? ' is-active' : ''}`, t);
+    btn.type = 'button';
+    btn.dataset.tag = t;
+    btn.setAttribute('aria-pressed', String(t === active));
+    container.append(btn);
+  });
+}
+
+const RUN_LABEL = { running: 'Đang chạy', stopping: 'Đang dừng', passed: 'Đạt', failed: 'Lỗi', stopped: 'Đã dừng' };
+const PHASE_LABEL = { starting: 'Khởi động Appium và cài app', testing: 'Đang chạy test' };
+
+export function renderRunStatus(pill, run) {
+  const status = run?.status || 'idle';
+  pill.className = `mobile-pill is-${status === 'running' || status === 'stopping' ? 'running' : status}`;
+  pill.textContent = run ? (RUN_LABEL[status] || status) + (status === 'running' && PHASE_LABEL[run.phase] ? ` · ${PHASE_LABEL[run.phase]}` : '') : 'Chưa chạy';
+}
+
+export function renderResults(container, run) {
+  container.replaceChildren();
+  if (!run?.results?.length) return;
+  const passed = run.results.filter((r) => r.status === 'passed').length;
+  container.append(el('div', 'mobile-subhead', `Kết quả: ${passed}/${run.results.length} đạt`));
+  run.results.forEach((r) => {
+    const row = el('div', 'mobile-result');
+    row.append(el('span', '', r.title), el('span', `mobile-pill is-${r.status}`, r.status === 'passed' ? 'Đạt' : 'Lỗi'));
+    container.append(row);
+  });
+}
+
+export function renderEvidence(container, run) {
+  container.replaceChildren();
+  if (!run?.evidence?.length) return;
+  container.append(el('div', 'mobile-subhead', 'Ảnh bằng chứng'));
+  const grid = el('div', 'mobile-evidence-grid');
+  run.evidence.forEach((e) => {
+    const link = el('a');
+    link.href = e.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.title = e.name;
+    const img = el('img');
+    img.src = e.url;
+    img.alt = e.name;
+    img.loading = 'lazy';
+    link.append(img);
+    grid.append(link);
+  });
+  container.append(grid);
+}

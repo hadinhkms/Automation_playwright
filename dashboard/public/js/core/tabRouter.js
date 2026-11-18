@@ -19,6 +19,7 @@ export const DASHBOARD_VIEW_MAP = {
   fixtures: 'fixtures-view', 'fixtures-view': 'fixtures-view', fixture: 'fixtures-view',
   compare: 'compare-view', 'compare-view': 'compare-view', diff: 'compare-view',
   qa: 'qa-view', 'qa-view': 'qa-view', audit: 'qa-view',
+  mobile: 'mobile-view', 'mobile-view': 'mobile-view', native: 'mobile-view', apk: 'mobile-view',
   git: 'git-view', 'git-view': 'git-view', sync: 'git-view',
   settings: 'settings-view', 'settings-view': 'settings-view', config: 'settings-view',
 };

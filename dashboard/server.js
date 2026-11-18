@@ -24,6 +24,8 @@ const { handleQaRoutes } = require('./routes/qaRoutes');
 const { handleQaSpecRoutes } = require('./routes/qaSpecRoutes');
 const { handleQaBatchRoutes } = require('./routes/qaBatchRoutes');
 const { handleMasterProcessRoutes } = require('./routes/masterProcessRoutes');
+const { handleMobileRoutes } = require('./routes/mobileRoutes');
+const { stopMobileRun } = require('./services/mobileRunnerService');
 const { handleResourceRoutes, serveFile } = require('./routes/resourceRoutes');
 const { sendJson, parseBody, safeChildPath } = require('./routes/routeUtils');
 const { getActiveRun, stopRun } = require('./services/runnerService');
@@ -111,6 +113,7 @@ const server = http.createServer(async (request, response) => {
     if (await handleQaBatchRoutes(request, response, url, context)) return;
     if (await handleQaRoutes(request, response, url, context)) return;
     if (await handleMasterProcessRoutes(request, response, url, context)) return;
+    if (await handleMobileRoutes(request, response, url, context)) return;
     if (await handleResourceRoutes(request, response, url, context)) return;
   } catch (err) {
     if (!response.headersSent) sendJson(response, Number.isInteger(err.status) ? err.status : 500, { error: err.message || 'Lỗi máy chủ nội bộ.' });
@@ -176,6 +179,7 @@ tryListen(currentPort);
 function shutdown() {
   agentService.shutdown();
   stopRun();
+  stopMobileRun();
   stopRecorderSession();
   if (fs.existsSync(STATE_PATH)) {
     try { fs.rmSync(STATE_PATH, { force: true }); } catch (_) {}

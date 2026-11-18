@@ -1,0 +1,87 @@
+/**
+ * dashboard/public/styles/views/mobile.css
+ * Mobile App view. Layout comes from .suites-workspace (canonical 3-frame grid) and .panel.
+ */
+.mobile-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.mobile-panel > .script-panel-head h2 { margin: 0; font-size: 14px; }
+.mobile-head-text { display: flex; flex-direction: column; min-width: 0; }
+.mobile-panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.mobile-stack { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.mobile-stack[hidden], .mobile-grid2[hidden] { display: none; }
+.mobile-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mobile-mono { font-family: var(--font-mono); }
+.mobile-hint { margin: 0; color: var(--muted); font-size: var(--font-caption); line-height: 1.45; }
+.mobile-hint:empty { display: none; }
+
+.mobile-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); }
+.mobile-seg button { height: 30px; min-height: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: transparent; color: var(--muted); border: 0; }
+.mobile-seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); }
+
+.mobile-device { height: auto; min-height: 0; width: 100%; padding: 10px 12px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-weight: 500; line-height: 1.4; }
+.mobile-device:not(:disabled):hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.mobile-device.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.mobile-device:disabled { cursor: default; opacity: 1; }
+.mobile-device-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.mobile-device-top strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-device small { color: var(--muted); font-size: var(--font-caption); overflow-wrap: anywhere; }
+
+.mobile-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; font: 600 var(--font-meta)/1.6 var(--font-sans); letter-spacing: .02em; white-space: nowrap; color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); }
+.mobile-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.mobile-pill.is-passed { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); border-color: transparent; }
+.mobile-pill.is-failed { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); border-color: transparent; }
+.mobile-pill.is-warn, .mobile-pill.is-stopped { color: var(--warning); background: var(--warning-subtle); border-color: transparent; }
+.mobile-pill.is-running { color: var(--accent); background: var(--accent-subtle); border-color: transparent; }
+
+.mobile-subhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font: 700 var(--font-meta) var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.mobile-link-btn { height: auto; min-height: 0; padding: 2px 4px; background: none; border: 0; color: var(--accent); font-size: var(--font-caption); text-transform: none; letter-spacing: 0; }
+.mobile-link-btn:hover { text-decoration: underline; }
+
+.mobile-doctor { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mobile-doctor li { display: flex; gap: 8px; align-items: flex-start; font-size: var(--font-control); }
+.mobile-doctor li i { margin-top: 2px; }
+.mobile-doctor li.is-ok i { color: var(--success); }
+.mobile-doctor li.is-bad, .mobile-doctor li.is-bad i { color: var(--danger); }
+.mobile-doctor li span { display: flex; flex-direction: column; min-width: 0; }
+.mobile-doctor li strong { color: var(--text); font-weight: 600; }
+.mobile-doctor li small { color: var(--muted); overflow-wrap: anywhere; }
+
+.mobile-empty { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px dashed var(--line); border-radius: 8px; font-size: var(--font-control); }
+.mobile-empty[hidden] { display: none; }
+.mobile-empty p { margin: 0; color: var(--muted); }
+
+.mobile-field { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+/* Field captions follow the dashboard's global label style (muted, uppercase). */
+.mobile-field legend, .mobile-label { padding: 0; margin-bottom: 2px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: 0.075em; text-transform: uppercase; }
+.mobile-radio-row { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--font-control); }
+.mobile-radio-row label, .mobile-check { display: inline-flex; font-weight: 500; align-items: center; gap: 6px; font-size: var(--font-control); color: var(--text); cursor: pointer; text-transform: none; letter-spacing: 0; font-family: var(--font-sans); font-weight: 500; }
+.mobile-input { width: 100%; min-width: 0; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--input); color: var(--text); font: var(--font-control) var(--font-mono); box-sizing: border-box; }
+.mobile-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.mobile-spec-list { display: flex; flex-direction: column; gap: 6px; }
+.mobile-spec { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; color: var(--text); font-size: var(--font-control); font-weight: 500; letter-spacing: 0; text-transform: none; }
+.mobile-spec input { margin-top: 3px; }
+.mobile-spec span { display: flex; flex-direction: column; min-width: 0; }
+.mobile-spec strong { font-size: var(--font-control); overflow-wrap: anywhere; }
+.mobile-spec small { color: var(--muted); font-size: var(--font-caption); }
+.mobile-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.mobile-tag { height: 26px; min-height: 26px; padding: 0 10px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: 500 var(--font-caption) var(--font-mono); }
+.mobile-tag.is-active { border-color: var(--accent); color: var(--accent); background: var(--accent-subtle); }
+
+.mobile-command { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--code-bg); border: 1px solid var(--line); }
+.mobile-command code { flex: 1; min-width: 0; color: var(--code-text); font: var(--font-caption)/1.5 var(--font-mono); overflow-wrap: anywhere; }
+.mobile-actions { display: flex; gap: 8px; }
+.mobile-results { display: flex; flex-direction: column; gap: 6px; }
+.mobile-results:empty, .mobile-evidence:empty { display: none; }
+.mobile-result { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: var(--font-control); }
+.mobile-result span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.mobile-evidence { display: flex; flex-direction: column; gap: 8px; }
+.mobile-evidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; }
+.mobile-evidence-grid a { display: block; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; aspect-ratio: 9 / 16; background: var(--surface-2); }
+.mobile-evidence-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mobile-log { margin: 0; flex: 1 0 180px; min-height: 180px; max-height: 420px; overflow: auto; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--code-bg); color: var(--code-text); font: var(--font-caption)/1.55 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.mobile-log:empty::before { content: "Log WebdriverIO và Appium sẽ xuất hiện tại đây khi bạn chạy test."; color: var(--code-muted); }
+
+@media (max-width: 640px) {
+  .mobile-grid2 { grid-template-columns: 1fr; }
+  .mobile-actions > button { flex: 1; }
+}

@@ -30,6 +30,7 @@ import { docsSlice } from './views/docs/docsSlice.js';
 import { compareSlice } from './views/compare/compareSlice.js';
 import { settingsSlice } from './views/settings/settingsSlice.js';
 import { qaSlice } from './views/qa/qaSlice.js';
+import { mobileSlice } from './views/mobile/mobileSlice.js';
 
 const SLICE_REGISTRY = {
   'data-view': { slice: dataSlice, title: 'Dữ liệu test' },
@@ -46,9 +47,10 @@ const SLICE_REGISTRY = {
   'compare-view': { slice: compareSlice, title: 'So sánh ảnh' },
   'settings-view': { slice: settingsSlice, title: 'Cấu hình hệ thống' },
   'qa-view': { slice: qaSlice, title: 'QA Docs & Automation' },
+  'mobile-view': { slice: mobileSlice, title: 'Mobile App' },
 };
 
-// 2. Register all 14 Studio Views with FeatureRegistry
+// 2. Register all 15 Studio Views with FeatureRegistry
 Object.entries(SLICE_REGISTRY).forEach(([id, { slice, title }]) => {
   featureRegistry.registerView(id, {
     id,
@@ -92,9 +94,10 @@ if (typeof window !== 'undefined') {
       compare: compareSlice,
       settings: settingsSlice,
       qa: qaSlice,
+      mobile: mobileSlice,
     },
   };
-  console.log('[Studio Core] All 14 Feature Slices, Shared Shell & Template Loader active.');
+  console.log('[Studio Core] All 15 Feature Slices, Shared Shell & Template Loader active.');
 }
 
 export {

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dashboard/server.js"],
+      "env": { "DASHBOARD_PORT": "4199" },
+      "port": 4199
+    }
+  ]
+}
