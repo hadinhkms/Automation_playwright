@@ -3,11 +3,11 @@
  * Runs native WDIO/Appium tests as a child process and streams progress over /api/events.
  * Shares the single-run lock with the Playwright runner.
  */
-const fs = require('fs');
-const path = require('path');
 const { spawn, execFile } = require('child_process');
 const { publish, getActiveRun: getWebRun } = require('./runnerService');
 const { buildArgs, buildEnv, displayCommand } = require('./mobileRunOptions');
+const { collectEvidence, finalizeJunit, findWdioBin } = require('./mobileRunArtifacts');
+const { appendRun } = require('./mobileRunHistory');
 
 const RESULT_PATTERN = /(✓|✖)\s+(.+?)\s*$/;
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
@@ -57,41 +57,21 @@ function pipe(run, stream, name) {
   });
 }
 
-function collectEvidence(root, platform, sinceIso) {
-  const dir = path.join(root, 'evidence', 'native', platform);
-  if (!fs.existsSync(dir)) return [];
-  const since = Date.parse(sinceIso) - 1000;
-  return fs.readdirSync(dir)
-    .filter((n) => /\.png$/i.test(n))
-    .map((n) => ({ name: n, mtime: fs.statSync(path.join(dir, n)).mtimeMs }))
-    .filter((f) => f.mtime >= since)
-    .sort((a, b) => b.mtime - a.mtime)
-    .slice(0, 12)
-    .map((f) => ({ name: f.name, url: `/evidence/native/${platform}/${encodeURIComponent(f.name)}` }));
-}
-
-/** @wdio/cli does not export its bin through package "exports", so locate the file directly. */
-function findWdioBin(root) {
-  const rel = path.join('node_modules', '@wdio', 'cli', 'bin', 'wdio.js');
-  const found = [root, process.cwd()].map((dir) => path.join(dir, rel)).find((p) => fs.existsSync(p));
-  if (!found) throw Object.assign(new Error('Chưa cài WebdriverIO (@wdio/cli). Chạy "npm install" trong repo rồi thử lại.'), { status: 503 });
-  return found;
-}
-
 function startMobileRun(options, root) {
   if (activeRun) throw conflict('Đang có một lượt chạy Mobile khác.');
   if (getWebRun()) throw conflict('Đang có một lượt chạy Playwright. Đợi xong hoặc dừng nó trước.');
 
   const wdioBin = findWdioBin(root);
+  const id = Date.now().toString(36);
   const child = spawn(process.execPath, [wdioBin, ...buildArgs(options)], {
     cwd: root,
-    env: { ...process.env, ...buildEnv(options, root) },
+    env: { ...process.env, ...buildEnv(options, root), MOBILE_RUN_ID: id, MOBILE_JUNIT_FILE: '' },
     shell: false,
     windowsHide: true,
   });
   logTail.length = 0;
   const run = {
-    id: Date.now().toString(36),
+    id,
     platform: options.platform,
     status: 'running',
     phase: 'starting',
@@ -116,11 +96,27 @@ function startMobileRun(options, root) {
     run.exitCode = exitCode;
     run.finishedAt = new Date().toISOString();
     run.evidence = collectEvidence(root, run.platform, run.startedAt);
+    finishRecord(root, run);
     lastRun = publicRun(run);
     activeRun = null;
     emitStatus();
   });
   return publicRun(run);
+}
+
+/** JUnit is the source of truth for the final results; the run is then saved to history (REQ-202/203). */
+function finishRecord(root, run) {
+  run.junit = finalizeJunit(root, run.platform, run.id);
+  if (run.junit?.cases.length) run.results = run.junit.cases.map((c) => ({ id: c.id, title: c.title, status: c.status }));
+  if (run.junit) delete run.junit.cases;
+  try { appendRun(root, publicRun(run)); } catch (err) {
+    publish('mobile_log', { runId: run.id, stream: 'stderr', text: `Không lưu được lịch sử lượt chạy: ${err.message}\n` });
+  }
+}
+
+/** True while the active run uses this APK (BR-201: it must not be replaced or deleted). */
+function isBuildInUse(relPath) {
+  return Boolean(activeRun && activeRun.options?.app?.type === 'apk' && activeRun.options.app.path === relPath);
 }
 
 /** Kills the whole tree: WDIO spawns workers and the Appium server as grandchildren. */
@@ -143,7 +139,6 @@ module.exports = {
   stopMobileRun,
   getActiveMobileRun: () => activeRun,
   getMobileState: () => ({ activeRun: publicRun(activeRun), lastRun, logs: [...logTail] }),
+  isBuildInUse,
   consumeLine,
-  collectEvidence,
-  findWdioBin,
 };

@@ -152,3 +152,4 @@ Thumbs.db
 /apps/*.apk
 /apps/*.aab
 /apps/*.ipa
+/apps/*.part

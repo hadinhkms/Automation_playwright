@@ -10,7 +10,8 @@ const path = require('path');
 const { parseAdbDevices } = require('./mobileDeviceService');
 const { extractTests, getCatalog } = require('./mobileSpecService');
 const { validateMobileOptions, buildArgs, buildEnv, displayCommand } = require('./mobileRunOptions');
-const { consumeLine, collectEvidence, findWdioBin } = require('./mobileRunnerService');
+const { consumeLine } = require('./mobileRunnerService');
+const { collectEvidence, findWdioBin } = require('./mobileRunArtifacts');
 
 describe('parseAdbDevices', () => {
   test('parses ready, unauthorized and offline devices with properties', () => {

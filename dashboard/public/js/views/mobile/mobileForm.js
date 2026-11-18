@@ -11,7 +11,11 @@ export function readFormOptions(state) {
   const app = mode === 'apk'
     ? { type: 'apk', path: $('mobile-apk-select')?.value || '' }
     : { type: 'installed', appPackage: $('mobile-package-input').value.trim(), appActivity: $('mobile-activity-input').value.trim() };
-  return { platform: 'android', udid: state.udid, specs: [...state.specs], grep: state.tag, app, noReset: $('mobile-noreset').checked };
+  const device = (state.devices?.devices || []).find((d) => d.serial === state.udid);
+  return {
+    platform: 'android', udid: state.udid, deviceName: device?.model || '', specs: [...state.specs], grep: state.tag,
+    app, noReset: $('mobile-noreset').checked, suite: state.suite || undefined,
+  };
 }
 
 /** Returns the reason the Run button is disabled, or '' when a run can start. */

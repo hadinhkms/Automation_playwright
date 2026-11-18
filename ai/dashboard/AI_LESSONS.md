@@ -22,6 +22,26 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 ## Confirmed lessons
 
+### 2026-11-19 — A Streaming Upload Rejected Early Must Close Its Connection
+
+- Area: Binary uploads (`PUT /api/mobile/builds/:name`, `dashboard/services/mobileBuildService.js`).
+- Symptom: After a `413` (declared size over the limit), the next upload on the same client got `201` when it should have got `409`; its request never reached the route.
+- Root cause: The route answered before reading the body. With HTTP keep-alive the client reused the socket, so the server parsed the next request's bytes as the rest of the rejected body.
+- Correct pattern: Stream uploads into `<name>.part` and rename only when complete. Set `Connection: close` on any upload response, so a rejection never leaves unread bytes on a socket the client reuses. Remove the `.part` file on 4xx, on client abort (`close` with `!request.complete`) and on stream errors.
+- Preventive rule: A route that can respond before consuming the request body must close the connection. Upload tests must send several requests from one client, not one request per fresh socket.
+- Regression check: `node --test tests/dashboard-api/mobile-builds.test.js` (TC-2.3 followed by TC-2.5 on the default keep-alive agent).
+- Related files: `dashboard/routes/mobileRoutes.js`, `dashboard/services/mobileBuildService.js`, `tests/dashboard-api/mobile-builds.test.js`.
+
+### 2026-11-19 — Extend the Legacy app.js Through Its Global Functions, Not By Editing It
+
+- Area: Test Suites editor (`app.js`) and the `android-native` platform (`dashboard/public/js/views/suites/nativeSuiteExtension.js`).
+- Symptom: Any edit to `dashboard/public/app.js` fails `check-code-limits --strict` (17,000+ lines, over the hard limit), yet the suite editor logic lives only there.
+- Root cause: `app.js` is a classic script. Its top-level `function` declarations are writable `window` properties, and its own internal calls resolve through the global object.
+- Correct pattern: An ES module (imported once from `main.js`) wraps `window.<fn>` once (`wrapped.nativeWrapped = true`), runs the original first, then adds behaviour only for its own case (e.g. `platform === 'android-native'`). Existing desktop/mobile behaviour stays in the original. New DOM goes into the view template and its own CSS file.
+- Preventive rule: Never add features to `app.js`. Wrap its globals from a module, guard against double wrapping, and verify with the module disabled that any defect you see is baseline.
+- Regression check: In the browser, `window.updateSuitePlatformContext.nativeWrapped === true`; a saved native suite reloads with the native radio, native spec list and `npx wdio` command; desktop suites keep the Playwright command.
+- Related files: `dashboard/public/js/views/suites/nativeSuiteExtension.js`, `dashboard/public/js/views/suites/nativeSuiteRender.js`, `dashboard/public/js/main.js`, `dashboard/public/templates/suites.html`.
+
 ### 2026-09-24 — Prevent UI Freeze on Large Catalogs via O(1) Metadata Maps and Event Delegation
 
 - Area: Resources & Artifacts Explorer (`app.js`, `resourcesSlice.js`, `resources.css`).

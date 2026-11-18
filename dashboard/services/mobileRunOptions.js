@@ -31,6 +31,21 @@ function validateApp(input, root) {
   throw badRequest('Chọn file APK hoặc nhập package của app đã cài.');
 }
 
+const SUITE_ID_PATTERN = /^[\w.-]{1,50}$/;
+
+/** Free text shown in history only: strip control characters, cap length. */
+function cleanLabel(value, max) {
+  return String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);
+}
+
+/** Optional link to the Test Suite that started the run (AC-206). */
+function validateSuite(input) {
+  if (input == null) return null;
+  const id = String(input.id || '');
+  if (!SUITE_ID_PATTERN.test(id)) throw badRequest('Mã Test Suite không hợp lệ.');
+  return { id, label: cleanLabel(input.label, 50) || id };
+}
+
 function validateMobileOptions(input = {}, root) {
   const platform = String(input.platform || 'android');
   if (platform === 'ios') throw badRequest('iOS chưa được hỗ trợ ở giai đoạn này.');
@@ -49,7 +64,13 @@ function validateMobileOptions(input = {}, root) {
   const udid = String(input.udid || '').trim();
   if (udid && !SERIAL_PATTERN.test(udid)) throw badRequest('Serial thiết bị không hợp lệ.');
 
-  return { platform, specs, grep, udid, app: validateApp(input.app, root), noReset: input.noReset === true };
+  return {
+    platform, specs, grep, udid,
+    deviceName: cleanLabel(input.deviceName, 80),
+    app: validateApp(input.app, root),
+    noReset: input.noReset === true,
+    suite: validateSuite(input.suite),
+  };
 }
 
 function buildArgs(options) {

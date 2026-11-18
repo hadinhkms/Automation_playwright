@@ -57,7 +57,27 @@
               </div>
               <div id="mobile-apk-group" class="mobile-stack">
                 <label class="mobile-label" for="mobile-apk-select">File trong thư mục apps/</label>
-                <select id="mobile-apk-select" class="mobile-input"></select>
+                <div class="mobile-apk-row">
+                  <select id="mobile-apk-select" class="mobile-input"></select>
+                  <button id="mobile-apk-delete" type="button" class="btn-icon-subtle" title="Xoá build đang chọn" aria-label="Xoá build đang chọn"><i class="ph-bold ph-trash"></i></button>
+                </div>
+                <p id="mobile-apk-meta" class="mobile-hint mobile-mono"></p>
+                <div id="mobile-upload-drop" class="mobile-upload" role="button" tabindex="0" aria-describedby="mobile-upload-help">
+                  <i class="ph-bold ph-upload-simple" aria-hidden="true"></i>
+                  <span><strong>Tải build lên</strong><small id="mobile-upload-help">Kéo thả file .apk vào đây hoặc bấm để chọn · tối đa 300 MB</small></span>
+                  <input id="mobile-upload-input" type="file" accept=".apk" hidden>
+                </div>
+                <div id="mobile-upload-progress" class="mobile-upload-progress" hidden>
+                  <div class="mobile-progress-track"><span id="mobile-upload-bar"></span></div>
+                  <div class="mobile-upload-status"><small id="mobile-upload-text" aria-live="polite"></small><button id="mobile-upload-cancel" type="button" class="mobile-link-btn">Huỷ tải lên</button></div>
+                </div>
+                <div id="mobile-build-confirm" class="mobile-confirm" role="alertdialog" aria-labelledby="mobile-build-confirm-text" hidden>
+                  <p id="mobile-build-confirm-text"></p>
+                  <div class="mobile-actions">
+                    <button id="mobile-build-confirm-yes" type="button" class="primary-button"></button>
+                    <button id="mobile-build-confirm-no" type="button" class="explorer-button">Huỷ</button>
+                  </div>
+                </div>
               </div>
               <div id="mobile-installed-group" class="mobile-grid2" hidden>
                 <div class="mobile-stack">

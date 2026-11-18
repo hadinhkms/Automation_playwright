@@ -17,7 +17,7 @@
 | Phase | Tên | Phụ thuộc | Trạng thái |
 |---|---|---|:---:|
 | 1 | [phase-1-android-mvp.md](phase-1-android-mvp.md) | — | `DONE` |
-| 2 | [phase-2-builds-and-reports.md](phase-2-builds-and-reports.md) | P1 | `TODO` |
+| 2 | [phase-2-builds-and-reports.md](phase-2-builds-and-reports.md) | P1 | `DONE` |
 | 3 | [phase-3-ios-remote-mac.md](phase-3-ios-remote-mac.md) | P2 | `TODO` (UAT thật `BLOCKED` chờ Mac) |
 | 4 | [phase-4-native-inspector.md](phase-4-native-inspector.md) | P3 | `TODO` |
 
@@ -33,7 +33,7 @@ Mỗi phase chạy trong **một session riêng**. Session của phase N+1 mở 
 
 | IMP | Chủ | Xử lý | Lý do | Áp dụng ở | Kiểm chứng |
 |---|---|---|---|---|---|
-| — | — | — | Không có IMP | — | — |
+| IMP-25-01 | TL (nội bộ, không có RES) | ADOPT | JUnit cho receipt Gate 4 (REQ-203): dùng reporter chính thức `@wdio/junit-reporter`, khoá đúng phiên bản 9.32.0 như `@wdio/cli` đang cài, không cần nghiên cứu ngoài | P2 §B4, `wdio.android.conf.js` | AC-205 (PDR-2-01) |
 
 ## 4. Quyết Định Xuyên Phase (áp dụng cho mọi phase)
 
@@ -54,7 +54,7 @@ Mỗi phase chạy trong **một session riêng**. Session của phase N+1 mở 
 ## 6. Checklist Tổng Thể
 
 - [x] Phase 1 — Android MVP (xem evidence trong file phase)
-- [ ] Phase 2 — Build & báo cáo
+- [x] Phase 2 — Build & báo cáo (xem evidence trong file phase)
 - [ ] Phase 3 — iOS qua Mac host (phần cài đặt); UAT iOS thật chờ Mac
 - [ ] Phase 4 — Inspector & sinh Page Object
 - [ ] Review độc lập P4 + đánh giá UI/UX tổ chức script (session riêng)

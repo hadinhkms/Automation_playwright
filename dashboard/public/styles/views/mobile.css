@@ -85,3 +85,21 @@
   .mobile-grid2 { grid-template-columns: 1fr; }
   .mobile-actions > button { flex: 1; }
 }
+
+/* Build library (P2): select + delete, drop zone, upload progress, inline confirm. */
+.mobile-apk-row { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.mobile-apk-row .mobile-input { flex: 1; }
+.mobile-upload { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; font-size: var(--font-control); }
+.mobile-upload > i { font-size: 18px; color: var(--accent); }
+.mobile-upload span { display: flex; flex-direction: column; min-width: 0; }
+.mobile-upload small { color: var(--muted); font-size: var(--font-caption); }
+.mobile-upload:hover, .mobile-upload.is-dragover { border-color: var(--accent); background: var(--accent-subtle); }
+.mobile-upload:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mobile-upload.is-busy { opacity: .55; cursor: progress; }
+.mobile-upload-progress { display: flex; flex-direction: column; gap: 4px; }
+.mobile-upload-progress[hidden], .mobile-confirm[hidden] { display: none; }
+.mobile-progress-track { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.mobile-progress-track span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s linear; }
+.mobile-upload-status { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--muted); font-size: var(--font-caption); }
+.mobile-confirm { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--warning) 45%, var(--line)); border-radius: 8px; background: var(--warning-subtle); font-size: var(--font-control); }
+.mobile-confirm p { margin: 0; color: var(--text); overflow-wrap: anywhere; }

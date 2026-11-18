@@ -6,6 +6,8 @@ import { apiClient } from '../../core/apiClient.js';
 import { eventBus } from '../../core/eventBus.js';
 import { readFormOptions, runBlocker, loadPrefs, savePrefs } from './mobileForm.js';
 import { renderView, renderRunPanel } from './mobileView.js';
+import { MobileBuilds } from './mobileBuilds.js';
+import { takePendingSuite, resolveSuiteForRun } from './mobileSuiteHandoff.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -14,7 +16,14 @@ export class MobileSlice {
     this._disposers = [];
     this._gen = 0;
     this._source = null;
-    this.state = { platform: 'android', devices: null, doctor: null, catalog: null, udid: '', specs: new Set(), tag: '', run: null, webBusy: false };
+    this.state = { platform: 'android', devices: null, doctor: null, catalog: null, udid: '', apk: '', suite: null, specs: new Set(), tag: '', run: null, webBusy: false };
+    this.builds = new MobileBuilds({
+      on: (t, e, f) => this._on(t, e, f),
+      getSelected: () => this.state.apk,
+      onUploaded: (relPath) => { this.state.apk = relPath; this.loadCatalog(this._gen); },
+      onDeleted: () => { this.state.apk = ''; this.loadCatalog(this._gen); },
+      notify: (m) => this._notify(m),
+    });
   }
 
   async mount() {
@@ -25,11 +34,26 @@ export class MobileSlice {
     this._bind();
     this._connect();
     this._render();
+    const pending = takePendingSuite();
     await Promise.all([this.loadCatalog(gen), this.loadDevices(gen), this.loadDoctor(gen), this.loadState(gen)]);
+    if (pending && gen === this._gen) this.runSuite(pending);
+  }
+
+  /** AC-206: a suite from Test Suites fills the form and starts when nothing blocks it. */
+  runSuite(suite) {
+    const plan = resolveSuiteForRun(suite, this.state.catalog?.specs || []);
+    Object.assign(this.state, { specs: new Set(plan.specs), tag: plan.tag, suite: { id: suite.id, label: suite.label } });
+    this._render();
+    const why = plan.badTag ? `Tag "${suite.grep}" không dùng được cho test native (chỉ một tag dạng @ten-tag).`
+      : plan.missing.length ? `Không tìm thấy ${plan.missing[0]} trong tests/native/android/.` : runBlocker(this.state, readFormOptions(this.state));
+    if (why) return this._notify(`Suite "${suite.label}" chưa chạy được: ${why}`);
+    this._notify(`Đang chạy suite "${suite.label}".`);
+    return this.startRun();
   }
 
   unmount() {
     this._gen += 1;
+    this.builds.dispose();
     this._disposers.forEach((d) => { try { d(); } catch (_) {} });
     this._disposers = [];
     if (this._source) { this._source.close(); this._source = null; }
@@ -48,10 +72,12 @@ export class MobileSlice {
       const tag = e.target.closest('[data-tag]');
       const platform = e.target.closest('[data-platform]');
       if (device) { this.state.udid = device.dataset.udid; this._savePrefs(); this._render(); }
-      if (tag) { this.state.tag = this.state.tag === tag.dataset.tag ? '' : tag.dataset.tag; this._render(); }
+      if (tag) { this.state.suite = null; this.state.tag = this.state.tag === tag.dataset.tag ? '' : tag.dataset.tag; this._render(); }
       if (platform) { this.state.platform = platform.dataset.platform; this._render(); }
     });
     this._on(root, 'change', (e) => {
+      if (e.target.id === 'mobile-apk-select') this.state.apk = e.target.value;
+      if (e.target.dataset.spec || e.target.id === 'mobile-spec-all') this.state.suite = null;
       if (e.target.dataset.spec) {
         e.target.checked ? this.state.specs.add(e.target.dataset.spec) : this.state.specs.delete(e.target.dataset.spec);
       } else if (e.target.id === 'mobile-spec-all') {
@@ -66,6 +92,7 @@ export class MobileSlice {
     this._on($('mobile-run-btn'), 'click', () => this.startRun());
     this._on($('mobile-stop-btn'), 'click', () => this.stopRun());
     this._on($('mobile-clear-log'), 'click', () => { $('mobile-log').textContent = ''; });
+    this.builds.bind();
     this._on($('mobile-copy-btn'), 'click', () => navigator.clipboard?.writeText($('mobile-command').textContent).then(() => this._notify('Đã sao chép lệnh.'), () => {}));
   }
 

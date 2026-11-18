@@ -6,6 +6,7 @@ import { apiClient } from '../../core/apiClient.js';
 import { eventBus } from '../../core/eventBus.js';
 import { stateStore } from '../../core/stateStore.js';
 import { windowBridge } from '../../core/windowBridge.js';
+import { mobileRunsPanel } from './mobileRunsPanel.js';
 
 export class ResourcesSlice {
   constructor() {
@@ -22,11 +23,13 @@ export class ResourcesSlice {
     if (typeof window.openExplorer === 'function') {
       try { await window.openExplorer(); } catch (_) {}
     }
+    mobileRunsPanel.mount();
     await this.loadResources();
   }
 
   unmount() {
     this._mounted = false;
+    mobileRunsPanel.unmount();
     this._disposers.forEach((d) => { try { d(); } catch (_) {} });
     this._disposers = [];
   }

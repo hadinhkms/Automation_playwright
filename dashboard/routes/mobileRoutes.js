@@ -1,13 +1,21 @@
 /**
  * dashboard/routes/mobileRoutes.js
- * /api/mobile/* endpoints for native app testing (Android P1).
+ * /api/mobile/* endpoints for native app testing (Android P1, builds and run history P2).
  */
+const fs = require('fs');
+const path = require('path');
 const { sendJson, parseBody } = require('./routeUtils');
 const { listAndroidDevices, runDoctor } = require('../services/mobileDeviceService');
 const { getCatalog, PLATFORMS } = require('../services/mobileSpecService');
 const { validateMobileOptions } = require('../services/mobileRunOptions');
-const { startMobileRun, stopMobileRun, getActiveMobileRun, getMobileState } = require('../services/mobileRunnerService');
+const { startMobileRun, stopMobileRun, getActiveMobileRun, getMobileState, isBuildInUse } = require('../services/mobileRunnerService');
+const { saveBuild, deleteBuild } = require('../services/mobileBuildService');
+const { enrichApps } = require('../services/mobileApkInfo');
+const { listRuns, getRun } = require('../services/mobileRunHistory');
 const { assertNotFrozen } = require('../../core/utils/circuitBreaker');
+
+const BUILD_ROUTE = /^\/api\/mobile\/builds\/([^/]+)$/;
+const RUN_ROUTE = /^\/api\/mobile\/runs\/([^/]+)(\/junit)?$/;
 
 function platformParam(url) {
   return url.searchParams.get('platform') || 'android';
@@ -16,6 +24,35 @@ function platformParam(url) {
 function statusOf(error) {
   if (error.status) return error.status;
   return String(error.message || '').includes('[CIRCUIT BREAKER]') ? 403 : 500;
+}
+
+function decodeSegment(segment) {
+  try { return decodeURIComponent(segment); } catch (_) { return '\u0000'; }
+}
+
+async function handleBuildRoute(request, response, root, name, url) {
+  if (request.method === 'PUT') {
+    const overwrite = url.searchParams.get('overwrite') === '1';
+    // A rejected upload leaves unread body bytes on the socket; never let the client reuse it.
+    response.setHeader('Connection', 'close');
+    return sendJson(response, 201, await saveBuild(root, request, name, { overwrite, isInUse: isBuildInUse }));
+  }
+  if (request.method === 'DELETE') return sendJson(response, 200, deleteBuild(root, name, { isInUse: isBuildInUse }));
+  return sendJson(response, 405, { error: 'Chỉ hỗ trợ PUT hoặc DELETE.' });
+}
+
+function handleRunRoute(response, root, id, wantsJunit) {
+  const run = getRun(root, id);
+  if (!run) return sendJson(response, 404, { error: 'Không tìm thấy lượt chạy.' });
+  if (!wantsJunit) return sendJson(response, 200, run);
+  const file = run.junit?.file ? path.join(root, run.junit.file) : '';
+  if (!file || !fs.existsSync(file)) return sendJson(response, 404, { error: 'Lượt chạy này không có file JUnit.' });
+  response.writeHead(200, {
+    'Content-Type': 'application/xml; charset=utf-8',
+    'Content-Disposition': `attachment; filename="${path.basename(file)}"`,
+  });
+  fs.createReadStream(file).pipe(response);
+  return true;
 }
 
 async function handleMobileRoutes(request, response, url, context = {}) {
@@ -28,15 +65,24 @@ async function handleMobileRoutes(request, response, url, context = {}) {
   }
 
   try {
+    const build = BUILD_ROUTE.exec(url.pathname);
+    if (build) return await handleBuildRoute(request, response, root, decodeSegment(build[1]), url);
+    const run = request.method === 'GET' && RUN_ROUTE.exec(url.pathname);
+    if (run) return handleRunRoute(response, root, decodeSegment(run[1]), Boolean(run[2]));
+
     switch (route) {
-      case 'GET /api/mobile/catalog':
-        return sendJson(response, 200, getCatalog(root, platformParam(url)));
+      case 'GET /api/mobile/catalog': {
+        const catalog = getCatalog(root, platformParam(url));
+        return sendJson(response, 200, { ...catalog, apps: await enrichApps(root, catalog.apps) });
+      }
       case 'GET /api/mobile/devices':
         return sendJson(response, 200, { platform: 'android', ...(await listAndroidDevices()) });
       case 'GET /api/mobile/doctor':
         return sendJson(response, 200, { platform: 'android', ...(await runDoctor()) });
       case 'GET /api/mobile/state':
         return sendJson(response, 200, getMobileState());
+      case 'GET /api/mobile/runs':
+        return sendJson(response, 200, { runs: listRuns(root, url.searchParams.get('limit')) });
       case 'POST /api/mobile/run': {
         const options = validateMobileOptions(await parseBody(request), root);
         assertNotFrozen({ suiteName: `mobile-${options.platform}`, projectRoot: root, exitOnError: false });
@@ -51,6 +97,7 @@ async function handleMobileRoutes(request, response, url, context = {}) {
     }
   } catch (error) {
     const status = statusOf(error);
+    if (response.headersSent) return true;
     return sendJson(response, status, { error: status === 500 ? `Lỗi máy chủ: ${error.message}` : error.message });
   }
 }

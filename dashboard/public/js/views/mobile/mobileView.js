@@ -17,7 +17,11 @@ export function renderView(s) {
 
   const cat = s.catalog || {};
   const specs = cat.specs || [];
-  R.renderApkOptions($('mobile-apk-select'), cat.apps || [], $('mobile-apk-select').value);
+  const apkSelect = $('mobile-apk-select');
+  R.renderApkOptions(apkSelect, cat.apps || [], s.apk || apkSelect.value);
+  s.apk = apkSelect.value;
+  R.renderApkMeta($('mobile-apk-meta'), (cat.apps || []).find((a) => a.path === s.apk));
+  $('mobile-apk-delete').disabled = !s.apk || (s.run?.status === 'running' && s.run?.options?.app?.path === s.apk);
   R.renderSpecs($('mobile-spec-list'), specs, s.specs, 'tests/native/android');
   R.renderTags($('mobile-tag-list'), cat.tags || [], s.tag);
   const all = $('mobile-spec-all');

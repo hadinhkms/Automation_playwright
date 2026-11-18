@@ -85,6 +85,7 @@
                 <button type="button" class="pm-filter-pill suite-filter-pill" data-filter="composite">Suite Cha</button>
                 <button type="button" class="pm-filter-pill suite-filter-pill" data-filter="desktop">Desktop</button>
                 <button type="button" class="pm-filter-pill suite-filter-pill" data-filter="mobile">Mobile</button>
+                <button type="button" class="pm-filter-pill suite-filter-pill" data-filter="android-native">Native</button>
               </div>
             </div>
 
@@ -201,6 +202,11 @@
                         <i class="ph-bold ph-device-mobile"></i>
                         <span>Mobile Web</span>
                       </label>
+                      <label class="single-plat-opt" id="single-plat-native-label">
+                        <input type="radio" name="suite-single-platform" value="android-native">
+                        <i class="ph-bold ph-android-logo"></i>
+                        <span>Android native</span>
+                      </label>
                     </div>
                   </div>
 
@@ -267,6 +273,8 @@
                         </div>
                       </div>
                     </div>
+
+                    <p class="suite-native-note"><i class="ph-bold ph-info"></i> Suite Android native chỉ giữ danh sách file test và tag. Thiết bị và app chọn ở Tiện ích → Mobile App; bấm Chạy sẽ mở Mobile App và chạy đúng các file này.</p>
 
                     <!-- Phần 2: Phạm vi bài test -->
                     <div class="suite-card-subgroup suite-scope-subgroup">

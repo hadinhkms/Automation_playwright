@@ -37,6 +37,14 @@
               </div>
               <span class="resource-seg-count" id="badge-evidence-count">0</span>
             </button>
+            <button type="button" class="resource-seg-btn resource-seg-wide" data-category="mobile" role="tab" aria-selected="false" id="seg-btn-mobile">
+              <i class="ph-bold ph-device-mobile"></i>
+              <div class="resource-seg-info">
+                <span class="resource-seg-name">Mobile</span>
+                <small class="resource-seg-desc">Lượt chạy test native</small>
+              </div>
+              <span class="resource-seg-count" id="badge-mobile-count">0</span>
+            </button>
           </div>
 
           <!-- Hộp Tìm kiếm & Lọc Nền tảng -->
@@ -69,6 +77,17 @@
 
           <!-- Cây Thư mục Danh mục Cuộn Dọc -->
           <div id="resource-list" class="resource-list-scroll"></div>
+
+          <!-- Nhóm Mobile: lịch sử lượt chạy native (PLAN-25 P2) -->
+          <div id="mobile-runs-pane" class="mobile-runs-pane" hidden>
+            <div class="resource-list-toolbar">
+              <div class="resource-list-meta">
+                <span class="resource-list-title">LƯỢT CHẠY MOBILE</span>
+                <span id="mobile-runs-count" class="resource-list-count">0 lượt</span>
+              </div>
+            </div>
+            <div id="mobile-runs-list" class="resource-list-scroll" aria-live="polite"></div>
+          </div>
         </nav>
         <section class="resource-viewer">
           <div class="resource-toolbar">
@@ -93,6 +112,7 @@
             </div>
             <div class="evidence-footer"><span id="evidence-position">—</span><a id="evidence-open" href="#" target="_blank" rel="noreferrer">Mở ảnh kích thước gốc ↗</a></div>
           </div>
+          <div id="mobile-run-detail" class="mobile-run-detail" hidden></div>
           <div id="report-preview" class="report-preview" hidden>
             <iframe id="report-frame" title="Báo cáo HTML của Playwright"></iframe>
             <a id="report-open" href="#" target="_blank" rel="noreferrer">Mở report trong tab riêng ↗</a>

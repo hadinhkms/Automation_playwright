@@ -46,6 +46,16 @@ Test tự khởi động Appium ở `127.0.0.1:4723`. Muốn tự chạy `appium
 
 - Ảnh bằng chứng / ảnh lỗi: `evidence/native/android/`
 - Log Appium: `test-results/appium/`
+- JUnit (một file mỗi lượt chạy): `test-results/native/android/junit-<runId>.xml`. Test ID ổn định dạng `classname.name`, ví dụ `native.android.@android_@smoke_App_launch.TC-AND-001 - ...`. Muốn ghi ra một đường dẫn cố định (receipt Gate 4) thì đặt `MOBILE_JUNIT_FILE=test-results/gate/android.xml`.
+
+### Chạy trên Dashboard
+
+Tiện ích → **Mobile App**: chọn thiết bị, app (file APK trong `apps/` hoặc app đã cài), file test, tag rồi bấm **Chạy test**.
+
+- **Tải build lên**: kéo thả hoặc chọn file `.apk` (tối đa 300 MB). Tên file được làm sạch còn `[A-Za-z0-9._-]`. Trùng tên thì Dashboard hỏi trước khi ghi đè. Không ghi đè hay xoá được build đang được lượt chạy dùng.
+- Có Android build-tools (`aapt2`) thì Dashboard hiện package và version của APK.
+- **Báo cáo → Mobile**: 30 lượt chạy gần nhất (lưu ở `test-results/mobile-runs/index.json`, còn sau khi khởi động lại), kết quả từng test, ảnh bằng chứng, tải file JUnit.
+- **Test Suites → nền tảng "Android native"**: suite giữ danh sách file test và một tag. Bấm **Chạy** sẽ mở Mobile App và chạy đúng các file đó với thiết bị/app đang chọn.
 
 ## 5. Cấu trúc
 
@@ -67,4 +77,4 @@ Test tự khởi động Appium ở `127.0.0.1:4723`. Muốn tự chạy `appium
 ## 7. Giới hạn
 
 - iOS native (`.ipa`) cần macOS + Xcode — chưa hỗ trợ trên Windows.
-- Test native **không** chạy qua `npx playwright test` và chưa có trên Dashboard.
+- Test native **không** chạy qua `npx playwright test`. Suite Android native không xuất hiện ở tab Chạy test và không gộp được vào Suite Cha (cả hai chạy Playwright).

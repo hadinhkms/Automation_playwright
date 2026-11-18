@@ -31,6 +31,7 @@ import { compareSlice } from './views/compare/compareSlice.js';
 import { settingsSlice } from './views/settings/settingsSlice.js';
 import { qaSlice } from './views/qa/qaSlice.js';
 import { mobileSlice } from './views/mobile/mobileSlice.js';
+import './views/suites/nativeSuiteExtension.js';
 
 const SLICE_REGISTRY = {
   'data-view': { slice: dataSlice, title: 'Dữ liệu test' },

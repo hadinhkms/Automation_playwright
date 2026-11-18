@@ -1,0 +1,63 @@
+/**
+ * dashboard/public/styles/views/mobile-reports.css
+ * "Mobile" group of the Reports view (PLAN-25 P2). Reuses .mobile-pill, .mobile-result,
+ * .mobile-evidence-grid and .mobile-empty from mobile.css.
+ */
+.resource-segmented-control .resource-seg-wide { grid-column: 1 / -1; }
+
+/* While the Mobile group is active, the legacy report/evidence list and viewer stay mounted but hidden. */
+#resources-view[data-res-cat="mobile"] #resource-list,
+#resources-view[data-res-cat="mobile"] .resource-nav > .resource-list-toolbar,
+#resources-view[data-res-cat="mobile"] #resource-platform-pills,
+#resources-view[data-res-cat="mobile"] #resource-toggle-tree-btn,
+#resources-view[data-res-cat="mobile"] .resource-viewer > :not(#mobile-run-detail) { display: none !important; }
+
+.mobile-runs-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.mobile-runs-pane[hidden], .mobile-run-detail[hidden] { display: none; }
+#mobile-runs-list { display: flex; flex-direction: column; gap: 6px; }
+
+.mobile-run-item { height: auto; min-height: 0; width: 100%; padding: 9px 11px; display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font-weight: 500; line-height: 1.4; }
+.mobile-run-item:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.mobile-run-item.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.mobile-run-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mobile-run-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.mobile-run-top strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-run-item small { color: var(--muted); font-size: var(--font-caption); overflow-wrap: anywhere; }
+
+.mobile-run-detail { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 16px; }
+.mobile-run-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mobile-run-head h2 { margin: 2px 0; font-size: 16px; overflow-wrap: anywhere; }
+.mobile-run-meta { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: var(--font-control); }
+.mobile-run-meta dt { color: var(--muted); font-weight: 600; }
+.mobile-run-meta dd { margin: 0; min-width: 0; color: var(--text); white-space: pre-line; overflow-wrap: anywhere; }
+.mobile-run-detail .mobile-evidence-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.mobile-evidence-grid a.is-missing { display: none; }
+.mobile-download { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--text); font-size: 12px; font-weight: 600; text-decoration: none; }
+.mobile-download:hover { border-color: var(--accent); color: var(--accent); }
+.mobile-download:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (max-width: 640px) {
+  .mobile-run-meta { grid-template-columns: 1fr; gap: 2px; }
+  .mobile-run-meta dd { margin-bottom: 6px; }
+}
+
+/* Test Suites: `android-native` platform (PLAN-25 P2). Device, browser and viewport fields do not apply. */
+.suite-native-note { display: none; margin: 0; padding: 10px 12px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); background: var(--accent-subtle); color: var(--text); font-size: var(--font-control); line-height: 1.5; }
+#suite-single-section.is-native .suite-native-note { display: block; }
+#suite-single-section.is-native .suite-card-subgroup:not(.suite-scope-subgroup),
+#suite-single-section.is-native #suite-tag-suggestions .btn-tag-chip:not([data-tag="@smoke"]) { display: none; }
+.suite-native-empty { margin: 0; padding: 16px 12px; text-align: center; color: var(--muted); font-size: 12px; }
+.suite-spec-dir { color: var(--muted); }
+.suite-script-badge.android { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); }
+.suite-badge-native { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+/* Five filter pills no longer fit the 290px rail on one line. */
+#suites-view .pm-sidebar-pills { flex-wrap: wrap; row-gap: 6px; overflow-x: visible; }
+#suites-view .suite-filter-pill { white-space: nowrap; }
+
+/* Stacked Reports layout (common-scale.css, <= 620px, caps the nav at 380px): give the run list its own height. */
+@media (max-width: 620px) {
+  #resources-view[data-res-cat="mobile"] .explorer-page .resource-nav { max-height: none; }
+  #mobile-runs-list { flex: none; max-height: 300px; overflow-y: auto; }
+  .mobile-run-detail { overflow: visible; }
+  #resources-view[data-res-cat="mobile"] .explorer-page .resource-viewer { height: auto; }
+}

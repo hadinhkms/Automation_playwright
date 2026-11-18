@@ -10,6 +10,10 @@ export function el(tag, className = '', text = '') {
   return node;
 }
 
+export function formatSize(bytes) {
+  return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
 function empty(title, message) {
   const box = el('div', 'mobile-empty');
   box.append(el('strong', '', title), el('p', '', message));
@@ -66,11 +70,16 @@ export function renderApkOptions(select, apps, selected) {
   }
   select.disabled = false;
   apps.forEach((a) => {
-    const opt = el('option', '', `${a.name} · ${(a.sizeBytes / 1048576).toFixed(1)} MB`);
+    const opt = el('option', '', `${a.name} · ${formatSize(a.sizeBytes)}`);
     opt.value = a.path;
     opt.selected = a.path === selected;
     select.append(opt);
   });
+}
+
+/** Package and version read by aapt2 (TECH-202); empty when build-tools are missing. */
+export function renderApkMeta(node, app) {
+  node.textContent = app?.packageName ? [app.packageName, app.versionName && `v${app.versionName}`, app.label].filter(Boolean).join(' · ') : '';
 }
 
 export function renderSpecs(container, specs, selected, specDir) {
