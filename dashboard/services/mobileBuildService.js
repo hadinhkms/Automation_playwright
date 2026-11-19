@@ -7,7 +7,8 @@ const fs = require('fs');
 const path = require('path');
 
 const MAX_BUILD_BYTES = 300 * 1024 * 1024;
-const BUILD_EXTENSIONS = { android: ['.apk'] };
+const BUILD_EXTENSIONS = { android: ['.apk'], ios: ['.ipa', '.app.zip'] };
+const ALL_EXTENSIONS = Object.values(BUILD_EXTENSIONS).flat();
 const NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;
 const uploading = new Set();
 
@@ -20,13 +21,14 @@ function appsDir(root) {
 }
 
 /** BR-202: plain file name, allowed characters only, no path, no hidden file, known extension. */
-function validateBuildName(rawName, platform = 'android') {
+/** `platform` omitted: any known build type (.apk, .ipa, .app.zip). */
+function validateBuildName(rawName, platform) {
   const name = String(rawName || '');
-  const exts = BUILD_EXTENSIONS[platform] || [];
+  const exts = platform ? BUILD_EXTENSIONS[platform] || [] : ALL_EXTENSIONS;
   if (!NAME_PATTERN.test(name) || name.includes('..')) {
     throw httpError(400, 'Tên file chỉ được chứa chữ, số, dấu chấm, gạch dưới, gạch ngang; không có đường dẫn hay file ẩn.');
   }
-  if (!exts.includes(path.extname(name).toLowerCase())) {
+  if (!exts.some((ext) => name.toLowerCase().endsWith(ext))) {
     throw httpError(400, `Chỉ nhận file ${exts.join(', ')}.`);
   }
   return name;

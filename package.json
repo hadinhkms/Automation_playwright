@@ -30,6 +30,8 @@
         "suite:api": "playwright test --project=\"API Tests\"",
         "test:android": "wdio run ./wdio.android.conf.js",
         "test:android:smoke": "wdio run ./wdio.android.conf.js --mochaOpts.grep @smoke",
+        "test:ios": "wdio run ./wdio.ios.conf.js",
+        "test:ios:smoke": "wdio run ./wdio.ios.conf.js --mochaOpts.grep @smoke",
         "android:devices": "adb devices -l",
         "android:doctor": "appium driver doctor uiautomator2",
         "suite:register": "playwright test --project=\"Desktop Smoke Tests\" --grep \"@register\"",

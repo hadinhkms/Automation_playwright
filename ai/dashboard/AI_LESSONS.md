@@ -22,6 +22,16 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 ## Confirmed lessons
 
+### 2026-11-20 — A Native Run on an Installed App Must Force the Launch
+
+- Area: Mobile App runs in "App đã cài" mode (`core/native/androidCapabilities.js`, `tests/native/shared/app-launch/`).
+- Symptom: Smoke 1/3 at random: TC-101/103 "did not reach foreground", the failure screenshot shows the launcher. A rerun right after opening the app by hand passed 3/3.
+- Root cause: With `appium:noReset: true`, UiAutomator2 skips the launch when the package is already running in the background (Appium log: "is already running and noReset is enabled").
+- Correct pattern: Send `appium:forceAppLaunch: true` with the installed-app capabilities; app data is still kept.
+- Preventive rule: Before trusting a native pass, reproduce the starting state (app in background, user on Home). Read the Appium log, not only the WDIO error.
+- Regression check: `adb shell am start -n <pkg>/<activity>`, `adb shell input keyevent KEYCODE_HOME`, then `npm run test:android:smoke` (or Run in Mobile App) → 3/3.
+- Related files: `core/native/androidCapabilities.js`, `pages/native/screens/AppLaunchScreen.js`, `docs/ANDROID_NATIVE_TESTING.md`.
+
 ### 2026-11-19 — A Streaming Upload Rejected Early Must Close Its Connection
 
 - Area: Binary uploads (`PUT /api/mobile/builds/:name`, `dashboard/services/mobileBuildService.js`).

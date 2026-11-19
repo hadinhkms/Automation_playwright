@@ -3,6 +3,7 @@
  * Hands an `android-native` Test Suite over to the Mobile App view (AC-206).
  * Test Suites stores the suite here and opens Mobile App; the Mobile slice takes it once on mount.
  */
+import { readFormOptions, runBlocker } from './mobileForm.js';
 
 const KEY = 'dashboard_mobile_pending_suite';
 const MAX_AGE_MS = 60000;
@@ -44,4 +45,16 @@ export function resolveSuiteForRun(suite, catalogSpecs) {
     tag: TAG.test(suite.grep) ? suite.grep : '',
     badTag: Boolean(suite.grep) && !TAG.test(suite.grep),
   };
+}
+
+/** Fills the slice from the suite and starts it, or explains why it cannot start. */
+export function runSuiteIn(slice, suite) {
+  const plan = resolveSuiteForRun(suite, slice.state.catalog?.specs || []);
+  Object.assign(slice.state, { specs: new Set(plan.specs), tag: plan.tag, suite: { id: suite.id, label: suite.label } });
+  slice._render();
+  const why = plan.badTag ? `Tag "${suite.grep}" không dùng được cho test native (chỉ một tag dạng @ten-tag).`
+    : plan.missing.length ? `Không tìm thấy ${plan.missing[0]} trong thư mục test native.` : runBlocker(slice.state, readFormOptions(slice.state));
+  if (why) return slice._notify(`Suite "${suite.label}" chưa chạy được: ${why}`);
+  slice._notify(`Đang chạy suite "${suite.label}".`);
+  return slice.startRun();
 }

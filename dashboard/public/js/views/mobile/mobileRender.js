@@ -14,7 +14,7 @@ export function formatSize(bytes) {
   return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-function empty(title, message) {
+export function empty(title, message) {
   const box = el('div', 'mobile-empty');
   box.append(el('strong', '', title), el('p', '', message));
   return box;
@@ -38,7 +38,8 @@ export function renderDevices(container, data, selectedUdid) {
     card.setAttribute('aria-pressed', String(d.serial === selectedUdid));
     const top = el('span', 'mobile-device-top');
     top.append(el('strong', '', d.model || d.serial), el('span', `mobile-pill ${d.ready ? 'is-passed' : 'is-warn'}`, STATE_LABEL[d.state] || d.state));
-    const meta = [d.serial, d.androidVersion ? `Android ${d.androidVersion}` : '', d.emulator ? 'Emulator' : ''].filter(Boolean).join(' · ');
+    const os = d.osLabel || (d.androidVersion ? `Android ${d.androidVersion}` : '');
+    const meta = [d.osLabel ? d.udid : d.serial, os, d.emulator ? (d.osLabel ? 'Simulator' : 'Emulator') : ''].filter(Boolean).join(' · ');
     card.append(top, el('small', 'mobile-mono', meta));
     if (d.hint) card.append(el('small', 'mobile-hint', d.hint));
     container.append(card);
@@ -59,10 +60,10 @@ export function renderDoctor(list, doctor) {
   });
 }
 
-export function renderApkOptions(select, apps, selected) {
+export function renderApkOptions(select, apps, selected, extLabel = '.apk') {
   select.replaceChildren();
   if (apps.length === 0) {
-    const opt = el('option', '', 'Chưa có file .apk trong apps/');
+    const opt = el('option', '', `Chưa có file ${extLabel} trong apps/`);
     opt.value = '';
     select.append(opt);
     select.disabled = true;
@@ -80,37 +81,6 @@ export function renderApkOptions(select, apps, selected) {
 /** Package and version read by aapt2 (TECH-202); empty when build-tools are missing. */
 export function renderApkMeta(node, app) {
   node.textContent = app?.packageName ? [app.packageName, app.versionName && `v${app.versionName}`, app.label].filter(Boolean).join(' · ') : '';
-}
-
-export function renderSpecs(container, specs, selected, specDir) {
-  container.replaceChildren();
-  if (specs.length === 0) {
-    container.append(empty('Chưa có file test', `Tạo file *.native.js trong ${specDir}/ rồi bấm làm mới.`));
-    return;
-  }
-  specs.forEach((s) => {
-    const row = el('label', 'mobile-spec');
-    const box = el('input');
-    box.type = 'checkbox';
-    box.dataset.spec = s.path;
-    box.checked = selected.has(s.path);
-    const text = el('span');
-    text.append(el('strong', 'mobile-mono', s.name), el('small', '', `${s.tests.length} test${s.tags.length ? ' · ' + s.tags.join(' ') : ''}`));
-    row.append(box, text);
-    container.append(row);
-  });
-}
-
-export function renderTags(container, tags, active) {
-  container.replaceChildren();
-  if (tags.length === 0) { container.append(el('span', 'mobile-hint', 'Chưa có tag nào trong tên test.')); return; }
-  tags.forEach((t) => {
-    const btn = el('button', `mobile-tag${t === active ? ' is-active' : ''}`, t);
-    btn.type = 'button';
-    btn.dataset.tag = t;
-    btn.setAttribute('aria-pressed', String(t === active));
-    container.append(btn);
-  });
 }
 
 const RUN_LABEL = { running: 'Đang chạy', stopping: 'Đang dừng', passed: 'Đạt', failed: 'Lỗi', stopped: 'Đã dừng' };

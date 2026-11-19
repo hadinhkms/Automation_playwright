@@ -1,0 +1,15 @@
+{
+  "_comment": "App profiles shared by the team (PLAN-25 S-05). One profile can hold Android and iOS. Mobile App view: frame 2 > Hồ sơ app.",
+  "profiles": [
+    {
+      "id": "oppo-calculator",
+      "name": "Calculator (OPPO, cài sẵn)",
+      "android": { "appPackage": "com.coloros.calculator", "appActivity": "com.android.calculator2.Calculator" }
+    },
+    {
+      "id": "ios-settings",
+      "name": "Settings (iOS, có sẵn trên simulator)",
+      "ios": { "bundleId": "com.apple.Preferences" }
+    }
+  ]
+}

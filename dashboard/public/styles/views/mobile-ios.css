@@ -1,0 +1,45 @@
+/**
+ * dashboard/public/styles/views/mobile-ios.css
+ * PLAN-25 P3: iOS parts of the Mobile App view (Mac host banner, spec scope badges)
+ * and Settings → Mobile / iOS. Consumes the shared tokens only.
+ */
+
+/* Mobile App, frame 1: remote Mac host */
+.mobile-host { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: 0; }
+.mobile-host[hidden] { display: none; }
+.mobile-host-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mobile-host strong { font-size: var(--font-control); overflow-wrap: anywhere; }
+.mobile-host strong.is-missing { color: var(--warning); }
+
+/* Mobile App, frame 2: where a spec runs (S-02) */
+.mobile-spec { position: relative; }
+.mobile-spec > span:nth-child(2) { flex: 1; }
+.mobile-scope { flex: 0 0 auto; align-self: center; padding: 1px 6px; border-radius: 5px; font: 600 var(--font-meta)/1.5 var(--font-mono); color: var(--muted); background: var(--surface-2); border: 1px solid var(--line); }
+.mobile-scope.is-shared { color: var(--accent); background: var(--accent-subtle); border-color: transparent; }
+#mobile-ios-app-group[hidden], #mobile-android-mode-row[hidden] { display: none; }
+
+/* Settings → Mobile / iOS */
+.settings-ios-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.settings-ios-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.settings-ios-actions > button { flex: 1 1 160px; }
+.settings-ios-result { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); font-size: var(--font-control); }
+.settings-ios-result[hidden] { display: none; }
+.settings-ios-result p { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.settings-ios-result.is-ok { border-color: color-mix(in srgb, var(--success) 40%, var(--line)); }
+.settings-ios-result.is-ok strong { color: var(--success); }
+.settings-ios-result.is-warn { border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); background: var(--warning-subtle); }
+.settings-ios-result.is-error { border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+.settings-ios-result.is-error strong { color: var(--danger); }
+.settings-badge-status.is-ok { color: var(--success); border-color: color-mix(in srgb, var(--success) 35%, var(--line)); }
+.settings-badge-status.is-warn { color: var(--warning); border-color: color-mix(in srgb, var(--warning) 35%, var(--line)); }
+.settings-badge-status.is-error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, var(--line)); }
+.settings-ios-devices { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.settings-ios-device { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, .6fr) minmax(0, 1.6fr) auto auto; gap: 6px; align-items: center; }
+.settings-ios-device input[type="text"] { min-width: 0; width: 100%; }
+.settings-ios-sim { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: var(--font-caption); font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
+.settings-ios-add { align-self: flex-start; }
+@media (max-width: 640px) {
+  .settings-ios-grid { grid-template-columns: 1fr; }
+  .settings-ios-device { grid-template-columns: 1fr 1fr; }
+  .settings-ios-device input[data-field="udid"] { grid-column: 1 / -1; }
+}

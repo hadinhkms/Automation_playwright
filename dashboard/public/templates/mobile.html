@@ -26,9 +26,13 @@
               <button type="button" data-platform="android" aria-pressed="true"><i class="ph-bold ph-android-logo"></i> Android</button>
               <button type="button" data-platform="ios" aria-pressed="false"><i class="ph-bold ph-apple-logo"></i> iOS</button>
             </div>
-            <div id="mobile-ios-note" class="mobile-empty" hidden>
-              <strong>iOS sẽ có ở giai đoạn sau</strong>
-              <p>Test iOS cần Appium chạy trên máy macOS có Xcode, hoặc một dịch vụ device farm. Hiện Dashboard mới hỗ trợ Android.</p>
+            <div id="mobile-ios-note" class="mobile-host" hidden>
+              <div class="mobile-host-row">
+                <span class="mobile-label">Mac host (Appium)</span>
+                <a href="#/settings-view/mobile" id="mobile-ios-settings-link" class="mobile-link-btn">Cấu hình</a>
+              </div>
+              <strong id="mobile-ios-host" class="mobile-mono">Chưa cấu hình</strong>
+              <small class="mobile-hint">Test iOS chạy bằng Appium + XCUITest trên máy Mac. Dashboard chỉ gửi lệnh tới địa chỉ này.</small>
             </div>
             <div id="mobile-android-pane" class="mobile-stack">
               <div id="mobile-device-list" class="mobile-stack" aria-live="polite"></div>
@@ -51,12 +55,25 @@
           <div class="mobile-panel-body">
             <fieldset class="mobile-field">
               <legend>App cần test</legend>
-              <div class="mobile-radio-row">
+              <div class="mobile-stack">
+                <label class="mobile-label" for="mobile-profile-select">Hồ sơ app</label>
+                <select id="mobile-profile-select" class="mobile-input"></select>
+              </div>
+              <div id="mobile-ios-app-group" class="mobile-stack" hidden>
+                <div class="mobile-radio-row" role="radiogroup" aria-label="Nguồn app iOS">
+                  <label><input type="radio" name="mobile-ios-app-mode" value="bundle" checked> Bundle id đã cài</label>
+                  <label><input type="radio" name="mobile-ios-app-mode" value="mac-path"> Đường dẫn trên Mac</label>
+                  <label><input type="radio" name="mobile-ios-app-mode" value="url"> URL tải về</label>
+                </div>
+                <input id="mobile-ios-app-input" class="mobile-input" type="text" maxlength="500" autocomplete="off" spellcheck="false" aria-label="App iOS">
+                <p id="mobile-ios-app-help" class="mobile-hint"></p>
+              </div>
+              <div id="mobile-android-mode-row" class="mobile-radio-row">
                 <label><input type="radio" name="mobile-app-mode" id="mobile-mode-apk" value="apk" checked> File APK</label>
                 <label><input type="radio" name="mobile-app-mode" id="mobile-mode-installed" value="installed"> App đã cài trên máy</label>
               </div>
               <div id="mobile-apk-group" class="mobile-stack">
-                <label class="mobile-label" for="mobile-apk-select">File trong thư mục apps/</label>
+                <label class="mobile-label" for="mobile-apk-select" id="mobile-apk-label">File trong thư mục apps/</label>
                 <div class="mobile-apk-row">
                   <select id="mobile-apk-select" class="mobile-input"></select>
                   <button id="mobile-apk-delete" type="button" class="btn-icon-subtle" title="Xoá build đang chọn" aria-label="Xoá build đang chọn"><i class="ph-bold ph-trash"></i></button>
@@ -120,7 +137,7 @@
           </div>
           <div class="mobile-panel-body">
             <div class="mobile-command">
-              <code id="mobile-command">npx wdio run ./wdio.android.conf.js</code>
+              <code id="mobile-command" tabindex="0">npx wdio run ./wdio.android.conf.js</code>
               <button id="mobile-copy-btn" type="button" class="btn-icon-subtle" title="Sao chép lệnh" aria-label="Sao chép lệnh"><i class="ph-bold ph-copy"></i></button>
             </div>
             <p id="mobile-run-hint" class="mobile-hint"></p>

@@ -18,6 +18,7 @@
         <button class="settings-subtab" type="button" role="tab" data-subtab="master-process"><i class="ph-bold ph-shield-check"></i> Quy trình Master Process</button>
         <button class="settings-subtab" type="button" role="tab" data-subtab="ai"><i class="ph-bold ph-sparkle"></i> Cấu hình AI & API</button>
         <button class="settings-subtab" type="button" role="tab" data-subtab="jira"><i class="ph-bold ph-ticket"></i> Cấu hình Jira</button>
+        <button class="settings-subtab" type="button" role="tab" data-subtab="mobile"><i class="ph-bold ph-device-mobile"></i> Mobile / iOS</button>
         <button class="settings-subtab" type="button" role="tab" data-subtab="discord"><i class="ph-bold ph-bell-ringing"></i> Thông báo Discord</button>
         <button class="settings-subtab" type="button" role="tab" data-subtab="branding"><i class="ph-bold ph-paint-brush"></i> Giao diện & Branding</button>
       </div>
@@ -1222,6 +1223,54 @@
                 <div class="wide">
                   <div id="jira-fetch-result" hidden style="margin-top: 8px;"></div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="panel settings-panel settings-mobile" hidden aria-labelledby="settings-ios-title">
+          <div class="panel-heading settings-panel-heading">
+            <span class="settings-icon"><i class="ph-bold ph-apple-logo"></i></span>
+            <div style="flex: 1;">
+              <p>MOBILE APP · iOS</p>
+              <h2 id="settings-ios-title">Mac host cho test iOS</h2>
+            </div>
+            <div class="settings-actions-top">
+              <span id="settings-ios-badge" class="settings-badge-status"><i class="ph-fill ph-circle"></i> Chưa kiểm tra</span>
+            </div>
+          </div>
+          <div class="settings-body settings-grid settings-ios-grid">
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-desktop-tower"></i><span>Appium trên máy Mac</span></div>
+              <div class="settings-card-grid">
+                <label class="wide">Địa chỉ Mac<small>Dạng http://IP-hoặc-tên-máy, không thêm đường dẫn. Để trống khi chưa có máy Mac.</small>
+                  <input id="settings-ios-host" type="text" placeholder="http://192.168.1.20" maxlength="200" autocomplete="off" spellcheck="false">
+                </label>
+                <label>Cổng Appium<small>Mặc định 4723.</small><input id="settings-ios-port" type="number" min="1" max="65535" placeholder="4723"></label>
+                <div class="wide settings-ios-actions">
+                  <button type="button" id="settings-ios-check" class="ghost"><i class="ph-bold ph-plugs"></i> Kiểm tra kết nối</button>
+                  <button type="button" id="settings-ios-save" class="primary"><i class="ph-fill ph-floppy-disk"></i> Lưu cấu hình iOS</button>
+                </div>
+                <div id="settings-ios-result" class="wide settings-ios-result" role="status" aria-live="polite" hidden></div>
+              </div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-device-mobile-camera"></i><span>Thiết bị iOS</span></div>
+              <p class="settings-note">Simulator cần tên và phiên bản iOS đúng như trong Xcode. iPhone thật cần thêm UDID.</p>
+              <div id="settings-ios-devices" class="settings-ios-devices"></div>
+              <button type="button" id="settings-ios-add-device" class="ghost settings-ios-add"><i class="ph-bold ph-plus"></i> Thêm thiết bị</button>
+            </div>
+            <div class="settings-card">
+              <div class="settings-card-title"><i class="ph ph-package"></i><span>App mặc định và ký WebDriverAgent</span></div>
+              <div class="settings-card-grid">
+                <label class="wide">App trên Mac hoặc URL<small>Đường dẫn trên Mac (/Users/…/MyApp.app) hoặc URL http(s). File trên máy Windows này không gửi được sang Mac.</small>
+                  <input id="settings-ios-app" type="text" placeholder="/Users/qa/Builds/MyApp.app" maxlength="500" autocomplete="off" spellcheck="false">
+                </label>
+                <label class="wide">Bundle id app đã cài<small>Dùng khi app đã có sẵn trên thiết bị.</small>
+                  <input id="settings-ios-bundle" type="text" placeholder="com.example.app" maxlength="155" autocomplete="off" spellcheck="false">
+                </label>
+                <label>Team ID<small>Chỉ cần cho iPhone thật (10 ký tự).</small><input id="settings-ios-team" type="text" placeholder="AB12CD34EF" maxlength="10" autocomplete="off" spellcheck="false"></label>
+                <label>Bundle id WebDriverAgent<small>Chỉ cần cho iPhone thật.</small><input id="settings-ios-wda" type="text" placeholder="com.example.WebDriverAgentRunner" maxlength="155" autocomplete="off" spellcheck="false"></label>
+                <p class="wide settings-note">Không cần và không lưu mật khẩu Apple ID. Hướng dẫn cài máy Mac: docs/IOS_NATIVE_TESTING.md.</p>
               </div>
             </div>
           </div>

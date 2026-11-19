@@ -42,6 +42,9 @@ function buildAndroidCapabilities() {
     'appium:autoGrantPermissions': readEnv('ANDROID_AUTO_GRANT_PERMISSIONS', 'true') === 'true',
     // Pre-installed app (no APK): keep its data by default; `pm clear` is refused for system apps.
     'appium:noReset': readEnv('ANDROID_NO_RESET', apkPath ? 'false' : 'true') === 'true',
+    // With noReset, Appium skips the launch when the app already runs in the background ("is already running
+    // and noReset is enabled") and the test sees the launcher. Always bring the app to the front; data is kept.
+    'appium:forceAppLaunch': true,
     'appium:adbExecTimeout': 60000,
     // OPPO/Xiaomi/Vivo show an on-device "install via USB" prompt; give the tester time to approve it.
     'appium:androidInstallTimeout': 180000,

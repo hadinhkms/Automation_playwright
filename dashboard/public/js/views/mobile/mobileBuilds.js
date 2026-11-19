@@ -51,7 +51,8 @@ export class MobileBuilds {
   upload(file, overwrite = false) {
     const name = cleanBuildName(file.name);
     this.hideConfirm();
-    if (!/\.apk$/i.test(name)) return this.host.notify(`"${file.name}" không phải file .apk.`);
+    const ios = this.host.getPlatform?.() === 'ios';
+    if (!(ios ? /\.(ipa|app\.zip)$/i : /\.apk$/i).test(name)) return this.host.notify(`"${file.name}" không phải file ${ios ? '.ipa hoặc .app.zip' : '.apk'}.`);
     if (file.size === 0) return this.host.notify('File rỗng (0 byte).');
     if (file.size > MAX_BYTES) return this.host.notify(`File ${formatSize(file.size)} vượt quá 300 MB.`);
 

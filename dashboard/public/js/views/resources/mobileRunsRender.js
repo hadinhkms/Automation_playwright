@@ -21,7 +21,7 @@ export function formatDuration(ms) {
 export function runTitle(run) {
   if (run.suite?.label) return run.suite.label;
   const names = (run.specs || []).map((p) => p.split('/').pop());
-  return names.length > 2 ? `${names.slice(0, 2).join(', ')} +${names.length - 2}` : names.join(', ') || 'Lượt chạy Mobile';
+  return names.length > 2 ? `${names.slice(0, 2).join(', ')} +${names.length - 2}` : names.join(', ') || 'Lượt chạy app native';
 }
 
 function score(run) {
@@ -107,7 +107,7 @@ export function renderRunDetail(container, run) {
   if (!run) { container.append(empty('Chọn một lượt chạy', 'Kết quả, ảnh bằng chứng và file JUnit sẽ hiển thị tại đây.')); return; }
   const head = el('header', 'mobile-run-head');
   const titles = el('div', 'mobile-head-text');
-  titles.append(el('span', 'pm-section-tag', `LƯỢT CHẠY MOBILE · ${String(run.platform || '').toUpperCase()}`), el('h2', '', runTitle(run)),
+  titles.append(el('span', 'pm-section-tag', `LƯỢT CHẠY APP NATIVE · ${String(run.platform || '').toUpperCase()}`), el('h2', '', runTitle(run)),
     el('small', 'mobile-hint', [formatDate(run.startedAt), formatDuration(run.durationMs)].filter(Boolean).join(' · ')));
   head.append(titles, pill(run.status));
 

@@ -19,14 +19,14 @@ export function nativeCommand(suite, catalog) {
   return parts.join(' ');
 }
 
-/** Checklist of tests/native/android/*.native.js with the same classes the legacy sync reads (.suite-spec-cb). */
+/** Checklist of native specs (tests/native/shared and tests/native/android) with the same classes the legacy sync reads (.suite-spec-cb). */
 export function renderNativeChecklist(catalog, selected, onChange) {
   const box = $('suite-specs-checklist-container');
   if (!box) return;
   box.replaceChildren();
   if (!catalog) { box.append(el('p', 'suite-native-empty', 'Đang tải danh sách test native...')); return; }
   if (catalog.error || !catalog.specs?.length) {
-    box.append(el('p', 'suite-native-empty', catalog.error ? `Không tải được test native: ${catalog.error}` : 'Chưa có file *.native.js trong tests/native/android/.'));
+    box.append(el('p', 'suite-native-empty', catalog.error ? `Không tải được test native: ${catalog.error}` : 'Chưa có file *.native.js trong tests/native/shared/ hoặc tests/native/android/.'));
   }
   (catalog.specs || []).forEach((spec) => {
     const row = el('label', 'suite-card-fields suite-spec-item');

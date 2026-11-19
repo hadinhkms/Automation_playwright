@@ -95,7 +95,7 @@ function startMobileRun(options, root) {
     run.phase = 'done';
     run.exitCode = exitCode;
     run.finishedAt = new Date().toISOString();
-    run.evidence = collectEvidence(root, run.platform, run.startedAt);
+    run.evidence = collectEvidence(root, run.platform, run.startedAt, run.id);
     finishRecord(root, run);
     lastRun = publicRun(run);
     activeRun = null;

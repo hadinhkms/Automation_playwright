@@ -48,7 +48,8 @@ describe('API Contract: Mobile App (/api/mobile/*)', () => {
   });
 
   test('GET /api/mobile/catalog rejects unsupported platforms with 400', async () => {
-    const res = await fetch(`${harness.url}/api/mobile/catalog?platform=ios`);
+    // iOS became a supported platform in P3 (tests/dashboard-api/mobile-ios.test.js); unknown ones stay 400.
+    const res = await fetch(`${harness.url}/api/mobile/catalog?platform=windows`);
     assert.equal(res.status, 400);
   });
 
@@ -79,7 +80,7 @@ describe('API Contract: Mobile App (/api/mobile/*)', () => {
 
   const badRuns = [
     ['malformed JSON', '{"platform":', /JSON/],
-    ['iOS', { platform: 'ios', specs: [SPEC] }, /iOS/],
+    ['an Android-only spec on iOS', { platform: 'ios', specs: [SPEC] }, /tests\/native\/ios/],
     ['unknown spec', { specs: ['tests/native/android/missing.native.js'], app: { type: 'installed', appPackage: 'com.a.b' } }, /không tồn tại/],
     ['path traversal spec', { specs: ['../../package.json'], app: { type: 'installed', appPackage: 'com.a.b' } }, /không tồn tại/],
     ['shell metacharacters in tag', { specs: [SPEC], grep: '@a && calc', app: { type: 'installed', appPackage: 'com.a.b' } }, /Tag/],

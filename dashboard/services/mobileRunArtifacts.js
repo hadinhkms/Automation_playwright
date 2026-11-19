@@ -14,17 +14,23 @@ function junitPath(root, platform, runId) {
   return path.join(junitDir(root, platform), `junit-${runId}.xml`);
 }
 
-function collectEvidence(root, platform, sinceIso) {
-  const dir = path.join(root, 'evidence', 'native', platform);
+function listPng(dir, urlBase, since) {
   if (!fs.existsSync(dir)) return [];
-  const since = Date.parse(sinceIso) - 1000;
   return fs.readdirSync(dir)
     .filter((n) => /\.png$/i.test(n))
     .map((n) => ({ name: n, mtime: fs.statSync(path.join(dir, n)).mtimeMs }))
     .filter((f) => f.mtime >= since)
     .sort((a, b) => b.mtime - a.mtime)
     .slice(0, 12)
-    .map((f) => ({ name: f.name, url: `/evidence/native/${platform}/${encodeURIComponent(f.name)}` }));
+    .map((f) => ({ name: f.name, url: `${urlBase}/${encodeURIComponent(f.name)}` }));
+}
+
+/** Screenshots of one run: evidence/native/<platform>/<runId>/ (U-01); older runs wrote flat files, matched by time. */
+function collectEvidence(root, platform, sinceIso, runId) {
+  const base = path.join(root, 'evidence', 'native', platform);
+  const since = Date.parse(sinceIso) - 1000;
+  const own = /^[\w-]{1,40}$/.test(runId || '') ? listPng(path.join(base, runId), `/evidence/native/${platform}/${runId}`, since) : [];
+  return own.length ? own : listPng(base, `/evidence/native/${platform}`, since);
 }
 
 /**

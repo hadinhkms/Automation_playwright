@@ -10,14 +10,14 @@ Nơi lưu trữ và điều phối toàn bộ các **Implementation Plan** của
 
 | Mã Plan | Tính Năng / Kế Hoạch | Thư Mục Cụm (Feature-Cluster) | File Điều Phối | Trạng Thái | Tiến Độ & Mục Tiêu |
 |---|---|---|---|:---:|---|
-| **PLAN-25** | **Mobile App Studio — test app Android/iOS trên Dashboard** | [mobile-app-studio/](mobile-app-studio/) | [plan-25-overview.md](mobile-app-studio/plan-25-overview.md) | `IN PROGRESS` | P1, P2 xong; P3 (iOS qua Mac host, chờ máy Mac) → P4 |
+| **PLAN-25** | **Mobile App Studio — test app Android/iOS trên Dashboard** | [mobile-app-studio/](mobile-app-studio/) | [plan-25-overview.md](mobile-app-studio/plan-25-overview.md) | `IN PROGRESS` | P1, P2, P3 xong (iOS chạy thật chờ máy Mac); tiếp P4 Inspector |
 | **PLAN-24** | **Khắc Phục Probe P4, Lưu Trữ Kế Hoạch 23 & Chuẩn Hóa Git Hygiene** | [probe-hardening-and-git-hygiene/](probe-hardening-and-git-hygiene/) | [plan-24-overview.md](probe-hardening-and-git-hygiene/plan-24-overview.md) | `COMPLETED` | 3/3 Phase hoàn tất (100% Green, 6/6 Probes PASS, Gate 4 Ready) |
 
 ### Chi tiết các phase của Plan 25:
 - **[Plan 25: Mobile App Studio](mobile-app-studio/plan-25-overview.md)**:
   - 🔹 [Phase 1: Android MVP](mobile-app-studio/phase-1-android-mvp.md) — `DONE`
   - 🔹 [Phase 2: Thư viện build, lịch sử & báo cáo](mobile-app-studio/phase-2-builds-and-reports.md) — `DONE`
-  - 🔹 [Phase 3: iOS qua Mac host từ xa](mobile-app-studio/phase-3-ios-remote-mac.md)
+  - 🔹 [Phase 3: iOS qua Mac host từ xa](mobile-app-studio/phase-3-ios-remote-mac.md) — `DONE` (UAT iOS `BLOCKED` chờ Mac)
   - 🔹 [Phase 4: Native Inspector & sinh Page Object](mobile-app-studio/phase-4-native-inspector.md)
 
 ### Chi tiết các phase của Plan 24:

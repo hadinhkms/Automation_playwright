@@ -5,6 +5,8 @@
 const path = require('path');
 const { PLATFORMS, listNativeSpecs, listApps } = require('./mobileSpecService');
 const { SERIAL_PATTERN } = require('./mobileDeviceService');
+const { readIosConfig } = require('./mobileIosService');
+const { validateIosTarget, buildIosEnv } = require('./mobileIosRunOptions');
 
 const TAG_PATTERN = /^@[\w-]{1,40}$/;
 const PACKAGE_PATTERN = /^[A-Za-z][\w]*(\.[A-Za-z_][\w]*)+$/;
@@ -46,13 +48,18 @@ function validateSuite(input) {
   return { id, label: cleanLabel(input.label, 50) || id };
 }
 
+function validateAndroidTarget(input, root) {
+  const udid = String(input.udid || '').trim();
+  if (udid && !SERIAL_PATTERN.test(udid)) throw badRequest('Serial thiết bị không hợp lệ.');
+  return { udid, deviceName: cleanLabel(input.deviceName, 80), app: validateApp(input.app, root) };
+}
+
 function validateMobileOptions(input = {}, root) {
   const platform = String(input.platform || 'android');
-  if (platform === 'ios') throw badRequest('iOS chưa được hỗ trợ ở giai đoạn này.');
   if (!PLATFORMS[platform]) throw badRequest('Nền tảng không hợp lệ.');
 
   const known = listNativeSpecs(root, platform).map((s) => s.path);
-  if (known.length === 0) throw badRequest(`Chưa có test native nào trong ${PLATFORMS[platform].specDir}/.`);
+  if (known.length === 0) throw badRequest(`Chưa có test native nào trong ${PLATFORMS[platform].specDirs.join('/ hoặc ')}/.`);
   const specs = Array.isArray(input.specs) ? [...new Set(input.specs.map(String))] : [];
   if (specs.length === 0) throw badRequest('Chọn ít nhất một file test.');
   const unknown = specs.filter((s) => !known.includes(s));
@@ -61,16 +68,8 @@ function validateMobileOptions(input = {}, root) {
   const grep = String(input.grep || '').trim();
   if (grep && !TAG_PATTERN.test(grep)) throw badRequest('Tag phải có dạng @ten-tag.');
 
-  const udid = String(input.udid || '').trim();
-  if (udid && !SERIAL_PATTERN.test(udid)) throw badRequest('Serial thiết bị không hợp lệ.');
-
-  return {
-    platform, specs, grep, udid,
-    deviceName: cleanLabel(input.deviceName, 80),
-    app: validateApp(input.app, root),
-    noReset: input.noReset === true,
-    suite: validateSuite(input.suite),
-  };
+  const target = platform === 'ios' ? validateIosTarget(input, readIosConfig(root)) : validateAndroidTarget(input, root);
+  return { platform, specs, grep, ...target, noReset: input.noReset === true, suite: validateSuite(input.suite) };
 }
 
 function buildArgs(options) {
@@ -80,7 +79,9 @@ function buildArgs(options) {
   return args;
 }
 
+/** Environment for the WDIO child. iOS reads the saved Mac host now, so later edits never touch a running run (EDGE-303). */
 function buildEnv(options, root) {
+  if (options.platform === 'ios') return buildIosEnv(options, readIosConfig(root));
   const { app } = options;
   return {
     ANDROID_UDID: options.udid,

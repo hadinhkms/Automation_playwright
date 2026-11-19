@@ -7,6 +7,7 @@ import { eventBus } from '../../core/eventBus.js';
 import { stateStore } from '../../core/stateStore.js';
 import { MasterProcessHelper } from './masterProcessHelper.js';
 import { initJiraSettings } from './jiraSettingsHelper.js';
+import { initMobileSettings } from './mobileSettingsHelper.js';
 
 export class SettingsSlice {
   constructor() {
@@ -87,10 +88,11 @@ export class SettingsSlice {
       }
     }
 
-    ['discord', 'branding', 'suites'].forEach((k) => {
+    ['discord', 'branding', 'suites', 'mobile'].forEach((k) => {
       const p = root.querySelector(`.settings-${k}`);
       if (p) p.hidden = target !== k;
     });
+    if (target === 'mobile') initMobileSettings();
 
     const jiraPanel = root.querySelector('.settings-jira');
     if (jiraPanel) {

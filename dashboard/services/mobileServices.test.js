@@ -61,6 +61,9 @@ describe('mobile run options and catalog', () => {
     fs.writeFileSync(path.join(root, 'tests/native/android/launch.native.js'), "describe('@smoke Launch', () => { it('TC-1 opens', () => {}); });");
     fs.writeFileSync(path.join(root, 'tests/native/android/auth/login.native.js'), "it('TC-2 login @login', () => {});");
     fs.writeFileSync(path.join(root, 'tests/native/android/helper.js'), '');
+    fs.mkdirSync(path.join(root, 'tests/native/shared/flow'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'tests/native/shared/flow/flow.native.js'), "it('TC-101 flow @smoke', () => {});");
+    fs.writeFileSync(path.join(root, 'apps/app.ipa'), 'x');
     fs.writeFileSync(path.join(root, 'apps/app.apk'), 'x');
     fs.writeFileSync(path.join(root, 'apps/notes.txt'), 'x');
     fs.writeFileSync(path.join(root, 'wdio.android.conf.js'), '');
@@ -69,12 +72,24 @@ describe('mobile run options and catalog', () => {
 
   const base = () => ({ platform: 'android', specs: ['tests/native/android/launch.native.js'], app: { type: 'apk', path: 'apps/app.apk' } });
 
-  test('catalog lists only *.native.js specs and .apk builds, with merged tags', () => {
+  test('catalog lists shared + android *.native.js specs with scope, and only .apk builds (S-02)', () => {
     const cat = getCatalog(root, 'android');
-    assert.deepEqual(cat.specs.map((s) => s.path), ['tests/native/android/auth/login.native.js', 'tests/native/android/launch.native.js']);
+    assert.deepEqual(cat.specs.map((s) => [s.path, s.scope]), [
+      ['tests/native/shared/flow/flow.native.js', 'shared'],
+      ['tests/native/android/auth/login.native.js', 'android'],
+      ['tests/native/android/launch.native.js', 'android'],
+    ]);
     assert.deepEqual(cat.tags, ['@login', '@smoke']);
     assert.deepEqual(cat.apps.map((a) => a.path), ['apps/app.apk']);
     assert.equal(cat.configReady, true);
+  });
+
+  test('iOS catalog sees the shared spec only and .ipa builds; config file reported missing', () => {
+    const cat = getCatalog(root, 'ios');
+    assert.deepEqual(cat.specs.map((s) => [s.path, s.scope]), [['tests/native/shared/flow/flow.native.js', 'shared']]);
+    assert.deepEqual(cat.apps.map((a) => a.path), ['apps/app.ipa']);
+    assert.equal(cat.configFile, 'wdio.ios.conf.js');
+    assert.equal(cat.configReady, false);
   });
 
   test('accepts a valid APK run and builds wdio args and env', () => {
@@ -97,7 +112,8 @@ describe('mobile run options and catalog', () => {
   });
 
   const rejects = [
-    ['iOS platform', { platform: 'ios' }, /iOS/],
+    ['iOS run with no declared device', { platform: 'ios', specs: ['tests/native/shared/flow/flow.native.js'], app: { type: 'bundle', bundleId: 'com.a.b' } }, /thiết bị iOS/],
+    ['android-only spec on iOS', { platform: 'ios' }, /không tồn tại/],
     ['unknown platform', { platform: 'windows' }, /Nền tảng/],
     ['no specs', { specs: [] }, /ít nhất một/],
     ['spec outside catalog', { specs: ['../../etc/passwd'] }, /không tồn tại/],
@@ -116,6 +132,15 @@ describe('mobile run options and catalog', () => {
       assert.throws(() => validateMobileOptions({ ...base(), ...patch }, root), (err) => err.status === 400 && pattern.test(err.message));
     });
   }
+
+  test('collectEvidence prefers the run folder evidence/native/<platform>/<runId>/ (U-01)', () => {
+    const dir = path.join(root, 'evidence/native/android/r1');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'TC-101_app_launch_foreground_1.png'), 'x');
+    const items = collectEvidence(root, 'android', new Date(Date.now() - 5000).toISOString(), 'r1');
+    assert.deepEqual(items.map((i) => i.url), ['/evidence/native/android/r1/TC-101_app_launch_foreground_1.png']);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 
   test('collectEvidence returns only recent png files with encoded URLs', () => {
     const dir = path.join(root, 'evidence/native/android');

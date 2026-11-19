@@ -18,7 +18,7 @@
 |---|---|---|:---:|
 | 1 | [phase-1-android-mvp.md](phase-1-android-mvp.md) | — | `DONE` |
 | 2 | [phase-2-builds-and-reports.md](phase-2-builds-and-reports.md) | P1 | `DONE` |
-| 3 | [phase-3-ios-remote-mac.md](phase-3-ios-remote-mac.md) | P2 | `TODO` (UAT thật `BLOCKED` chờ Mac) |
+| 3 | [phase-3-ios-remote-mac.md](phase-3-ios-remote-mac.md) | P2 | `DONE` (AC-305/UAT-301 `BLOCKED` chờ Mac) |
 | 4 | [phase-4-native-inspector.md](phase-4-native-inspector.md) | P3 | `TODO` |
 
 ```text
@@ -55,7 +55,7 @@ Mỗi phase chạy trong **một session riêng**. Session của phase N+1 mở 
 
 - [x] Phase 1 — Android MVP (xem evidence trong file phase)
 - [x] Phase 2 — Build & báo cáo (xem evidence trong file phase)
-- [ ] Phase 3 — iOS qua Mac host (phần cài đặt); UAT iOS thật chờ Mac
+- [x] Phase 3 — iOS qua Mac host (phần cài đặt) + spec/Screen dùng chung Android–iOS (xem evidence); AC-305/UAT-301 `BLOCKED (chờ Mac)`
 - [ ] Phase 4 — Inspector & sinh Page Object
 - [ ] Review độc lập P4 + đánh giá UI/UX tổ chức script (session riêng)
 - [ ] `master plan-archive` sau khi hoàn tất
@@ -63,4 +63,6 @@ Mỗi phase chạy trong **một session riêng**. Session của phase N+1 mở 
 ## 7. Tài Liệu Liên Quan
 
 - Hướng dẫn chạy Android CLI: [docs/ANDROID_NATIVE_TESTING.md](../../docs/ANDROID_NATIVE_TESTING.md)
+- Cài máy Mac và chạy iOS: [docs/IOS_NATIVE_TESTING.md](../../docs/IOS_NATIVE_TESTING.md)
+- Đánh giá UX tổ chức script: [ux-review-script-organization.md](ux-review-script-organization.md) (§6.2 đã áp dụng ở P3, §6.3 cho P4)
 - Quy chuẩn Dashboard: [ai/dashboard/DASHBOARD_AI_PROMPT.md](../../ai/dashboard/DASHBOARD_AI_PROMPT.md), [ai/dashboard/AI_LESSONS.md](../../ai/dashboard/AI_LESSONS.md)

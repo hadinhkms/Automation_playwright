@@ -1,6 +1,6 @@
 /**
  * dashboard/routes/mobileRoutes.js
- * /api/mobile/* endpoints for native app testing (Android P1, builds and run history P2).
+ * /api/mobile/* endpoints for native app testing (Android P1, builds and run history P2, iOS via a remote Mac P3).
  */
 const fs = require('fs');
 const path = require('path');
@@ -13,6 +13,9 @@ const { saveBuild, deleteBuild } = require('../services/mobileBuildService');
 const { enrichApps } = require('../services/mobileApkInfo');
 const { listRuns, getRun } = require('../services/mobileRunHistory');
 const { assertNotFrozen } = require('../../core/utils/circuitBreaker');
+const { handleIosRoutes, iosGet } = require('./mobileIosRoutes');
+const { readIosConfig } = require('../services/mobileIosService');
+const { assertIosReady } = require('../services/mobileIosCheck');
 
 const BUILD_ROUTE = /^\/api\/mobile\/builds\/([^/]+)$/;
 const RUN_ROUTE = /^\/api\/mobile\/runs\/([^/]+)(\/junit)?$/;
@@ -65,6 +68,9 @@ async function handleMobileRoutes(request, response, url, context = {}) {
   }
 
   try {
+    if (url.pathname.startsWith('/api/mobile/ios/')) return await handleIosRoutes(request, response, url, root);
+    const ios = request.method === 'GET' && platformParam(url) === 'ios' ? await iosGet(url.pathname, root) : null;
+    if (ios) return sendJson(response, 200, ios);
     const build = BUILD_ROUTE.exec(url.pathname);
     if (build) return await handleBuildRoute(request, response, root, decodeSegment(build[1]), url);
     const run = request.method === 'GET' && RUN_ROUTE.exec(url.pathname);
@@ -73,7 +79,8 @@ async function handleMobileRoutes(request, response, url, context = {}) {
     switch (route) {
       case 'GET /api/mobile/catalog': {
         const catalog = getCatalog(root, platformParam(url));
-        return sendJson(response, 200, { ...catalog, apps: await enrichApps(root, catalog.apps) });
+        const apps = catalog.platform === 'android' ? await enrichApps(root, catalog.apps) : catalog.apps;
+        return sendJson(response, 200, { ...catalog, apps });
       }
       case 'GET /api/mobile/devices':
         return sendJson(response, 200, { platform: 'android', ...(await listAndroidDevices()) });
@@ -86,6 +93,7 @@ async function handleMobileRoutes(request, response, url, context = {}) {
       case 'POST /api/mobile/run': {
         const options = validateMobileOptions(await parseBody(request), root);
         assertNotFrozen({ suiteName: `mobile-${options.platform}`, projectRoot: root, exitOnError: false });
+        if (options.platform === 'ios') await assertIosReady(readIosConfig(root));
         return sendJson(response, 202, startMobileRun(options, root));
       }
       case 'POST /api/mobile/stop':

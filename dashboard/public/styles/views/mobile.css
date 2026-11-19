@@ -69,6 +69,8 @@
 
 .mobile-command { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--code-bg); border: 1px solid var(--line); }
 .mobile-command code { flex: 1; min-width: 0; color: var(--code-text); font: var(--font-caption)/1.5 var(--font-mono); overflow-wrap: anywhere; }
+/* U-07: fixed 3-line box so a longer command never pushes the Run button down. */
+.mobile-command code { height: 4.5em; overflow-y: auto; }
 .mobile-actions { display: flex; gap: 8px; }
 .mobile-results { display: flex; flex-direction: column; gap: 6px; }
 .mobile-results:empty, .mobile-evidence:empty { display: none; }
