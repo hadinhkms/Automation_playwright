@@ -26,6 +26,7 @@ const { handleQaBatchRoutes } = require('./routes/qaBatchRoutes');
 const { handleMasterProcessRoutes } = require('./routes/masterProcessRoutes');
 const { handleMobileRoutes } = require('./routes/mobileRoutes');
 const { stopMobileRun } = require('./services/mobileRunnerService');
+const { inspector: mobileInspector } = require('./routes/mobileInspectorRoutes');
 const { handleResourceRoutes, serveFile } = require('./routes/resourceRoutes');
 const { sendJson, parseBody, safeChildPath } = require('./routes/routeUtils');
 const { getActiveRun, stopRun } = require('./services/runnerService');
@@ -184,9 +185,12 @@ function shutdown() {
   if (fs.existsSync(STATE_PATH)) {
     try { fs.rmSync(STATE_PATH, { force: true }); } catch (_) {}
   }
-  if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
-  server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 1000).unref();
+  // The Inspector deletes its Appium session and stops the Appium it started before the process exits.
+  mobileInspector.shutdown().catch(() => {}).finally(() => {
+    if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
+    server.close(() => process.exit(0));
+  });
+  setTimeout(() => process.exit(0), 3000).unref();
 }
 
 process.on('SIGINT', shutdown);

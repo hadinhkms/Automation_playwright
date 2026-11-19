@@ -12,6 +12,14 @@
         </div>
       </header>
 
+      <div class="mobile-modebar">
+        <div class="mobile-seg mobile-mode-seg" role="group" aria-label="Chế độ Mobile App">
+          <button type="button" data-mobile-mode="run" aria-pressed="true"><i class="ph-bold ph-play"></i> Chạy test</button>
+          <button type="button" data-mobile-mode="inspect" aria-pressed="false"><i class="ph-bold ph-crosshair"></i> Inspector</button>
+        </div>
+        <p id="mobile-mode-note" class="mobile-hint">Inspector dùng thiết bị và app đang chọn ở chế độ Chạy test.</p>
+      </div>
+
       <main class="suites-workspace mobile-workspace" id="mobile-workspace">
         <aside class="panel mobile-panel" aria-labelledby="mobile-devices-title">
           <div class="script-panel-head">
@@ -152,6 +160,104 @@
               <button id="mobile-clear-log" type="button" class="mobile-link-btn">Xóa log</button>
             </div>
             <pre id="mobile-log" class="mobile-log" aria-live="off"></pre>
+          </div>
+        </section>
+      </main>
+
+      <main class="suites-workspace mobile-workspace mobile-inspector" id="mobile-inspector" hidden>
+        <aside class="panel mobile-panel" aria-labelledby="insp-screen-title">
+          <div class="script-panel-head">
+            <div class="mobile-head-text">
+              <span class="pm-section-tag">01 · MÀN HÌNH</span>
+              <h2 id="insp-screen-title">Ảnh thiết bị</h2>
+            </div>
+            <span id="insp-status" class="mobile-pill is-idle">Chưa mở</span>
+          </div>
+          <div class="mobile-panel-body">
+            <div class="mobile-host">
+              <span class="mobile-label">Thiết bị · app</span>
+              <strong id="insp-target" class="mobile-mono">–</strong>
+              <small id="insp-expiry" class="mobile-hint"></small>
+            </div>
+            <div class="mobile-actions">
+              <button id="insp-start-btn" type="button" class="primary-button"><i class="ph-bold ph-power"></i> Bắt đầu</button>
+              <button id="insp-stop-btn" type="button" class="explorer-button" disabled><i class="ph-bold ph-stop"></i> Đóng phiên</button>
+            </div>
+            <p id="insp-hint" class="mobile-hint" aria-live="polite"></p>
+            <div id="insp-stage" class="insp-stage" aria-label="Ảnh màn hình, bấm để chọn phần tử">
+              <img id="insp-shot" alt="Ảnh màn hình thiết bị" hidden>
+              <span id="insp-box" class="insp-box" hidden></span>
+              <p id="insp-stage-empty" class="mobile-hint">Bấm Bắt đầu để lấy ảnh và cây phần tử của app.</p>
+            </div>
+            <div class="insp-tools" role="group" aria-label="Điều khiển app">
+              <button id="insp-tap-btn" type="button" class="explorer-button" disabled title="Chạm vào giữa phần tử đang chọn"><i class="ph-bold ph-hand-tap"></i> Chạm</button>
+              <button id="insp-back-btn" type="button" class="explorer-button" disabled title="Nút Back của Android"><i class="ph-bold ph-arrow-u-up-left"></i> Back</button>
+              <button id="insp-refresh-btn" type="button" class="explorer-button" disabled title="Chụp lại ảnh và cây phần tử"><i class="ph-bold ph-arrows-clockwise"></i> Làm mới</button>
+            </div>
+            <div class="mobile-apk-row">
+              <input id="insp-type-input" class="mobile-input" type="text" maxlength="500" autocomplete="off" spellcheck="false" placeholder="Chữ nhập vào ô đang chọn" aria-label="Chữ nhập vào phần tử đang chọn" disabled>
+              <button id="insp-type-btn" type="button" class="explorer-button" disabled>Nhập</button>
+            </div>
+          </div>
+        </aside>
+
+        <section class="panel mobile-panel" aria-labelledby="insp-tree-title">
+          <div class="script-panel-head">
+            <div class="mobile-head-text">
+              <span class="pm-section-tag">02 · CÂY PHẦN TỬ</span>
+              <h2 id="insp-tree-title">Phần tử và thuộc tính</h2>
+            </div>
+            <span id="insp-count" class="mobile-hint"></span>
+          </div>
+          <div class="mobile-panel-body">
+            <input id="insp-filter" class="mobile-input" type="search" placeholder="Lọc theo id, text, mô tả…" aria-label="Lọc cây phần tử" autocomplete="off" spellcheck="false">
+            <div id="insp-tree" class="insp-tree" role="tree" aria-label="Cây phần tử"></div>
+            <div class="mobile-subhead"><span>Thuộc tính phần tử</span></div>
+            <dl id="insp-props" class="insp-props"></dl>
+          </div>
+        </section>
+
+        <section class="panel mobile-panel" aria-labelledby="insp-po-title">
+          <div class="script-panel-head">
+            <div class="mobile-head-text">
+              <span class="pm-section-tag">03 · LOCATOR &amp; SCREEN</span>
+              <h2 id="insp-po-title">Gợi ý locator, sinh Screen</h2>
+            </div>
+          </div>
+          <div class="mobile-panel-body">
+            <div id="insp-suggest" class="insp-suggest" aria-live="polite"></div>
+            <div id="insp-add" class="insp-add" hidden>
+              <input id="insp-el-name" class="mobile-input" type="text" maxlength="40" autocomplete="off" spellcheck="false" aria-label="Tên locator">
+              <select id="insp-el-action" class="mobile-input" aria-label="Hàm sinh cho phần tử">
+                <option value="tap">Hàm chạm</option>
+                <option value="type">Hàm nhập chữ</option>
+                <option value="read">Hàm đọc chữ</option>
+                <option value="visible">Hàm kiểm tra hiển thị</option>
+              </select>
+              <button id="insp-add-btn" type="button" class="explorer-button"><i class="ph-bold ph-plus"></i> Thêm vào Screen</button>
+            </div>
+            <div class="mobile-subhead"><span>Phần tử của Screen</span><button id="insp-clear-picked" type="button" class="mobile-link-btn">Xoá hết</button></div>
+            <ul id="insp-picked" class="insp-picked"></ul>
+            <fieldset class="mobile-field">
+              <legend>Ghi vào</legend>
+              <div class="mobile-radio-row" role="radiogroup" aria-label="Ghi vào Screen">
+                <label><input type="radio" name="insp-target-mode" value="new" checked> Screen mới</label>
+                <label><input type="radio" name="insp-target-mode" value="existing"> Screen có sẵn</label>
+              </div>
+              <input id="insp-screen-name" class="mobile-input" type="text" maxlength="48" autocomplete="off" spellcheck="false" placeholder="Ví dụ: JobList" aria-label="Tên Screen mới">
+              <select id="insp-screen-select" class="mobile-input" aria-label="Screen có sẵn" hidden></select>
+              <p id="insp-screen-hint" class="mobile-hint"></p>
+            </fieldset>
+            <div class="mobile-actions">
+              <button id="insp-preview-btn" type="button" class="explorer-button" disabled><i class="ph-bold ph-eye"></i> Xem trước</button>
+              <button id="insp-draft-btn" type="button" class="explorer-button" disabled><i class="ph-bold ph-floppy-disk"></i> Lưu nháp</button>
+              <button id="insp-create-btn" type="button" class="primary-button" disabled><i class="ph-bold ph-file-plus"></i> Tạo</button>
+            </div>
+            <div class="code-editor-stage editing insp-editor" id="insp-editor-stage" hidden>
+              <pre class="code-preview"><code id="insp-code"></code></pre>
+              <textarea id="insp-editor" class="code-editor" wrap="off" spellcheck="false" aria-label="Mã nguồn Screen"></textarea>
+            </div>
+            <p id="insp-editor-meta" class="mobile-hint mobile-mono"></p>
           </div>
         </section>
       </main>

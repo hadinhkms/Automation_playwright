@@ -10,6 +10,7 @@ import { MobileBuilds } from './mobileBuilds.js';
 import { takePendingSuite, runSuiteIn } from './mobileSuiteHandoff.js';
 import { connectEvents, loadRunState, startRun } from './mobileLive.js';
 import { swapPlatform, applyProfile, applyCatalog } from './mobilePlatform.js';
+import { InspectorSlice } from './inspectorSlice.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -27,6 +28,7 @@ export class MobileSlice {
       onDeleted: () => { this.state.apk = ''; this.loadCatalog(this._gen); },
       notify: (m) => this._notify(m),
     });
+    this.inspector = new InspectorSlice(this);
   }
 
   async mount() {
@@ -39,6 +41,7 @@ export class MobileSlice {
     this.state.androidUdid = this.state.udid;
     if (this.state.platform === 'ios') this.state.udid = this.state.iosDevice;
     this._bind();
+    this.inspector.mount();
     this._source = connectEvents(this);
     this._render();
     await Promise.all([this.loadPlatform(gen), loadRunState(this, gen)]);
@@ -54,6 +57,7 @@ export class MobileSlice {
 
   unmount() {
     this._gen += 1;
+    this.inspector.unmount();
     this.builds.dispose();
     this._disposers.forEach((d) => { try { d(); } catch (_) {} });
     this._disposers = [];
@@ -127,9 +131,9 @@ export class MobileSlice {
     this._render();
   }
 
-  _render() { if ($('mobile-workspace')) renderView(this.state); }
+  _render() { if ($('mobile-workspace')) { renderView(this.state); this.inspector.syncContext(); } }
 
-  _renderRunPanel() { if ($('mobile-workspace')) renderRunPanel(this.state); }
+  _renderRunPanel() { if ($('mobile-workspace')) { renderRunPanel(this.state); this.inspector.syncContext(); } }
 
   _savePrefs() { savePrefs(this.state); }
 

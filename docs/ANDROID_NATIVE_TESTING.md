@@ -78,12 +78,19 @@ Một luồng nghiệp vụ có **một** spec; nền tảng khác nhau ở loca
 
 ## 6. Viết test mới
 
-- Tìm locator bằng **Appium Inspector** (kết nối `127.0.0.1:4723`, cùng capabilities) hoặc `adb shell uiautomator dump`.
+- Tìm locator bằng **Inspector trên Dashboard** (Mobile App → chế độ **Inspector**, dùng thiết bị và app đang chọn ở chế độ Chạy test):
+  1. **Bắt đầu** → ảnh màn hình + cây phần tử (Dashboard tự bật Appium cổng 4723 nếu chưa chạy và tắt khi đóng phiên).
+  2. Bấm lên ảnh hoặc một dòng trong cây → bảng thuộc tính + gợi ý locator theo thứ tự `id:` → `~` → `uia:` → `text:` → `xpath:`, mỗi gợi ý có **số phần tử khớp** (1 = tốt). XPath luôn ở cuối; khi chỉ còn XPath, Dashboard cảnh báo.
+  3. **Chạm** / **Nhập** / **Back** / **Làm mới** để đi tới màn khác. Chỉ thao tác chỉ đọc trên app thật.
+  4. **Thêm vào Screen** (tên camelCase + loại hàm: chạm, nhập chữ, đọc chữ, kiểm tra hiển thị) → **Ghi vào** Screen mới hoặc Screen có sẵn (chỉ ghi ô của nền tảng đang mở, ô kia giữ nguyên) → **Xem trước** (sửa được trong editor) → **Lưu nháp** (`.dashboard-drafts/pages/native/screens/`) hoặc **Tạo** (`pages/native/screens/`).
+  - Phiên tự đóng khi rời view, tải lại trang, sau 10 phút không thao tác, hoặc khi tắt Dashboard. Khi Inspector mở, không chạy được test (và ngược lại).
+  - Ngoài Dashboard: **Appium Inspector** (kết nối `127.0.0.1:4723`) hoặc `adb shell uiautomator dump`.
 - Ưu tiên: `resource-id` → `content-desc` (accessibility id) → text. Tránh XPath tuyệt đối.
 - Không dùng `driver.pause()` để chờ; dùng `waitForDisplayed` / `driver.waitUntil`.
 - Thêm locator vào `static locators` của Screen, cả hai cột Android và iOS; chưa biết iOS thì để `null` (chạy iOS sẽ báo rõ "has no ios locator yet"). Spec chỉ gọi method của Screen, gọi phần tử bằng `this.el('ten')`.
 - Quy ước tên: `describe('<Khu vực> - <Luồng> @native @<khu-vực> @REQ-1xx')`, `it('TC-1xx - <mô tả> @smoke')`. Tag mức chạy (`@smoke`, `@regression`) đặt ở `it`, không ở `describe`. Không cần `@android`/`@ios`: thư mục đã cho biết nền tảng. Test trong `shared/` chỉ chạy được một bên thì gắn `@android-only` / `@ios-only`.
 - Ví dụ: [tests/native/shared/app-launch/app-launch.native.js](../tests/native/shared/app-launch/app-launch.native.js) + [pages/native/screens/AppLaunchScreen.js](../pages/native/screens/AppLaunchScreen.js), truy vết ở [test-cases/REQ-101-app-launch.md](../test-cases/REQ-101-app-launch.md).
+- Ví dụ Screen lấy bằng Inspector: [pages/native/screens/JobListScreen.js](../pages/native/screens/JobListScreen.js) + [tests/native/shared/job-list/job-list.native.js](../tests/native/shared/job-list/job-list.native.js) (app Vieclam24h.QA, chỉ đọc; app khác thì spec tự bỏ qua).
 - App đã cài (`ANDROID_APP_PACKAGE`): Dashboard và config luôn đưa app lên trước (`forceAppLaunch`), kể cả khi app đang chạy nền; dữ liệu app được giữ.
 
 ## 7. Giới hạn

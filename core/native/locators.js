@@ -44,6 +44,23 @@ function toSelector(locator, platform) {
   return build(raw.slice(prefix.length));
 }
 
+const QUERY_PREFIXES = [
+  ['android=', '-android uiautomator'],
+  ['-ios predicate string:', '-ios predicate string'],
+  ['-ios class chain:', '-ios class chain'],
+  ['~', 'accessibility id'],
+];
+
+/**
+ * W3C `{ using, value }` for `POST /session/:id/elements`, derived from toSelector so the Inspector
+ * counts matches with exactly the strategy a Screen will use at run time (P4 AC-402).
+ */
+function toWebDriverQuery(locator, platform) {
+  const selector = toSelector(locator, platform);
+  const hit = QUERY_PREFIXES.find(([prefix]) => selector.startsWith(prefix));
+  return hit ? { using: hit[1], value: selector.slice(hit[0].length) } : { using: 'xpath', value: selector };
+}
+
 /** Picks `locators[name][platform]`; a missing entry is reported with the Screen name so the gap is obvious. */
 function resolveLocator(locators, name, platform, screenName = 'Screen') {
   const entry = locators && Object.prototype.hasOwnProperty.call(locators, name) ? locators[name] : undefined;
@@ -60,4 +77,4 @@ function missingLocators(locators, platform) {
     .map(([name]) => name);
 }
 
-module.exports = { toSelector, resolveLocator, missingLocators, PLATFORMS };
+module.exports = { toSelector, toWebDriverQuery, resolveLocator, missingLocators, PLATFORMS };

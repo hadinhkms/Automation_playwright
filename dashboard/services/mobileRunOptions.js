@@ -97,4 +97,4 @@ function displayCommand(options) {
   return `npx wdio ${buildArgs(options).join(' ')}`;
 }
 
-module.exports = { validateMobileOptions, buildArgs, buildEnv, displayCommand, TAG_PATTERN, PACKAGE_PATTERN };
+module.exports = { validateMobileOptions, validateAndroidTarget, buildArgs, buildEnv, displayCommand, TAG_PATTERN, PACKAGE_PATTERN };

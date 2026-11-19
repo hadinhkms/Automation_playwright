@@ -27,7 +27,10 @@ export function renderDevices(container, data, selectedUdid) {
   if (!data) { container.append(el('p', 'mobile-hint', 'Đang tìm thiết bị...')); return; }
   if (!data.available) { container.append(empty('Không đọc được thiết bị', data.error)); return; }
   if (data.devices.length === 0) {
-    container.append(empty('Chưa có thiết bị nào', 'Cắm điện thoại qua USB, bật USB debugging, hoặc mở một emulator rồi bấm làm mới.'));
+    const help = data.platform === 'ios'
+      ? 'Khai báo simulator hoặc iPhone trong Cấu hình hệ thống → Mobile / iOS.'
+      : 'Cắm điện thoại qua USB, bật USB debugging, hoặc mở một emulator rồi bấm làm mới.';
+    container.append(empty('Chưa có thiết bị nào', help));
     return;
   }
   data.devices.forEach((d) => {
@@ -96,10 +99,12 @@ export function renderResults(container, run) {
   container.replaceChildren();
   if (!run?.results?.length) return;
   const passed = run.results.filter((r) => r.status === 'passed').length;
-  container.append(el('div', 'mobile-subhead', `Kết quả: ${passed}/${run.results.length} đạt`));
+  const skipped = run.results.filter((r) => r.status === 'skipped').length;
+  container.append(el('div', 'mobile-subhead', `Kết quả: ${passed}/${run.results.length} đạt${skipped ? ` · ${skipped} bỏ qua` : ''}`));
   run.results.forEach((r) => {
     const row = el('div', 'mobile-result');
-    row.append(el('span', '', r.title), el('span', `mobile-pill is-${r.status}`, r.status === 'passed' ? 'Đạt' : 'Lỗi'));
+    const [label, cls] = r.status === 'passed' ? ['Đạt', 'is-passed'] : r.status === 'skipped' ? ['Bỏ qua', 'is-stopped'] : ['Lỗi', 'is-failed'];
+    row.append(el('span', '', r.title), el('span', `mobile-pill ${cls}`, label));
     container.append(row);
   });
 }

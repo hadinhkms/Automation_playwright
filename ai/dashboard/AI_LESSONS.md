@@ -22,6 +22,16 @@ Only record a lesson after the defect is confirmed and its root cause is underst
 
 ## Confirmed lessons
 
+### 2026-11-20 — Long-Lived Device Sessions Need a Per-Tab Key and an Awaited Shutdown
+
+- Area: Native Inspector (`dashboard/services/mobileInspectorService.js`, `dashboard/server.js`, `dashboard/public/js/views/mobile/inspectorSlice.js`).
+- Symptom risk: an Appium session (and the Appium process the Dashboard started) left running after the view, the tab or the server went away; one tab leaving the view could close another tab's session.
+- Root cause: `shutdown()` exited before the async `DELETE /session` finished; on Windows `child.kill('SIGTERM')` is a hard kill, so harness tests never run the shutdown hooks at all.
+- Correct pattern: every tab generates a key sent on start/stop/commands (others get 409); unmount sends `stop` with `keepalive`, `pagehide` sends a beacon; the server reserves the lock before any await, closes on idle (injected clock), closes and frees the lock on `invalid session id`/unreachable, and `shutdown()` awaits the session delete (bounded) before `process.exit`.
+- Preventive rule: test cleanup of external sessions through `POST /api/shutdown` (graceful path), not by killing the harness; check the device-side log (`DELETE /session … 200`) and that the port is free.
+- Regression check: `node --test --test-concurrency=1 tests/dashboard-api/mobile-inspector.test.js` (B6 test), `node --test dashboard/services/mobileInspectorService.test.js`; manually: open Inspector, switch view, `netstat -ano | findstr :4723` shows nothing.
+- Related files: `dashboard/services/mobileInspectorService.js`, `dashboard/services/mobileAppiumClient.js`, `dashboard/routes/mobileInspectorRoutes.js`, `dashboard/server.js`, `dashboard/public/js/views/mobile/inspectorEvents.js`.
+
 ### 2026-11-20 — A Native Run on an Installed App Must Force the Launch
 
 - Area: Mobile App runs in "App đã cài" mode (`core/native/androidCapabilities.js`, `tests/native/shared/app-launch/`).

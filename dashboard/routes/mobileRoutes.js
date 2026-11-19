@@ -1,6 +1,7 @@
 /**
  * dashboard/routes/mobileRoutes.js
- * /api/mobile/* endpoints for native app testing (Android P1, builds and run history P2, iOS via a remote Mac P3).
+ * /api/mobile/* endpoints for native app testing (Android P1, builds and run history P2, iOS via a remote Mac P3,
+ * Inspector P4).
  */
 const fs = require('fs');
 const path = require('path');
@@ -16,6 +17,7 @@ const { assertNotFrozen } = require('../../core/utils/circuitBreaker');
 const { handleIosRoutes, iosGet } = require('./mobileIosRoutes');
 const { readIosConfig } = require('../services/mobileIosService');
 const { assertIosReady } = require('../services/mobileIosCheck');
+const { handleInspectorRoutes, inspector } = require('./mobileInspectorRoutes');
 
 const BUILD_ROUTE = /^\/api\/mobile\/builds\/([^/]+)$/;
 const RUN_ROUTE = /^\/api\/mobile\/runs\/([^/]+)(\/junit)?$/;
@@ -69,6 +71,7 @@ async function handleMobileRoutes(request, response, url, context = {}) {
 
   try {
     if (url.pathname.startsWith('/api/mobile/ios/')) return await handleIosRoutes(request, response, url, root);
+    if (url.pathname.startsWith('/api/mobile/inspector/')) return await handleInspectorRoutes(request, response, url, root);
     const ios = request.method === 'GET' && platformParam(url) === 'ios' ? await iosGet(url.pathname, root) : null;
     if (ios) return sendJson(response, 200, ios);
     const build = BUILD_ROUTE.exec(url.pathname);
@@ -91,6 +94,7 @@ async function handleMobileRoutes(request, response, url, context = {}) {
       case 'GET /api/mobile/runs':
         return sendJson(response, 200, { runs: listRuns(root, url.searchParams.get('limit')) });
       case 'POST /api/mobile/run': {
+        if (inspector.busyReason()) return sendJson(response, 409, { error: inspector.busyReason() });
         const options = validateMobileOptions(await parseBody(request), root);
         assertNotFrozen({ suiteName: `mobile-${options.platform}`, projectRoot: root, exitOnError: false });
         if (options.platform === 'ios') await assertIosReady(readIosConfig(root));

@@ -9,8 +9,8 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
-function readEnv(name, fallback = '') {
-  const value = process.env[name];
+function readEnv(name, fallback = '', env = process.env) {
+  const value = env[name];
   return typeof value === 'string' && value.trim() ? value.trim() : fallback;
 }
 
@@ -26,10 +26,12 @@ function resolveApkPath(rawPath) {
   return absolute;
 }
 
-function buildAndroidCapabilities() {
-  const apkPath = resolveApkPath(readEnv('ANDROID_APP_PATH'));
-  const appPackage = readEnv('ANDROID_APP_PACKAGE');
-  const appActivity = readEnv('ANDROID_APP_ACTIVITY');
+/** `env` defaults to process.env; the Dashboard Inspector passes the values picked on screen (P4). */
+function buildAndroidCapabilities(env = process.env) {
+  const read = (name, fallback) => readEnv(name, fallback, env);
+  const apkPath = resolveApkPath(read('ANDROID_APP_PATH'));
+  const appPackage = read('ANDROID_APP_PACKAGE');
+  const appActivity = read('ANDROID_APP_ACTIVITY');
 
   if (!apkPath && !appPackage) {
     throw new Error('[android] Set ANDROID_APP_PATH (APK) or ANDROID_APP_PACKAGE (already installed app) in .env');
@@ -39,9 +41,9 @@ function buildAndroidCapabilities() {
     platformName: 'Android',
     'appium:automationName': 'UiAutomator2',
     'appium:newCommandTimeout': 240,
-    'appium:autoGrantPermissions': readEnv('ANDROID_AUTO_GRANT_PERMISSIONS', 'true') === 'true',
+    'appium:autoGrantPermissions': read('ANDROID_AUTO_GRANT_PERMISSIONS', 'true') === 'true',
     // Pre-installed app (no APK): keep its data by default; `pm clear` is refused for system apps.
-    'appium:noReset': readEnv('ANDROID_NO_RESET', apkPath ? 'false' : 'true') === 'true',
+    'appium:noReset': read('ANDROID_NO_RESET', apkPath ? 'false' : 'true') === 'true',
     // With noReset, Appium skips the launch when the app already runs in the background ("is already running
     // and noReset is enabled") and the test sees the launcher. Always bring the app to the front; data is kept.
     'appium:forceAppLaunch': true,
@@ -51,7 +53,7 @@ function buildAndroidCapabilities() {
     'appium:uiautomator2ServerInstallTimeout': 120000,
   };
 
-  const udid = readEnv('ANDROID_UDID');
+  const udid = read('ANDROID_UDID');
   if (udid) caps['appium:udid'] = udid;
   if (apkPath) caps['appium:app'] = apkPath;
   if (appPackage) caps['appium:appPackage'] = appPackage;
@@ -60,11 +62,11 @@ function buildAndroidCapabilities() {
   return caps;
 }
 
-function appiumConnection() {
+function appiumConnection(env = process.env) {
   return {
-    hostname: readEnv('APPIUM_HOST', '127.0.0.1'),
-    port: Number(readEnv('APPIUM_PORT', '4723')),
-    useExternalServer: readEnv('APPIUM_EXTERNAL', 'false') === 'true',
+    hostname: readEnv('APPIUM_HOST', '127.0.0.1', env),
+    port: Number(readEnv('APPIUM_PORT', '4723', env)),
+    useExternalServer: readEnv('APPIUM_EXTERNAL', 'false', env) === 'true',
   };
 }
 

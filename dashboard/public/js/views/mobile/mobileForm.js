@@ -39,6 +39,7 @@ function iosBlocker(state, opts) {
 /** Returns the reason the Run button is disabled, or '' when a run can start. */
 export function runBlocker(state, opts) {
   if (state.webBusy) return 'Đang có lượt chạy Playwright ở tab Chạy test.';
+  if (state.inspectorBusy) return 'Inspector đang mở. Đóng phiên Inspector trước khi chạy test.';
   if (state.platform === 'ios') {
     const why = iosBlocker(state, opts);
     if (why) return why;

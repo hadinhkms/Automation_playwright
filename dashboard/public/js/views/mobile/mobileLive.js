@@ -25,6 +25,11 @@ export function connectEvents(slice) {
     try { event = JSON.parse(data); } catch (_) { return; }
     if (event.type === 'mobile_log') appendLog(event.payload.text);
     if (event.type === 'mobile_status') { slice.state.run = event.payload; slice._renderRunPanel(); }
+    if (event.type === 'mobile_inspector') {
+      slice.state.inspectorBusy = Boolean(event.payload?.active);
+      slice.inspector.onEvent(event.payload);
+      slice._renderRunPanel();
+    }
     if (event.type === 'status') { slice.state.webBusy = event.payload?.status === 'running'; slice._renderRunPanel(); }
   };
   return source;
@@ -33,8 +38,9 @@ export function connectEvents(slice) {
 /** Current or last mobile run plus whether Playwright is busy (shared run lock, X-02). */
 export async function loadRunState(slice, gen) {
   try {
-    const [mobile, web] = await Promise.all([apiClient.get('/api/mobile/state'), apiClient.get('/api/state')]);
+    const [mobile, web, inspector] = await Promise.all([apiClient.get('/api/mobile/state'), apiClient.get('/api/state'), apiClient.get('/api/mobile/inspector/state')]);
     if (gen !== slice._gen) return;
+    slice.state.inspectorBusy = Boolean(inspector.active);
     slice.state.run = mobile.activeRun || mobile.lastRun;
     slice.state.webBusy = Boolean(web.activeRun);
     $('mobile-log').textContent = mobile.logs.map((l) => l.text).join('');

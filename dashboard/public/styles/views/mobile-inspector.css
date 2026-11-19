@@ -1,0 +1,56 @@
+/**
+ * dashboard/public/styles/views/mobile-inspector.css
+ * PLAN-25 P4: Mobile App mode switch and the native Inspector workspace (screenshot, element tree,
+ * locator suggestions, Screen builder). Layout comes from .suites-workspace; shared tokens only.
+ */
+.mobile-modebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+.mobile-mode-seg { width: min(320px, 100%); }
+.mobile-workspace[hidden] { display: none; }
+
+/* Frame 1: screenshot */
+.insp-stage { position: relative; align-self: center; width: 100%; max-width: 280px; min-height: 120px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface-2); cursor: crosshair; }
+.insp-stage img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+.insp-stage img[hidden], .insp-box[hidden] { display: none; }
+.insp-stage.is-loading img { opacity: .55; transition: opacity .15s; }
+.insp-stage > .mobile-hint { padding: 16px; text-align: center; cursor: default; }
+.insp-box { position: absolute; pointer-events: none; border: 2px solid var(--accent); border-radius: 3px; background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface) 70%, transparent); }
+.insp-tools { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.insp-tools button { min-width: 0; padding: 0 6px; }
+
+/* Frame 2: element tree + attributes */
+.insp-tree { display: flex; flex-direction: column; max-height: 46vh; min-height: 120px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; background: var(--surface); }
+.insp-node { --depth: 0; height: auto; min-height: 26px; width: 100%; display: flex; align-items: center; gap: 4px; padding: 2px 6px 2px calc(6px + var(--depth) * 12px); border: 0; border-radius: 5px; background: transparent; color: var(--text); font: 500 var(--font-caption)/1.4 var(--font-mono); text-align: left; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.insp-node > span:last-child { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.insp-node:hover { background: var(--surface-2); }
+.insp-node.is-selected { background: var(--accent-subtle); color: var(--accent); }
+.insp-toggle { flex: 0 0 12px; color: var(--muted); text-align: center; }
+.insp-props { display: grid; grid-template-columns: minmax(90px, max-content) minmax(0, 1fr); gap: 4px 10px; margin: 0; font-size: var(--font-caption); }
+.insp-props dt { color: var(--muted); }
+.insp-props dd { margin: 0; overflow-wrap: anywhere; }
+
+/* Frame 3: locator suggestions + Screen builder */
+.insp-suggest { display: flex; flex-direction: column; gap: 6px; }
+.insp-sugg { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.insp-sugg.is-chosen { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.insp-sugg input { margin-top: 3px; }
+.insp-sugg-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.insp-sugg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--font-control); }
+.insp-sugg code, .insp-sugg small { overflow-wrap: anywhere; font-size: var(--font-caption); }
+.insp-sugg small { color: var(--muted); }
+.insp-warn { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--warning-subtle); color: var(--text); font-size: var(--font-caption); line-height: 1.45; }
+.insp-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 150px); gap: 6px; }
+.insp-add[hidden] { display: none; }
+.insp-add button { grid-column: 1 / -1; }
+.insp-picked { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.insp-picked-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.insp-picked-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.insp-picked-text small { color: var(--muted); overflow-wrap: anywhere; font-size: var(--font-caption); }
+#insp-screen-select[hidden], #insp-screen-name[hidden], .insp-editor[hidden] { display: none; }
+.insp-editor { min-height: 260px; height: 42vh; border: 1px solid var(--line); border-radius: 8px; }
+.mobile-inspector .mobile-actions { flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .insp-stage { max-width: 100%; }
+  .insp-tree { max-height: 50vh; }
+  .insp-add { grid-template-columns: 1fr; }
+}
