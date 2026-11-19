@@ -164,6 +164,15 @@ Môi trường: Windows 11, baseline `7e03be4`, Node 22, WDIO 9.32.0, máy thậ
 
 **Android không hồi quy (yêu cầu của session)**: CLI `p3cli2` 3/3 Đạt (11 s, app đang chạy nền trước khi chạy); UI Mobile App → Android → hồ sơ "Calculator (OPPO, cài sẵn)" → `@smoke` → Chạy → lượt `mwnuqig0` **3/3 Đạt**, ảnh `evidence/native/android/mwnuqig0/TC-101_app_launch_foreground_*.png`, JUnit `classname=native.android.App_launch_-_Smoke_@native_@app-launch_@REQ-101`, `name=TC-101 - …`. Không dùng app Settings của OPPO.
 
+**Android với app Vieclam24h.QA (Owner cho phép, 2026-11-20)**: `com.vieclam24h.qa` v2.29.0 (versionCode 804), activity `com.vieclam24h.MainActivity`, chế độ "App đã cài", `noReset=true` (giữ dữ liệu và đăng nhập). Không dùng `com.vieclam24h` (production) và `com.vieclam24h.stag`. Chỉ chạy smoke chỉ đọc (mở app, đọc cây giao diện, đưa xuống nền 3 s rồi mở lại), không nhập liệu, không gửi form.
+
+| App | Lượt | Đạt / Lỗi | Thời gian | Ảnh |
+|---|---|:---:|:---:|---|
+| Calculator OPPO (`com.coloros.calculator`) | CLI `p3cli2`, UI `mwnuqig0` | 3 / 0 (mỗi lượt) | 11 s (CLI) | `evidence/native/android/mwnuqig0/TC-101_app_launch_foreground_*.png` |
+| Vieclam24h.QA (`com.vieclam24h.qa`) | CLI `p3vl24qa` (`--mochaOpts.grep @smoke`) | **3 / 0** (TC-101, 102, 103) | 12 s | `evidence/native/android/p3vl24qa/TC-101_app_launch_foreground_*.png`, `after-5s_adb.png` |
+
+JUnit `test-results/native/android/junit-p3vl24qa.xml`: 3 testcase, 0 failure. Nhận xét: ảnh TC-101 của Vieclam24h.QA là màn trắng, vì ảnh được chụp ngay khi app lên tiền cảnh, lúc giao diện chưa vẽ xong. Ảnh `after-5s_adb.png` chụp bằng `adb exec-out screencap` 5 giây sau mới cho thấy màn Khám phá. Việc cần làm khi viết Screen thật cho app này: chờ một phần tử của màn đầu (`waitForDisplayed`) rồi mới `capture`. Ảnh có thông tin tài khoản đang đăng nhập; thư mục `evidence/` bị gitignore nên không được commit. Đã thêm hồ sơ "Vieclam24h QA" vào `core/native/app-profiles.json`.
+
 **UI** (Mobile App Android + iOS, Cấu hình → Mobile / iOS, Báo cáo → App native) ở 1920×1080, 1440×900, 1280×800, 390×844 × light/dark: script kiểm không có cuộn ngang trang, không control nào tràn màn hình, không chữ `undefined`/`null`/`NaN`/`TODO`. Xem ảnh 390 px dark của iOS và Settings. 20 vòng bấm nhanh Android↔iOS↔Android + Mobile↔Cấu hình↔Báo cáo: 0 lỗi JS, trạng thái cuối khớp nền tảng đang chọn (phản hồi đến muộn của nền tảng cũ bị bỏ). Log server không lỗi. Sửa trong lúc kiểm: comment `**/` làm hỏng `nativeSuiteRender.js` (SyntaxError, sửa ngay); nhãn "Simulator" bị viết hoa bởi rule `label` chung; cảnh báo WDIO "pattern did not match" khi thư mục nền tảng chưa có.
 
 **Dọn dẹp**: `.env` của Owner khôi phục từ bản sao lưu (không còn khoá `IOS_*` thử); lượt iOS thử với Appium giả đã gỡ khỏi `test-results/mobile-runs/index.json`; JUnit của test iOS tự xoá.

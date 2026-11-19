@@ -2,6 +2,11 @@
   "_comment": "App profiles shared by the team (PLAN-25 S-05). One profile can hold Android and iOS. Mobile App view: frame 2 > Hồ sơ app.",
   "profiles": [
     {
+      "id": "vieclam24h-qa",
+      "name": "Vieclam24h QA (cài sẵn, chỉ smoke chỉ đọc)",
+      "android": { "appPackage": "com.vieclam24h.qa", "appActivity": "com.vieclam24h.MainActivity" }
+    },
+    {
       "id": "oppo-calculator",
       "name": "Calculator (OPPO, cài sẵn)",
       "android": { "appPackage": "com.coloros.calculator", "appActivity": "com.android.calculator2.Calculator" }
