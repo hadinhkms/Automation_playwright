@@ -9,6 +9,7 @@ import { buildCatalog } from './pickerModel.js';
 import { createState, pruneStale, staleMessage } from './pickerState.js';
 import { renderTree, firstKey } from './pickerTree.js';
 import { renderToolbar, renderResultsLine } from './pickerToolbar.js';
+import { updateQuickPressed } from './pickerQuick.js';
 import { renderFooter, renderProjects } from './pickerFooter.js';
 import { skeleton, emptyCatalog, loadError, noMatch } from './pickerStatus.js';
 import { bindEvents } from './pickerEvents.js';
@@ -16,6 +17,7 @@ import { deriveView } from './pickerView.js';
 import { exposeScriptPicker, bridgeLegacy } from './pickerBridge.js';
 import { followAccent } from './pickerContrast.js';
 import { guardLegacyRunButton } from './pickerLegacyGuard.js';
+import { watchRun } from './pickerRunWatch.js';
 import { escapeHtml } from './pickerText.js';
 import { emptyHistory, fetchHistory, statusInfo } from './pickerHistory.js';
 
@@ -77,7 +79,10 @@ export function mountScriptPicker(win = window) {
     if (sig) $(sig)?.focus();
   }
   const renderAll = () => { renderTop(); renderBody(false); renderFoot(); };
-  const changed = () => { ctx.runError = ''; ctx.notice = ''; ctx.pruned = ''; renderBody(); renderFoot(); };
+  const changed = () => {
+    ctx.runError = ''; ctx.notice = ''; ctx.pruned = ''; renderBody(); renderFoot();
+    if (ctx.phase === 'ready') updateQuickPressed($('#sp-top'), { catalog: ctx.catalog, suites: ctx.suites, history: ctx.history, selected: ctx.state.selected });
+  };
   const groupFiles = (key) => view().visibleByGroup.get(key) || [];
 
   async function load() {
@@ -96,38 +101,13 @@ export function mountScriptPicker(win = window) {
     renderAll();
   }
 
-  // The server records the run AFTER publishing its final status and then emits SSE `history` {runId}: reload on it.
-  // app.js ignores unknown event types, so the picker listens itself (closed in unmount).
-  const timers = new Set();
-  let lastHistoryEvent = 0;
-  const events = typeof win.EventSource === 'undefined' ? null : new win.EventSource('/api/events');
-  if (events) events.onmessage = ({ data }) => { try { if (JSON.parse(data).type === 'history') { lastHistoryEvent = Date.now(); refreshHistory(); } } catch (_) { /* not ours */ } };
-  function scheduleHistoryFallback() {
-    const endedAt = Date.now();
-    [1500, 4000].forEach((ms) => { const t = setTimeout(() => { timers.delete(t); if (lastHistoryEvent < endedAt) refreshHistory(); }, ms); timers.add(t); });
-  }
   async function refreshHistory() {
     ctx.history = await fetchHistory();
     if (ctx.phase === 'ready' && root.isConnected) { renderTop(); renderBody(); }
   }
   const unbind = bindEvents({ root, doc, win, ctx, view, groupFiles, renderTop, renderBody, renderFoot, changed, load, isActive, refreshHistory, $ });
 
-  const stop = doc.querySelector('#stop-button');
-  ctx.running = stop ? !stop.disabled : false; // L3: coming back to the screen mid-run shows "Đang chạy…"
-  if (ctx.ownRun && !ctx.running) { ctx.notice = 'Run đã kết thúc.'; ctx.ownRun = false; } // M-1: our run ended while we were away: say so once, then forget it
-  const onStop = () => { ctx.stopRequested = true; };
-  stop?.addEventListener('click', onStop);
-  const watcher = stop ? new win.MutationObserver(() => {
-    const was = ctx.running; ctx.running = !stop.disabled;
-    if (was && !ctx.running && ctx.ownRun) { // L4: only for a run this picker started
-      ctx.notice = ctx.stopRequested ? 'Đã dừng run.' : 'Run đã kết thúc.'; ctx.runError = ''; ctx.ownRun = false; ctx.stopRequested = false;
-      scheduleHistoryFallback(); // the server announces the record with an SSE 'history' event; these are only a safety net
-    }
-    renderFoot();
-  }) : null;
-  watcher?.observe(stop, { attributes: true, attributeFilter: ['disabled'] });
-  const controlEls = ['#environment', '#workers', '#headed'].map((s) => doc.querySelector(s)).filter(Boolean);
-  controlEls.forEach((el) => el.addEventListener('change', renderFoot)); // removed in unmount (L1)
+  const unwatch = watchRun({ win, doc, ctx, renderFoot, refreshHistory });
 
   const api = {
     isActive: isVisible, isReady, selectedFiles: () => (isReady() ? view().selected : []),
@@ -143,7 +123,7 @@ export function mountScriptPicker(win = window) {
   load();
   current = {
     api, ctx,
-    unmount() { saved = { state: ctx.state, ownRun: ctx.ownRun }; controlEls.forEach((el) => el.removeEventListener('change', renderFoot)); stop?.removeEventListener('click', onStop); root.remove(); doc.getElementById('runner-view')?.classList.remove('has-script-picker'); unbind(); events?.close(); timers.forEach(clearTimeout); watcher?.disconnect(); stopAccent(); unguard(); undoBridge(); undoExpose(); current = null; },
+    unmount() { saved = { state: ctx.state, ownRun: ctx.ownRun }; root.remove(); doc.getElementById('runner-view')?.classList.remove('has-script-picker'); unbind(); unwatch(); stopAccent(); unguard(); undoBridge(); undoExpose(); current = null; },
   };
   return current;
 }

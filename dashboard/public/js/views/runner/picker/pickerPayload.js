@@ -52,11 +52,14 @@ export function multiDeviceNote(files, projects) {
   return `${f.name} chạy được trên ${families.length} thiết bị; đang chọn ${familyOf(projects.find((p) => f.projects.includes(p)) || f.projects[0])}.`;
 }
 
-/** Same regex the server builds from tags[] (runnerArgs.tagGrep): tags only contain [A-Za-z0-9_@-], nothing to escape. */
-export const grepFromTags = (tags) => `(?:${tags.join('|')})(?![\\w-])`;
+/** EXACTLY the regex the server builds from tags[] (runnerArgs.tagGrep): tag boundary on both sides
+ *  (`x@smoke` does not match `@smoke`, `@REQ` does not match `@REQ-001`). Tags only hold [A-Za-z0-9_@-]: nothing to escape. */
+export const grepFromTags = (tags) => `(?<![\\w@-])(?:${tags.join('|')})(?![\\w-])`;
 
-/** Inverse of grepFromTags for suites saved by the picker; null for any other grep text. */
+/** Inverse of grepFromTags for suites saved by the picker (current form and the older one without the lookbehind). */
 export function tagsFromGrep(grep) {
-  const m = /^\(\?:(@[\w-]+(?:\|@[\w-]+)*)\)\(\?!\[\\w-\]\)$/.exec(String(grep || ''));
+  const m = /^(?:\(\?<!\[\\w@-\]\))?\(\?:(@[\w-]+(?:\|@[\w-]+)*)\)\(\?!\[\\w-\]\)$/.exec(String(grep || ''));
   return m ? m[1].split('|') : null;
 }
+
+export const GREP_MAX = 200; // the server cuts a suite's grep here, silently

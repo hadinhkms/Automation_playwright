@@ -53,11 +53,10 @@ test.describe('Script Picker safety', () => {
         await expect(page.locator('#script-picker')).toBeVisible();
         if (state === 'error') await expect(page.locator('#script-picker [role="alert"]')).toBeVisible();
         if (state === 'empty') await expect(page.locator('#script-picker')).toContainText('Chưa có script test');
-        if (path === 'Mở Playwright UI') await page.click('#ui-button'); else { await page.focus('#workers'); await page.keyboard.press('Enter'); }
+        // the old buttons are really disabled while the picker shows: a script click or Enter sends nothing
+        if (path === 'Mở Playwright UI') await page.evaluate(() => { const b = document.getElementById('ui-button'); b.click(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); }); else { await page.focus('#workers'); await page.keyboard.press('Enter'); }
         await page.waitForTimeout(500);
         expect(calls, JSON.stringify(calls)).toEqual([]);
-        // Enter no longer submits at all (the old default button is disabled while the picker shows); the UI button says why
-        if (path === 'Mở Playwright UI') await expect(page.locator('#toast')).toContainText('Danh sách script chưa sẵn sàng');
         release();
       });
     }
@@ -74,7 +73,7 @@ test.describe('Script Picker safety', () => {
     await page.evaluate(() => window.__STUDIO_CORE__.featureRegistry.switchView('runner-view'));
     await page.click('.runner-mode-tab[data-mode="manual"]');
     await page.focus('#workers'); await page.keyboard.press('Enter');
-    await page.click('#ui-button');
+    await page.evaluate(() => document.getElementById('ui-button').click());
     await page.waitForTimeout(600);
     for (const c of calls) { const b = JSON.parse(c.body); expect(b.spec === 'all' || b.specs === undefined, c.body).toBe(false); expect(b.specs).toEqual([]); }
   });

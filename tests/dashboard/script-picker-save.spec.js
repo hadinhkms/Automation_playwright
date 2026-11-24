@@ -38,10 +38,12 @@ test.describe('Script Picker: save as suite', () => {
     await expect(page.locator('#sp-run')).toBeFocused();
     await expect(page.locator('.sp-chip[data-suite="smoke-nhanh"]')).toContainText('Suite: Smoke nhanh (1)');
     const saved = (await settings(harness)).suites['smoke-nhanh'];
-    expect(saved).toMatchObject({ label: 'Smoke nhanh', description: 'Tạo từ bộ chọn', type: 'single', platform: 'desktop', project: 'Desktop Smoke Tests', specs: [ALPHA], spec: ALPHA, grep: '(?:@smoke)(?![\\w-])' });
+    expect(saved).toMatchObject({ label: 'Smoke nhanh', description: 'Tạo từ bộ chọn', type: 'single', platform: 'desktop', project: 'Desktop Smoke Tests', specs: [ALPHA], spec: ALPHA, grep: '(?<![\\w@-])(?:@smoke)(?![\\w-])' /* byte-identical to the server's runnerArgs.tagGrep */ });
     expect((await settings(harness)).suites.smoke.label).toBe('Smoke'); // the existing suite is untouched
     await row(page, ALPHA).click(); // deselect, then the chip reloads files + tag switch
+    await expect(page.locator('.sp-chip[data-suite="smoke-nhanh"]')).toHaveAttribute('aria-pressed', 'false');
     await page.click('.sp-chip[data-suite="smoke-nhanh"]');
+    await expect(page.locator('.sp-chip[data-suite="smoke-nhanh"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator(`.sp-file[data-path="${ALPHA}"]`)).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('#sp-tagonly')).toBeChecked();
   });

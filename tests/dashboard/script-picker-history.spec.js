@@ -38,10 +38,12 @@ test.describe('Script Picker: run history', () => {
       await row(page, BETA).click(); // something selected first: the chip must REPLACE it
       const chip = page.locator('[data-history="fail"]');
       await expect(chip).toContainText('Fail lần trước (2)');
+      await expect(chip).toHaveAttribute('aria-pressed', 'false');
       await chip.click(); // click 1
       await expect(page.locator('.sp-file[aria-checked="true"]')).toHaveCount(2);
       await expect(page.locator(`.sp-file[data-path="${ALPHA}"]`)).toHaveAttribute('aria-checked', 'true');
       await expect(page.locator(`.sp-file[data-path="${BETA}"]`)).toHaveAttribute('aria-checked', 'false');
+      await expect(chip).toHaveAttribute('aria-pressed', 'true'); // the selection IS the failed set now
       await expect(page.locator('#sp-top .sp-banner')).toHaveText(/Đã chọn 2 script từ “Fail lần trước”\. 1 file đã bị xoá khỏi dự án\. Hoàn tác/);
       await page.click('#sp-run'); // click 2
       await expect.poll(() => body).not.toBeNull();
@@ -147,12 +149,15 @@ test.describe('Script Picker: run history', () => {
       await expect(old).toHaveAttribute('tabindex', '-1');
       await page.evaluate(() => { const b = document.getElementById('run-button'); b.click(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); b.disabled = false; b.click(); }); // even if re-enabled by a script
       await page.focus('#workers'); await page.keyboard.press('Enter'); // empty selection
-      await page.click('#ui-button');
+      await page.evaluate(() => document.getElementById('ui-button').click()); // V4: the Playwright-UI button is locked too
+      await expect(page.locator('#ui-button')).toBeDisabled();
+      await expect(page.locator('#ui-button')).toHaveAttribute('aria-hidden', 'true');
       await page.waitForTimeout(400);
       expect(calls).toEqual([]);
-      await expect(page.locator('#toast')).toContainText('Chọn ít nhất 1 script để chạy');
       await page.click('.runner-mode-tab[data-mode="suite"]');
       await expect(old).toBeEnabled();
+      await expect(page.locator('#ui-button')).toBeEnabled(); // V4: given back in suite mode
+      await expect(page.locator('#ui-button')).not.toHaveAttribute('aria-hidden', 'true');
       await expect(old).not.toHaveAttribute('aria-hidden', 'true');
       await page.click('.runner-mode-tab[data-mode="manual"]');
       await expect(old).toBeDisabled();

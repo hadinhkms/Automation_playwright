@@ -35,9 +35,11 @@ test('save: slug, one-project rule, suite mapping and the grep round trip', asyn
   assert.equal(s.saveBlocker({ projects: ['A'] }), '');
   const one = s.buildSuite({ specs: ['tests/a.spec.js'], projects: ['Mobile Chrome Smoke Tests'], tags: ['@smoke', '@e2e'], workers: 3 }, { label: 'L', description: 'D' });
   assert.deepEqual([one.type, one.platform, one.project, one.spec, one.specs, one.workers], ['single', 'mobile', 'Mobile Chrome Smoke Tests', 'tests/a.spec.js', ['tests/a.spec.js'], 3]);
-  assert.equal(one.grep, '(?:@smoke|@e2e)(?![\\w-])');
+  assert.equal(one.grep, '(?<![\\w@-])(?:@smoke|@e2e)(?![\\w-])');
   assert.deepEqual(p.tagsFromGrep(one.grep), ['@smoke', '@e2e']);
+  assert.deepEqual(p.tagsFromGrep('(?:@a|@b)(?![\\w-])'), ['@a', '@b'], 'the older form saved before the boundary fix still parses');
   assert.equal(p.tagsFromGrep('@smoke'), null);
+  assert.equal(p.tagsFromGrep('(?<![\\w@-])(?:@a|b)(?![\\w-])'), null);
   const all = s.buildSuite({ spec: 'all', projects: [] }, { label: 'All' });
   assert.deepEqual([all.specs, all.spec, all.project, all.grep], ['all', 'all', 'all', '']);
   assert.equal(s.buildSuite({ specs: ['a', 'b'], projects: [] }, { label: 'M' }).spec, 'custom');

@@ -5,7 +5,7 @@
  * (fresh GET, key re-checked); an existing key is never overwritten. Pure mapping + a fetch-based flow.
  */
 import { fold } from './pickerText.js';
-import { grepFromTags } from './pickerPayload.js';
+import { grepFromTags, GREP_MAX } from './pickerPayload.js';
 
 export const NAME_MAX = 50; // the server cuts labels (and keys) at 50 characters: never let it do so silently
 export const DESC_MAX = 200;
@@ -18,7 +18,10 @@ export function slugify(label) {
 
 /** A suite holds ONE project (schema): 2+ projects cannot be saved. */
 export function saveBlocker(payload) {
-  return (payload.projects || []).length > 1 ? 'Chọn đúng 1 nền tảng (project) để lưu thành suite.' : '';
+  if ((payload.projects || []).length > 1) return 'Chọn đúng 1 nền tảng (project) để lưu thành suite.';
+  // the server cuts a longer grep silently, which would store a broken regex while we say "saved"
+  if (payload.tags && payload.tags.length && grepFromTags(payload.tags).length > GREP_MAX) return `Quá nhiều tag để lưu thành suite (tối đa ${GREP_MAX} ký tự).`;
+  return '';
 }
 
 /** Picker payload (POST /api/run shape) + the dialog fields -> suite object of the existing schema. */

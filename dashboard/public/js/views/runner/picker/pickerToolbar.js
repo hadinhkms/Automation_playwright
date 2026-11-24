@@ -22,7 +22,7 @@ export function renderToolbar({ catalog, state, suites, history, found, filtersO
   const tags = catalog.tags.map((t) => chip(`data-tag="${escapeHtml(t.tag)}"`, `${escapeHtml(t.tag)} ${t.count}`, state.tags.has(t.tag))).join('');
   const tagOnly = state.tags.size ? `<label class="sp-switch"><input type="checkbox" id="sp-tagonly"${state.tagOnly ? ' checked' : ''}> Chỉ chạy test mang tag đã chọn</label>
     <p class="sp-hint">${state.tagOnly ? `Chỉ test mang ${escapeHtml([...state.tags].join(' | '))}.` : 'Sẽ chạy toàn bộ test trong mỗi file, kể cả test không mang tag.'}</p>` : '';
-  return `${renderQuickRow({ catalog, suites, history })}
+  return `${renderQuickRow({ catalog, suites, history, selected: state.selected })}
   <div class="sp-search"><label for="sp-search">Tìm script</label><div class="sp-searchbox"><i class="ph-bold ph-magnifying-glass" aria-hidden="true"></i>
     <input id="sp-search" type="search" autocomplete="off" placeholder="Tên file, @tag hoặc mã REQ-001…" value="${escapeHtml(state.query)}" aria-controls="sp-tree-wrap">
     <button type="button" class="sp-clear" data-act="clear-query" aria-label="Xóa từ khóa tìm"${state.query ? '' : ' hidden'}><i class="ph-bold ph-x" aria-hidden="true"></i></button></div></div>
