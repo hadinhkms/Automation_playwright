@@ -32,6 +32,8 @@ export function initJiraSettings() {
   const fetchResult = root.querySelector('#jira-fetch-result');
 
   if (!saveBtn) return;
+  // Ô người dùng đã gõ: nạp cấu hình (bất đồng bộ) về muộn không được ghi đè lên chúng (BUG-05).
+  const touched = saveBtn.jiraTouched || (saveBtn.jiraTouched = new Set());
 
   function notify(msg) {
     if (typeof window.notify === 'function') window.notify(msg);
@@ -41,18 +43,22 @@ export function initJiraSettings() {
   async function loadConfig() {
     try {
       const res = await fetch('/api/jira/config').then((r) => r.json());
-      if (baseUrlInput && res.baseUrl) baseUrlInput.value = res.baseUrl;
-      if (emailInput && res.email !== undefined) emailInput.value = res.email;
+      if (baseUrlInput && res.baseUrl && !touched.has(baseUrlInput)) baseUrlInput.value = res.baseUrl;
+      if (emailInput && res.email !== undefined && !touched.has(emailInput)) emailInput.value = res.email;
       updateJiraStatusBadge(statusBadge, tokenInput, res);
     } catch (err) {
       console.error('[JiraSettings] Lỗi nạp cấu hình:', err);
     }
   }
 
-  loadConfig();
+  // Nút Kiểm tra/Lưu phải chờ cấu hình đã lưu nạp xong, nếu không form còn giá trị mặc định/rỗng
+  // và request gửi đi sai (URL mặc định, email trống) -> "Kết nối thất bại" ngẫu nhiên (BUG-05).
+  // Lưu trên nút (không phải biến cục bộ): view remount có thể giữ nguyên DOM + handler cũ nhưng nạp lại cấu hình.
+  saveBtn.jiraConfigReady = loadConfig();
 
   if (saveBtn.dataset.jiraBound === 'true') return;
   saveBtn.dataset.jiraBound = 'true';
+  [baseUrlInput, emailInput].forEach((input) => input?.addEventListener('input', () => touched.add(input)));
 
   alertClose?.addEventListener('click', () => { if (alertBox) alertBox.hidden = true; });
 
@@ -79,6 +85,7 @@ export function initJiraSettings() {
     testBtn.disabled = true;
     testBtn.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Đang kiểm tra...';
     try {
+      await saveBtn.jiraConfigReady;
       const payload = {
         baseUrl: baseUrlInput?.value?.trim() || '',
         email: emailInput?.value?.trim() || '',
@@ -108,6 +115,7 @@ export function initJiraSettings() {
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="ph ph-spinner-gap spin"></i> Đang lưu...';
     try {
+      await saveBtn.jiraConfigReady;
       const payload = {
         baseUrl: baseUrlInput?.value?.trim() || '',
         email: emailInput?.value?.trim() || '',
@@ -123,6 +131,7 @@ export function initJiraSettings() {
       showAlert(alertBox, alertTitle, alertMsg, true, 'Đã lưu cấu hình Jira', res.message || 'Cấu hình Jira đã được ghi vào file .env thành công.');
       notify('Đã lưu cấu hình Jira vào file .env!');
       if (tokenInput) tokenInput.value = '';
+      touched.clear();
       await loadConfig();
     } catch (err) {
       showAlert(alertBox, alertTitle, alertMsg, false, 'Lỗi lưu cấu hình Jira', err.message);

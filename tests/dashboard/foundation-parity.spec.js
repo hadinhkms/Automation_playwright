@@ -20,7 +20,7 @@ test.describe('Phase 3: Frontend Architecture & Foundation Verification', () => 
     if (fixture) fixture.cleanup();
   });
 
-  test('TC-04: Studio Core initializes on window.__STUDIO_CORE__ with all 13 views cataloged matching DOM', async ({ page }) => {
+  test('TC-04: Studio Core initializes on window.__STUDIO_CORE__ with all 15 views cataloged matching DOM', async ({ page }) => {
     await page.goto(harness.url);
     await page.waitForSelector('.shell');
     await page.waitForFunction(() => Boolean(window.__STUDIO_CORE__));
@@ -30,9 +30,9 @@ test.describe('Phase 3: Frontend Architecture & Foundation Verification', () => 
       'runner-view', 'builder-view', 'page-manager-view', 'resources-view',
       'docs-view', 'agent-view', 'suites-view', 'recorder-view',
       'data-view', 'git-view', 'fixtures-view', 'settings-view', 'compare-view',
-      'qa-view',
+      'qa-view', 'mobile-view',
     ];
-    expect(views.length).toBe(14);
+    expect(views.length).toBe(15);
     for (const exp of expectedViews) expect(views).toContain(exp);
     expect(views).not.toContain('suites-quick');
   });

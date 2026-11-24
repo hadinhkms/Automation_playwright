@@ -220,5 +220,49 @@ test.describe('QA Studio Modals & Jira Settings Deep Regression Suite', () => {
 
     expect(errors).toEqual([]);
   });
-});
 
+  test('Settings Jira Cloud: Test connection clicked while saved config is still loading uses the saved URL/email (BUG-05)', async ({ page }) => {
+    // Cấu hình đã lưu (lưu qua API, độc lập với test trước): mock Jira ở port riêng của file này.
+    const saved = await fetch(`${harness.url}/api/jira/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseUrl: mockJiraUrl, email: 'qa@company.vn', apiToken: 'ATATT3xSecretJiraToken9999' }),
+    });
+    expect(saved.status).toBe(200);
+
+    // Làm chậm GET /api/jira/config để ép đúng cửa sổ race: bấm Test trước khi form được điền.
+    await page.route('**/api/jira/config', async (route) => {
+      if (route.request().method() === 'GET') await new Promise((resolve) => setTimeout(resolve, 800));
+      await route.continue();
+    });
+    let testBody = null;
+    page.on('request', (req) => { if (req.url().endsWith('/api/jira/test-connection')) testBody = req.postDataJSON(); });
+
+    await page.goto(harness.url);
+    await page.waitForFunction(() => Boolean(window.__STUDIO_CORE__));
+    await page.evaluate(() => window.__STUDIO_CORE__.featureRegistry.switchView('settings-view'));
+    await page.click('.settings-subtab[data-subtab="jira"]');
+    await page.click('#btn-test-jira');
+
+    await expect(page.locator('#settings-jira-alert-title')).toHaveText('Kết nối Jira thành công!');
+    expect(testBody.baseUrl).toBe(mockJiraUrl);
+    expect(testBody.email).toBe('qa@company.vn');
+  });
+
+  test('Settings Jira Cloud: a late config load never overwrites what the user already typed (BUG-05)', async ({ page }) => {
+    await page.route('**/api/jira/config', async (route) => {
+      if (route.request().method() === 'GET') await new Promise((resolve) => setTimeout(resolve, 700));
+      await route.continue();
+    });
+    await page.goto(harness.url);
+    await page.waitForFunction(() => Boolean(window.__STUDIO_CORE__));
+    await page.evaluate(() => window.__STUDIO_CORE__.featureRegistry.switchView('settings-view'));
+    await page.click('.settings-subtab[data-subtab="jira"]');
+    await page.fill('#settings-jira-base-url', mockJiraUrl);
+    await page.fill('#settings-jira-email', 'typed@company.vn');
+    await page.waitForResponse((r) => r.url().endsWith('/api/jira/config') && r.request().method() === 'GET');
+    await page.waitForTimeout(100);
+    await expect(page.locator('#settings-jira-base-url')).toHaveValue(mockJiraUrl);
+    await expect(page.locator('#settings-jira-email')).toHaveValue('typed@company.vn');
+  });
+});
