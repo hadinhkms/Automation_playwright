@@ -12,7 +12,10 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const TARGET_DIRS = ['core', 'dashboard', 'scripts', 'tools'];
+const ALL_DIRS = ['core', 'dashboard', 'scripts', 'tools'];
+// --dirs=a,b chỉ chạy một phần (vd. `--dirs=dashboard` cho test:dashboard:unit); mặc định chạy tất cả.
+const dirsArg = process.argv.slice(2).find((a) => a.startsWith('--dirs='));
+const TARGET_DIRS = dirsArg ? dirsArg.slice('--dirs='.length).split(',').filter(Boolean) : ALL_DIRS;
 
 function collectTests(dir, acc = []) {
   if (!fs.existsSync(dir)) return acc;
@@ -36,11 +39,11 @@ for (const sub of TARGET_DIRS) {
 files.sort();
 
 if (!files.length) {
-  console.error('Không tìm thấy file unit test (*.test.js) nào trong core/, dashboard/, scripts/, tools/.');
+  console.error(`Không tìm thấy file unit test (*.test.js) nào trong ${TARGET_DIRS.join(', ')}.`);
   process.exit(1);
 }
 
-const extraArgs = process.argv.slice(2);
+const extraArgs = process.argv.slice(2).filter((a) => !a.startsWith('--dirs='));
 const result = spawnSync(process.execPath, ['--test', ...extraArgs, ...files], {
   cwd: ROOT,
   stdio: 'inherit',

@@ -57,6 +57,7 @@
         "test:dashboard:api": "node scripts/run-dashboard-api-tests.js",
         "test:dashboard:regression": "npm run test:dashboard:api && npx playwright test --config=playwright.dashboard.config.js",
         "test:unit": "node scripts/run-unit-tests.js",
+        "test:dashboard:unit": "node scripts/run-unit-tests.js --dirs=dashboard",
         "mp:doctor": "node scripts/run-mp.js doctor .",
         "mp:audit": "node scripts/run-mp.js audit .",
         "mp:audit:changed": "node scripts/run-mp.js audit . --changed-only",
