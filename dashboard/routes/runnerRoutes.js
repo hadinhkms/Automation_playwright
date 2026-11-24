@@ -3,6 +3,7 @@
  * Handles all /api/run, /api/stop, /api/events, /api/state endpoints for test execution.
  */
 const { sendJson, parseBody } = require('./routeUtils');
+const { handleRunHistoryRoutes } = require('./runHistoryRoutes');
 const {
   getActiveRun,
   isRunStarting,
@@ -30,7 +31,9 @@ const MOBILE_BUSY = 'Đang có một lượt chạy Mobile App. Đợi xong ho�
  */
 async function launchRun(request, response, root, uiMode) {
   const fail = (error) => {
-    const status = Number.isInteger(error.statusCode) ? error.statusCode : (String(error.message || '').includes('[CIRCUIT BREAKER]') ? 403 : 400);
+    // P-1: parseBody ném lỗi có `status` (413 cho body > 2 MB); các lỗi khác dùng statusCode.
+    const code = error.statusCode ?? error.status;
+    const status = Number.isInteger(code) ? code : (String(error.message || '').includes('[CIRCUIT BREAKER]') ? 403 : 400);
     return sendJson(response, status, { error: error.message });
   };
   const busy = () => {
@@ -60,6 +63,8 @@ async function launchRun(request, response, root, uiMode) {
 
 async function handleRunnerRoutes(request, response, url, context = {}) {
   const root = context.root || process.env.QA_PROJECT_ROOT || process.cwd();
+
+  if (await handleRunHistoryRoutes(request, response, url, context)) return true;
 
   if (request.method === 'GET' && url.pathname === '/api/state') {
     return sendJson(response, 200, {

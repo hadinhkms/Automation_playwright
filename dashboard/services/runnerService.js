@@ -7,6 +7,7 @@ const https = require('https');
 const { runtimeEnv } = require('./runnerRuntimeEnv');
 const { validateOptions } = require('./runOptions');
 const { buildPlaywrightArgs } = require('./runnerArgs');
+const { recordWebRun, rawResultsFile } = require('./runHistoryService');
 const { newestReport } = require('./resourceService');
 
 let activeRun = null;
@@ -48,15 +49,18 @@ function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT ||
 
   logBuffer.length = 0;
   const playwrightCli = require.resolve('@playwright/test/cli');
+  const runId = Date.now().toString(36);
+  // Kết quả theo file/test cho lịch sử (xem runResultsParser.readResults: lệch hợp đồng §2, không đụng defineConfig).
+  const rawResults = uiMode ? null : rawResultsFile(root, runId);
   const child = spawn(process.execPath, [playwrightCli, ...args], {
     cwd: root,
-    env: { ...process.env, ...runtimeEnv(options) },
+    env: { ...process.env, ...runtimeEnv(options), ...(rawResults ? { PLAYWRIGHT_JSON_OUTPUT_FILE: rawResults } : {}) },
     shell: false,
     windowsHide: true,
   });
 
   activeRun = {
-    id: Date.now().toString(36),
+    id: runId,
     status: 'running',
     startedAt: new Date().toISOString(),
     mode: uiMode ? 'ui' : 'test',
@@ -77,6 +81,7 @@ function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT ||
     activeRun.finishedAt = new Date().toISOString();
     activeRun.exitCode = exitCode;
     activeRun.reportAvailable = Boolean(report);
+    if (!uiMode) recordWebRun(root, activeRun, rawResults); // không ném: lỗi lịch sử không đổi trạng thái run
     lastRun = publicRun(activeRun);
     activeRun = null;
     publish('status', lastRun);

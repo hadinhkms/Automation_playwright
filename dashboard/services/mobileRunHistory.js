@@ -3,8 +3,8 @@
  * Durable history of Mobile runs in test-results/mobile-runs/index.json (newest first, max 30).
  * Writes go through a temp file + rename so a crash never leaves half a JSON document.
  */
-const fs = require('fs');
 const path = require('path');
+const { createJsonRunStore } = require('./jsonRunStore');
 
 const MAX_RUNS = 30;
 const ID_PATTERN = /^[\w-]{1,40}$/;
@@ -20,30 +20,10 @@ function isValidRecord(r) {
     && !Number.isNaN(Date.parse(r.startedAt));
 }
 
-/** Reads the history; a corrupt file or record is skipped instead of breaking the view (EDGE-203). */
-function readHistory(root) {
-  let parsed;
-  try {
-    parsed = JSON.parse(fs.readFileSync(historyFile(root), 'utf8'));
-  } catch (_) {
-    return [];
-  }
-  const runs = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.runs) ? parsed.runs : []);
-  return runs.filter(isValidRecord).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
-}
+const store = createJsonRunStore({ fileFor: historyFile, maxRuns: MAX_RUNS, isValidRecord });
 
-function writeAtomic(file, data) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
-  // Windows: antivirus or indexers can hold the target for a moment (EPERM/EBUSY); retry briefly.
-  for (let attempt = 1; ; attempt += 1) {
-    try { fs.renameSync(tmp, file); return; } catch (err) {
-      if (attempt >= 5 || !['EPERM', 'EBUSY', 'EACCES'].includes(err.code)) { fs.rmSync(tmp, { force: true }); throw err; }
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20 * attempt);
-    }
-  }
-}
+/** Reads the history; a corrupt file or record is skipped instead of breaking the view (EDGE-203). */
+const readHistory = (root) => store.read(root);
 
 function toRecord(run) {
   const started = Date.parse(run.startedAt);
@@ -71,11 +51,7 @@ function toRecord(run) {
 
 /** Adds a finished run (replacing one with the same id) and keeps the newest MAX_RUNS. */
 function appendRun(root, run) {
-  const record = toRecord(run);
-  if (!isValidRecord(record)) return null;
-  const runs = [record, ...readHistory(root).filter((r) => r.id !== record.id)].slice(0, MAX_RUNS);
-  writeAtomic(historyFile(root), { version: 1, runs });
-  return record;
+  return store.append(root, toRecord(run));
 }
 
 function listRuns(root, limit = MAX_RUNS) {
