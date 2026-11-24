@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { PAGE_METADATA, FIXTURE_ALLOWLIST } = require('./metadataCatalog');
+const { findClassDeclaration } = require('./classDeclaration');
 const {
   normalizePagePath,
   getReadiness,
@@ -113,9 +114,9 @@ function parsePageObject(relativePath, rootDir = process.cwd()) {
   const isMobile = relativePath.includes('mobile-web') || relativePath.includes('mobile/');
   const isBase = path.basename(relativePath) === 'BasePage.js';
 
-  const classMatch = content.match(/class\s+([A-Za-z0-9_]+)(?:\s+extends\s+([A-Za-z0-9_]+))?/);
-  const className = classMatch ? classMatch[1] : path.basename(relativePath, '.js');
-  const baseClass = classMatch ? classMatch[2] || 'None' : 'None';
+  const declaration = findClassDeclaration(content);
+  const className = declaration ? declaration.className : path.basename(relativePath, '.js');
+  const baseClass = declaration ? declaration.baseClass || 'None' : 'None';
 
   const meta = PAGE_METADATA[normalizedRel] || {
     title: className,
