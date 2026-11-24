@@ -21,6 +21,11 @@ test('withBaseRevision adds baseRevision to JSON bodies only when a revision is 
   assert.equal(guard.withBaseRevision(notJson, 'r1'), notJson);
 });
 
+test('withBaseRevision keeps an explicit baseRevision (read-modify-write callers)', () => {
+  const init = { method: 'PUT', body: JSON.stringify({ suites: {}, baseRevision: 'fresh' }) };
+  assert.equal(JSON.parse(guard.withBaseRevision(init, 'remembered').body).baseRevision, 'fresh');
+});
+
 test('record: revision moves only on the first GET and on PUT 200, never on a later background GET', () => {
   guard.state.revision = undefined;
   assert.equal(guard.record('GET', 200, { revision: 'a', suites: { s: 1 } }), false);

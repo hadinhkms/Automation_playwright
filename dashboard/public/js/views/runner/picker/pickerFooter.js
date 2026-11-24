@@ -31,7 +31,8 @@ export function renderFooter(i) {
   return `${big}${notice}${err}${est}${note}<div class="sp-runbar">
     <p class="sp-summary" aria-live="polite">${summaryText(i)}</p>
     <details class="sp-cmd"><summary>Xem lệnh</summary><pre tabindex="0">${escapeHtml(i.command)}</pre><button type="button" class="sp-link" data-act="copy-cmd">Sao chép lệnh</button></details>
-    <div class="sp-runrow"><button type="button" class="sp-run" id="sp-run" data-act="run"${i.canRun ? '' : ' disabled'}>${i.running ? '' : '<i class="ph-fill ph-play" aria-hidden="true"></i> '}${runLabel(i)}</button>${reason ? `<span class="sp-reason">${reason}</span>` : ''}</div></div>`;
+    <div class="sp-runrow"><button type="button" class="sp-run" id="sp-run" data-act="run"${i.canRun ? '' : ' disabled'}>${i.running ? '' : '<i class="ph-fill ph-play" aria-hidden="true"></i> '}${runLabel(i)}</button>${reason ? `<span class="sp-reason">${reason}</span>` : ''}
+      <button type="button" class="sp-secondary" id="sp-save" data-act="save-suite"${i.count > 0 && !i.saveBlock ? '' : ' disabled'}>Lưu thành suite…</button>${i.count > 0 && i.saveBlock ? `<span class="sp-reason">${escapeHtml(i.saveBlock)}</span>` : ''}</div></div>`;
 }
 
 /** Project row (OPEN-7): the chosen projects read-only, "Đổi" opens the chips to override. */

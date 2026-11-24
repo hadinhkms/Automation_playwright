@@ -7,9 +7,17 @@ import { toggleFile, toggleGroup, selectVisible, clearFilters, toggleIn } from '
 import { quickSuites } from './pickerToolbar.js';
 import { replaceSelection, restore } from './pickerQuickApply.js';
 import { tagsFromGrep } from './pickerPayload.js';
+import { openSaveDialog } from './pickerSaveDialog.js';
 import { handleTreeKey } from './pickerKeys.js';
 
 export function bindEvents({ root, doc, win, ctx, view, groupFiles, renderTop, renderBody, renderFoot, changed, load, isActive, refreshHistory, $ }) {
+  function onSuiteSaved(result, label) {
+    ctx.suites = result.suites;
+    win.dashboardSuites = result.suites; // the Theo Test Suite list of the old runner reads this
+    win.renderRunnerSuiteOptions?.(result.suites);
+    ctx.notice = `Đã lưu suite “${label}”. Suite này mới nằm trong cấu hình máy này — dùng Đồng bộ Git nếu muốn chia sẻ.`;
+    renderTop(); renderFoot();
+  }
   const flash = () => { setTimeout(() => { ctx.undo = null; renderTop(); }, 6000); };
   function applySuite(s) {
     const paths = s.specs === 'all' ? ctx.catalog.files.map((f) => f.path) : s.specs;
@@ -43,6 +51,12 @@ export function bindEvents({ root, doc, win, ctx, view, groupFiles, renderTop, r
     'open-projects': () => { ctx.projectsOpen = !ctx.projectsOpen; if (!ctx.projectsOpen) ctx.state.projects.clear(); renderFoot(); },
     undo: () => { if (ctx.undo) { restore(ctx.state, ctx.undo.prev); ctx.undo = null; renderTop(); changed(); } },
     'history-retry': () => refreshHistory(),
+    'save-suite': () => {
+      const v = view();
+      if (!v.selected.length || v.info.saveBlock) return;
+      const summary = [`${v.info.count} script`, v.info.projects.join(', '), v.payload.tags ? v.payload.tags.join(' | ') : ''].filter(Boolean).join(' · ');
+      openSaveDialog(win, { info: { payload: v.payload, summary, files: v.selected.map((f) => f.path) }, suites: ctx.suites, opener: $('#sp-save'), onSaved: onSuiteSaved });
+    },
     'copy-cmd': () => { win.navigator.clipboard?.writeText(view().info.command).catch(() => null); const b = $('[data-act="copy-cmd"]'); b.textContent = 'Đã sao chép'; setTimeout(() => { if (b.isConnected) b.textContent = 'Sao chép lệnh'; }, 2000); },
     run: () => { if (view().info.canRun) { ctx.notice = `Đã gửi yêu cầu chạy ${ctx.state.selected.size} script`; renderFoot(); doc.getElementById('run-form')?.requestSubmit(); } },
   };

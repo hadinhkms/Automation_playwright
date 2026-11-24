@@ -3,6 +3,7 @@
  * Derives what to draw from the controller context: filtered files per group and the run-bar info.
  */
 import { filterFiles, hasFilter } from './pickerFilter.js';
+import { saveBlocker } from './pickerSaveSuite.js';
 import { buildPayload, projectsFor, runCount, multiDeviceNote, WARN_FILES, commandPreview } from './pickerPayload.js';
 
 export function deriveView(ctx, controls) {
@@ -17,7 +18,7 @@ export function deriveView(ctx, controls) {
   const info = {
     count: selected.length, all: payload.spec === 'all', hidden: selected.filter((f) => !foundSet.has(f.path)).length, projects, runs: runCount(selected, projects),
     env: controls.environment, workers: controls.workers, warnAt: WARN_FILES, error: ctx.runError, notice: ctx.notice, running: ctx.running, frozen: controls.frozen,
-    estimate: catalog.source === 'estimate', canRun: selected.length > 0 && !ctx.running && !controls.frozen, multiDevice: multiDeviceNote(selected, projects),
+    saveBlock: saveBlocker(payload), estimate: catalog.source === 'estimate', canRun: selected.length > 0 && !ctx.running && !controls.frozen, multiDevice: multiDeviceNote(selected, projects),
     tagLine: payload.tags ? `Chỉ test mang ${payload.tags.join(' | ')}` : '',
     command: commandPreview(payload, catalog, true),
   };

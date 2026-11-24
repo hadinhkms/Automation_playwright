@@ -22,7 +22,8 @@
     try {
       const body = JSON.parse(init.body);
       if (!body || typeof body !== 'object' || Array.isArray(body)) return init;
-      return Object.assign({}, init, { body: JSON.stringify(Object.assign({}, body, { baseRevision: revision })) });
+      // an explicit baseRevision (read-modify-write by the Script Picker) wins over the page's remembered one
+      return Object.assign({}, init, { body: JSON.stringify(Object.assign({}, body, { baseRevision: body.baseRevision || revision })) });
     } catch (_) { return init; }
   }
 
@@ -87,7 +88,8 @@
       if (method === 'GET' || method === 'PUT') {
         let body = null;
         try { body = await res.clone().json(); } catch (_) { /* non-JSON body: nothing to record */ }
-        if (record(method, res.status, body)) showBanner(doc, body.error || 'Cấu hình đã được thay đổi ở nơi khác.', reload);
+        const handled = init && init.headers && init.headers['X-Settings-Conflict'] === 'handled'; // the caller reports the conflict itself
+        if (record(method, res.status, body) && !handled) showBanner(doc, body.error || 'Cấu hình đã được thay đổi ở nơi khác.', reload);
       }
       return res;
     };
