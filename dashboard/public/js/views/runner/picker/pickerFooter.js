@@ -26,8 +26,9 @@ export function renderFooter(i) {
   const big = i.count >= i.warnAt ? `<p class="sp-banner" role="status">Bạn đã chọn ${i.count} script — chạy có thể mất lâu. <button type="button" class="sp-link" data-act="focus-tree">Chọn bớt</button></p>` : '';
   const notice = i.notice ? `<p class="sp-banner" role="status">${escapeHtml(i.notice)}</p>` : '';
   const err = i.error ? `<p class="sp-error" role="alert">${escapeHtml(i.error)}</p>` : '';
+  const est = i.estimate ? '<p class="sp-hint" role="note">Danh sách project đang là ước lượng; số lượt chạy có thể chưa chính xác.</p>' : '';
   const note = i.multiDevice ? `<p class="sp-hint">${escapeHtml(i.multiDevice)} <button type="button" class="sp-link" data-act="open-projects">Chọn thêm</button></p>` : '';
-  return `${big}${notice}${err}${note}<div class="sp-runbar">
+  return `${big}${notice}${err}${est}${note}<div class="sp-runbar">
     <p class="sp-summary" aria-live="polite">${summaryText(i)}</p>
     <details class="sp-cmd"><summary>Xem lệnh</summary><pre tabindex="0">${escapeHtml(i.command)}</pre><button type="button" class="sp-link" data-act="copy-cmd">Sao chép lệnh</button></details>
     <div class="sp-runrow"><button type="button" class="sp-run" id="sp-run" data-act="run"${i.canRun ? '' : ' disabled'}>${i.running ? '' : '<i class="ph-fill ph-play" aria-hidden="true"></i> '}${runLabel(i)}</button>${reason ? `<span class="sp-reason">${reason}</span>` : ''}</div></div>`;

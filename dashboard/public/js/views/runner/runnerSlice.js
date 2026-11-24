@@ -20,7 +20,7 @@ export class RunnerSlice {
 
   async mount() {
     this._mounted = true;
-    this._picker = await loadScriptPicker(); // dynamic import: a broken picker file must not take the other screens down (M2)
+    this._picker = await loadScriptPicker(() => this._mounted); // dynamic import: a broken picker file must not take the other screens down (M2)
     this._bindDomEvents();
     this._registerBridgeActions();
     this._connectEventStream();

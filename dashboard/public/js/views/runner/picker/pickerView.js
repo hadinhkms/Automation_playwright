@@ -17,7 +17,7 @@ export function deriveView(ctx, controls) {
   const info = {
     count: selected.length, all: payload.spec === 'all', hidden: selected.filter((f) => !foundSet.has(f.path)).length, projects, runs: runCount(selected, projects),
     env: controls.environment, workers: controls.workers, warnAt: WARN_FILES, error: ctx.runError, notice: ctx.notice, running: ctx.running, frozen: controls.frozen,
-    canRun: selected.length > 0 && !ctx.running && !controls.frozen, multiDevice: multiDeviceNote(selected, projects),
+    estimate: catalog.source === 'estimate', canRun: selected.length > 0 && !ctx.running && !controls.frozen, multiDevice: multiDeviceNote(selected, projects),
     tagLine: payload.tags ? `Chỉ test mang ${payload.tags.join(' | ')}` : '',
     command: commandPreview(payload, catalog, true),
   };

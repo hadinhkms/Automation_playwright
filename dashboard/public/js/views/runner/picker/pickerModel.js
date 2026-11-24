@@ -34,5 +34,5 @@ export function buildCatalog(config = {}) {
   const platformCount = new Map();
   files.forEach((f) => platformCount.set(f.platform, (platformCount.get(f.platform) || 0) + 1));
   const platforms = [...platformCount].map(([label, count]) => ({ label, count }));
-  return { files, groups, tags, platforms, byPath: new Map(files.map((f) => [f.path, f])), projects: config.projects || [] };
+  return { files, groups, tags, platforms, byPath: new Map(files.map((f) => [f.path, f])), projects: config.projects || [], source: config.specProjectsSource || 'none' };
 }

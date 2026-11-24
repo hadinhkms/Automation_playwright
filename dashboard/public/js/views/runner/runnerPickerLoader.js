@@ -4,10 +4,13 @@
  * graph (the Settings and every other screen). If the import fails the Runner's "Chọn script" panel shows the
  * error and run requests carry an empty list (rejected by the server): nothing falls back to "run everything".
  */
-export async function loadScriptPicker(win = window) {
+export async function loadScriptPicker(stillWanted = () => true, win = window) {
   try {
     const { mountScriptPicker } = await import('./picker/pickerMount.js');
-    return mountScriptPicker(win);
+    const picker = mountScriptPicker(win);
+    // the screen may have been left while the import was pending: never leave a mounted orphan behind (L1)
+    if (picker && !stillWanted()) { picker.unmount(); return null; }
+    return picker;
   } catch (err) {
     return blockedPicker(win, err);
   }

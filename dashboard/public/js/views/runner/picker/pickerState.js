@@ -35,6 +35,23 @@ export function pruneMissing(state, catalog) {
   return gone.length;
 }
 
+/** L2: drop remembered filters/overrides that no longer exist in the catalog/config; returns the dropped counts. */
+export function pruneStale(state, catalog) {
+  const tags = new Set(catalog.tags.map((t) => t.tag));
+  const platforms = new Set(catalog.platforms.map((p) => p.label));
+  const projects = new Set(catalog.projects);
+  const drop = (set, keep) => { const gone = [...set].filter((v) => !keep.has(v)); gone.forEach((v) => set.delete(v)); return gone.length; };
+  const counts = { file: pruneMissing(state, catalog), tag: drop(state.tags, tags), nền_tảng: drop(state.platforms, platforms), project: catalog.projects.length ? drop(state.projects, projects) : 0 };
+  if (!state.tags.size) state.tagOnly = false;
+  return counts;
+}
+
+/** "Đã bỏ 2 file, 1 tag không còn tồn tại." or '' when nothing was dropped. */
+export function staleMessage(counts) {
+  const parts = Object.entries(counts).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k.replace('_', ' ')}`);
+  return parts.length ? `Đã bỏ ${parts.join(', ')} không còn tồn tại.` : '';
+}
+
 export function clearFilters(state) {
   state.query = ''; state.platforms.clear(); state.tags.clear();
 }

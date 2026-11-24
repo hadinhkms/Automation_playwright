@@ -6,7 +6,7 @@
  */
 import { apiClient } from '../../../core/apiClient.js';
 import { buildCatalog } from './pickerModel.js';
-import { createState, pruneMissing } from './pickerState.js';
+import { createState, pruneStale, staleMessage } from './pickerState.js';
 import { renderTree, firstKey } from './pickerTree.js';
 import { renderToolbar, renderResultsLine } from './pickerToolbar.js';
 import { renderFooter, renderProjects } from './pickerFooter.js';
@@ -18,7 +18,7 @@ import { followAccent } from './pickerContrast.js';
 import { escapeHtml } from './pickerText.js';
 
 let current = null;
-let saved = null; // selection/search/filters survive leaving the Runner screen (NB-PK-2); session memory only
+let saved = null; // selection/search/filters + "this picker started the run" survive leaving the Runner screen; session memory only
 
 export function mountScriptPicker(win = window) {
   if (current) return current;
@@ -34,7 +34,7 @@ export function mountScriptPicker(win = window) {
   const tab = doc.querySelector('.runner-mode-tab[data-mode="manual"]');
   if (tab) tab.innerHTML = '<i class="ph-bold ph-list-checks"></i> Chọn script';
 
-  const ctx = { catalog: null, state: saved ? saved.state : createState(), phase: 'loading', slow: false, error: '', runError: '', notice: '', running: false, focusKey: '', suites: {}, projectsOpen: false, undo: null };
+  const ctx = { ownRun: Boolean(saved && saved.ownRun), stopRequested: false, pruned: '', catalog: null, state: saved ? saved.state : createState(), phase: 'loading', slow: false, error: '', runError: '', notice: '', running: false, focusKey: '', suites: {}, projectsOpen: false, undo: null };
   const $ = (sel) => root.querySelector(sel);
   const controls = () => ({
     environment: doc.querySelector('#environment')?.value || '', workers: Number(doc.querySelector('#workers')?.value) || 2, headed: Boolean(doc.querySelector('#headed')?.checked),
@@ -70,11 +70,12 @@ export function mountScriptPicker(win = window) {
     const keep = doc.activeElement && root.contains(doc.activeElement) ? doc.activeElement.closest('[data-platform],[data-tag],[data-suite]') : null;
     const sig = keep && (keep.dataset.platform ? `[data-platform="${CSS.escape(keep.dataset.platform)}"]` : keep.dataset.tag ? `[data-tag="${CSS.escape(keep.dataset.tag)}"]` : `[data-suite="${CSS.escape(keep.dataset.suite)}"]`);
     $('#sp-top').innerHTML = renderToolbar({ catalog: ctx.catalog, state: ctx.state, suites: ctx.suites, found: v.found, filtersOpen: win.matchMedia('(min-width: 768px)').matches || v.activeFilters > 0, activeFilters: v.activeFilters })
+      + (ctx.pruned ? `<p class="sp-banner" role="status">${escapeHtml(ctx.pruned)}</p>` : '')
       + (ctx.undo ? `<p class="sp-banner" role="status">${escapeHtml(ctx.undo.text)} <button type="button" class="sp-link" data-act="undo">Hoàn tác</button></p>` : '');
     if (sig) $(sig)?.focus();
   }
   const renderAll = () => { renderTop(); renderBody(false); renderFoot(); };
-  const changed = () => { ctx.runError = ''; ctx.notice = ''; renderBody(); renderFoot(); };
+  const changed = () => { ctx.runError = ''; ctx.notice = ''; ctx.pruned = ''; renderBody(); renderFoot(); };
   const groupFiles = (key) => view().visibleByGroup.get(key) || [];
 
   async function load() {
@@ -86,7 +87,7 @@ export function mountScriptPicker(win = window) {
       const config = await apiClient.get('/api/config');
       ctx.catalog = buildCatalog(config);
       ctx.suites = config.suites || {};
-      pruneMissing(ctx.state, ctx.catalog);
+      ctx.pruned = staleMessage(pruneStale(ctx.state, ctx.catalog));
       ctx.phase = ctx.catalog.files.length ? 'ready' : 'empty';
     } catch (err) { ctx.phase = 'error'; ctx.error = err.message || 'lỗi không rõ'; } finally { clearTimeout(t1); clearTimeout(t2); }
     renderAll();
@@ -95,14 +96,24 @@ export function mountScriptPicker(win = window) {
   const unbind = bindEvents({ root, doc, win, ctx, view, groupFiles, renderTop, renderBody, renderFoot, changed, load, isActive, $ });
 
   const stop = doc.querySelector('#stop-button');
-  const watcher = stop ? new win.MutationObserver(() => { const was = ctx.running; ctx.running = !stop.disabled; if (was && !ctx.running && ctx.phase === 'ready') { ctx.notice = 'Đã chạy xong.'; ctx.runError = ''; } renderFoot(); }) : null;
+  ctx.running = stop ? !stop.disabled : false; // L3: coming back to the screen mid-run shows "Đang chạy…"
+  const onStop = () => { ctx.stopRequested = true; };
+  stop?.addEventListener('click', onStop);
+  const watcher = stop ? new win.MutationObserver(() => {
+    const was = ctx.running; ctx.running = !stop.disabled;
+    if (was && !ctx.running && ctx.ownRun) { // L4: only for a run this picker started
+      ctx.notice = ctx.stopRequested ? 'Đã dừng run.' : 'Run đã kết thúc.'; ctx.runError = ''; ctx.ownRun = false; ctx.stopRequested = false;
+    }
+    renderFoot();
+  }) : null;
   watcher?.observe(stop, { attributes: true, attributeFilter: ['disabled'] });
-  ['#environment', '#workers', '#headed'].forEach((s) => doc.querySelector(s)?.addEventListener('change', renderFoot));
+  const controlEls = ['#environment', '#workers', '#headed'].map((s) => doc.querySelector(s)).filter(Boolean);
+  controlEls.forEach((el) => el.addEventListener('change', renderFoot)); // removed in unmount (L1)
 
   const api = {
     isActive: isVisible, isReady, selectedFiles: () => (isReady() ? view().selected : []),
     getRunPayload: () => (isReady() ? view().payload : { specs: [] }), // not ready: an empty list the server rejects (400)
-    runSucceeded: () => { ctx.runError = ''; renderFoot(); },
+    runSucceeded: () => { ctx.runError = ''; ctx.ownRun = true; ctx.stopRequested = false; renderFoot(); },
     runFailed: (err) => { ctx.notice = ''; ctx.runError = err.status === 409 ? 'Đang có một test run khác. Chờ chạy xong hoặc bấm Dừng.' : `Chưa chạy được: ${String(err.message).replace(/[.\s]+$/, '')}. Lựa chọn của bạn vẫn còn — sửa rồi bấm Chạy lại.`; renderFoot(); },
   };
   const stopAccent = followAccent(win, root);
@@ -112,7 +123,7 @@ export function mountScriptPicker(win = window) {
   load();
   current = {
     api, ctx,
-    unmount() { saved = { state: ctx.state }; root.remove(); doc.getElementById('runner-view')?.classList.remove('has-script-picker'); unbind(); watcher?.disconnect(); stopAccent(); undoBridge(); undoExpose(); current = null; },
+    unmount() { saved = { state: ctx.state, ownRun: ctx.ownRun }; controlEls.forEach((el) => el.removeEventListener('change', renderFoot)); stop?.removeEventListener('click', onStop); root.remove(); doc.getElementById('runner-view')?.classList.remove('has-script-picker'); unbind(); watcher?.disconnect(); stopAccent(); undoBridge(); undoExpose(); current = null; },
   };
   return current;
 }

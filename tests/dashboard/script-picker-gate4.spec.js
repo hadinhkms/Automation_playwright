@@ -103,7 +103,7 @@ test.describe('Script Picker: Gate 4 fixes', () => {
     expect(text).not.toContain('..');
   });
 
-  test('"Đã chạy xong." appears when the run that started ends', async ({ page }) => {
+  test('"Run đã kết thúc." appears when the run that started ends', async ({ page }) => {
     await mockRun(page);
     await open(page);
     await row(page, ALPHA).click();
@@ -111,7 +111,7 @@ test.describe('Script Picker: Gate 4 fixes', () => {
     await expect(page.locator('#stop-button')).toBeEnabled(); // run is active (legacy renderRun)
     await expect(page.locator('#sp-run')).toHaveText('Đang chạy…');
     await page.evaluate(() => { document.querySelector('#stop-button').disabled = true; });
-    await expect(page.locator('.sp-banner')).toHaveText('Đã chạy xong.');
+    await expect(page.locator('.sp-banner')).toHaveText('Run đã kết thúc.');
   });
 
   test('NB-PK-1: a file with @smoke AND @e2e tests lists both device projects', async () => {
