@@ -8,6 +8,7 @@ const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const net = require('net');
 const { execSync } = require('child_process');
 const { startDashboardHarness } = require('../dashboard/support/dashboardHarness');
 const { createFixtureWorkspace } = require('../dashboard/support/fixtureWorkspace');
@@ -68,6 +69,46 @@ describe('concurrent POST /api/run and /api/ui on a cold cache', () => {
     const stop = await post('/api/stop', {});
     assert.equal(stop.status, 202);
     assert.ok(await waitNoProcess(), 'after /api/stop no playwright process may remain (no orphans)');
+  });
+
+  test('K-1: a request whose body never finishes does not hold the starting flag (others are not 409)', async () => {
+    const port = new URL(harness.url).port;
+    const sockets = [];
+    // Content-Length says 500 bytes, only 10 are sent and the socket stays open: parseBody never completes.
+    for (let i = 0; i < 3; i += 1) {
+      const socket = net.connect(Number(port), '127.0.0.1');
+      socket.on('error', () => {});
+      socket.write(`POST /api/run HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nContent-Type: application/json\r\nContent-Length: 500\r\n\r\n{"specs":[`);
+      sockets.push(socket);
+    }
+    try {
+      await sleep(300);
+      const ok = await post('/api/run', BODY);
+      assert.equal(ok.status, 202, 'a normal request must be accepted while slow bodies are pending');
+      await post('/api/stop', {});
+      assert.ok(await waitNoProcess());
+    } finally {
+      sockets.forEach((s) => s.destroy());
+    }
+  });
+
+  test('K-1: after slow bodies are dropped the cold race still gives exactly one 202', async () => {
+    await harness.stop();
+    harness = await startDashboardHarness(root);
+    const slow = net.connect(Number(new URL(harness.url).port), '127.0.0.1');
+    slow.on('error', () => {});
+    slow.write(`POST /api/run HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: 500\r\n\r\n{`);
+    try {
+      await sleep(200);
+      const results = await Promise.all([1, 2, 3].map(() => post('/api/run', BODY)));
+      assert.deepEqual(results.map((r) => r.status).sort(), [202, 409, 409]);
+      await sleep(1200);
+      assert.equal(playwrightProcesses(root).length, 1);
+      await post('/api/stop', {});
+      assert.ok(await waitNoProcess());
+    } finally {
+      slow.destroy();
+    }
   });
 
   test('after the run ends a new one is accepted (the starting flag is released)', async () => {
