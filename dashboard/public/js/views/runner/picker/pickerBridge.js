@@ -8,6 +8,7 @@
  */
 import { escapeHtml } from './pickerText.js';
 
+export const NO_SELECTION = 'Chọn ít nhất 1 script để chạy.';
 export const NOT_READY = 'Danh sách script chưa sẵn sàng. Chờ tải xong, bấm Thử lại hoặc dùng tab Theo Test Suite.';
 
 export function exposeScriptPicker(win, api) {
@@ -45,6 +46,11 @@ export function bridgeLegacy(win, api) {
   wrap('request', (orig) => async function pickerRequest(url, options) {
     if ((url === '/api/run' || url === '/api/ui') && api.isActive() && !api.isReady()) {
       const err = new Error(NOT_READY); // loading / error / empty catalog: nothing is selectable, so nothing runs
+      api.runFailed(err);
+      throw err;
+    }
+    if ((url === '/api/run' || url === '/api/ui') && api.isActive() && api.selectedFiles().length === 0) {
+      const err = new Error(NO_SELECTION); // nothing picked: never fall through to "run everything"
       api.runFailed(err);
       throw err;
     }

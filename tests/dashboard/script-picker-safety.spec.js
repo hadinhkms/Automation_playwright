@@ -56,7 +56,8 @@ test.describe('Script Picker safety', () => {
         if (path === 'Mở Playwright UI') await page.click('#ui-button'); else { await page.focus('#workers'); await page.keyboard.press('Enter'); }
         await page.waitForTimeout(500);
         expect(calls, JSON.stringify(calls)).toEqual([]);
-        await expect(page.locator('#toast')).toContainText('Danh sách script chưa sẵn sàng');
+        // Enter no longer submits at all (the old default button is disabled while the picker shows); the UI button says why
+        if (path === 'Mở Playwright UI') await expect(page.locator('#toast')).toContainText('Danh sách script chưa sẵn sàng');
         release();
       });
     }

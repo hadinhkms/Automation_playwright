@@ -36,7 +36,16 @@ function createPickerFixture(extra = {}) {
   write('dashboardConfig.json', JSON.stringify({ suites: extra.suites || {} }));
   write('playwright.config.js', CONFIG);
   Object.entries({ ...FILES, ...(extra.files || {}) }).forEach(([rel, body]) => write(rel, body));
+  if (extra.history) write('test-results/web-runs/index.json', JSON.stringify({ version: 1, runs: extra.history }));
   return fixture;
 }
 
 module.exports = { createPickerFixture, FILES };
+
+/** A run-history record in the CONTRACT-run-history schema (only what the picker reads, plus required fields). */
+function historyRun({ id, minutesAgo = 5, status = 'failed', specs = [], projects = [], tags = [], files = [] }) {
+  const startedAt = new Date(Date.now() - minutesAgo * 60000).toISOString();
+  const failed = files.filter((f) => f.status === 'failed').length;
+  return { id, startedAt, finishedAt: startedAt, durationMs: 1000, status, exitCode: status === 'failed' ? 1 : 0, environment: 'qc', projects, specs, tags, grep: '', suite: null, suiteLabel: '', workers: 2, headed: false, command: '', resultsSource: 'json', reportAvailable: false, summary: { total: files.length, passed: files.length - failed, failed, flaky: 0, skipped: 0 }, files, failures: [] };
+}
+module.exports.historyRun = historyRun;

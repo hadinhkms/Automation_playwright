@@ -6,14 +6,15 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const { startDashboardHarness } = require('./support/dashboardHarness');
-const { createPickerFixture } = require('./support/pickerFixture');
+const { createPickerFixture, historyRun } = require('./support/pickerFixture');
 
 const LONG = `tests/e2e/desktop/${'very-long-script-name-'.repeat(5)}end.spec.js`;
 const SIZES = [[390, 844], [768, 1024], [1440, 900]];
 
 test.describe('Script Picker layout', () => {
   let fixture; let harness;
-  test.beforeAll(async () => { fixture = createPickerFixture({ files: { [LONG]: "const { test } = require('@playwright/test');\ntest('long @e2e', async () => {});\n" } }); harness = await startDashboardHarness(fixture.rootPath); });
+  test.beforeAll(async () => { const failed = { file: LONG, status: 'failed', passed: 0, failed: 1, flaky: 0, skipped: 0, durationMs: 5 };
+    fixture = createPickerFixture({ files: { [LONG]: "const { test } = require('@playwright/test');\ntest('long @e2e', async () => {});\n" }, history: [historyRun({ id: 'l1', status: 'failed', specs: [LONG], projects: ['Desktop Regression Tests'], files: [failed] })] }); harness = await startDashboardHarness(fixture.rootPath); });
   test.afterAll(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
 
   for (const [width, height] of SIZES) {

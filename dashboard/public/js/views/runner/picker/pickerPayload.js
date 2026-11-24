@@ -51,3 +51,12 @@ export function multiDeviceNote(files, projects) {
   const families = [...new Set(f.projects.map(familyOf))];
   return `${f.name} chạy được trên ${families.length} thiết bị; đang chọn ${familyOf(projects.find((p) => f.projects.includes(p)) || f.projects[0])}.`;
 }
+
+/** Same regex the server builds from tags[] (runnerArgs.tagGrep): tags only contain [A-Za-z0-9_@-], nothing to escape. */
+export const grepFromTags = (tags) => `(?:${tags.join('|')})(?![\\w-])`;
+
+/** Inverse of grepFromTags for suites saved by the picker; null for any other grep text. */
+export function tagsFromGrep(grep) {
+  const m = /^\(\?:(@[\w-]+(?:\|@[\w-]+)*)\)\(\?!\[\\w-\]\)$/.exec(String(grep || ''));
+  return m ? m[1].split('|') : null;
+}
