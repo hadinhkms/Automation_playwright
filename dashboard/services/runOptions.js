@@ -3,6 +3,9 @@
  * Xác thực body của POST /api/run (và /api/ui) — CONTRACT script-picker §2.2. Nguyên tắc: từ chối 400
  * rõ ràng thay vì lọc im lặng (trước đây spec không tồn tại bị bỏ qua rồi chạy TẤT CẢ).
  */
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { getDashboardConfig, GREP_MAX_LENGTH } = require('../../core/config/dashboardConfig');
 const { listSpecs, listSpecDetails, specProjects, getPlaywrightProjects } = require('./specService');
 const { getLastConfigError } = require('./playwrightConfigLoader');
@@ -13,10 +16,26 @@ const mustBeArray = (value, field) => {
   if (present(value) && !Array.isArray(value)) throw new Error(`${field} phải là một mảng.`);
 };
 
-/** Dòng đầu của lỗi cấu hình, đường dẫn tuyệt đối thay bằng tên file: không lộ cấu trúc máy chủ/Require stack. */
-function safeConfigError(why) {
-  const firstLine = String(why).split('\n')[0];
-  return firstLine.replace(/(?:[A-Za-z]:)?[\\/][^\s'"():]*[\\/]([^\s'"():\\/]+)/g, '$1');
+/** Chuỗi đường dẫn đã biết cần che: gốc dự án (đã/chưa resolve), home; cả dạng `/` lẫn `\\`. Dài trước để không che dở. */
+function knownPaths(root) {
+  const resolved = (() => { try { return fs.realpathSync(root); } catch (_) { return path.resolve(root); } })();
+  const swap = (p) => [p, p.replace(/\\/g, '/'), p.replace(/\//g, '\\')];
+  const project = [...new Set([resolved, path.resolve(root), String(root)].flatMap(swap))];
+  const home = swap(os.homedir());
+  return [...project.map((p) => [p, '<project>']), ...home.map((p) => [p, '~'])]
+    .filter(([p]) => p.length > 1)
+    .sort((x, y) => y[0].length - x[0].length);
+}
+
+/**
+ * Dòng đầu của lỗi cấu hình, không lộ cấu trúc máy chủ: (1) thay các đường dẫn ĐÃ BIẾT (gốc dự án, home) bằng
+ * <project>/~ bằng split/join, kể cả khi có dấu cách/ngoặc; (2) phần đường dẫn tuyệt đối còn lại chỉ giữ tên cuối
+ * (đoạn giữa có thể chứa dấu cách/ngoặc, ví dụ `C:\Users\Bob\a b\c.js` -> `c.js`). Không có Require stack.
+ */
+function safeConfigError(why, root = process.cwd()) {
+  let text = String(why).split('\n')[0];
+  for (const [known, placeholder] of knownPaths(root)) text = text.split(known).join(placeholder);
+  return text.replace(/(?:<project>|~)?(?:[A-Za-z]:)?[\\/](?:[^\\/'"\n]+[\\/])+([^\\/'"\s():]+)/g, '$1');
 }
 
 const names = (list) => `${list.slice(0, 10).join(', ')}${list.length > 10 ? `, … (+${list.length - 10})` : ''}`;
@@ -46,7 +65,7 @@ function parseProjects(input, root) {
   const known = getPlaywrightProjects(root);
   const configHint = () => {
     const why = getLastConfigError();
-    return why ? ` Không đọc được playwright.config.js (${safeConfigError(why)}) nên danh sách project trống; xem log máy chủ để biết chi tiết và sửa cấu hình rồi thử lại.` : '';
+    return why ? ` Không đọc được playwright.config.js (${safeConfigError(why, root)}) nên danh sách project trống; xem log máy chủ để biết chi tiết và sửa cấu hình rồi thử lại.` : '';
   };
   if (Array.isArray(input.projects)) {
     const projects = stringArray(input.projects);
@@ -117,4 +136,4 @@ function validateOptions(input, root = process.env.QA_PROJECT_ROOT || process.cw
   return options;
 }
 
-module.exports = { validateOptions };
+module.exports = { validateOptions, safeConfigError };
