@@ -4,7 +4,8 @@
     {
       "id": "vieclam24h-qa",
       "name": "Vieclam24h QA (cài sẵn, chỉ smoke chỉ đọc)",
-      "android": { "appPackage": "com.vieclam24h.qa", "appActivity": "com.vieclam24h.MainActivity" }
+      "android": { "appPackage": "com.vieclam24h.qa", "appActivity": "com.vieclam24h.MainActivity" },
+      "ios": { "bundleId": "com.vieclam24h.qa" }
     },
     {
       "id": "oppo-calculator",

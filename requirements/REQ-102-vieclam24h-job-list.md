@@ -19,3 +19,7 @@ Sau khi mở app, người tìm việc thấy ô tìm kiếm, biểu tượng th
 ### AC-105: Mục việc làm gần tôi
 - **Điều kiện:** Như AC-104.
 - **Hành vi mong đợi:** Có tiêu đề "Khám phá việc làm gần tôi".
+
+### AC-106: Màn hình đầu không báo lỗi hệ thống
+- **Điều kiện:** Khởi động lạnh app `com.vieclam24h.qa` (tắt hẳn rồi mở lại, vì `noReset` giữ app đang chạy từ phiên trước).
+- **Hành vi mong đợi:** Màn hình đầu hiện danh sách việc làm mà không có hộp thoại "Không thể tải dữ liệu vì có lỗi từ hệ thống". Hộp thoại xuất hiện là lỗi (smoke FAIL), dù đóng được bằng "Thử lại sau"; có ảnh bằng chứng màn hình đầu.

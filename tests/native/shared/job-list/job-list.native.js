@@ -15,6 +15,14 @@ describe('Job list - Read only @native @job-list @REQ-102', () => {
     if (!onApp) this.skip();
   });
 
+  it('TC-106 - Home loads without the system error dialog @smoke', async () => {
+    await jobs.relaunchApp(APP_ID);
+    await jobs.waitForFirstScreen();
+    const hasError = await jobs.hasErrorDialog();
+    await jobs.capture('first_screen');
+    await expect(hasError).toBe(false);
+  });
+
   it('TC-104 - Home shows the job list, search bar and notifications @sanity', async () => {
     await jobs.dismissErrorDialogIfShown();
     await jobs.waitUntilLoaded();

@@ -85,6 +85,12 @@ class NativeBasePage {
     return info?.bundleId || '';
   }
 
+  /** Cold start: with noReset the app may still be running (and past its first screen) from an earlier session. */
+  async relaunchApp(appId) {
+    await driver.terminateApp(appId);
+    await driver.activateApp(appId);
+  }
+
   /** Android only; iOS has no activity concept. */
   async currentActivity() {
     return this.platform === 'android' ? driver.getCurrentActivity() : '';
