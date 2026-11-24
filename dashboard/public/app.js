@@ -391,12 +391,6 @@ function renderRun(run) {
 }
 
 async function request(url, options) {
-  const method = String((options && options.method) || 'GET').toUpperCase();
-  if (method !== 'GET' && method !== 'HEAD') {
-    const headers = new Headers((options && options.headers) || {});
-    if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-    options = { ...options, headers };
-  }
   const response = await fetch(url, options);
   const body = await response.json();
   if (!response.ok) {

@@ -52,4 +52,18 @@ function checkRequest(request, url, port) {
   return null;
 }
 
-module.exports = { checkRequest, isLocalAuthority, isLocalOrigin, isJsonContentType };
+/** Parse URL + áp guard; đã trả lỗi cho client thì trả null. */
+function guardRequest(request, response, port, sendJson) {
+  let url;
+  try { url = new URL(request.url, 'http://localhost'); } catch (_) {
+    sendJson(response, 400, { error: 'URL không hợp lệ.' });
+    return null;
+  }
+  const rejected = checkRequest(request, url, port);
+  if (!rejected) return url;
+  request.resume();
+  sendJson(response, rejected.status, { error: rejected.error });
+  return null;
+}
+
+module.exports = { guardRequest, checkRequest, isLocalAuthority, isLocalOrigin, isJsonContentType };
