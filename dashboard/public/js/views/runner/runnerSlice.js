@@ -6,6 +6,7 @@ import { apiClient } from '../../core/apiClient.js';
 import { eventBus } from '../../core/eventBus.js';
 import { stateStore } from '../../core/stateStore.js';
 import { windowBridge } from '../../core/windowBridge.js';
+import { mountScriptPicker } from './picker/pickerMount.js';
 
 export class RunnerSlice {
   constructor() {
@@ -19,6 +20,7 @@ export class RunnerSlice {
 
   async mount() {
     this._mounted = true;
+    this._picker = mountScriptPicker();
     this._bindDomEvents();
     this._registerBridgeActions();
     this._connectEventStream();
@@ -28,6 +30,7 @@ export class RunnerSlice {
 
   unmount() {
     this._mounted = false;
+    this._picker?.unmount();
     this._disposers.forEach((d) => { try { d(); } catch (_) {} });
     this._disposers = [];
     if (this._eventSource) {

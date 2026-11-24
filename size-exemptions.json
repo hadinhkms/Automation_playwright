@@ -6,6 +6,13 @@
       "sha256": "ef94fa240b36d01f0418548889bb21de96d21f73365b956bdd539877fddb5675",
       "expires": "2027-01-31",
       "reason": "legacy 543 dòng; chỉ đổi trần grep 80→200 cho bộ chọn script (D5); tách module theo item nợ kỹ thuật 24"
+    },
+    {
+      "path": "dashboard/public/app.js",
+      "maxLines": 17726,
+      "sha256": "15510e24e00c2049debe918e183206624bb80f3287e8f133678b5f069b225b65",
+      "expires": "2027-01-31",
+      "reason": "legacy 17.7k-dòng app.js (đã vượt trần từ trước); chỉ thêm 2 dòng ủy quyền window.ScriptPicker cho bộ chọn script 1b (CONTRACT §3, ≤3 dòng/điểm); sha256 ghim, mọi thay đổi khác phải tách module"
     }
   ]
 }

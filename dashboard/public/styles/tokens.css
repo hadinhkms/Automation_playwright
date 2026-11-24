@@ -16,6 +16,7 @@
   --muted: #9CA3AF;
   --accent: #A78BFA;
   --accent-deep: #2E1065;
+  --on-accent: #1A0B3B; /* text on --accent: white is only 2.72:1 on the dark-theme accent */
   --accent-subtle: rgba(99, 102, 241, 0.22);
   --danger: #ff7078;
   --warning: #ffc857;
@@ -59,6 +60,7 @@
   --muted: #6B7280;
   --accent: #5B21B6;
   --accent-deep: #EDE9FE;
+  --on-accent: #FFFFFF;
   --accent-subtle: rgba(99, 102, 241, 0.12);
   --danger: #c93440;
   --warning: #a66500;

@@ -27,19 +27,13 @@ test.describe('Runner view at 390px (L3)', () => {
       await page.waitForSelector('.runner-mode-tab[data-mode="manual"]');
       await page.click(`.runner-mode-tab[data-mode="${mode}"]`);
       await page.waitForTimeout(300);
-      if (mode === 'manual') {
-        for (const scope of ['file', 'grep', 'all']) {
-          await page.click(`.runner-scope-tab-btn[data-manual-scope="${scope}"]`);
-          const so = await overflow(page);
-          expect(so.wide, `${scope}: ${JSON.stringify(so)}`).toEqual([]);
-        }
-      }
       const o = await overflow(page);
       expect(o.wide, JSON.stringify(o)).toEqual([]);
       expect(o.doc).toBeLessThanOrEqual(0);
       expect(o.body, `body.scrollWidth exceeds the viewport by ${o.body}px (top bar buttons?)`).toBeLessThanOrEqual(0);
-      await expect(page.locator('#run-button')).toBeVisible();
-      const box = await page.locator('#run-button').boundingBox();
+      const runButton = mode === 'manual' ? '#sp-run' : '#run-button'; // manual mode = Script Picker's own run button
+      await expect(page.locator(runButton)).toBeVisible();
+      const box = await page.locator(runButton).boundingBox();
       expect(box.x + box.width).toBeLessThanOrEqual(391);
     });
   }
@@ -80,7 +74,12 @@ test.describe('Header at tablet width and accessible names', () => {
     await expect(page.locator('#settings-tab')).toHaveAttribute('title', 'Cấu hình hệ thống');
     const unnamed = await page.locator('.header-actions button, .header-actions a').evaluateAll((els) => els.filter((e) => !(e.getAttribute('aria-label') || e.textContent || '').trim()).map((e) => e.id || e.className));
     expect(unnamed).toEqual([]);
-    await expect(page.locator('#system-update-btn')).toHaveAttribute('aria-label', /cập nhật/);
-    await expect(page.locator('#topbar-git-btn')).toHaveAttribute('aria-label', /Git/);
+    // WCAG 2.5.3 Label in Name: buttons with visible text ("v1.0.0", "main") keep that text as their name;
+    // the explanation is the title (description), not an aria-label that would replace the visible text.
+    for (const [id, text, title] of [['#system-update-btn', /^\s*v?\d/, /cập nhật/], ['#topbar-git-btn', /\S/, /Git/]]) {
+      await expect(page.locator(id)).not.toHaveAttribute('aria-label', /.*/);
+      await expect(page.locator(id)).toHaveAttribute('title', title);
+      expect((await page.locator(id).textContent()).trim()).toMatch(text);
+    }
   });
 });

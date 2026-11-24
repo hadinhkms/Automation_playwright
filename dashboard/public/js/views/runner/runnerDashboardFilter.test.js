@@ -1,6 +1,6 @@
 /**
  * dashboard/public/js/views/runner/runnerDashboardFilter.test.js
- * Unit tests for the pure helpers of the Runner "hide Dashboard tests" filter (L2).
+ * Unit tests for the Dashboard-internal path rule and the list pruning used by the suite previews.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -13,16 +13,13 @@ test('isInternal matches only paths under tests/dashboard/', () => {
   assert.equal(filter.isInternal(undefined), false);
 });
 
-test('visibleTags keeps a shared tag but drops tags that only internal specs carry', () => {
-  const specTags = { 'tests/e2e/a.spec.js': ['@smoke'], 'tests/dashboard/i.spec.js': ['@smoke', '@only'] };
-  assert.deepEqual(filter.visibleTags(['@smoke', '@only'], specTags), ['@smoke']);
-});
-
-test('read/write of the switch tolerates missing or throwing storage', () => {
-  const mem = {}; const storage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = v; } };
-  assert.equal(filter.readShow(storage), false);
-  filter.writeShow(storage, true);
-  assert.equal(filter.readShow(storage), true);
-  assert.equal(filter.readShow(null), false);
-  assert.doesNotThrow(() => filter.writeShow({ setItem() { throw new Error('denied'); } }, true));
+test('pruneList removes internal items and rewrites the count with the hidden number', () => {
+  const item = (title) => ({ getAttribute: () => title, removed: false, remove() { this.removed = true; } });
+  const items = [item('tests/dashboard/a.spec.js'), item('tests/e2e/b.spec.js'), item('tests/dashboard/c.spec.js')];
+  const count = { textContent: '3 script' };
+  const container = { querySelectorAll: () => items };
+  assert.equal(filter.pruneList(container, count, '.x'), 2);
+  assert.deepEqual(items.map((i) => i.removed), [true, false, true]);
+  assert.equal(count.textContent, '1 script (+2 test Dashboard đang ẩn)');
+  assert.equal(filter.pruneList(null, count, '.x'), 0);
 });

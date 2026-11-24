@@ -23,6 +23,7 @@
 /* 6. Feature Views (Original L3409 - L19463) */
 @import url('./styles/views/suites-quick.css');
 @import url('./styles/views/runner.css');
+@import url('./styles/views/script-picker.css');
 @import url('./styles/views/settings.css');
 @import url('./styles/views/recorder.css');
 @import url('./styles/views/data.css');

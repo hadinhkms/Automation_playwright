@@ -446,3 +446,12 @@ body::before {
   .header-actions [data-tooltip]::before,
   .header-actions [data-tooltip]::after { display: none; }
 }
+
+/* The right-most header button's tooltip is centred on it, so its (hidden) bubble stuck out past the right
+   edge and made body.scrollWidth 1456 > 1440 on desktop: anchor that bubble to the button's right edge. */
+.header-actions > :last-child[data-tooltip]::after { left: auto; right: 0; transform: translateY(-4px); }
+.header-actions > :last-child[data-tooltip]:hover::after,
+.header-actions > :last-child[data-tooltip]:focus-visible::after { transform: translateY(0); }
+.header-actions > :last-child[data-tooltip]::before { left: auto; right: 14px; transform: translateY(-4px); }
+.header-actions > :last-child[data-tooltip]:hover::before,
+.header-actions > :last-child[data-tooltip]:focus-visible::before { transform: translateY(0); }

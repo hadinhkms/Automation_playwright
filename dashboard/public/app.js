@@ -7946,6 +7946,7 @@ form.addEventListener('submit', async (event) => {
       workers: Number($('#workers').value),
       headed: $('#headed').checked,
     };
+    if (window.ScriptPicker?.isActive()) payload = window.ScriptPicker.getRunPayload();
   }
 
   consoleOutput.textContent = '';
@@ -7982,6 +7983,7 @@ function selectedOptions() {
     }
     return opts;
   }
+  if (window.ScriptPicker?.isActive()) return window.ScriptPicker.getRunPayload();
   let manualScope = 'all';
   document.querySelectorAll('.runner-scope-tab-btn').forEach((btn) => {
     if (btn.classList.contains('active')) manualScope = btn.dataset.manualScope;
