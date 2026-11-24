@@ -85,8 +85,8 @@ describe('API Contract: Master Process Integration Routes', () => {
 
   test('Concurrent direct mutation calls trigger Mutex 409 Conflict', async () => {
     // Fire doctor and audit simultaneously
-    const p1 = fetch(`${harness.url}/api/mp/doctor`, { method: 'POST' });
-    const p2 = await fetch(`${harness.url}/api/mp/doctor`, { method: 'POST' });
+    const p1 = fetch(`${harness.url}/api/mp/doctor`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+    const p2 = await fetch(`${harness.url}/api/mp/doctor`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     const body2 = await p2.json();
 
     assert.equal(p2.status, 409);

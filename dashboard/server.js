@@ -30,6 +30,7 @@ const { inspector: mobileInspector } = require('./routes/mobileInspectorRoutes')
 const { handleResourceRoutes, serveFile } = require('./routes/resourceRoutes');
 const { sendJson, parseBody, safeChildPath } = require('./routes/routeUtils');
 const { getActiveRun, stopRun } = require('./services/runnerService');
+const { checkRequest } = require('./services/requestGuard');
 
 const ENGINE_DIR = path.resolve(__dirname, '..');
 let detectedRoot = process.env.QA_PROJECT_ROOT ? path.resolve(process.env.QA_PROJECT_ROOT) : process.cwd();
@@ -78,7 +79,14 @@ const AGENT_SAFE_POST_ROUTES = new Set([
 ]);
 
 const server = http.createServer(async (request, response) => {
-  const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  let url;
+  try { url = new URL(request.url, 'http://localhost'); } catch (_) { sendJson(response, 400, { error: 'URL không hợp lệ.' }); return; }
+  const rejected = checkRequest(request, url, currentPort);
+  if (rejected) {
+    request.resume();
+    sendJson(response, rejected.status, { error: rejected.error });
+    return;
+  }
   if (url.pathname.startsWith('/api/agent/')) {
     await agentRoutes(request, response, url);
     return;

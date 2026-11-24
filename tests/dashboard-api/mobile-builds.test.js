@@ -48,7 +48,7 @@ describe('API Contract: Mobile builds & run history (/api/mobile/builds, /api/mo
   let fixture;
   let harness;
   let root;
-  const api = (p, init) => fetch(`${harness.url}${p}`, init);
+  const api = (p, init = {}) => fetch(`${harness.url}${p}`, init.method && !init.headers ? { ...init, headers: { 'Content-Type': 'application/json' } } : init);
   const put = (name, data, query = '') => api(`/api/mobile/builds/${encodeURIComponent(name)}${query}`, { method: 'PUT', body: data, headers: { 'Content-Type': 'application/octet-stream' } });
   const appsFiles = () => fs.readdirSync(path.join(root, 'apps')).sort();
   const runOnce = (body) => api('/api/mobile/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

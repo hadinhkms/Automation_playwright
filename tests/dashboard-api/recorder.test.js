@@ -32,14 +32,14 @@ describe('API Contract: Recorder & Codegen Routes', () => {
   });
 
   test('POST /api/recorder/reset returns 200 and resets session state', async () => {
-    const res = await fetch(`${harness.url}/api/recorder/reset`, { method: 'POST' });
+    const res = await fetch(`${harness.url}/api/recorder/reset`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.ok(body.message !== undefined);
   });
 
   test('POST /api/recorder/stop returns 400 when no active recorder session', async () => {
-    const res = await fetch(`${harness.url}/api/recorder/stop`, { method: 'POST' });
+    const res = await fetch(`${harness.url}/api/recorder/stop`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
     assert.equal(res.status, 400);
     const body = await res.json();
     assert.match(body.error, /Không có phiên ghi nào đang chạy/);
@@ -76,6 +76,6 @@ describe('API Contract: Recorder & Codegen Routes', () => {
     assert.ok(statuses.includes(200), 'One concurrent start request must succeed with 200 OK');
 
     // Clean up active recorder session
-    await fetch(`${harness.url}/api/recorder/reset`, { method: 'POST' });
+    await fetch(`${harness.url}/api/recorder/reset`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
   });
 });
