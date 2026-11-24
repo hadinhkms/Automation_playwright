@@ -2,9 +2,11 @@
  * tests/dashboard/script-picker-gate4.spec.js
  * Gate 4 findings on the Script Picker: NB-PK-2 state kept across screens and Thử lại, NB-PK-3 active chip
  * contrast (any branding accent), NB-PK-4 reduced motion, NB-PK-5 search icon padding, copy with "..",
- * "Đã chạy xong", honest "Chạy N script" label; NB-PK-1 is a BACKEND data bug documented with test.fail().
+ * "Đã chạy xong", honest "Chạy N script" label; NB-PK-1 (specProjects vs playwright --list) was a backend data bug, now fixed and covered below.
  */
 const { test, expect } = require('@playwright/test');
+const { spawnSync } = require('child_process');
+const { specArg } = require('../../dashboard/services/runnerArgs');
 const { startDashboardHarness } = require('./support/dashboardHarness');
 const { createPickerFixture } = require('./support/pickerFixture');
 
@@ -12,6 +14,7 @@ const ALPHA = 'tests/e2e/desktop/alpha.spec.js';
 const GAMMA = 'tests/api/gamma.spec.js';
 const MIXED = 'tests/e2e/desktop/mixed.spec.js';
 const MIXED_SRC = "const { test } = require('@playwright/test');\ntest('smoke part @smoke', async () => {});\ntest('e2e part one @e2e', async () => {});\ntest('e2e part two @e2e', async () => {});\n";
+const PW_CLI = require.resolve('@playwright/test/cli');
 const row = (page, p) => page.locator(`.sp-file[data-path="${p}"] .sp-row`);
 const view = (page, id) => page.evaluate((v) => window.__STUDIO_CORE__.featureRegistry.switchView(v), id);
 
@@ -111,13 +114,28 @@ test.describe('Script Picker: Gate 4 fixes', () => {
     await expect(page.locator('.sp-banner')).toHaveText('Đã chạy xong.');
   });
 
-  test('NB-PK-1 (BACKEND data): a file with @smoke AND @e2e tests must list both device projects', async ({ page }) => {
-    // Root cause: specService.projectsForSpec tests project.grep/grepInvert against the WHOLE file text, so one
-    // "@smoke" anywhere removes Desktop Regression Tests (grepInvert @smoke) although Playwright (per test title)
-    // runs the 2 @e2e tests there. Fixture check: `playwright --list --project="Desktop Regression Tests"` = 2 tests.
-    // Not a front-end fix: remove test.fail() when backend-dev fixes specProjects.
-    test.fail(true, 'BACKEND: specProjects omits Desktop Regression Tests for files that mention @smoke');
+  test('NB-PK-1: a file with @smoke AND @e2e tests lists both device projects', async () => {
     const cfg = await (await fetch(`${harness.url}/api/config`)).json();
-    expect(cfg.specProjects[MIXED]).toEqual(expect.arrayContaining(['Desktop Smoke Tests', 'Desktop Regression Tests']));
+    expect(cfg.specProjectsSource).toBe('playwright');
+    expect(cfg.specProjects[MIXED]).toEqual(['Desktop Smoke Tests', 'Desktop Regression Tests']);
+  });
+
+  test('NB-PK-1 e2e: running the mixed file executes exactly the tests `playwright --list` reports for the same selection', async ({ page }) => {
+    await open(page);
+    const request = page.waitForRequest((r) => r.url().endsWith('/api/run') && r.method() === 'POST');
+    await row(page, MIXED).click();
+    await page.click('#sp-run');
+    const body = (await request).postDataJSON();
+    expect(body.projects).toEqual(expect.arrayContaining(['Desktop Smoke Tests', 'Desktop Regression Tests']));
+
+    const listed = spawnSync(process.execPath, [PW_CLI, 'test', '--list', '--reporter=json',
+      ...body.specs.map((spec) => specArg(spec, fixture.rootPath)), ...body.projects.map((p) => `--project=${p}`)], { cwd: fixture.rootPath, encoding: 'utf8' });
+    const expected = JSON.parse(listed.stdout).stats.expected + JSON.parse(listed.stdout).stats.skipped;
+    expect(expected).toBe(3);
+
+    await expect.poll(async () => (await (await fetch(`${harness.url}/api/state`)).json()).lastRun?.status, { timeout: 60000 }).toBe('passed');
+    const state = await (await fetch(`${harness.url}/api/state`)).json();
+    const log = state.logs.map((e) => e.payload.text).join('');
+    expect(log).toMatch(new RegExp(`${expected} passed`));
   });
 });

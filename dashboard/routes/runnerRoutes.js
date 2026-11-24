@@ -48,7 +48,7 @@ async function handleRunnerRoutes(request, response, url, context = {}) {
     if (getActiveMobileRun()) return sendJson(response, 409, { error: MOBILE_BUSY });
     if (inspector.busyReason()) return sendJson(response, 409, { error: inspector.busyReason() });
     try {
-      const options = validateOptions(await parseBody(request), root);
+      const options = await validateOptions(await parseBody(request), root);
       assertNotFrozen({ suiteName: options.suite || options.file, projectRoot: root, exitOnError: false });
       return sendJson(response, 202, startRun(options, false, root));
     } catch (error) {
@@ -62,7 +62,7 @@ async function handleRunnerRoutes(request, response, url, context = {}) {
     if (getActiveMobileRun()) return sendJson(response, 409, { error: MOBILE_BUSY });
     if (inspector.busyReason()) return sendJson(response, 409, { error: inspector.busyReason() });
     try {
-      const options = validateOptions(await parseBody(request), root);
+      const options = await validateOptions(await parseBody(request), root);
       assertNotFrozen({ suiteName: options.suite || options.file, projectRoot: root, exitOnError: false });
       return sendJson(response, 202, startRun(options, true, root));
     } catch (error) {

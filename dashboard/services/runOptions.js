@@ -7,7 +7,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { getDashboardConfig, GREP_MAX_LENGTH } = require('../../core/config/dashboardConfig');
-const { listSpecs, listSpecDetails, specProjects, getPlaywrightProjects } = require('./specService');
+const { listSpecs, listSpecDetails, getPlaywrightProjects } = require('./specService');
+const { getSpecProjects } = require('./specProjectsService');
 const { getLastConfigError } = require('./playwrightConfigLoader');
 const { MAX_ARGS_CHARS, MAX_SPECS, MAX_TAGS, tagGrep, buildPlaywrightArgs, argsLength } = require('./runnerArgs');
 
@@ -98,17 +99,21 @@ function parseGrep(input, root) {
   return { grep, tags };
 }
 
-/** D8: có project được chọn nhưng không file nào chạy được trên project đó -> 400 (thay vì "No tests found"). */
-function assertSomeSpecRuns(projects, specs, allSpecs, root) {
+/**
+ * D8: có project được chọn nhưng không file nào chạy được trên project đó -> 400 (thay vì "No tests found").
+ * Chỉ áp khi dữ liệu là của Playwright; nếu chỉ có ước lượng thì KHÔNG từ chối (đừng chặn lượt chạy hợp lệ vì dữ liệu không chắc).
+ */
+async function assertSomeSpecRuns(projects, specs, allSpecs, root) {
   if (projects.length === 0) return;
-  const map = specProjects(root);
+  const { map, source } = await getSpecProjects(root);
+  if (source !== 'playwright') return;
   const files = specs.length > 0 ? specs : allSpecs;
   if (!files.some((f) => (map[f] || []).some((p) => projects.includes(p)))) {
     throw new Error('Không có file nào chạy được trên project đã chọn.');
   }
 }
 
-function validateOptions(input, root = process.env.QA_PROJECT_ROOT || process.cwd()) {
+async function validateOptions(input, root = process.env.QA_PROJECT_ROOT || process.cwd()) {
   const settings = getDashboardConfig();
   const allSpecs = listSpecs(null, root);
   const environment = String(input.environment || settings.runtime.defaultEnvironment);
@@ -128,7 +133,7 @@ function validateOptions(input, root = process.env.QA_PROJECT_ROOT || process.cw
   if (!Object.keys(settings.environments).includes(environment)) throw new Error('Environment không hợp lệ.');
   if (!Number.isInteger(workers) || workers < 1 || workers > 8) throw new Error('Luồng chạy phải từ 1 đến 8.');
   const { grep, tags } = parseGrep(input, root);
-  assertSomeSpecRuns(projects, specs, allSpecs, root);
+  await assertSomeSpecRuns(projects, specs, allSpecs, root);
 
   const spec = specs.length === 1 ? specs[0] : (specs.length > 1 ? specs.join(' ') : 'all');
   const options = { project, projects, environment, spec, specs, tags, grep, workers, headed: input.headed === true, viewport, suiteLabel };

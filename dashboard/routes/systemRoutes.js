@@ -10,7 +10,8 @@ const {
 } = require('../../core/config/dashboardConfig');
 const { getCurrentVersion } = require('../../core/system/updater');
 const { createRemoteRunService } = require('../../core/ci/remoteRunService');
-const { listSpecs, listSpecDetails, specProjects, getPlaywrightProjects } = require('../services/specService');
+const { listSpecs, listSpecDetails, getPlaywrightProjects } = require('../services/specService');
+const { getSpecProjects } = require('../services/specProjectsService');
 const { parseEnvFile, writeEnvFile } = require('./aiRoutes');
 const { sendJson, parseBody } = require('./routeUtils');
 const { handleSystemMaintenanceRoutes } = require('./systemMaintenanceRoutes');
@@ -54,13 +55,15 @@ async function handleSystemRoutes(request, response, url, context = {}) {
   if (request.method === 'GET' && url.pathname === '/api/config') {
     const settings = getDashboardConfig();
     const details = listSpecDetails(root);
+    const projectMap = await getSpecProjects(root);
     return sendJson(response, 200, {
       projects: getPlaywrightProjects(root),
       environments: Object.keys(settings.environments),
       specs: details.specs || listSpecs(path.join(root, 'tests'), root),
       specTags: details.specTags,
       availableTags: details.availableTags,
-      specProjects: specProjects(root),
+      specProjects: projectMap.map,
+      specProjectsSource: projectMap.source,
       defaults: { environment: settings.runtime.defaultEnvironment, workers: settings.runtime.workers },
       branding: publicDashboardConfig(settings).branding,
       suites: settings.suites || {},
