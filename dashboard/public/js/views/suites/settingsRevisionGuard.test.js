@@ -21,14 +21,25 @@ test('withBaseRevision adds baseRevision to JSON bodies only when a revision is 
   assert.equal(guard.withBaseRevision(notJson, 'r1'), notJson);
 });
 
-test('record keeps revision and server suites from GET and PUT 200, flags only 409 CONFIG_CONFLICT', () => {
+test('record: revision moves only on the first GET and on PUT 200, never on a later background GET', () => {
+  guard.state.revision = undefined;
   assert.equal(guard.record('GET', 200, { revision: 'a', suites: { s: 1 } }), false);
   assert.equal(guard.state.revision, 'a');
   assert.deepEqual(guard.getServerSuites(), { s: 1 });
+  guard.record('GET', 200, { revision: 'newer', suites: { s: 2 } });
+  assert.equal(guard.state.revision, 'a', 'a background GET must not adopt the newer revision');
+  assert.deepEqual(guard.getServerSuites(), { s: 2 });
   assert.equal(guard.record('PUT', 200, { revision: 'b', settings: { suites: { t: 2 } } }), false);
   assert.equal(guard.state.revision, 'b');
-  assert.deepEqual(guard.getServerSuites(), { t: 2 });
   assert.equal(guard.record('PUT', 409, { code: 'CONFIG_CONFLICT', revision: 'c' }), true);
   assert.equal(guard.state.revision, 'b', 'a conflict must not adopt the newer revision');
   assert.equal(guard.record('PUT', 400, { error: 'x' }), false);
+});
+
+test('setRenderedRevision adopts the revision of the rendered form and ignores missing ones', () => {
+  guard.state.revision = 'old';
+  guard.setRenderedRevision(undefined);
+  assert.equal(guard.state.revision, 'old');
+  guard.setRenderedRevision('rendered');
+  assert.equal(guard.state.revision, 'rendered');
 });

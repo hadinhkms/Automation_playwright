@@ -64,7 +64,7 @@
    */
   function install(win) {
     const doc = win.document;
-    const state = { lastPutError: null, lastCreateStamp: null };
+    const state = { lastPutError: null, creating: false };
     bindEditTracking(doc);
     // The Suites button is disabled for exactly the duration of its save (app.js), so it tells a Suites
     // save from a Settings save without any flag that could stay set after an exception.
@@ -106,9 +106,9 @@
     });
     // app.js binds createNewSuite twice (direct + delegated click); one click must make one suite.
     wrap('createNewSuite', (orig) => function guardedCreate() {
-      const stamp = win.event && win.event.timeStamp;
-      if (stamp !== undefined && stamp === state.lastCreateStamp) return undefined;
-      state.lastCreateStamp = stamp;
+      if (state.creating) return undefined;
+      state.creating = true;
+      setTimeout(() => { state.creating = false; }, 0); // both bindings run in the same click task
       return orig.apply(this, arguments);
     });
     wrap('updateSuitePlatformContext', (orig) => function guardedContext(platform, current) {

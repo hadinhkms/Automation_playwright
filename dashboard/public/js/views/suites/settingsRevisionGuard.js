@@ -31,11 +31,24 @@
     if (!body || typeof body !== 'object') return false;
     if (status === 409 && body.code === 'CONFIG_CONFLICT') { state.conflict = body; return true; }
     if (status < 200 || status >= 300) return false;
-    if (typeof body.revision === 'string') state.revision = body.revision;
+    // The revision belongs to what the user SEES: a PUT 200 (the form is re-rendered from it), the first
+    // GET of the page, or a form render (setRenderedRevision). Any other background GET must not move it,
+    // or a stale tab would pick up a newer revision and overwrite the other tab's save.
+    if (typeof body.revision === 'string' && (method === 'PUT' || state.revision === undefined)) state.revision = body.revision;
     const suites = method === 'PUT' ? body.settings && body.settings.suites : body.suites;
     if (suites && typeof suites === 'object') state.serverSuites = JSON.parse(JSON.stringify(suites));
-    if (method === 'GET') state.conflict = null;
     return false;
+  }
+
+  /** Called when the Settings form is rendered from a GET body: that is the data the user now edits. */
+  function setRenderedRevision(revision) {
+    if (typeof revision !== 'string' || !revision) return;
+    state.revision = revision;
+    state.conflict = null;
+    if (typeof document !== 'undefined') {
+      const box = document.getElementById('settings-conflict-banner');
+      if (box) box.style.display = 'none';
+    }
   }
 
   function showBanner(doc, message, onReload) {
@@ -50,12 +63,12 @@
       const btn = doc.createElement('button');
       btn.id = 'settings-conflict-reload';
       btn.type = 'button';
-      btn.textContent = 'Tải lại cấu hình';
+      btn.textContent = 'Tải lại (bỏ thay đổi chưa lưu)';
       btn.addEventListener('click', onReload);
       box.append(text, btn);
       doc.body.appendChild(box);
     }
-    box.querySelector('#settings-conflict-text').textContent = `${message} Dữ liệu bạn đang sửa vẫn được giữ trên form.`;
+    box.querySelector('#settings-conflict-text').textContent = `${message} Dữ liệu bạn đang sửa vẫn nằm trên form nhưng chưa được lưu; "Tải lại" sẽ BỎ các thay đổi chưa lưu đó.`;
     box.style.display = 'flex';
   }
 
@@ -75,10 +88,17 @@
         let body = null;
         try { body = await res.clone().json(); } catch (_) { /* non-JSON body: nothing to record */ }
         if (record(method, res.status, body)) showBanner(doc, body.error || 'Cấu hình đã được thay đổi ở nơi khác.', reload);
-        else if (method === 'GET' && res.ok) { const box = doc.getElementById('settings-conflict-banner'); if (box) box.style.display = 'none'; }
       }
       return res;
     };
+    if (typeof win.renderSettings === 'function') {
+      const origRender = win.renderSettings;
+      win.renderSettings = function guardedRender(settings) {
+        const result = origRender.apply(this, arguments);
+        setRenderedRevision(settings && settings.revision);
+        return result;
+      };
+    }
     // Learn the revision (and server suites) this page started from, even if Settings is never opened.
     win.fetch('/api/settings').catch(() => null);
   }
@@ -86,7 +106,7 @@
   if (typeof window !== 'undefined' && window.document && typeof window.fetch === 'function') install(window);
 
   return {
-    state, isSettingsUrl, withBaseRevision, record, install,
+    state, isSettingsUrl, withBaseRevision, record, setRenderedRevision, install,
     getServerSuites: () => state.serverSuites,
   };
 });

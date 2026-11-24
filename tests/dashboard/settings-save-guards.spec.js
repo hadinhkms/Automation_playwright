@@ -57,6 +57,8 @@ test.describe('Revision / 409 across two tabs', () => {
     const after = await getSettings(env.harness);
     expect(labels(after)).toContain('From A');
     expect(after.runtime.workers).toBe(workersBefore);
+    await expect(b.locator('#settings-conflict-reload')).toContainText('bỏ thay đổi chưa lưu');
+    await expect(b.locator('#settings-conflict-banner')).toContainText('BỎ các thay đổi chưa lưu');
     await b.click('#settings-conflict-reload');
     await expect(b.locator('#settings-workers')).toHaveValue(String(workersBefore));
     await expect(b.locator('#settings-conflict-banner')).toBeHidden();
@@ -75,6 +77,32 @@ test.describe('Revision / 409 across two tabs', () => {
     const l = labels(await getSettings(env.harness));
     expect(l).toContain('Second From A');
     expect(l).not.toContain('From B');
+  });
+
+  test('G1: a background GET /api/settings does not refresh the revision of an open Settings form', async ({ browser }) => {
+    const b = await (await browser.newContext()).newPage();
+    await openView(b, env.harness, 'settings-view', '.env-card');
+    await createAndSaveOnA(browser, 'G1 From A');
+    await b.evaluate(() => fetch('/api/settings').then((r) => r.json()));
+    await b.fill('#settings-workers', '6');
+    await clickSettingsSave(b);
+    await expect(b.locator('#toast')).toContainText('Cấu hình đã được thay đổi ở nơi khác');
+    expect(labels(await getSettings(env.harness))).toContain('G1 From A');
+    expect((await getSettings(env.harness)).runtime.workers).not.toBe(6);
+  });
+
+  test('G1: same for the Suites button (revision of the data on screen, not of a background GET)', async ({ browser }) => {
+    const b = await (await browser.newContext()).newPage();
+    await openView(b, env.harness, 'suites-view', '#suites-subnav-create');
+    await createAndSaveOnA(browser, 'G1 Suites From A');
+    await b.evaluate(() => fetch('/api/settings').then((r) => r.json()));
+    await b.click('#suites-subnav-create');
+    await b.fill('#suite-field-label', 'G1 From B');
+    await b.click('#suites-save-btn');
+    await expect(b.locator('#toast')).toContainText('Cấu hình đã được thay đổi ở nơi khác');
+    const l = labels(await getSettings(env.harness));
+    expect(l).toContain('G1 Suites From A');
+    expect(l).not.toContain('G1 From B');
   });
 
   test('after a successful save the next save from the same tab is not a conflict', async ({ page }) => {
@@ -115,14 +143,16 @@ test.describe('Suites / Settings save guards (F1, F3, F4)', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('F3: one click on "Tạo suite" creates exactly one suite', async ({ page }) => {
+  test('F3: one click on "Tạo suite" creates exactly one suite per click (repeated)', async ({ page }) => {
     await openView(page, env.harness, 'suites-view', '#suites-subnav-create');
     const items = page.locator('#suites-sidebar-list .suite-nav-item');
     const before = await items.count();
-    await page.click('#suites-subnav-create');
-    await expect(items).toHaveCount(before + 1);
-    await page.waitForTimeout(300);
-    await expect(items).toHaveCount(before + 1);
+    for (let i = 1; i <= 4; i += 1) {
+      await page.click('#suites-subnav-create');
+      await expect(items).toHaveCount(before + i);
+      await page.waitForTimeout(150);
+      await expect(items).toHaveCount(before + i);
+    }
   });
 
   test('F4: editing Settings fields (runtime and environment) is saved, not silently dropped', async ({ page }) => {
