@@ -37,6 +37,7 @@ test.describe('Runner view at 390px (L3)', () => {
       const o = await overflow(page);
       expect(o.wide, JSON.stringify(o)).toEqual([]);
       expect(o.doc).toBeLessThanOrEqual(0);
+      expect(o.body, `body.scrollWidth exceeds the viewport by ${o.body}px (top bar buttons?)`).toBeLessThanOrEqual(0);
       await expect(page.locator('#run-button')).toBeVisible();
       const box = await page.locator('#run-button').boundingBox();
       expect(box.x + box.width).toBeLessThanOrEqual(391);

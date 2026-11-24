@@ -126,4 +126,7 @@
   #runner-view .inline-fields { flex-wrap: wrap; }
 }
 
-.runner-dashboard-toggle { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font-size: 12px; color: var(--muted); cursor: pointer; }
+.runner-dashboard-toggle { display: flex; align-items: center; gap: 6px; margin: 8px 20px 0; /* = .runner-config-body padding */ font-size: 12px; color: var(--muted); cursor: pointer; }
+
+.runner-tag-warning { margin: 6px 0 0; padding: 6px 10px; border-radius: 6px; font-size: 12px; color: #664d03; background: #fff3cd; border: 1px solid #ffda6a; }
+.runner-tag-warning[hidden] { display: none; }

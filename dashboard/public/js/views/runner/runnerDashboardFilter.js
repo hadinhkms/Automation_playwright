@@ -51,7 +51,13 @@
       const result = orig.apply(this, arguments);
       const select = doc.querySelector('#spec');
       if (select && !state.show) {
-        Array.from(select.options).forEach((o) => { if (isInternal(o.value) && o.value !== select.value) o.remove(); });
+        const hadInternal = isInternal(select.value);
+        Array.from(select.options).forEach((o) => { if (isInternal(o.value)) o.remove(); });
+        if (hadInternal) { // the chosen file is hidden now: never keep running something the list no longer shows
+          select.value = 'all';
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+          if (typeof win.notify === 'function') win.notify('Đã chuyển về "Tất cả file test" vì test của Dashboard đang ẩn.');
+        }
       }
       return result;
     });
@@ -66,7 +72,7 @@
     afterRender('updateManualSpecsPreview', () => {
       const h = pruneList(doc.querySelector('#manual-specs-preview-list'), doc.querySelector('#manual-specs-preview-count'), '.suite-summary-pill');
       const title = doc.querySelector('#manual-specs-preview-title');
-      if (h && title) title.textContent = title.textContent.replace(/\d+/, (n) => String(Math.max(0, Number(n) - h)));
+      if (h && title) title.textContent = title.textContent.replace(/^(Tìm thấy )(\d+)( file)/, (_, a, n, b) => `${a}${Math.max(0, Number(n) - h)}${b}`);
     });
     afterRender('updateSuiteSummaryBox', () => pruneList(doc.querySelector('#suite-sum-files-list'), doc.querySelector('#suite-sum-count'), '.suite-summary-pill'));
     afterRender('updateExecutionPlanBox', () => pruneList(doc.querySelector('#execution-plan-list'), doc.querySelector('#execution-plan-count'), '.plan-spec-item'));

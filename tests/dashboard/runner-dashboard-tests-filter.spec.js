@@ -46,11 +46,12 @@ test.describe('Runner hides Dashboard-internal tests (L2)', () => {
     await expect(pills).toHaveCount(1);
     await expect(page.locator('#manual-specs-preview-list')).not.toContainText('internal.spec.js');
     await expect(page.locator('#manual-specs-preview-count')).toContainText('1');
+    await expect(page.locator('#manual-specs-preview-title')).toHaveText('Tìm thấy 1 file có tag "@smoke"');
     await page.check('#runner-show-dashboard-tests');
     await expect(pills).toHaveCount(2);
   });
 
-  test('a saved suite that contains a Dashboard test still runs it (data untouched, shown as hidden)', async ({ page }) => {
+  test('a saved suite keeps its Dashboard file path in the run payload (data untouched, listed as hidden)', async ({ page }) => {
     const suites = { mixed: { label: 'Mixed', type: 'single', platform: 'desktop', project: 'all', specs: ['tests/e2e/desktop/alpha.spec.js', INTERNAL], spec: 'custom', grep: '', workers: 1, viewport: { preset: 'default', width: 1920, height: 1080 } } };
     const put = await fetch(`${harness.url}/api/settings`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suites }) });
     expect(put.status).toBe(200);
@@ -68,4 +69,31 @@ test.describe('Runner hides Dashboard-internal tests (L2)', () => {
     const saved = (await (await fetch(`${harness.url}/api/settings`)).json()).suites.mixed;
     expect(saved.specs).toContain(INTERNAL);
   });
+
+  test('R2: hiding while an internal file is selected resets the selection to all files', async ({ page }) => {
+    await openManual(page);
+    await page.check('#runner-show-dashboard-tests');
+    await page.click('.runner-scope-tab-btn[data-manual-scope="file"]');
+    await page.selectOption('#spec', INTERNAL);
+    expect(await page.inputValue('#spec')).toBe(INTERNAL);
+    await page.uncheck('#runner-show-dashboard-tests');
+    expect(await page.inputValue('#spec')).toBe('all');
+    expect(await specOptions(page)).not.toContain(INTERNAL);
+    await expect(page.locator('#toast')).toContainText('Tất cả file test');
+    let body = null;
+    await page.route('**/api/run', (route) => { body = route.request().postDataJSON(); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'x', status: 'running', command: [], logs: [] }) }); });
+    await page.click('#run-button');
+    await expect.poll(() => body).not.toBeNull();
+    expect(JSON.stringify(body)).not.toContain('tests/dashboard');
+  });
+
+  for (const width of [390, 768]) {
+    test(`R4: the switch lines up with the form fields at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(harness.url);
+      await page.waitForSelector('#runner-show-dashboard-tests');
+      const left = (sel) => page.locator(sel).evaluate((e) => Math.round(e.getBoundingClientRect().left));
+      expect(Math.abs((await left('.runner-dashboard-toggle')) - (await left('#runner-suite-select')))).toBeLessThanOrEqual(1);
+    });
+  }
 });
