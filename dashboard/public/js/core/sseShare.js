@@ -15,6 +15,9 @@
 
   function entryFor(key, url, init) {
     let entry = shared.get(key);
+    // a source that FAILED for good (CLOSED: 4xx, wrong content-type) never reconnects by itself: do not hand it out again.
+    // Proxies already attached keep reading its CLOSED state, like a native EventSource that died.
+    if (entry && entry.source.readyState === 2) { shared.delete(key); entry = null; }
     if (entry) return entry;
     entry = { source: new Native(url, init), proxies: new Set(), bound: new Set() };
     shared.set(key, entry);
@@ -65,7 +68,7 @@
       if (proxy.__closed) return;
       proxy.__closed = true;
       entry.proxies.delete(proxy);
-      if (!entry.proxies.size) { entry.source.close(); shared.delete(key); }
+      if (!entry.proxies.size) { entry.source.close(); if (shared.get(key) === entry) shared.delete(key); } // a replaced entry must not remove its successor
     };
     entry.proxies.add(proxy);
     return proxy;
