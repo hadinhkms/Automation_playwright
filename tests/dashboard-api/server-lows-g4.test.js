@@ -60,6 +60,16 @@ describe('O-5: /api/mp without a Hub answers 503', () => {
     });
   }
 
+  // Gate 3 M2: the Hub check follows the real route (method + path/action), so wrong ones keep their own error.
+  test('wrong method / unknown route / unknown action are not masked by 503', async () => {
+    assert.equal((await fetch(`${harness.url}/api/mp/doctor`)).status, 404);
+    assert.equal((await post(harness, '/api/mp/not-a-route', {})).status, 404);
+    const bad = await post(harness, '/api/mp/run', { action: 'bogus' });
+    assert.equal(bad.status, 400);
+    assert.match((await bad.json()).error, /Action không hợp lệ: bogus/);
+    if (!hubPresent) assert.equal((await post(harness, '/api/mp/run', { action: 'doctor' })).status, 503);
+  });
+
   test('GET /api/mp/status keeps answering 200 {available:false}', async (t) => {
     if (hubPresent) return t.skip('a Master Process Hub exists on this machine');
     const res = await fetch(`${harness.url}/api/mp/status`);

@@ -36,6 +36,8 @@ function loadConfigFile(configPath) {
 }
 
 function loadPlaywrightConfig(root = process.env.QA_PROJECT_ROOT || process.cwd()) {
+  // Lỗi của lần đọc trước (root khác) không được gắn sang root này.
+  lastConfigError = null;
   try {
     const configPath = path.join(root, 'playwright.config.js');
     if (!fs.existsSync(configPath)) return null;

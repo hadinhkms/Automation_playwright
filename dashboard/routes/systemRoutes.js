@@ -6,15 +6,15 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const {
-  CONFIG_PATH, getDashboardConfig, publicDashboardConfig, saveDashboardConfig,
+  getDashboardConfig, publicDashboardConfig,
 } = require('../../core/config/dashboardConfig');
 const { getCurrentVersion } = require('../../core/system/updater');
 const { createRemoteRunService } = require('../../core/ci/remoteRunService');
 const { listSpecs, listSpecDetails, specProjects, getPlaywrightProjects } = require('../services/specService');
-const { createBackup } = require('../services/resourceService');
 const { parseEnvFile, writeEnvFile } = require('./aiRoutes');
 const { sendJson, parseBody } = require('./routeUtils');
 const { handleSystemMaintenanceRoutes } = require('./systemMaintenanceRoutes');
+const { handleSettingsRoutes } = require('./settingsRoutes');
 
 const remoteRunConfig = { environments: {}, suites: {}, github: {} };
 const remoteRunService = createRemoteRunService({ config: remoteRunConfig, allowProd: process.env.DASHBOARD_ALLOW_PROD_REMOTE === '1' });
@@ -70,23 +70,12 @@ async function handleSystemRoutes(request, response, url, context = {}) {
     return sendJson(response, 200, { appName, workspaceRoot: root, port, pid: process.pid }) || true;
   }
   if (await handleSystemMaintenanceRoutes(request, response, url, context)) return true;
+  if (await handleSettingsRoutes(request, response, url, context)) return true;
 
   if (request.method === 'GET' && url.pathname === '/api/system/version') {
     return sendJson(response, 200, {
       appName, version: getCurrentVersion(), workspaceRoot: root, engineDir, port, isEngineStandalone: root === engineDir,
     }) || true;
-  }
-  if (request.method === 'GET' && url.pathname === '/api/settings') {
-    return sendJson(response, 200, publicDashboardConfig()) || true;
-  }
-  if (request.method === 'PUT' && url.pathname === '/api/settings') {
-    try {
-      const body = await parseBody(request);
-      const backup = createBackup('core/config/dashboardConfig.json', CONFIG_PATH, root);
-      const saved = saveDashboardConfig(body);
-      sendJson(response, 200, { message: 'Đã lưu cấu hình.', backup, settings: publicDashboardConfig(saved) });
-    } catch (e) { sendJson(response, 400, { error: `Không thể lưu cấu hình: ${e.message}` }); }
-    return true;
   }
   if (request.method === 'POST' && url.pathname === '/api/remote-run') {
     try {

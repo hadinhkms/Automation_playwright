@@ -24,11 +24,14 @@ const {
   runMasterAction,
 } = require('../services/masterProcessService');
 
-// Các endpoint chạy master.py: không có Hub thì trả 503 rõ ràng thay vì 500 từ lỗi nội bộ.
-const HUB_REQUIRED = new Set([
-  '/api/mp/run', '/api/mp/init', '/api/mp/sync', '/api/mp/install-hooks', '/api/mp/audit',
-  '/api/mp/doctor', '/api/mp/probes', '/api/mp/evidence/export', '/api/mp/evidence/review',
-]);
+// Các endpoint chạy master.py, theo ĐÚNG method: không có Hub thì 503 rõ ràng thay vì 500 nội bộ.
+// Method/action sai không nằm ở đây nên vẫn ra lỗi đúng của chúng (404/400), không bị 503 che.
+const HUB_REQUIRED = {
+  '/api/mp/run': ['POST'], '/api/mp/init': ['POST'], '/api/mp/sync': ['POST'], '/api/mp/install-hooks': ['POST'],
+  '/api/mp/audit': ['GET', 'POST'], '/api/mp/doctor': ['POST'], '/api/mp/probes': ['POST'],
+  '/api/mp/evidence/export': ['POST'], '/api/mp/evidence/review': ['POST'],
+};
+const RUN_ACTIONS = new Set(['doctor', 'audit', 'optimize', 'probes', 'export-evidence', 'review-evidence']);
 
 async function handleMasterProcessRoutes(request, response, url, context = {}) {
   const normPath = url.pathname.replace(/^\/api\/master-process\//, '/api/mp/');
@@ -42,7 +45,10 @@ async function handleMasterProcessRoutes(request, response, url, context = {}) {
     }
     const target = body.targetPath || body.projectRoot || url.searchParams.get('target') || fallbackRoot;
     const projectRoot = validateProjectPath(target, fallbackRoot);
-    if (HUB_REQUIRED.has(normPath) && !detectMasterRoot(projectRoot)) throw hubNotFoundError();
+    if (normPath === '/api/mp/run' && request.method === 'POST' && !RUN_ACTIONS.has(body.action)) {
+      return sendJson(response, 400, { ok: false, error: `Action không hợp lệ: ${body.action}.` });
+    }
+    if (HUB_REQUIRED[normPath]?.includes(request.method) && !detectMasterRoot(projectRoot)) throw hubNotFoundError();
 
     if (normPath === '/api/mp/projects' && request.method === 'GET') {
       const currentRoot = path.resolve(fallbackRoot).replace(/\\/g, '/');
