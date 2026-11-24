@@ -4,12 +4,12 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { spawn, execSync } = require('child_process');
+const { spawn } = require('child_process');
 const { sendJson, parseBody } = require('./routeUtils');
+const { maskSecrets } = require('../services/secretMask');
+const { handleRecorderDraftRoutes } = require('./recorderDraftRoutes');
 const { getDashboardConfig } = require('../../core/config/dashboardConfig');
-const { parsePlaywrightScript, scanPages } = require('../../core/generator/recordParser');
-const { transformToPomAndSpec } = require('../../core/generator/recordTransformer');
-const { saveDraftFiles } = require('../../core/generator/recordWriter');
+const { parsePlaywrightScript } = require('../../core/generator/recordParser');
 const {
   isProcessAlive,
   killRecorderProcess,
@@ -17,7 +17,6 @@ const {
   ensureRecordingsDir,
   listRecentRecordings
 } = require('../services/recorderService');
-const { createBackup } = require('../services/resourceService');
 const { publish } = require('../services/runnerService');
 
 let activeRecorder = null;
@@ -83,7 +82,7 @@ async function handleRecorderRoutes(request, response, url, context = {}) {
       await new Promise((resolve) => setTimeout(resolve, 600));
       if (earlyExitCode !== null) {
         if (activeRecorder?.child === child) activeRecorder = null;
-        return sendJson(response, 500, { error: `Không thể mở Playwright Codegen: tiến trình đã thoát sớm (mã thoát: ${earlyExitCode}). ${stderrBuffer.trim()}` });
+        return sendJson(response, 500, { error: `Không thể mở Playwright Codegen: tiến trình đã thoát sớm (mã thoát: ${earlyExitCode}). ${maskSecrets(stderrBuffer.trim())}` });
       }
 
       publish('recorder_status', { isRecording: true, url: targetUrl, platform, fileName, startTime: activeRecorder.startTime });
@@ -151,50 +150,7 @@ async function handleRecorderRoutes(request, response, url, context = {}) {
     }
   }
 
-  if (request.method === 'POST' && url.pathname === '/api/recorder/scan-pages') {
-    try {
-      const body = await parseBody(request);
-      const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
-      return sendJson(response, 200, { platform, pages: scanPages(platform, root) });
-    } catch (err) {
-      return sendJson(response, 400, { error: err.message });
-    }
-  }
-
-  if (request.method === 'POST' && (url.pathname === '/api/recorder/convert' || url.pathname === '/api/recorder/generate-draft')) {
-    try {
-      const body = await parseBody(request);
-      const platform = body.platform === 'mobile-web' ? 'mobile-web' : 'desktop';
-      const parsed = parsePlaywrightScript(String(body.rawScript || ''));
-      const result = transformToPomAndSpec({
-        platform,
-        actions: body.actions || parsed.actions,
-        isNewPage: body.isNewPage !== false,
-        pageClassName: body.pageClassName || 'CustomPage',
-        baseClass: 'BasePage',
-        methodName: body.methodName || 'performRecordedActions',
-        featureName: body.featureName || 'Recorded Feature',
-        testName: body.testName || 'Recorded Scenario',
-        includeEvidence: body.includeEvidence !== false,
-        url: parsed.detectedUrl || parsed.url || '',
-      });
-      return sendJson(response, 200, result);
-    } catch (err) {
-      return sendJson(response, 400, { error: err.message });
-    }
-  }
-
-  if (request.method === 'POST' && (url.pathname === '/api/recorder/save-draft' || url.pathname === '/api/recorder/save')) {
-    try {
-      const body = await parseBody(request);
-      const saveResult = saveDraftFiles({ ROOT: root, pomFile: body.pomFile, specFile: body.specFile, createBackupFn: createBackup, execSyncFn: execSync });
-      return sendJson(response, 200, saveResult);
-    } catch (err) {
-      return sendJson(response, 400, { error: err.message });
-    }
-  }
-
-  return false;
+  return handleRecorderDraftRoutes(request, response, url, root);
 }
 
 function stopRecorderSession() {

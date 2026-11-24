@@ -9,6 +9,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { canonicalPath, isForeignDrivePath } = require('./projectPathGuard');
 const { controlCharError, hasControlChars } = require('./masterProcessErrors');
+const { createMasker } = require('./secretMask');
 
 let syncManifest = null;
 try {
@@ -131,17 +132,18 @@ function runCommand(cmd, args, cwd, options = {}) {
 
     proc.stdout.on('data', (d) => { stdout += d.toString(); });
     proc.stderr.on('data', (d) => { stderr += d.toString(); });
+    const mask = createMasker(); // Z-4: stdout/stderr đi qua HTTP (status, audit, probes...) không được lộ bí mật
     proc.on('close', (code) => {
       clearTimeout(timer);
       if (timedOut) {
-        resolve({ code: 124, stdout: stdout.trim(), stderr: (stderr + '\n[TIMEOUT] Subprocess timed out after 60s').trim(), ok: false, timedOut: true });
+        resolve({ code: 124, stdout: mask(stdout.trim()), stderr: mask((stderr + '\n[TIMEOUT] Subprocess timed out after 60s').trim()), ok: false, timedOut: true });
       } else {
-        resolve({ code: code || 0, stdout: stdout.trim(), stderr: stderr.trim(), ok: code === 0, timedOut: false });
+        resolve({ code: code || 0, stdout: mask(stdout.trim()), stderr: mask(stderr.trim()), ok: code === 0, timedOut: false });
       }
     });
     proc.on('error', (err) => {
       clearTimeout(timer);
-      resolve({ code: 1, stdout: '', stderr: err.message, ok: false, timedOut: false });
+      resolve({ code: 1, stdout: '', stderr: mask(err.message), ok: false, timedOut: false });
     });
   });
 }

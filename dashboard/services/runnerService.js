@@ -75,8 +75,11 @@ function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT ||
   // B-2: mọi dòng log được che bí mật TRƯỚC khi vào bộ đệm /api/state và trước khi phát SSE (stdout, stderr, lỗi spawn).
   const mask = createMasker();
   const maskers = ['stdout', 'stderr'].map((stream) => createLogMasker(mask, (text) => publish('log', { stream, text })));
-  child.stdout.on('data', (d) => maskers[0].push(d.toString()));
-  child.stderr.on('data', (d) => maskers[1].push(d.toString()));
+  // Z-3: setEncoding (StringDecoder) trước masker, nếu không ký tự đa byte bị cắt giữa hai chunk thành U+FFFD.
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (d) => maskers[0].push(d));
+  child.stderr.on('data', (d) => maskers[1].push(d));
 
   child.on('error', (err) => publish('log', { stream: 'stderr', text: `${mask(err.message)}\n` }));
   child.on('close', (exitCode, signal) => {

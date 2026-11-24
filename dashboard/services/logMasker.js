@@ -3,6 +3,8 @@
  * Che bí mật trong log của tiến trình con theo TỪNG DÒNG trước khi lưu bộ đệm/phát SSE. Dòng dở dang (chưa có
  * xuống dòng) được giữ lại tối đa FLUSH_MS để một bí mật bị cắt giữa hai chunk vẫn được che đủ; hết hạn hoặc khi
  * tiến trình kết thúc (flush) thì phát phần còn lại (đã che). Không đổi shape của sự kiện log.
+ * GIỚI HẠN ĐÃ BIẾT (Z-2): một bí mật được ghi thành NHIỀU LẦN cách nhau hơn FLUSH_MS mà không có xuống dòng, hoặc
+ * vắt qua mốc MAX_PENDING (8 KB), có thể bị phát thành hai nửa riêng lẻ và không khớp mẫu nào -> không được che.
  */
 const FLUSH_MS = 200;
 const MAX_PENDING = 8192; // dòng quá dài không xuống dòng: vẫn phải phát, tránh giữ vô hạn

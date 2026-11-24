@@ -23,6 +23,14 @@ test('leaky', async () => {
   throw new Error('boom https://admin:Pa55w0rdXYZ@host.example/db');
 });\n`;
 
+const UTF8_SPEC = 'tests/e2e/desktop/utf8.spec.js';
+const VN = 'Đăng nhập thất bại: không tìm thấy tài khoản ệ';
+const UTF8_SOURCE = `const { test } = require(${PW});
+test('utf8', async () => {
+  process.stdout.write('ệệ '.repeat(40000) + '\\n'); // 7 bytes per unit: 64 KiB pipe chunks cut it mid-character
+  process.stdout.write(('${VN} ').repeat(3000) + '\\n');
+});\n`;
+
 describe('live run logs are masked', () => {
   let fixture; let harness; let root;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -33,6 +41,7 @@ describe('live run logs are masked', () => {
     fs.writeFileSync(path.join(root, 'playwright.config.js'), "module.exports = { testDir: './tests', retries: 0, reporter: [['list']], projects: [{ name: 'Desktop Smoke Tests', testMatch: '**/e2e/desktop/**' }] };\n");
     fs.mkdirSync(path.join(root, 'tests/e2e/desktop'), { recursive: true });
     fs.writeFileSync(path.join(root, SPEC), SPEC_SOURCE);
+    fs.writeFileSync(path.join(root, UTF8_SPEC), UTF8_SOURCE);
     process.env.QA_SECRET_TOKEN = ENV_SECRET;
     try { harness = await startDashboardHarness(root); } finally { delete process.env.QA_SECRET_TOKEN; }
   });
@@ -66,6 +75,29 @@ describe('live run logs are masked', () => {
     assert.match(logText, /stdout url https:\/\/\*\*\*@host\.example\/db/);
     assert.match(logText, /1 failed/, 'ordinary output is untouched');
     assert.ok(state.logs.every((e) => e.type === 'log' && typeof e.payload.stream === 'string' && typeof e.payload.text === 'string'), 'shape unchanged');
+  });
+});
+
+describe('Z-3: multi-byte characters split between chunks survive (web)', () => {
+  let fixture; let harness;
+  before(async () => {
+    fixture = createFixtureWorkspace();
+    fs.writeFileSync(path.join(fixture.rootPath, 'playwright.config.js'), "module.exports = { testDir: './tests', retries: 0, reporter: [['list']], projects: [{ name: 'Desktop Smoke Tests', testMatch: '**/e2e/desktop/**' }] };\n");
+    fs.mkdirSync(path.join(fixture.rootPath, 'tests/e2e/desktop'), { recursive: true });
+    fs.writeFileSync(path.join(fixture.rootPath, UTF8_SPEC), UTF8_SOURCE);
+    harness = await startDashboardHarness(fixture.rootPath);
+  });
+  after(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
+
+  test('300 KB of 3-byte and Vietnamese text arrives intact: no U+FFFD, exact counts', async () => {
+    const start = await fetch(`${harness.url}/api/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ specs: [UTF8_SPEC], projects: ['Desktop Smoke Tests'] }) });
+    assert.equal(start.status, 202);
+    for (let i = 0; i < 150; i += 1) { if (!(await (await fetch(`${harness.url}/api/state`)).json()).activeRun) break; await new Promise((r) => setTimeout(r, 100)); }
+    const state = await (await fetch(`${harness.url}/api/state`)).json();
+    const text = state.logs.map((e) => e.payload.text).join('');
+    assert.ok(!text.includes('\uFFFD'), 'a multi-byte character was split into replacement characters');
+    assert.equal((text.match(/ệ/g) || []).length, 80000 + 3000, 'every ệ of the long line and of the sentences arrives');
+    assert.equal((text.match(/Đăng nhập thất bại: không tìm thấy tài khoản ệ/g) || []).length, 3000);
   });
 });
 

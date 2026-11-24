@@ -55,8 +55,9 @@ function pipe(run, stream, name) {
     publish('mobile_log', { runId: run.id, stream: name, text });
   });
   run.flushLogs.push(masker.flush);
+  stream.setEncoding('utf8'); // Z-3: không làm vỡ ký tự đa byte giữa hai chunk
   stream.on('data', (chunk) => {
-    const text = chunk.toString();
+    const text = String(chunk);
     masker.push(text);
     const lines = (run.lineBuffer[name] + text).split(/\r?\n/);
     run.lineBuffer[name] = lines.pop();
