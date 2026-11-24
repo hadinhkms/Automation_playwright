@@ -9,6 +9,7 @@
  */
 
 const crypto = require('node:crypto');
+const { dedupeFindings } = require('../../tools/qa/lib/summaryDedupe');
 
 /**
  * quick: sửa tự động bằng quy tắc xác định; guided: cần người dùng chọn (Phase 4);
@@ -95,24 +96,13 @@ function createMatchKey(finding) {
  * nên scanner báo lặp lại y hệt; `occurrences` giữ số lần lặp để UI hiện badge.
  */
 function enrichFindings(findings) {
-  const byKey = new Map();
-  for (const finding of Array.isArray(findings) ? findings : []) {
-    if (!finding || typeof finding !== 'object') continue;
-    const findingKey = createFindingKey(finding);
-    const existing = byKey.get(findingKey);
-    if (existing) {
-      existing.occurrences += 1;
-      continue;
-    }
-    byKey.set(findingKey, {
-      ...finding,
-      findingKey,
-      matchKey: createMatchKey(finding),
-      fixRoute: routeFor(finding.kind),
-      occurrences: 1,
-    });
-  }
-  return [...byKey.values()];
+  // Cùng một hàm gộp (kind|where|message) với `node tools/qa summary`: CLI và API không thể lệch số.
+  return dedupeFindings(findings).map((finding) => ({
+    ...finding,
+    findingKey: createFindingKey(finding),
+    matchKey: createMatchKey(finding),
+    fixRoute: routeFor(finding.kind),
+  }));
 }
 
 module.exports = {

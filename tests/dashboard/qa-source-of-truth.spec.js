@@ -10,6 +10,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { startDashboardHarness } = require('./support/dashboardHarness');
 const { createFixtureWorkspace } = require('./support/fixtureWorkspace');
+const { seedBatchFixture } = require('./support/batchFixtureSeed');
 
 const ENGINE = path.resolve(__dirname, '..', '..');
 
@@ -58,5 +59,34 @@ test.describe('QA view: một nguồn sự thật cho số liệu (UI = API = CL
     await expect(page.locator('#qa-health-findings-text')).toHaveText(`${api.health.totalFindings} phát hiện`);
     await expect(page.locator('#qa-health-status')).toHaveText(api.systemHealth);
     await expect(page.locator('#qa-shield-status')).toHaveText(api.boundary.status);
+  });
+
+  test('finding lặp giữa các Playwright project được gộp giống nhau ở UI, API và CLI (Gate 3 F3)', async ({ page }) => {
+    const dupFixture = createFixtureWorkspace();
+    seedBatchFixture(dupFixture.rootPath);
+    const dupHarness = await startDashboardHarness(dupFixture.rootPath);
+    try {
+      const script = "require(process.argv[1]).main({ root: process.argv[2], argv: ['summary', '--json'] })";
+      const cli = JSON.parse(execFileSync(process.execPath, ['-e', script, path.join(ENGINE, 'tools/qa/index.js'), dupFixture.rootPath], { cwd: ENGINE, encoding: 'utf8' }));
+      const api = await (await fetch(`${dupHarness.url}/api/qa/summary?force=true`)).json();
+      // Fixture thật sự có lặp (nếu không thì test này vô nghĩa): CLI gộp xuống ít hơn số finding thô.
+      const raw = require(path.join(ENGINE, 'tools/qa/lib/commands')).summary(dupFixture.rootPath, { json: true });
+      expect(raw.findings.length).toBeGreaterThan(cli.findings.length);
+      expect(cli.findings.some((f) => f.occurrences > 1)).toBe(true);
+
+      expect(api.health).toEqual(cli.health);
+      expect(api.findings.length).toBe(cli.findings.length);
+      expect(api.findings.map((f) => f.occurrences).sort()).toEqual(cli.findings.map((f) => f.occurrences).sort());
+
+      await page.goto(dupHarness.url);
+      await page.waitForSelector('.shell');
+      await page.waitForFunction(() => Boolean(window.__STUDIO_CORE__));
+      await page.evaluate(() => window.__STUDIO_CORE__.featureRegistry.switchView('qa-view'));
+      await expect(page.locator('#qa-health-findings-text')).toHaveText(`${cli.health.totalFindings} phát hiện`);
+      await expect(page.locator('#qa-stat-major')).toHaveText(String(cli.health.blockers + cli.health.majors));
+    } finally {
+      await dupHarness.stop();
+      dupFixture.cleanup();
+    }
   });
 });

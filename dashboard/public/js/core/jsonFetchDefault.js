@@ -3,6 +3,9 @@
  * Server từ chối (415) API đổi trạng thái không có Content-Type: application/json.
  * Shim nhỏ này gắn header đó cho fetch cùng origin tới /api/* (POST/PUT/PATCH/DELETE) khi
  * caller chưa đặt và body là chuỗi hoặc không có (vd. POST /api/stop). Không đụng FormData/Blob.
+ * GIỚI HẠN: không xử lý `fetch(new Request(...))` (Request tự gắn Content-Type riêng) và body
+ * URLSearchParams (urlencoded) -> server trả 415. Caller phải tự đặt `Content-Type: application/json`
+ * và truyền JSON.stringify(...) khi gọi API ghi theo hai kiểu đó.
  */
 (function installJsonFetchDefault() {
   const nativeFetch = window.fetch.bind(window);
