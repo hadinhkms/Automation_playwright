@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { canonicalPath, isForeignDrivePath } = require('./projectPathGuard');
 
 let syncManifest = null;
 try {
@@ -98,10 +99,10 @@ function getAllowedProjectRoots(fallbackRoot) {
 function validateProjectPath(targetPath, fallbackRoot) {
   const chosen = targetPath || fallbackRoot || process.cwd();
   const resolved = path.resolve(chosen);
-  const normalized = normalizePath(resolved);
+  const normalized = normalizePath(canonicalPath(resolved));
   const allowedRoots = getAllowedProjectRoots(fallbackRoot);
-  const isAllowed = allowedRoots.some((allowed) => {
-    const normAllowed = normalizePath(allowed);
+  const isAllowed = !isForeignDrivePath(chosen) && allowedRoots.some((allowed) => {
+    const normAllowed = normalizePath(canonicalPath(allowed));
     return normalized === normAllowed || normalized.startsWith(normAllowed + '/');
   });
   if (!isAllowed) {

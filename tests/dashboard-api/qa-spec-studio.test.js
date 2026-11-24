@@ -355,16 +355,18 @@ describe('PLAN-19b QA Spec Studio API Suite', () => {
     const planRootDir = path.resolve(__dirname, '../../_Plan_implement');
     assert.ok(fs.existsSync(planRootDir), '_Plan_implement directory must exist');
 
-    // 1. Root folder must only contain active plan directory, archive, and README.md
+    // 1. Root folder only holds active plan directories, archive and README.md. Which plans are
+    //    active changes over time (PLAN-24 and PLAN-25 coexist), so the invariant is: PLAN-24's folder
+    //    is there and every active folder is linked from README.md (no orphan, unindexed plan).
     const rootEntries = fs.readdirSync(planRootDir);
     const nonArchiveDirs = rootEntries.filter(
       (entry) => entry !== 'README.md' && entry !== 'archive' && !entry.startsWith('.')
     );
-    assert.deepEqual(
-      nonArchiveDirs,
-      ['probe-hardening-and-git-hygiene'],
-      'Only probe-hardening-and-git-hygiene should be active in _Plan_implement'
-    );
+    assert.ok(nonArchiveDirs.includes('probe-hardening-and-git-hygiene'), 'probe-hardening-and-git-hygiene (PLAN-24) must stay in _Plan_implement');
+    const indexed = fs.readFileSync(path.join(planRootDir, 'README.md'), 'utf8');
+    for (const dir of nonArchiveDirs) {
+      assert.ok(indexed.includes(`](${dir}/)`), `Active plan folder "${dir}" must be linked from _Plan_implement/README.md`);
+    }
 
     // 2. Archived plans 20, 21, 22, 23 must exist in archive/2026-10
     const archiveOctDir = path.join(planRootDir, 'archive', '2026-10');
