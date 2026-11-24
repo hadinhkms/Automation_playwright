@@ -11,6 +11,7 @@ const {
   deleteCustomFixture,
 } = require('../../core/generator/objectRepository');
 const { sendJson, parseBody } = require('./routeUtils');
+const { guardFixtureDelete } = require('../services/deleteGuards');
 
 async function handleFixtureRoutes(request, response, url, context = {}) {
   const root = context.root || process.env.QA_PROJECT_ROOT || process.cwd();
@@ -89,7 +90,11 @@ async function handleFixtureRoutes(request, response, url, context = {}) {
     return true;
   }
 
-  if ((request.method === 'DELETE' || request.method === 'POST') && url.pathname.startsWith('/api/fixtures/delete')) {
+  // Chỉ đúng `POST /api/fixtures/delete` (body {name, expectedRevision}) hoặc dạng có dấu `/`: `/api/fixtures/delete/<name>`.
+  // KHÔNG dùng startsWith('/api/fixtures/delete') trần: nó bắt cả fixture tên "deleteX" và cắt mất 1 ký tự tên.
+  const isDeleteEndpoint = (request.method === 'POST' && url.pathname === '/api/fixtures/delete')
+    || ((request.method === 'DELETE' || request.method === 'POST') && url.pathname.startsWith('/api/fixtures/delete/'));
+  if (isDeleteEndpoint) {
     try {
       const body = request.method === 'POST' ? await parseBody(request) : {};
       const fixtureName = body.name || decodeURIComponent(url.pathname.slice('/api/fixtures/delete/'.length));
@@ -97,6 +102,7 @@ async function handleFixtureRoutes(request, response, url, context = {}) {
         sendJson(response, 400, { error: 'Tên fixture không hợp lệ hoặc bị thiếu.' });
         return true;
       }
+      guardFixtureDelete(fixtureName, root);
       const result = deleteCustomFixture(fixtureName, root, body.expectedRevision);
       sendJson(response, 200, result);
     } catch (error) {
@@ -114,6 +120,7 @@ async function handleFixtureRoutes(request, response, url, context = {}) {
         return true;
       }
       const body = await parseBody(request).catch(() => ({}));
+      guardFixtureDelete(fixtureName, root);
       const result = deleteCustomFixture(fixtureName, root, body.expectedRevision);
       sendJson(response, 200, result);
     } catch (error) {

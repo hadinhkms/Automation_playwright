@@ -61,6 +61,20 @@ test.describe('NB-03: delete buttons in Data / Fixtures / BDD', () => {
     await expect(page.locator('.fixture-card-item[data-name="zzDeleteMe"]')).toHaveCount(0);
   });
 
+  test('Fixtures: deleting a fixture whose name starts with "delete" removes exactly that fixture (Gate 3 H1)', async ({ page }) => {
+    const cfg = { description: 'x', deleteEndpoint: '/api/x/${id}', deleteMethod: 'DELETE' };
+    expect((await post(harness, '/api/fixtures', { name: 'deleteabc', template: 'cleanup_api', config: cfg })).success).toBe(true);
+    expect((await post(harness, '/api/fixtures', { name: 'bc', template: 'cleanup_api', config: cfg })).success).toBe(true);
+    await page.goto(`${harness.url}/#/fixtures-view`);
+    await page.locator('.fixture-card-item[data-name="deleteabc"]').click();
+    await page.click('#btn-delete-fixture');
+    await confirmModal(page);
+    await expect.poll(() => onDisk('core/fixtures/custom/deleteabc.fixture.js')).toBe(false);
+    expect(onDisk('core/fixtures/custom/bc.fixture.js')).toBe(true);
+    await expect(page.locator('.fixture-card-item[data-name="deleteabc"]')).toHaveCount(0);
+    await expect(page.locator('.fixture-card-item[data-name="bc"]')).toHaveCount(1);
+  });
+
   test('BDD: Xóa kịch bản confirms, deletes the spec and refreshes the list', async ({ page }) => {
     const created = await post(harness, '/api/builder/create-script', { fileName: 'zz-delete-me', platform: 'desktop' });
     expect(created.success).toBe(true);

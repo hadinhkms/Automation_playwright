@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { scanAllProjectScripts, parseExistingSpecFile } = require('../../../core/generator/visualBuilderCompiler');
 const { deleteTestScript, createBackup } = require('../../services/resourceService');
+const { guardScriptDelete } = require('../../services/deleteGuards');
 const { saveDraft, listDrafts, getDraft, deleteDraft, cleanupDraft } = require('../../../core/generator/draftManager');
 const { sendJson, parseBody, safeChildPath } = require('../routeUtils');
 
@@ -50,8 +51,9 @@ async function handleBddScriptRoutes(request, response, url, context = {}) {
       const body = request.method === 'POST' ? await parseBody(request) : {};
       const spec = body.spec || body.specPath || body.path || body.file || url.searchParams.get('spec') || url.searchParams.get('specPath') || url.searchParams.get('file');
       if (!spec) { sendJson(response, 400, { error: 'Thiếu đường dẫn kịch bản cần xóa.' }); return true; }
+      guardScriptDelete(spec, root);
       sendJson(response, 200, deleteTestScript(spec, root));
-    } catch (e) { sendJson(response, 400, { error: e.message }); }
+    } catch (e) { sendJson(response, e.statusCode === 403 ? 403 : 400, { error: e.message }); }
     return true;
   }
   if (request.method === 'GET' && url.pathname === '/api/builder/page-content') {

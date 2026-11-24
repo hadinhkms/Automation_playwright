@@ -10,6 +10,7 @@ const {
 } = require('../../core/utils/dataManager');
 const { sendJson, parseBody } = require('./routeUtils');
 const { accentDataMessage } = require('../services/dataMessages');
+const { guardDatasetDelete } = require('../services/deleteGuards');
 
 /**
  * Handles all /api/data/* endpoints for Test Data Studio.
@@ -73,11 +74,12 @@ async function handleDataRoutes(request, response, url) {
         sendJson(response, 400, { error: 'Thiếu tên file dữ liệu cần xóa.' });
         return true;
       }
+      guardDatasetDelete(fileName);
       const result = deleteDataset(fileName);
       sendJson(response, 200, result);
       return true;
     } catch (error) {
-      sendJson(response, 400, { error: accentDataMessage(error.message) });
+      sendJson(response, error.statusCode === 403 ? 403 : 400, { error: accentDataMessage(error.message) });
       return true;
     }
   }
