@@ -96,6 +96,28 @@ test.describe('Script Picker lifecycle', () => {
     await expect(page.locator('#sp-foot .sp-banner')).toHaveText('Đã dừng run.');
   });
 
+  test('M-1: a picker run that ended while away shows "Run đã kết thúc." once; a later Suite-mode run ending shows nothing', async ({ page }) => {
+    await mockRun(page);
+    await open(page);
+    await row(page, ALPHA).click();
+    await page.click('#sp-run');
+    await expect(page.locator('#stop-button')).toBeEnabled();
+    await view(page, 'settings-view');
+    await expect(page.locator('#save-settings-button')).toBeVisible();
+    await page.evaluate(() => { document.querySelector('#stop-button').disabled = true; }); // our run ends while we are away
+    await view(page, 'runner-view');
+    await page.locator('.sp-file').first().waitFor();
+    await expect(page.locator('#sp-foot .sp-banner')).toHaveText('Run đã kết thúc.');
+    await row(page, GAMMA).click(); // any change clears the message
+    await expect(page.locator('#sp-foot .sp-banner')).toHaveCount(0);
+    await roundTrip(page); // coming back again: the flag is spent, no second banner
+    await expect(page.locator('#sp-foot .sp-banner')).toHaveCount(0);
+    await page.evaluate(() => { document.querySelector('#stop-button').disabled = false; }); // a run from another mode starts...
+    await page.evaluate(() => { document.querySelector('#stop-button').disabled = true; }); // ...and ends
+    await page.waitForTimeout(150);
+    await expect(page.locator('#sp-foot .sp-banner')).toHaveCount(0);
+  });
+
   for (const [source, shown] of [['estimate', true], ['playwright', false], ['none', false]]) {
     test(`specProjectsSource "${source}" ${shown ? 'shows' : 'hides'} the estimate note`, async ({ page }) => {
       await page.route('**/api/config', async (route) => { const res = await route.fetch(); const body = await res.json(); return route.fulfill({ response: res, json: { ...body, specProjectsSource: source } }); });

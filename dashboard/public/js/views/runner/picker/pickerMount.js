@@ -97,6 +97,7 @@ export function mountScriptPicker(win = window) {
 
   const stop = doc.querySelector('#stop-button');
   ctx.running = stop ? !stop.disabled : false; // L3: coming back to the screen mid-run shows "Đang chạy…"
+  if (ctx.ownRun && !ctx.running) { ctx.notice = 'Run đã kết thúc.'; ctx.ownRun = false; } // M-1: our run ended while we were away: say so once, then forget it
   const onStop = () => { ctx.stopRequested = true; };
   stop?.addEventListener('click', onStop);
   const watcher = stop ? new win.MutationObserver(() => {
