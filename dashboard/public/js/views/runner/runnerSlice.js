@@ -6,7 +6,7 @@ import { apiClient } from '../../core/apiClient.js';
 import { eventBus } from '../../core/eventBus.js';
 import { stateStore } from '../../core/stateStore.js';
 import { windowBridge } from '../../core/windowBridge.js';
-import { mountScriptPicker } from './picker/pickerMount.js';
+import { loadScriptPicker } from './runnerPickerLoader.js';
 
 export class RunnerSlice {
   constructor() {
@@ -20,7 +20,7 @@ export class RunnerSlice {
 
   async mount() {
     this._mounted = true;
-    this._picker = mountScriptPicker();
+    this._picker = await loadScriptPicker(); // dynamic import: a broken picker file must not take the other screens down (M2)
     this._bindDomEvents();
     this._registerBridgeActions();
     this._connectEventStream();

@@ -15,6 +15,7 @@ import { bindEvents } from './pickerEvents.js';
 import { deriveView } from './pickerView.js';
 import { exposeScriptPicker, bridgeLegacy } from './pickerBridge.js';
 import { followAccent } from './pickerContrast.js';
+import { escapeHtml } from './pickerText.js';
 
 let current = null;
 
@@ -39,7 +40,9 @@ export function mountScriptPicker(win = window) {
     frozen: (() => { const b = doc.querySelector('#runner-freeze-banner'); return Boolean(b && win.getComputedStyle(b).display !== 'none'); })(),
   });
   const view = () => deriveView(ctx, controls());
-  const isActive = () => ctx.phase === 'ready' && !panel.hidden;
+  const isVisible = () => !panel.hidden; // M1: the old payload (= run everything) must never apply while this panel is shown
+  const isReady = () => ctx.phase === 'ready';
+  const isActive = () => isReady() && isVisible();
 
   function renderFoot() {
     if (ctx.phase !== 'ready') { $('#sp-foot').innerHTML = ''; return; }
@@ -66,7 +69,7 @@ export function mountScriptPicker(win = window) {
     const keep = doc.activeElement && root.contains(doc.activeElement) ? doc.activeElement.closest('[data-platform],[data-tag],[data-suite]') : null;
     const sig = keep && (keep.dataset.platform ? `[data-platform="${CSS.escape(keep.dataset.platform)}"]` : keep.dataset.tag ? `[data-tag="${CSS.escape(keep.dataset.tag)}"]` : `[data-suite="${CSS.escape(keep.dataset.suite)}"]`);
     $('#sp-top').innerHTML = renderToolbar({ catalog: ctx.catalog, state: ctx.state, suites: ctx.suites, found: v.found, filtersOpen: win.matchMedia('(min-width: 768px)').matches || v.activeFilters > 0, activeFilters: v.activeFilters })
-      + (ctx.undo ? `<p class="sp-banner" role="status">${ctx.undo.text} <button type="button" class="sp-link" data-act="undo">Hoàn tác</button></p>` : '');
+      + (ctx.undo ? `<p class="sp-banner" role="status">${escapeHtml(ctx.undo.text)} <button type="button" class="sp-link" data-act="undo">Hoàn tác</button></p>` : '');
     if (sig) $(sig)?.focus();
   }
   const renderAll = () => { renderTop(); renderBody(false); renderFoot(); };
@@ -96,7 +99,8 @@ export function mountScriptPicker(win = window) {
   ['#environment', '#workers', '#headed'].forEach((s) => doc.querySelector(s)?.addEventListener('change', renderFoot));
 
   const api = {
-    isActive, selectedFiles: () => view().selected, getRunPayload: () => view().payload,
+    isActive: isVisible, isReady, selectedFiles: () => (isReady() ? view().selected : []),
+    getRunPayload: () => (isReady() ? view().payload : { specs: [] }), // not ready: an empty list the server rejects (400)
     runSucceeded: () => { ctx.runError = ''; renderFoot(); },
     runFailed: (err) => { ctx.notice = ''; ctx.runError = err.status === 409 ? 'Đang có một test run khác. Chờ chạy xong hoặc bấm Dừng.' : `Chưa chạy được: ${err.message}. Lựa chọn của bạn vẫn còn — sửa rồi bấm Chạy lại.`; renderFoot(); },
   };

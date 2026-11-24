@@ -55,7 +55,9 @@ export function bindEvents({ root, doc, win, ctx, view, groupFiles, renderTop, r
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); act.run(); return; }
     handleTreeKey(e, $('.sp-tree') || doc.createElement('ul'), actions);
   });
-  const onSlash = (e) => { if (e.key === '/' && isActive() && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) { e.preventDefault(); actions.focusSearch(); } };
+  // "/" focuses the search box only for a plain key press outside anything editable (m1).
+  const typing = (t) => Boolean(t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable || (t.closest && t.closest('[contenteditable=""], [contenteditable="true"]'))));
+  const onSlash = (e) => { if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.defaultPrevented && isActive() && !typing(e.target)) { e.preventDefault(); actions.focusSearch(); } };
   doc.addEventListener('keydown', onSlash);
 
   return () => doc.removeEventListener('keydown', onSlash);

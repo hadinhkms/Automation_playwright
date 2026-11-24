@@ -8,8 +8,10 @@
  */
 import { escapeHtml } from './pickerText.js';
 
+export const NOT_READY = 'Danh sách script chưa sẵn sàng. Chờ tải xong, bấm Thử lại hoặc dùng tab Theo Test Suite.';
+
 export function exposeScriptPicker(win, api) {
-  win.ScriptPicker = { isActive: api.isActive, getRunPayload: api.getRunPayload };
+  win.ScriptPicker = { isActive: api.isActive, getRunPayload: api.getRunPayload, isReady: api.isReady };
   return () => { delete win.ScriptPicker; };
 }
 
@@ -41,12 +43,17 @@ export function bridgeLegacy(win, api) {
     return result;
   });
   wrap('request', (orig) => async function pickerRequest(url, options) {
+    if ((url === '/api/run' || url === '/api/ui') && api.isActive() && !api.isReady()) {
+      const err = new Error(NOT_READY); // loading / error / empty catalog: nothing is selectable, so nothing runs
+      api.runFailed(err);
+      throw err;
+    }
     try {
       const body = await orig.apply(this, arguments);
       if (url === '/api/run' && api.isActive()) api.runSucceeded();
       return body;
     } catch (err) {
-      if (url === '/api/run' && api.isActive()) api.runFailed(err);
+      if (url === '/api/run' && api.isActive() && api.isReady()) api.runFailed(err);
       throw err;
     }
   });
