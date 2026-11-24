@@ -80,7 +80,7 @@ export function renderExtractedScaffoldPreview(root, res) {
     filesList.textContent = '';
     res.preview.files.forEach((f) => {
       const li = document.createElement('li');
-      li.textContent = f;
+      li.textContent = typeof f === 'string' ? f : (f && f.path) || ''; // API returns {path, content}
       filesList.appendChild(li);
     });
   }

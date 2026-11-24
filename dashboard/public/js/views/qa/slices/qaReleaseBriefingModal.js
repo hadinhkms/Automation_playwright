@@ -34,19 +34,20 @@ export function renderQaTabBadges(qaSlice, root, summary, trace) {
 
   const findingsBadge = root.querySelector('#qa-tab-badge-findings');
   if (findingsBadge) {
+    // One source of truth: the QA Core summary (same number as the health tile/card, API and CLI).
+    // The trace report is only a fallback when no summary exists; adding both counted every finding twice.
     let blockerCount = 0;
     let majorCount = 0;
     let totalCount = 0;
-    if (s && Array.isArray(s.findings)) {
-      totalCount += s.findings.length;
-      blockerCount += s.findings.filter((f) => f.severity === 'blocker').length;
-      majorCount += s.findings.filter((f) => f.severity === 'major').length;
-    }
-    if (t && t.findings) {
+    if (s) {
+      const list = Array.isArray(s.findings) ? s.findings : [];
+      totalCount = s.health?.totalFindings ?? list.length;
+      blockerCount = s.health?.blockers ?? list.filter((f) => f.severity === 'blocker').length;
+      majorCount = s.health?.majors ?? list.filter((f) => f.severity === 'major').length;
+    } else if (t && t.findings) {
       const tf = t.findings;
-      const traceMajor = (tf.major || []).length;
-      majorCount += traceMajor;
-      totalCount += traceMajor + (tf.minor || []).length + (tf.info || []).length;
+      majorCount = (tf.major || []).length;
+      totalCount = majorCount + (tf.minor || []).length + (tf.info || []).length;
     }
     findingsBadge.hidden = false;
     if (totalCount > 0) {

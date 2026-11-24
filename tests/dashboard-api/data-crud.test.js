@@ -72,3 +72,20 @@ describe('API Contract: Data Routes CRUD & Validation', () => {
     assert.ok(body.success === true || body.message !== undefined);
   });
 });
+
+describe('API Contract: Data messages keep Vietnamese diacritics', () => {
+  let fixture;
+  let harness;
+  before(async () => { fixture = createFixtureWorkspace(); harness = await startDashboardHarness(fixture.rootPath); });
+  after(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
+
+  test('creating a dataset that already exists answers 400 with an accented message', async () => {
+    const post = () => fetch(`${harness.url}/api/data/create-dataset`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileName: 'dup_dataset.json', templateType: 'array' }),
+    });
+    assert.equal((await post()).status, 200);
+    const res = await post();
+    assert.equal(res.status, 400);
+    assert.match((await res.json()).error, /đã tồn tại trong thư mục data\//);
+  });
+});

@@ -9,6 +9,7 @@ const {
   generateDynamicValue,
 } = require('../../core/utils/dataManager');
 const { sendJson, parseBody } = require('./routeUtils');
+const { accentDataMessage } = require('../services/dataMessages');
 
 /**
  * Handles all /api/data/* endpoints for Test Data Studio.
@@ -23,7 +24,7 @@ async function handleDataRoutes(request, response, url) {
       sendJson(response, 200, { datasets: listDatasets() });
       return true;
     } catch (error) {
-      sendJson(response, 500, { error: error.message });
+      sendJson(response, 500, { error: accentDataMessage(error.message) });
       return true;
     }
   }
@@ -40,7 +41,7 @@ async function handleDataRoutes(request, response, url) {
       sendJson(response, 200, result);
       return true;
     } catch (error) {
-      sendJson(response, 404, { error: error.message });
+      sendJson(response, 404, { error: accentDataMessage(error.message) });
       return true;
     }
   }
@@ -58,7 +59,7 @@ async function handleDataRoutes(request, response, url) {
       sendJson(response, 200, result);
       return true;
     } catch (error) {
-      sendJson(response, 400, { error: error.message });
+      sendJson(response, 400, { error: accentDataMessage(error.message) });
       return true;
     }
   }
@@ -76,7 +77,7 @@ async function handleDataRoutes(request, response, url) {
       sendJson(response, 200, result);
       return true;
     } catch (error) {
-      sendJson(response, 400, { error: error.message });
+      sendJson(response, 400, { error: accentDataMessage(error.message) });
       return true;
     }
   }
@@ -99,7 +100,7 @@ async function handleDataRoutes(request, response, url) {
       });
       return true;
     } catch (error) {
-      sendJson(response, 400, { error: error.message });
+      sendJson(response, 400, { error: accentDataMessage(error.message) });
       return true;
     }
   }
@@ -122,7 +123,7 @@ async function handleDataRoutes(request, response, url) {
       response.end(`\uFEFF${csv}`);
       return true;
     } catch (error) {
-      sendJson(response, 400, { error: error.message });
+      sendJson(response, 400, { error: accentDataMessage(error.message) });
       return true;
     }
   }
@@ -143,7 +144,7 @@ async function handleDataRoutes(request, response, url) {
       sendJson(response, 200, { ...result, importedRows: rows.length });
       return true;
     } catch (error) {
-      sendJson(response, 400, { error: error.message });
+      sendJson(response, 400, { error: accentDataMessage(error.message) });
       return true;
     }
   }
@@ -165,7 +166,7 @@ async function handleDataRoutes(request, response, url) {
       });
       return true;
     } catch (error) {
-      sendJson(response, 500, { error: error.message });
+      sendJson(response, 500, { error: accentDataMessage(error.message) });
       return true;
     }
   }
