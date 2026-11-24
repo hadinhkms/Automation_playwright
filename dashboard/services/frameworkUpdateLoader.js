@@ -13,7 +13,10 @@ function loadUpdateFramework() {
   try {
     return require('../../scripts/update-framework').updateFramework;
   } catch (error) {
-    if (error.code === 'MODULE_NOT_FOUND' && /update-framework/.test(error.message)) return null;
+    // Chỉ khi CHÍNH scripts/update-framework vắng (dòng đầu message). Thiếu module con của nó
+    // (Require stack vẫn nhắc update-framework.js) là lỗi thật và phải được ném lên.
+    const firstLine = String(error.message).split('\n')[0];
+    if (error.code === 'MODULE_NOT_FOUND' && /^Cannot find module '[^']*[\\/]update-framework(?:\.js)?'/.test(firstLine)) return null;
     throw error;
   }
 }

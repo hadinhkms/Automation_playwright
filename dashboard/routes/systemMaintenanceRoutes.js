@@ -29,7 +29,7 @@ async function handleSystemMaintenanceRoutes(request, response, url, context = {
         sendJson(response, statusCode, payload);
       };
 
-      const client = parsed.protocol === 'https:' ? require('https') : require('http');
+      const client = parsed.protocol === 'https:' ? https : http;
       const req = client.request(parsed, {
         method: 'HEAD',
         timeout: 6000,
