@@ -34,7 +34,8 @@ function createPickerFixture(extra = {}) {
     fs.writeFileSync(full, body, 'utf8');
   };
   write('dashboardConfig.json', JSON.stringify({ suites: extra.suites || {} }));
-  write('playwright.config.js', CONFIG);
+  // runnable: a config that can really run the specs (testDir + the json reporter the run history reads)
+  write('playwright.config.js', extra.runnable ? CONFIG.replace('module.exports = {', "module.exports = { testDir: './tests', reporter: [['list'], ['json']],") : CONFIG);
   Object.entries({ ...FILES, ...(extra.files || {}) }).forEach(([rel, body]) => write(rel, body));
   if (extra.history) write('test-results/web-runs/index.json', JSON.stringify({ version: 1, runs: extra.history }));
   return fixture;

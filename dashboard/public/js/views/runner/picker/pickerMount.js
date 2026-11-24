@@ -96,6 +96,16 @@ export function mountScriptPicker(win = window) {
     renderAll();
   }
 
+  // The server records the run AFTER publishing its final status and then emits SSE `history` {runId}: reload on it.
+  // app.js ignores unknown event types, so the picker listens itself (closed in unmount).
+  const timers = new Set();
+  let lastHistoryEvent = 0;
+  const events = typeof win.EventSource === 'undefined' ? null : new win.EventSource('/api/events');
+  if (events) events.onmessage = ({ data }) => { try { if (JSON.parse(data).type === 'history') { lastHistoryEvent = Date.now(); refreshHistory(); } } catch (_) { /* not ours */ } };
+  function scheduleHistoryFallback() {
+    const endedAt = Date.now();
+    [1500, 4000].forEach((ms) => { const t = setTimeout(() => { timers.delete(t); if (lastHistoryEvent < endedAt) refreshHistory(); }, ms); timers.add(t); });
+  }
   async function refreshHistory() {
     ctx.history = await fetchHistory();
     if (ctx.phase === 'ready' && root.isConnected) { renderTop(); renderBody(); }
@@ -111,7 +121,7 @@ export function mountScriptPicker(win = window) {
     const was = ctx.running; ctx.running = !stop.disabled;
     if (was && !ctx.running && ctx.ownRun) { // L4: only for a run this picker started
       ctx.notice = ctx.stopRequested ? 'Đã dừng run.' : 'Run đã kết thúc.'; ctx.runError = ''; ctx.ownRun = false; ctx.stopRequested = false;
-      setTimeout(refreshHistory, 800); // the server writes the history when the process closes
+      scheduleHistoryFallback(); // the server announces the record with an SSE 'history' event; these are only a safety net
     }
     renderFoot();
   }) : null;
@@ -133,7 +143,7 @@ export function mountScriptPicker(win = window) {
   load();
   current = {
     api, ctx,
-    unmount() { saved = { state: ctx.state, ownRun: ctx.ownRun }; controlEls.forEach((el) => el.removeEventListener('change', renderFoot)); stop?.removeEventListener('click', onStop); root.remove(); doc.getElementById('runner-view')?.classList.remove('has-script-picker'); unbind(); watcher?.disconnect(); stopAccent(); unguard(); undoBridge(); undoExpose(); current = null; },
+    unmount() { saved = { state: ctx.state, ownRun: ctx.ownRun }; controlEls.forEach((el) => el.removeEventListener('change', renderFoot)); stop?.removeEventListener('click', onStop); root.remove(); doc.getElementById('runner-view')?.classList.remove('has-script-picker'); unbind(); events?.close(); timers.forEach(clearTimeout); watcher?.disconnect(); stopAccent(); unguard(); undoBridge(); undoExpose(); current = null; },
   };
   return current;
 }

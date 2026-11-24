@@ -158,4 +158,55 @@ test.describe('Script Picker: run history', () => {
       await expect(old).toBeDisabled();
     });
   });
+
+  test('REAL run: after it ends the server announces `history` and the chip and file badges update (no manual refresh)', async ({ page }) => {
+    const FAILING = 'tests/e2e/desktop/failing.spec.js';
+    const src = "const { test } = require('@playwright/test');\ntest('failing on purpose @e2e', async () => { throw new Error('boom'); });\n";
+    await withHarness({ runnable: true, files: { [FAILING]: src } }, async (harness) => {
+      await open(page, harness);
+      await expect(page.locator('[data-history="fail"]')).toBeDisabled(); // no history yet
+      const events = [];
+      await page.evaluate(() => { window.__hist = 0; const es = new EventSource('/api/events'); es.onmessage = (m) => { try { if (JSON.parse(m.data).type === 'history') window.__hist += 1; } catch (_) { /* not ours */ } }; });
+      await row(page, ALPHA).click(); await row(page, FAILING).click();
+      await page.click('#sp-run');
+      await expect(page.locator('#stop-button')).toBeEnabled();
+      await expect(page.locator('#stop-button')).toBeDisabled({ timeout: 90000 }); // the run finished
+      await expect(page.locator('[data-history="fail"]')).toContainText('Fail lần trước (1)', { timeout: 10000 });
+      await expect(page.locator('[data-history="fail"]')).toBeEnabled();
+      await expect(page.locator(`.sp-file[data-path="${FAILING}"] .sp-hist`)).toContainText('Fail');
+      await expect(page.locator(`.sp-file[data-path="${ALPHA}"] .sp-hist`)).toContainText('Pass');
+      expect(await page.evaluate(() => window.__hist)).toBeGreaterThanOrEqual(1);
+      events.length = 0;
+    });
+  });
+
+  test('no SSE `history` event (stream blocked): the short retries still bring the history in', async ({ page }) => {
+    await withHarness({ history: HISTORY }, async (harness) => {
+      await page.route('**/api/events', (route) => route.abort());
+      await page.route('**/api/run', (route) => route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify(RUN) }));
+      let after = false;
+      await page.route('**/api/run-history/latest-failed', (route) => (after ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ run: { id: 'r9', startedAt: new Date().toISOString(), environment: 'qc', projects: [] }, specs: [GAMMA], missing: [] }) }) : route.continue()));
+      await open(page, harness);
+      await expect(page.locator('[data-history="fail"]')).toContainText('(2)');
+      await row(page, ALPHA).click();
+      await page.click('#sp-run');
+      await expect(page.locator('#stop-button')).toBeEnabled();
+      after = true;
+      await page.evaluate(() => { document.querySelector('#stop-button').disabled = true; });
+      await expect(page.locator('[data-history="fail"]')).toContainText('Fail lần trước (1)', { timeout: 8000 });
+    });
+  });
+
+  test('a run started elsewhere (not by the picker) still refreshes the history through the `history` event', async ({ page }) => {
+    const FAILING = 'tests/e2e/desktop/failing.spec.js';
+    const src = "const { test } = require('@playwright/test');\ntest('failing on purpose @e2e', async () => { throw new Error('boom'); });\n";
+    await withHarness({ runnable: true, files: { [FAILING]: src } }, async (harness) => {
+      await open(page, harness);
+      await expect(page.locator('[data-history="fail"]')).toBeDisabled();
+      const res = await fetch(`${harness.url}/api/run`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: harness.url }, body: JSON.stringify({ specs: [FAILING], projects: ['Desktop Regression Tests'] }) });
+      expect(res.status).toBe(202); // started by another client: the picker never saw its own run
+      await expect(page.locator('[data-history="fail"]')).toContainText('Fail lần trước (1)', { timeout: 60000 });
+      await expect(page.locator(`.sp-file[data-path="${FAILING}"] .sp-hist`)).toContainText('Fail');
+    });
+  });
 });
