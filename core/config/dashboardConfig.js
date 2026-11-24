@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 const CONFIG_PATH = path.join(__dirname, 'dashboardConfig.json');
+// Trần độ dài regex grep của suite/run (dashboard/services/runOptions.js dùng cùng hằng số). Trước đây 80 và cắt im lặng.
+const GREP_MAX_LENGTH = 200;
 
 const DEFAULT_CONFIG = Object.freeze({
   environments: {
@@ -368,7 +370,7 @@ function normalizeDashboardConfig(input = {}, existingConfig = DEFAULT_CONFIG) {
               },
               spec: pSpecs.length === 1 ? pSpecs[0] : (pSpecs.length > 1 ? 'custom' : 'all'),
               specs: pSpecs.length > 0 ? pSpecs : 'all',
-              grep: asString(pVal.grep, '').slice(0, 80),
+              grep: asString(pVal.grep, '').slice(0, GREP_MAX_LENGTH),
               workers: asInteger(pVal.workers, 2, 1, 8),
             };
           }
@@ -409,7 +411,7 @@ function normalizeDashboardConfig(input = {}, existingConfig = DEFAULT_CONFIG) {
         viewport,
         spec: specs.length === 1 ? specs[0] : (specs.length > 1 ? 'custom' : 'all'),
         specs: specs.length > 0 ? specs : 'all',
-        grep: asString(value.grep, '').slice(0, 80),
+        grep: asString(value.grep, '').slice(0, GREP_MAX_LENGTH),
         workers: asInteger(value.workers, 2, 1, 8),
       };
 
@@ -528,6 +530,7 @@ function publicDashboardConfig(config = getDashboardConfig()) {
 
 module.exports = {
   CONFIG_PATH,
+  GREP_MAX_LENGTH,
   getResolvedConfigPath,
   DEFAULT_CONFIG,
   TRACE_OPTIONS,

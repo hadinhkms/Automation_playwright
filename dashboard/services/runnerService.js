@@ -4,10 +4,9 @@
  */
 const { spawn } = require('child_process');
 const https = require('https');
-const { getDashboardConfig } = require('../../core/config/dashboardConfig');
 const { runtimeEnv } = require('./runnerRuntimeEnv');
-const { listSpecs, getPlaywrightProjects } = require('./specService');
-const { getLastConfigError } = require('./playwrightConfigLoader');
+const { validateOptions } = require('./runOptions');
+const { buildPlaywrightArgs } = require('./runnerArgs');
 const { newestReport } = require('./resourceService');
 
 let activeRun = null;
@@ -31,65 +30,8 @@ function publicRun(run) {
   return rest;
 }
 
-function validateOptions(input, root = process.env.QA_PROJECT_ROOT || process.cwd()) {
-  const settings = getDashboardConfig();
-  const environments = Object.keys(settings.environments);
-  const allSpecs = listSpecs(null, root);
-  const project = String(input.project || 'all');
-  const environment = String(input.environment || settings.runtime.defaultEnvironment);
-  const grep = String(input.grep || '').trim();
-  const workers = Number(input.workers || settings.runtime.workers);
-  const suiteLabel = typeof input.suiteLabel === 'string' ? input.suiteLabel.slice(0, 80) : '';
-
-  let viewport = null;
-  if (input.viewport && typeof input.viewport === 'object') {
-    const w = Number(input.viewport.width);
-    const h = Number(input.viewport.height);
-    if (Number.isInteger(w) && w >= 320 && w <= 7680 && Number.isInteger(h) && h >= 320 && h <= 4320) {
-      viewport = { width: w, height: h };
-    }
-  }
-
-  let specs = [];
-  if (Array.isArray(input.specs)) {
-    specs = input.specs.map(String).filter((s) => allSpecs.includes(s));
-  } else if (input.spec && input.spec !== 'all') {
-    if (allSpecs.includes(input.spec)) specs = [input.spec];
-    else throw new Error('Spec không hợp lệ.');
-  }
-
-  let projects = [];
-  if (Array.isArray(input.projects)) {
-    projects = input.projects.map(String).filter((p) => getPlaywrightProjects(root).includes(p));
-  } else if (input.project && input.project !== 'all') {
-    if (getPlaywrightProjects(root).includes(input.project)) projects = [input.project];
-  }
-
-  if (!getPlaywrightProjects(root).includes(project) && project !== 'all') {
-    const why = getLastConfigError();
-    throw new Error(`Project không hợp lệ.${why ? ` Không đọc được playwright.config.js (${why}) nên danh sách project trống; sửa lỗi cấu hình rồi thử lại.` : ''}`);
-  }
-  if (!environments.includes(environment)) throw new Error('Environment không hợp lệ.');
-  if (!Number.isInteger(workers) || workers < 1 || workers > 8) throw new Error('Luồng chạy phải từ 1 đến 8.');
-  if (grep.length > 80 || /[\r\n\0]/.test(grep)) throw new Error('Tag/grep không hợp lệ.');
-
-  const spec = specs.length === 1 ? specs[0] : (specs.length > 1 ? specs.join(' ') : 'all');
-  return { project, projects, environment, spec, specs, grep, workers, headed: input.headed === true, viewport, suiteLabel };
-}
-
 function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT || process.cwd()) {
-  const args = ['test'];
-  if (Array.isArray(options.specs) && options.specs.length > 0) args.push(...options.specs);
-  else if (options.spec && options.spec !== 'all') args.push(options.spec);
-
-  if (Array.isArray(options.projects) && options.projects.length > 0) {
-    for (const proj of options.projects) args.push(`--project=${proj}`);
-  } else if (options.project && options.project !== 'all') {
-    args.push(`--project=${options.project}`);
-  }
-  if (options.grep) args.push('--grep', options.grep);
-  if (uiMode) args.push('--ui');
-  else if (options.headed) args.push('--headed');
+  const args = buildPlaywrightArgs(options, uiMode);
 
   logBuffer.length = 0;
   const playwrightCli = require.resolve('@playwright/test/cli');
