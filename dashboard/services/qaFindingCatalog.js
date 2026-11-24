@@ -9,7 +9,7 @@
  */
 
 const crypto = require('node:crypto');
-const { dedupeFindings } = require('../../tools/qa/lib/summaryDedupe');
+const { dedupeFindings } = require('../../core/qa/findingDedupe');
 
 /**
  * quick: sửa tự động bằng quy tắc xác định; guided: cần người dùng chọn (Phase 4);
