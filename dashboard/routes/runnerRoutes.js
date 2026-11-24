@@ -5,6 +5,9 @@
 const { sendJson, parseBody } = require('./routeUtils');
 const {
   getActiveRun,
+  isRunStarting,
+  tryBeginStart,
+  endStart,
   getLastRun,
   getClients,
   getLogBuffer,
@@ -18,6 +21,35 @@ const { getActiveMobileRun } = require('../services/mobileRunnerService');
 const { inspector } = require('./mobileInspectorRoutes');
 
 const MOBILE_BUSY = 'Đang có một lượt chạy Mobile App. Đợi xong hoặc dừng nó trước.';
+
+/**
+ * POST /api/run và /api/ui. Kiểm 409 + đặt cờ "đang khởi động" xảy ra ĐỒNG BỘ (không await giữa hai bước), rồi mới
+ * await validate (cache lạnh có thể mất ~1 s). Nhờ vậy N POST đồng thời chỉ MỘT cái chạy, N-1 nhận 409 (trước đây
+ * cả N cùng 202 và N-1 tiến trình playwright mồ côi). Kiểm lại bận ngay trước startRun vì trong lúc await
+ * mobile/inspector có thể đã chiếm máy.
+ */
+async function launchRun(request, response, root, uiMode) {
+  const busy = () => {
+    if (getActiveRun() || isRunStarting()) return uiMode ? 'Đang có một test run hoặc UI Mode khác.' : 'Đang có một test run khác.';
+    if (getActiveMobileRun()) return MOBILE_BUSY;
+    return inspector.busyReason() || null;
+  };
+  const reason = busy();
+  if (reason) return sendJson(response, 409, { error: reason });
+  if (!tryBeginStart()) return sendJson(response, 409, { error: 'Đang có một test run khác.' });
+  try {
+    const options = await validateOptions(await parseBody(request), root);
+    assertNotFrozen({ suiteName: options.suite || options.file, projectRoot: root, exitOnError: false });
+    const stillBusy = getActiveMobileRun() ? MOBILE_BUSY : inspector.busyReason();
+    if (stillBusy) return sendJson(response, 409, { error: stillBusy });
+    return sendJson(response, 202, startRun(options, uiMode, root));
+  } catch (error) {
+    const status = Number.isInteger(error.statusCode) ? error.statusCode : (String(error.message || '').includes('[CIRCUIT BREAKER]') ? 403 : 400);
+    return sendJson(response, status, { error: error.message });
+  } finally {
+    endStart();
+  }
+}
 
 async function handleRunnerRoutes(request, response, url, context = {}) {
   const root = context.root || process.env.QA_PROJECT_ROOT || process.cwd();
@@ -43,32 +75,8 @@ async function handleRunnerRoutes(request, response, url, context = {}) {
     return true;
   }
 
-  if (request.method === 'POST' && url.pathname === '/api/run') {
-    if (getActiveRun()) return sendJson(response, 409, { error: 'Đang có một test run khác.' });
-    if (getActiveMobileRun()) return sendJson(response, 409, { error: MOBILE_BUSY });
-    if (inspector.busyReason()) return sendJson(response, 409, { error: inspector.busyReason() });
-    try {
-      const options = await validateOptions(await parseBody(request), root);
-      assertNotFrozen({ suiteName: options.suite || options.file, projectRoot: root, exitOnError: false });
-      return sendJson(response, 202, startRun(options, false, root));
-    } catch (error) {
-      const status = String(error.message || '').includes('[CIRCUIT BREAKER]') ? 403 : 400;
-      return sendJson(response, status, { error: error.message });
-    }
-  }
-
-  if (request.method === 'POST' && url.pathname === '/api/ui') {
-    if (getActiveRun()) return sendJson(response, 409, { error: 'Đang có một test run hoặc UI Mode khác.' });
-    if (getActiveMobileRun()) return sendJson(response, 409, { error: MOBILE_BUSY });
-    if (inspector.busyReason()) return sendJson(response, 409, { error: inspector.busyReason() });
-    try {
-      const options = await validateOptions(await parseBody(request), root);
-      assertNotFrozen({ suiteName: options.suite || options.file, projectRoot: root, exitOnError: false });
-      return sendJson(response, 202, startRun(options, true, root));
-    } catch (error) {
-      const status = String(error.message || '').includes('[CIRCUIT BREAKER]') ? 403 : 400;
-      return sendJson(response, status, { error: error.message });
-    }
+  if (request.method === 'POST' && (url.pathname === '/api/run' || url.pathname === '/api/ui')) {
+    return launchRun(request, response, root, url.pathname === '/api/ui');
   }
 
   if (request.method === 'POST' && url.pathname === '/api/stop') {

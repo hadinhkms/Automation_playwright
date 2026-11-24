@@ -96,6 +96,7 @@ Khi làm việc với Dashboard (`dashboard/`):
 - Đọc và tuân thủ [ai/dashboard/DASHBOARD_AI_PROMPT.md](file:///ai/dashboard/DASHBOARD_AI_PROMPT.md) và [ai/dashboard/AI_LESSONS.md](file:///ai/dashboard/AI_LESSONS.md).
 - Nếu hỗ trợ skill cục bộ, dùng `.agents/skills/dashboard-maintainer/SKILL.md`.
 - Giữ nguyên kiến trúc Vanilla HTML/CSS/JS, tái sử dụng các primitives, layout tokens, panels và code editor có sẵn.
+- **Bảo mật (Q4): mở Dashboard trên một repo = tin tưởng chạy test của repo đó.** `GET /api/config` chạy `playwright test --list`, và `--list` nạp + thực thi mã cấp cao nhất của MỌI file spec và của `playwright.config.*` (specProjects lấy từ đây; có cache theo mtime, TTL 10 phút, timeout 20 s: `DASHBOARD_SPEC_LIST_TIMEOUT_MS`, `DASHBOARD_SPEC_LIST_TTL_MS`). Vì vậy không mở dashboard trên repo/nhánh chưa tin cậy (vừa clone, PR từ bên ngoài) — mã spec chạy ngay khi trang tải, không cần bấm Run.
 - API ghi (`POST/PUT/PATCH/DELETE /api/*`) bắt buộc `Content-Type: application/json` (server trả 415) và Host/Origin phải là localhost đúng port (403). Shim `js/core/jsonFetchDefault.js` tự gắn header cho `fetch(url, {method, body: string|undefined})`; KHÔNG xử lý `fetch(new Request(...))` và body `URLSearchParams` — tự đặt header + `JSON.stringify` khi dùng hai kiểu đó.
 
 ---

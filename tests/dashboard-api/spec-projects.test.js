@@ -155,3 +155,67 @@ describe('a workspace without playwright.config.*', () => {
     }
   });
 });
+
+const TWO = (smokeGrep = '/@smoke/', e2eGrep = '/@e2e/') => `module.exports = { projects: [
+  { name: 'Desktop Smoke Tests', testMatch: '**/e2e/desktop/**', grep: ${smokeGrep} },
+  { name: 'Desktop Regression Tests', testMatch: '**/e2e/desktop/**', grep: ${e2eGrep} },
+] };\n`;
+const writeAt = (root, rel, body) => { const full = path.join(root, rel); fs.mkdirSync(path.dirname(full), { recursive: true }); fs.writeFileSync(full, body); };
+const cfg = async (h) => (await fetch(`${h.url}/api/config`)).json();
+
+describe('Q2: every accepted playwright.config.* name is part of the cache key', () => {
+  let fixture; let harness;
+  before(async () => {
+    fixture = createFixtureWorkspace();
+    writeAt(fixture.rootPath, 'playwright.config.ts', TWO());
+    writeAt(fixture.rootPath, 'tests/e2e/desktop/m.spec.js', `${hdr}test('smoke @smoke', async () => {});\ntest('e2e @e2e', async () => {});\n`);
+    harness = await startDashboardHarness(fixture.rootPath);
+  });
+  after(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
+
+  test('editing playwright.config.ts (spec untouched) invalidates the cached map', async () => {
+    assert.deepEqual((await cfg(harness)).specProjects['tests/e2e/desktop/m.spec.js'], ['Desktop Smoke Tests', 'Desktop Regression Tests']);
+    writeAt(fixture.rootPath, 'playwright.config.ts', TWO('/@smoke/', '/@nothing-matches/'));
+    assert.deepEqual((await cfg(harness)).specProjects['tests/e2e/desktop/m.spec.js'], ['Desktop Smoke Tests']);
+  });
+});
+
+describe('Q3: stderr of the listing process is drained', () => {
+  let fixture; let harness;
+  before(async () => {
+    fixture = createFixtureWorkspace();
+    writeAt(fixture.rootPath, 'playwright.config.js', `if (process.argv.includes('--list')) process.stderr.write('x'.repeat(400 * 1024) + '\\n');\n${TWO()}`);
+    writeAt(fixture.rootPath, 'tests/e2e/desktop/m.spec.js', `${hdr}test('smoke @smoke', async () => {});\n`);
+    process.env.DASHBOARD_SPEC_LIST_TIMEOUT_MS = '8000'; // an undrained pipe would hang until this timeout
+    try { harness = await startDashboardHarness(fixture.rootPath); } finally { delete process.env.DASHBOARD_SPEC_LIST_TIMEOUT_MS; }
+  });
+  after(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
+
+  test('a config writing 400 KB to stderr still answers fast with Playwright data', async () => {
+    const started = Date.now();
+    const body = await cfg(harness);
+    assert.equal(body.specProjectsSource, 'playwright');
+    assert.ok(Date.now() - started < 5000, `took ${Date.now() - started} ms`);
+    assert.deepEqual(body.specProjects['tests/e2e/desktop/m.spec.js'], ['Desktop Smoke Tests']);
+  });
+});
+
+describe('Q5: a safety TTL catches changes to files the cache key cannot see', () => {
+  let fixture; let harness;
+  before(async () => {
+    fixture = createFixtureWorkspace();
+    writeAt(fixture.rootPath, 'playwright.config.js', TWO());
+    writeAt(fixture.rootPath, 'tests/helper.js', "module.exports = { tag: '@smoke' };\n");
+    writeAt(fixture.rootPath, 'tests/e2e/desktop/h.spec.js', `${hdr}const { tag } = require('../../helper');\ntest('title ' + tag, async () => {});\n`);
+    process.env.DASHBOARD_SPEC_LIST_TTL_MS = '1500';
+    try { harness = await startDashboardHarness(fixture.rootPath); } finally { delete process.env.DASHBOARD_SPEC_LIST_TTL_MS; }
+  });
+  after(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
+
+  test('after the TTL the map follows a change in a helper file that neither mtime key covers', async () => {
+    assert.deepEqual((await cfg(harness)).specProjects['tests/e2e/desktop/h.spec.js'], ['Desktop Smoke Tests']);
+    writeAt(fixture.rootPath, 'tests/helper.js', "module.exports = { tag: '@e2e' };\n");
+    await new Promise((r) => setTimeout(r, 1800));
+    assert.deepEqual((await cfg(harness)).specProjects['tests/e2e/desktop/h.spec.js'], ['Desktop Regression Tests']);
+  });
+});

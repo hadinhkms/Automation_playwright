@@ -10,6 +10,7 @@ const { buildPlaywrightArgs } = require('./runnerArgs');
 const { newestReport } = require('./resourceService');
 
 let activeRun = null;
+let starting = false; // cờ "đang khởi động" đặt ĐỒNG BỘ trước mọi await ở route: chặn nhiều POST đồng thời cùng qua kiểm tra 409
 let lastRun = null;
 const clients = new Set();
 const logBuffer = [];
@@ -30,7 +31,19 @@ function publicRun(run) {
   return rest;
 }
 
+function tryBeginStart() {
+  if (activeRun || starting) return false;
+  starting = true;
+  return true;
+}
+const endStart = () => { starting = false; };
+
 function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT || process.cwd()) {
+  if (activeRun) {
+    const err = new Error('Đang có một test run khác.');
+    err.statusCode = 409;
+    throw err;
+  }
   const args = buildPlaywrightArgs(options, uiMode, root);
 
   logBuffer.length = 0;
@@ -80,6 +93,9 @@ function stopRun() {
 
 module.exports = {
   getActiveRun: () => activeRun,
+  isRunStarting: () => starting,
+  tryBeginStart,
+  endStart,
   getLastRun: () => lastRun,
   getClients: () => clients,
   getLogBuffer: () => logBuffer,

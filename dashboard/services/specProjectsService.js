@@ -5,7 +5,8 @@
  * --reporter=json`: chính Playwright trả lời, nên không thể lệch (cách cũ thử grep/grepInvert trên TOÀN BỘ NỘI DUNG
  * file nên một chữ "@smoke" bất kỳ làm grepInvert loại project Regression oan).
  *
- * Cache theo (mtime+size mọi spec, các file cấu hình, NODE_ENV hiệu lực): lần ấm không spawn gì. Lần lạnh chạy
+ * Cache theo (mtime+size mọi spec, mọi tên file cấu hình playwright.config.*, file cấu hình dashboard, NODE_ENV hiệu lực)
+ * và TTL 10 phút (DASHBOARD_SPEC_LIST_TTL_MS) cho file phụ trợ không nằm trong khoá: lần ấm không spawn gì. Lần lạnh chạy
  * bất đồng bộ có timeout (DASHBOARD_SPEC_LIST_TIMEOUT_MS, mặc định 20 s). Lỗi/timeout/lỗi cấu hình -> dùng cách
  * ước lượng cũ và trả source:'estimate' (cache 30 s) để UI/D8 biết dữ liệu không chắc. Workspace không có
  * playwright.config.* thì không spawn gì: source:'none', mọi file = [].
@@ -18,14 +19,17 @@ const { getDashboardConfig, getResolvedConfigPath } = require('../../core/config
 const { listSpecs, specProjects: estimateSpecProjects } = require('./specService');
 
 const DEFAULT_TIMEOUT_MS = 20000;
-const ESTIMATE_TTL_MS = 30000; // lỗi/timeout không spawn lại ở MỖI request, nhưng thử lại sau ít giây
+const ESTIMATE_TTL_MS = 30000;
+const PLAYWRIGHT_TTL_MS = 10 * 60 * 1000; // an toàn: bắt thay đổi ở file phụ trợ (helper, fixture) mà mtime spec/cấu hình không thấy // lỗi/timeout không spawn lại ở MỖI request, nhưng thử lại sau ít giây
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
-const hasPlaywrightConfig = (root) => ['js', 'ts', 'mjs', 'cjs', 'mts', 'cts'].some((ext) => fs.existsSync(path.join(root, `playwright.config.${ext}`)));
-const CONFIG_FILES = ['playwright.config.js', 'core/config/defineConfig.js', 'core/config/env.js', 'core/config/dashboardConfig.js', 'core/config/dashboardConfig.json', 'dashboardConfig.json', 'qa-engine.config.json'];
+const PW_CONFIG_NAMES = ['js', 'ts', 'mjs', 'cjs', 'mts', 'cts'].map((ext) => `playwright.config.${ext}`);
+const hasPlaywrightConfig = (root) => PW_CONFIG_NAMES.some((name) => fs.existsSync(path.join(root, name)));
+const CONFIG_FILES = [...PW_CONFIG_NAMES, 'core/config/defineConfig.js', 'core/config/env.js', 'core/config/dashboardConfig.js', 'core/config/dashboardConfig.json', 'dashboardConfig.json', 'qa-engine.config.json'];
 
 const cache = new Map(); // root -> { key, result }
 const inflight = new Map(); // `${root}|${key}` -> Promise
 
+const playwrightTtl = () => Number(process.env.DASHBOARD_SPEC_LIST_TTL_MS) || PLAYWRIGHT_TTL_MS;
 const stamp = (file) => { try { const s = fs.statSync(file); return `${file}|${s.mtimeMs}|${s.size}`; } catch (_) { return `${file}|-`; } };
 
 /** NODE_ENV cho tiến trình liệt kê: giá trị của dashboard chỉ khi là môi trường cấu hình, nếu không dùng mặc định (như runnerService). */
@@ -46,14 +50,17 @@ function runList(root, env, timeoutMs) {
     const cli = require.resolve('@playwright/test/cli');
     const child = spawn(process.execPath, [cli, 'test', '--list', '--reporter=json'], { cwd: root, env, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
+    let errText = '';
     let tooBig = false;
     const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`playwright --list quá ${timeoutMs} ms`)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d; if (out.length > MAX_OUTPUT_BYTES) { tooBig = true; child.kill('SIGKILL'); } });
+    // Phải xả stderr: cấu hình ghi nhiều ra stderr sẽ chặn tiến trình con khi pipe đầy (treo tới timeout). Giữ 2 KB cuối để báo lỗi.
+    child.stderr.on('data', (d) => { errText = (errText + d).slice(-2048); });
     child.on('error', (err) => { clearTimeout(timer); reject(err); });
     child.on('close', () => {
       clearTimeout(timer);
       if (tooBig) return reject(new Error('Kết quả playwright --list quá lớn'));
-      try { resolve(JSON.parse(out)); } catch (_) { reject(new Error('playwright --list không trả JSON hợp lệ')); }
+      try { resolve(JSON.parse(out)); } catch (_) { reject(new Error(`playwright --list không trả JSON hợp lệ${errText ? `: ${errText.trim().split('\n').pop()}` : ''}`)); }
     });
   });
 }
@@ -99,7 +106,7 @@ async function getSpecProjects(root = process.env.QA_PROJECT_ROOT || process.cwd
   const key = cacheKey(root, specs, env);
   if (!hasPlaywrightConfig(root)) return { map: Object.fromEntries(specs.map((s) => [s, []])), source: 'none', ms: 0, cached: false };
   const hit = cache.get(root);
-  if (hit && hit.key === key && (hit.result.source === 'playwright' || Date.now() - hit.at < ESTIMATE_TTL_MS)) return { ...hit.result, cached: true };
+  if (hit && hit.key === key && Date.now() - hit.at < (hit.result.source === 'playwright' ? playwrightTtl() : ESTIMATE_TTL_MS)) return { ...hit.result, cached: true };
 
   const flightKey = `${root}|${key}`;
   if (!inflight.has(flightKey)) {
