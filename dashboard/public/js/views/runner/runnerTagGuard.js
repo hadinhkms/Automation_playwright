@@ -38,12 +38,35 @@
     }
 
     const buttons = () => ['#run-button', '#ui-button'].map((s) => doc.querySelector(s)).filter(Boolean);
+    // app.js disables these buttons itself while a run is active. Remember what it wants (appDisabled) and
+    // give back exactly that when the tag box is valid again, never a blind "enabled".
+    const own = new WeakMap(); // button -> number of our own pending `disabled` mutations
+    const setDisabled = (b, value) => { if (b.disabled !== value) { own.set(b, (own.get(b) || 0) + 1); b.disabled = value; } };
     function evaluate() {
       const bad = blocked();
       warning.hidden = !bad;
-      buttons().forEach((b) => { if (bad) { b.disabled = true; b.dataset.tagBlocked = '1'; b.title = MESSAGE; } else if (b.dataset.tagBlocked) { b.disabled = false; delete b.dataset.tagBlocked; b.removeAttribute('title'); } });
+      buttons().forEach((b) => {
+        if (bad) {
+          if (!b.dataset.tagBlocked) { b.dataset.tagBlocked = '1'; b.dataset.appDisabled = b.disabled ? '1' : '0'; }
+          setDisabled(b, true);
+          b.title = MESSAGE;
+        } else if (b.dataset.tagBlocked) {
+          delete b.dataset.tagBlocked;
+          setDisabled(b, b.dataset.appDisabled === '1');
+          delete b.dataset.appDisabled;
+          b.removeAttribute('title');
+        }
+      });
       return bad;
     }
+    const watcher = new win.MutationObserver((records) => records.forEach((r) => {
+      const b = r.target;
+      if ((own.get(b) || 0) > 0) { own.set(b, own.get(b) - 1); return; }
+      if (!b.dataset.tagBlocked) return;
+      b.dataset.appDisabled = b.disabled ? '1' : '0'; // the app changed it while we hold it: remember, keep it locked
+      setDisabled(b, true);
+    }));
+    buttons().forEach((b) => watcher.observe(b, { attributes: true, attributeFilter: ['disabled'] }));
 
     // Authoritative guard, even if app.js re-enables a button: the run never starts while blocked.
     const stop = (e) => { if (blocked()) { e.preventDefault(); e.stopImmediatePropagation(); evaluate(); } };

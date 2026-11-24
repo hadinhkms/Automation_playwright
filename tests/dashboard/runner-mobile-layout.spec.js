@@ -44,3 +44,43 @@ test.describe('Runner view at 390px (L3)', () => {
     });
   }
 });
+
+test.describe('Header at tablet width and accessible names', () => {
+  let fixture; let harness;
+  test.beforeAll(async () => { fixture = createRunnerFixture(); harness = await startDashboardHarness(fixture.rootPath); });
+  test.afterAll(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
+
+  for (const view of ['runner-view', 'settings-view', 'git-view', 'resources-view', 'fixtures-view']) {
+    test(`768px: page is not wider than the viewport in ${view}`, async ({ page }) => {
+      await page.setViewportSize({ width: 768, height: 900 });
+      await page.goto(`${harness.url}/#/${view}`);
+      await page.waitForSelector('.header-actions');
+      await page.waitForTimeout(400);
+      const o = await page.evaluate(() => ({ body: document.body.scrollWidth - innerWidth, doc: document.documentElement.scrollWidth - innerWidth }));
+      expect(o.body, `body.scrollWidth exceeds 768 by ${o.body}px`).toBeLessThanOrEqual(0);
+      expect(o.doc).toBeLessThanOrEqual(0);
+    });
+  }
+
+  test('320px: the Runner page is not wider than the viewport (header included)', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 700 });
+    await page.goto(harness.url);
+    await page.waitForSelector('.header-actions');
+    await page.waitForTimeout(400);
+    const o = await page.evaluate(() => ({ body: document.body.scrollWidth - innerWidth, doc: document.documentElement.scrollWidth - innerWidth }));
+    expect(o.body, `body.scrollWidth exceeds 320 by ${o.body}px`).toBeLessThanOrEqual(0);
+    expect(o.doc).toBeLessThanOrEqual(0);
+  });
+
+  test('every header button has a meaningful accessible name (gear included)', async ({ page }) => {
+    await page.goto(harness.url);
+    await page.waitForSelector('#settings-tab');
+    await expect(page.getByRole('tab', { name: 'Cấu hình hệ thống' })).toHaveCount(1);
+    await expect(page.locator('#settings-tab')).toHaveAttribute('aria-label', 'Cấu hình hệ thống');
+    await expect(page.locator('#settings-tab')).toHaveAttribute('title', 'Cấu hình hệ thống');
+    const unnamed = await page.locator('.header-actions button, .header-actions a').evaluateAll((els) => els.filter((e) => !(e.getAttribute('aria-label') || e.textContent || '').trim()).map((e) => e.id || e.className));
+    expect(unnamed).toEqual([]);
+    await expect(page.locator('#system-update-btn')).toHaveAttribute('aria-label', /cập nhật/);
+    await expect(page.locator('#topbar-git-btn')).toHaveAttribute('aria-label', /Git/);
+  });
+});

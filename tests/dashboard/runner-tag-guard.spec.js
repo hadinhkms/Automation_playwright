@@ -55,4 +55,24 @@ test.describe('Runner tag box without a valid @tag (R1)', () => {
     await expect(page.locator('#runner-tag-warning')).toBeHidden();
     await expect(page.locator('#run-button')).toBeEnabled();
   });
+
+  test('N1: the guard gives back the app\'s own disabled state (run in progress), never a blind enable', async ({ page }) => {
+    await page.goto(harness.url);
+    await page.waitForSelector('.runner-mode-tab[data-mode="manual"]');
+    await page.click('.runner-mode-tab[data-mode="manual"]');
+    await page.click('.runner-scope-tab-btn[data-manual-scope="grep"]');
+    const setApp = (disabled) => page.evaluate((d) => { document.querySelector('#run-button').disabled = d; }, disabled);
+    await setApp(true); // app.js: a run is active
+    await page.fill('#grep', 'login');
+    await page.fill('#grep', '@smoke');
+    await expect(page.locator('#run-button')).toBeDisabled(); // still the app's disabled, not enabled by the guard
+    await setApp(false); // run finished
+    await expect(page.locator('#run-button')).toBeEnabled();
+
+    await page.fill('#grep', 'login'); // locked by the guard
+    await setApp(true); await setApp(false); // app runs and finishes while we hold the lock
+    await expect(page.locator('#run-button')).toBeDisabled();
+    await page.fill('#grep', '@smoke');
+    await expect(page.locator('#run-button')).toBeEnabled(); // not stuck on a stale "disabled"
+  });
 });

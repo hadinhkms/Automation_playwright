@@ -436,9 +436,9 @@ body::before {
   margin: 0 3px;
   flex-shrink: 0;
 }
-/* Phone width: the right-hand header buttons (quota, version, git, ...) did not wrap, so the top bar
+/* Phone/tablet width (<=900px): the right-hand header buttons (quota, version, git, ...) did not wrap, so the top bar
    was wider than the screen (body.scrollWidth 426 at 390px) and got clipped instead of scrolling. */
-@media (max-width: 560px) {
+@media (max-width: 900px) {
   .topbar { flex-wrap: wrap; }
   .header-actions { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; max-width: 100%; }
   .header-actions > * { flex: 0 1 auto; min-width: 0; max-width: 100%; }
