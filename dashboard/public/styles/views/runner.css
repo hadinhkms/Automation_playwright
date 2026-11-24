@@ -112,4 +112,18 @@
 .runner-scope-tab-btn.active i {
   color: var(--accent);
 }
-
+
+/* L3: at phone width the single grid column was `1fr` (= minmax(auto, 1fr)), so min-content of the
+   controls forced the form wider than the screen. Let the column and its children shrink. */
+@media (max-width: 900px) {
+  #runner-view .workspace { grid-template-columns: minmax(0, 1fr); }
+  #runner-view .workspace > *,
+  #runner-view .runner-config-body,
+  #runner-view .runner-mode-panel,
+  #runner-view .inline-fields > * { min-width: 0; }
+  #runner-view .runner-mode-switcher { flex-wrap: wrap; }
+  #runner-view .runner-mode-tab { flex: 1 1 140px; min-width: 0; white-space: normal; }
+  #runner-view .inline-fields { flex-wrap: wrap; }
+}
+
+.runner-dashboard-toggle { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font-size: 12px; color: var(--muted); cursor: pointer; }
