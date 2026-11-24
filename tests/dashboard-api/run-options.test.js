@@ -58,15 +58,29 @@ describe('POST /api/run options (script picker 1a)', () => {
     writeSpec(root, ODD, 'odd one @smoke');
     writeSpec(root, 'tests/e2e/desktop/odd 1 x y z.spec.js', 'odd two @smoke @e2e');
     writeSpec(root, MOBILE, 'mobile @smoke');
+    writeSpec(root, 'tests/sub/tests/e2e/desktop/a.spec.js', 'nested same tail @smoke');
+    writeSpec(root, 'tests/e2e/desktop/glue.spec.js', 'x@smoke glued to a word');
     harness = await startDashboardHarness(root);
   });
   after(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
 
   describe('real Playwright selects exactly what the server builds', () => {
     test('escaped + anchored spec arg selects ONLY the odd-named file', () => {
-      assert.deepEqual(listFiles(root, specArg(ODD)), ['e2e/desktop/odd [1] (x)+y$z.spec.js']);
+      assert.deepEqual(listFiles(root, specArg(ODD, root)), ['e2e/desktop/odd [1] (x)+y$z.spec.js']);
       // the raw name used as a regex would select a different file / nothing
       assert.notDeepEqual(listFiles(root, ODD), ['e2e/desktop/odd [1] (x)+y$z.spec.js']);
+    });
+
+    test('S3: spec arg is anchored at the project root: nested folder with the same tail is NOT selected', () => {
+      assert.deepEqual(listFiles(root, specArg(A, root)), ['e2e/desktop/a.spec.js']);
+      // the end-anchored-only form (old behaviour) selected both
+      assert.deepEqual(listFiles(root, 'tests[\\\\/]e2e[\\\\/]desktop[\\\\/]a\\.spec\\.js$'), ['e2e/desktop/a.spec.js', 'sub/tests/e2e/desktop/a.spec.js']);
+    });
+
+    test('S4: tag grep has a leading boundary: x@smoke is not @smoke', () => {
+      const files = listFiles(root, '--grep', tagGrep(['@smoke']));
+      assert.ok(!files.includes('e2e/desktop/glue.spec.js'), files.join());
+      assert.ok(listFiles(root, '--grep', '@smoke').includes('e2e/desktop/glue.spec.js'));
     });
 
     test('tag grep has a tag boundary: @a1 does not match @a12', () => {
@@ -75,8 +89,8 @@ describe('POST /api/run options (script picker 1a)', () => {
     });
 
     test('specs AND tags is an intersection', () => {
-      assert.deepEqual(listFiles(root, specArg(A), '--grep', tagGrep(['@smoke'])), ['e2e/desktop/a.spec.js']);
-      assert.deepEqual(listFiles(root, specArg(A), '--grep', tagGrep(['@e2e'])), []);
+      assert.deepEqual(listFiles(root, specArg(A, root), '--grep', tagGrep(['@smoke'])), ['e2e/desktop/a.spec.js']);
+      assert.deepEqual(listFiles(root, specArg(A, root), '--grep', tagGrep(['@e2e'])), []);
     });
   });
 
@@ -85,7 +99,7 @@ describe('POST /api/run options (script picker 1a)', () => {
       const res = await run({ specs: [ODD], projects: ['Desktop Smoke Tests'] });
       assert.equal(res.status, 202);
       const body = await res.json();
-      assert.ok(body.command.includes(JSON.stringify(specArg(ODD))), body.command);
+      assert.ok(body.command.includes(JSON.stringify(specArg(ODD, root))), body.command);
       assert.deepEqual(body.options.specs, [ODD]);
       await idle();
     });
@@ -94,10 +108,10 @@ describe('POST /api/run options (script picker 1a)', () => {
       const res = await run({ specs: [A], tags: ['@smoke', '@a1'] });
       assert.equal(res.status, 202);
       const body = await res.json();
-      assert.equal(body.options.grep, '(?:@smoke|@a1)(?![\\w-])');
+      assert.equal(body.options.grep, '(?<![\\w@-])(?:@smoke|@a1)(?![\\w-])');
       assert.deepEqual(body.options.tags, ['@smoke', '@a1']);
       assert.ok(body.command.includes(JSON.stringify(body.options.grep)));
-      assert.ok(body.command.includes(JSON.stringify(specArg(A))));
+      assert.ok(body.command.includes(JSON.stringify(specArg(A, root))));
       await idle();
     });
 
@@ -137,6 +151,21 @@ describe('POST /api/run options (script picker 1a)', () => {
       await bad({ specs: ['tests\\e2e\\desktop\\a.spec.js'] }, /Spec không hợp lệ/);
     });
     test('specs: [] -> 400', () => bad({ specs: [] }, /Danh sách spec rỗng/));
+    test('S1: wrong types are 400, never "run everything"', async () => {
+      await bad({ specs: A }, /specs phải là một mảng/);
+      await bad({ specs: { a: 1 } }, /specs phải là một mảng/);
+      await bad({ projects: 'Desktop Smoke Tests' }, /projects phải là một mảng/);
+      await bad({ tags: '@smoke' }, /tags phải là một mảng/);
+      await bad({ grep: { a: 1 } }, /grep phải là một chuỗi/);
+      await bad({ spec: [A] }, /spec phải là một chuỗi/);
+    });
+    test('S1: the legacy strings "all" are still accepted for spec/specs', async () => {
+      for (const payload of [{ specs: 'all' }, { spec: 'all' }]) {
+        const res = await run(payload);
+        assert.equal(res.status, 202, JSON.stringify(payload));
+        await idle();
+      }
+    });
     test('tag outside availableTags -> 400', () => bad({ tags: ['@nope'] }, /Tag không hợp lệ: @nope/));
     test('more than 20 tags -> 400', () => bad({ tags: Array.from({ length: 21 }, (_, i) => `@t${i}`) }, /Tối đa 20 tag/));
     test('tags + grep together -> 400', () => bad({ tags: ['@smoke'], grep: '@smoke' }, /Chỉ dùng tags hoặc grep/));
@@ -182,5 +211,26 @@ describe('POST /api/run limits (count and command length)', () => {
     assert.equal(res.status, 400);
     assert.match((await res.json()).error, /Quá nhiều file đã chọn/);
     assert.equal((await (await fetch(`${harness.url}/api/state`)).json()).activeRun, null);
+  });
+});
+
+describe('S2: a broken playwright.config.js does not leak absolute paths in the 400', () => {
+  let fixture; let harness;
+  before(async () => {
+    fixture = createFixtureWorkspace();
+    fs.writeFileSync(path.join(fixture.rootPath, 'playwright.config.js'), "throw new Error('boom at ' + __dirname + '/deep/lib/helper.js');\n");
+    harness = await startDashboardHarness(fixture.rootPath);
+  });
+  after(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
+
+  test('message keeps the cause but drops absolute directories and any Require stack', async () => {
+    const res = await fetch(`${harness.url}/api/run`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projects: ['Desktop Smoke Tests'] }) });
+    assert.equal(res.status, 400);
+    const { error } = await res.json();
+    assert.match(error, /playwright\.config\.js/);
+    assert.match(error, /boom at helper\.js/);
+    assert.ok(!error.includes(fixture.rootPath), error);
+    assert.ok(!error.includes('/deep/lib'), error);
+    assert.ok(!/Require stack/i.test(error), error);
   });
 });

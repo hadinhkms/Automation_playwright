@@ -1,46 +1,63 @@
 'use strict';
 
 const test = require('node:test');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const assert = require('node:assert/strict');
 const { escapeRegex, specArg, tagGrep, buildPlaywrightArgs, argsLength, MAX_ARGS_CHARS } = require('./runnerArgs');
 const { normalizeDashboardConfig, DEFAULT_CONFIG, GREP_MAX_LENGTH } = require('../../core/config/dashboardConfig');
 
-test('specArg escapes regex metacharacters, anchors the end and accepts / or \\ separators', () => {
-  assert.equal(specArg('tests/e2e/a.spec.js'), 'tests[\\\\/]e2e[\\\\/]a\\.spec\\.js$');
-  assert.equal(specArg('tests/e2e/odd [1] (x)+y$z.spec.js'), 'tests[\\\\/]e2e[\\\\/]odd \\[1\\] \\(x\\)\\+y\\$z\\.spec\\.js$');
-  const re = new RegExp(specArg('tests/e2e/odd [1] (x)+y$z.spec.js'), 'i');
-  assert.ok(re.test('/abs/tests/e2e/odd [1] (x)+y$z.spec.js'));
-  assert.ok(re.test('C:\\abs\\tests\\e2e\\odd [1] (x)+y$z.spec.js'), 'Windows separators');
-  assert.ok(!re.test('/abs/tests/e2e/odd [1] (x)+y$z.spec.jsx'), 'end anchored');
+const ROOT = fs.realpathSync(os.tmpdir());
+const abs = (rel) => path.join(ROOT, rel).replace(/\\/g, '/');
+
+test('specArg is built from the absolute path: escaped, anchored both ends, / or \\ separators', () => {
+  const arg = specArg('tests/e2e/odd [1] (x)+y$z.spec.js', ROOT);
+  assert.ok(arg.startsWith('^') && arg.endsWith('$'));
+  const re = new RegExp(arg, 'i');
+  assert.ok(re.test(abs('tests/e2e/odd [1] (x)+y$z.spec.js')));
+  assert.ok(re.test(abs('tests/e2e/odd [1] (x)+y$z.spec.js').replace(/\//g, '\\')), 'Windows separators');
+  assert.ok(!re.test(`${abs('tests/e2e/odd [1] (x)+y$z.spec.js')}x`), 'end anchored');
+});
+
+test('S3: a nested folder with the same tail is not matched', () => {
+  const re = new RegExp(specArg('tests/e2e/a.spec.js', ROOT), 'i');
+  assert.ok(re.test(abs('tests/e2e/a.spec.js')));
+  assert.ok(!re.test(abs('tests/sub/tests/e2e/a.spec.js')));
+  assert.ok(!re.test(`/elsewhere${abs('tests/e2e/a.spec.js')}`), 'start anchored at the project root');
 });
 
 test('specArg handles spaces, dots and Unicode (NFC) names literally', () => {
   const name = 'tests/e2e/Đăng nhập ✓ (v2).spec.js'.normalize('NFC');
-  const re = new RegExp(specArg(name), 'i');
-  assert.ok(re.test(`/x/${name}`));
-  assert.ok(!re.test('/x/tests/e2e/Dang nhap v2.spec.js'));
+  const re = new RegExp(specArg(name, ROOT), 'i');
+  assert.ok(re.test(abs(name)));
+  assert.ok(!re.test(abs('tests/e2e/Dang nhap v2.spec.js')));
   assert.equal(escapeRegex('a.b*c'), 'a\\.b\\*c');
 });
 
-test('tagGrep puts a tag boundary after every tag: @REQ never matches @REQ-001', () => {
+test('tagGrep has boundaries on both sides: @REQ is not @REQ-001, x@smoke is not @smoke', () => {
   const re = new RegExp(tagGrep(['@REQ']));
   assert.ok(!re.test('case @REQ-001'));
   assert.ok(re.test('case @REQ here'));
   assert.ok(re.test('case @REQ'));
-  assert.equal(tagGrep(['@smoke', '@e2e']), '(?:@smoke|@e2e)(?![\\w-])');
+  const smoke = new RegExp(tagGrep(['@smoke']));
+  assert.ok(!smoke.test('x@smoke'));
+  assert.ok(!smoke.test('a-@smoke'));
+  assert.ok(smoke.test('login @smoke @e2e'));
+  assert.equal(tagGrep(['@smoke', '@e2e']), '(?<![\\w@-])(?:@smoke|@e2e)(?![\\w-])');
 });
 
 test('buildPlaywrightArgs: specs anchored, projects, grep, ui/headed; legacy single spec still works', () => {
-  assert.deepEqual(buildPlaywrightArgs({ specs: ['tests/a.spec.js'], projects: ['P1', 'P2'], grep: '@x', headed: true }),
-    ['test', specArg('tests/a.spec.js'), '--project=P1', '--project=P2', '--grep', '@x', '--headed']);
-  assert.deepEqual(buildPlaywrightArgs({ spec: 'tests/a.spec.js', project: 'P' }, true), ['test', specArg('tests/a.spec.js'), '--project=P', '--ui']);
-  assert.deepEqual(buildPlaywrightArgs({ spec: 'all', project: 'all' }), ['test']);
+  assert.deepEqual(buildPlaywrightArgs({ specs: ['tests/a.spec.js'], projects: ['P1', 'P2'], grep: '@x', headed: true }, false, ROOT),
+    ['test', specArg('tests/a.spec.js', ROOT), '--project=P1', '--project=P2', '--grep', '@x', '--headed']);
+  assert.deepEqual(buildPlaywrightArgs({ spec: 'tests/a.spec.js', project: 'P' }, true, ROOT), ['test', specArg('tests/a.spec.js', ROOT), '--project=P', '--ui']);
+  assert.deepEqual(buildPlaywrightArgs({ spec: 'all', project: 'all' }, false, ROOT), ['test']);
 });
 
-test('argsLength counts every argument plus one separator; 200 files of ordinary length stay far under the cap', () => {
+test('argsLength counts every argument plus one separator; 100 files of ordinary length stay under the cap (each arg now carries the absolute root)', () => {
   assert.equal(argsLength(['ab', 'c']), 5);
-  const specs = Array.from({ length: 200 }, (_, i) => `tests/e2e/desktop/some_reasonably_long_name_${i}.spec.js`);
-  assert.ok(argsLength(buildPlaywrightArgs({ specs })) < MAX_ARGS_CHARS);
+  const specs = Array.from({ length: 100 }, (_, i) => `tests/e2e/desktop/some_reasonably_long_name_${i}.spec.js`);
+  assert.ok(argsLength(buildPlaywrightArgs({ specs }, false, ROOT)) < MAX_ARGS_CHARS);
 });
 
 test('suite grep keeps up to 200 characters (cap raised from 80, no silent truncation)', () => {

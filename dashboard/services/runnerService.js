@@ -31,7 +31,7 @@ function publicRun(run) {
 }
 
 function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT || process.cwd()) {
-  const args = buildPlaywrightArgs(options, uiMode);
+  const args = buildPlaywrightArgs(options, uiMode, root);
 
   logBuffer.length = 0;
   const playwrightCli = require.resolve('@playwright/test/cli');

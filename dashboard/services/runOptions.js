@@ -8,10 +8,23 @@ const { listSpecs, listSpecDetails, specProjects, getPlaywrightProjects } = requ
 const { getLastConfigError } = require('./playwrightConfigLoader');
 const { MAX_ARGS_CHARS, MAX_SPECS, MAX_TAGS, tagGrep, buildPlaywrightArgs, argsLength } = require('./runnerArgs');
 
+const present = (value) => value !== undefined && value !== null;
+const mustBeArray = (value, field) => {
+  if (present(value) && !Array.isArray(value)) throw new Error(`${field} phải là một mảng.`);
+};
+
+/** Dòng đầu của lỗi cấu hình, đường dẫn tuyệt đối thay bằng tên file: không lộ cấu trúc máy chủ/Require stack. */
+function safeConfigError(why) {
+  const firstLine = String(why).split('\n')[0];
+  return firstLine.replace(/(?:[A-Za-z]:)?[\\/][^\s'"():]*[\\/]([^\s'"():\\/]+)/g, '$1');
+}
+
 const names = (list) => `${list.slice(0, 10).join(', ')}${list.length > 10 ? `, … (+${list.length - 10})` : ''}`;
 const stringArray = (value) => [...new Set(value.map(String))];
 
 function parseSpecs(input, allSpecs) {
+  if (present(input.specs) && input.specs !== 'all') mustBeArray(input.specs, 'specs');
+  if (present(input.spec) && typeof input.spec !== 'string') throw new Error('spec phải là một chuỗi.');
   if (Array.isArray(input.specs)) {
     const specs = stringArray(input.specs);
     if (specs.length === 0) throw new Error('Danh sách spec rỗng.');
@@ -28,10 +41,12 @@ function parseSpecs(input, allSpecs) {
 }
 
 function parseProjects(input, root) {
+  mustBeArray(input.projects, 'projects');
+  if (present(input.project) && typeof input.project !== 'string') throw new Error('project phải là một chuỗi.');
   const known = getPlaywrightProjects(root);
   const configHint = () => {
     const why = getLastConfigError();
-    return why ? ` Không đọc được playwright.config.js (${why}) nên danh sách project trống; sửa lỗi cấu hình rồi thử lại.` : '';
+    return why ? ` Không đọc được playwright.config.js (${safeConfigError(why)}) nên danh sách project trống; xem log máy chủ để biết chi tiết và sửa cấu hình rồi thử lại.` : '';
   };
   if (Array.isArray(input.projects)) {
     const projects = stringArray(input.projects);
@@ -47,6 +62,8 @@ function parseProjects(input, root) {
 }
 
 function parseGrep(input, root) {
+  mustBeArray(input.tags, 'tags');
+  if (present(input.grep) && typeof input.grep !== 'string') throw new Error('grep phải là một chuỗi.');
   let grep = String(input.grep || '').trim();
   let tags = [];
   if (Array.isArray(input.tags) && input.tags.length > 0) {
@@ -96,7 +113,7 @@ function validateOptions(input, root = process.env.QA_PROJECT_ROOT || process.cw
 
   const spec = specs.length === 1 ? specs[0] : (specs.length > 1 ? specs.join(' ') : 'all');
   const options = { project, projects, environment, spec, specs, tags, grep, workers, headed: input.headed === true, viewport, suiteLabel };
-  if (argsLength(buildPlaywrightArgs(options)) > MAX_ARGS_CHARS) throw new Error('Quá nhiều file đã chọn; chọn theo thư mục/tag.');
+  if (argsLength(buildPlaywrightArgs(options, false, root)) > MAX_ARGS_CHARS) throw new Error('Quá nhiều file đã chọn; chọn theo thư mục/tag.');
   return options;
 }
 
