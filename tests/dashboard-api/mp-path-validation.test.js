@@ -58,6 +58,15 @@ describe('API Security: /api/mp target path whitelist', () => {
     assert.equal((await status(path.join(fixture.rootPath, 'escape-link', 'secret.txt'))).status, 403);
   });
 
+  test('rejects a dangling symlink inside the project (target not created yet) with 403', async (t) => {
+    const link = path.join(fixture.rootPath, 'dangling-link');
+    try { fs.symlinkSync(path.join(outside, 'not-yet'), link); } catch (_) { return t.skip('symlink not permitted on this OS/user'); }
+    assert.equal((await status(link)).status, 403);
+    assert.equal((await status(path.join(link, 'sub'))).status, 403);
+    // an ordinary not-yet-existing child of the project is still fine
+    assert.notEqual((await status(path.join(fixture.rootPath, 'new-dir'))).status, 403);
+  });
+
   test('still accepts the project root itself', async () => {
     const res = await status(fixture.rootPath);
     assert.notEqual(res.status, 403);

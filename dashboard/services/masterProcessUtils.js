@@ -99,10 +99,11 @@ function getAllowedProjectRoots(fallbackRoot) {
 function validateProjectPath(targetPath, fallbackRoot) {
   const chosen = targetPath || fallbackRoot || process.cwd();
   const resolved = path.resolve(chosen);
-  const normalized = normalizePath(canonicalPath(resolved));
+  const canonical = canonicalPath(resolved);
+  const normalized = canonical && normalizePath(canonical);
   const allowedRoots = getAllowedProjectRoots(fallbackRoot);
-  const isAllowed = !isForeignDrivePath(chosen) && allowedRoots.some((allowed) => {
-    const normAllowed = normalizePath(canonicalPath(allowed));
+  const isAllowed = Boolean(canonical) && !isForeignDrivePath(chosen) && allowedRoots.some((allowed) => {
+    const normAllowed = normalizePath(canonicalPath(allowed) || allowed);
     return normalized === normAllowed || normalized.startsWith(normAllowed + '/');
   });
   if (!isAllowed) {

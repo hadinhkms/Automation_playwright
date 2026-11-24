@@ -9,6 +9,12 @@
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * Trả về null khi đường dẫn không thể xác định an toàn: gặp symlink không resolve được
+ * (dangling hoặc vòng lặp) -> từ chối, không "leo lên cha" rồi coi tên link là thư mục thường.
+ * Giới hạn: kiểm tra rồi mới dùng (TOCTOU) — symlink có thể bị đổi giữa lúc check và lúc chạy lệnh;
+ * guard chỉ chặn cấu hình sai/tấn công tĩnh, không thay thế quyền truy cập hệ điều hành.
+ */
 function canonicalPath(target) {
   let current = path.resolve(target);
   const rest = [];
@@ -16,6 +22,7 @@ function canonicalPath(target) {
     try {
       return path.join(fs.realpathSync(current), ...rest.reverse());
     } catch (_) {
+      try { fs.lstatSync(current); return null; } catch (__) { /* thật sự chưa tồn tại */ }
       const parent = path.dirname(current);
       if (parent === current) return path.resolve(target);
       rest.push(path.basename(current));
