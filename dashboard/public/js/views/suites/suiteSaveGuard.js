@@ -31,7 +31,7 @@
   /** Suites to send: the edited cache only for an explicit Suites save, else what the server has. */
   function pickSuitesForSave({ includeSuites, cachedSuites, savedSuites, settingsSuites }) {
     if (includeSuites) return Object.assign({}, cachedSuites || {});
-    return JSON.parse(JSON.stringify(savedSuites && Object.keys(savedSuites).length ? savedSuites : (settingsSuites || {})));
+    return JSON.parse(JSON.stringify(savedSuites !== undefined ? savedSuites : (settingsSuites || {})));
   }
 
   /** Without a loaded Settings form send only suites; the server keeps the other sections. */
@@ -64,12 +64,14 @@
    */
   function install(win) {
     const doc = win.document;
-    const state = { suitesSave: false, lastPutError: null };
+    const state = { lastPutError: null, lastCreateStamp: null };
     bindEditTracking(doc);
-    doc.addEventListener('click', (e) => {
-      if (e.target && e.target.closest && e.target.closest('#suites-save-btn')) state.suitesSave = true;
-    }, true);
+    // The Suites button is disabled for exactly the duration of its save (app.js), so it tells a Suites
+    // save from a Settings save without any flag that could stay set after an exception.
+    const suitesSaving = () => Boolean(doc.querySelector('#suites-save-btn:disabled'));
 
+    // Suites the server really holds (never the draft cache, which also feeds savedSuitesCache).
+    const serverSuites = () => (win.SettingsRevisionGuard ? win.SettingsRevisionGuard.getServerSuites() : undefined);
     const wrap = (name, make) => { if (typeof win[name] === 'function') win[name] = make(win[name]); };
     const isSettingsPut = (url, o) => url === '/api/settings' && o && o.method === 'PUT';
 
@@ -89,27 +91,33 @@
     wrap('collectSettingsPayload', (orig) => function guardedCollect() {
       const payload = orig.apply(this, arguments);
       const suites = pickSuitesForSave({
-        includeSuites: state.suitesSave, cachedSuites: payload.suites,
-        savedSuites: typeof savedSuitesCache === 'undefined' ? {} : savedSuitesCache,
+        includeSuites: suitesSaving(), cachedSuites: payload.suites,
+        savedSuites: serverSuites(),
         settingsSuites: typeof settingsCache === 'undefined' || !settingsCache ? {} : settingsCache.suites,
       });
       return toSavePayload(Object.assign({}, payload, { suites }), { settingsReady: settingsFormReady(doc) });
     });
     wrap('saveSettings', (orig) => async function guardedSave() {
-      const fromSuites = state.suitesSave;
+      const fromSuites = suitesSaving();
       state.lastPutError = null;
-      try {
-        await orig.apply(this, arguments);
-        // saveSettings reports its own error; the Suites button must not follow it with a success toast.
-        if (fromSuites && state.lastPutError) throw state.lastPutError;
-      } finally { state.suitesSave = false; }
+      await orig.apply(this, arguments);
+      // saveSettings reports its own error; the Suites button must not follow it with a success toast.
+      if (fromSuites && state.lastPutError) throw state.lastPutError;
+    });
+    // app.js binds createNewSuite twice (direct + delegated click); one click must make one suite.
+    wrap('createNewSuite', (orig) => function guardedCreate() {
+      const stamp = win.event && win.event.timeStamp;
+      if (stamp !== undefined && stamp === state.lastCreateStamp) return undefined;
+      state.lastCreateStamp = stamp;
+      return orig.apply(this, arguments);
     });
     wrap('updateSuitePlatformContext', (orig) => function guardedContext(platform, current) {
       const result = orig.apply(this, arguments);
       const select = doc.querySelector('#suite-platform-project') || doc.querySelector('#suite-field-project');
       const wanted = current && current.project;
       if (select && wanted) {
-        if (!Array.from(select.options).some((o) => o.value === wanted)) select.add(new Option(wanted, wanted));
+        const options = Array.from(select.options).map((o) => o.value);
+        if (keepCurrentOption(options.slice(), wanted).length > options.length) select.add(new Option(wanted, wanted));
         select.value = wanted;
       }
       return result;

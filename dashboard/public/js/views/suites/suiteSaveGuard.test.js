@@ -31,7 +31,9 @@ test('pickSuitesForSave sends saved suites unless a Suites save asks for the cac
   const cached = { x: { label: 'Kịch bản mới' } };
   assert.deepEqual(guard.pickSuitesForSave({ includeSuites: false, cachedSuites: cached, savedSuites: saved }), saved);
   assert.deepEqual(guard.pickSuitesForSave({ includeSuites: true, cachedSuites: cached, savedSuites: saved }), cached);
-  assert.deepEqual(guard.pickSuitesForSave({ includeSuites: false, cachedSuites: {}, savedSuites: {}, settingsSuites: saved }), saved);
+  assert.deepEqual(guard.pickSuitesForSave({ includeSuites: false, cachedSuites: cached, savedSuites: undefined, settingsSuites: saved }), saved);
+  // a server holding zero suites stays zero: a draft never becomes "saved"
+  assert.deepEqual(guard.pickSuitesForSave({ includeSuites: false, cachedSuites: cached, savedSuites: {}, settingsSuites: saved }), {});
 });
 
 test('toSavePayload keeps only suites when the Settings form was never loaded', () => {

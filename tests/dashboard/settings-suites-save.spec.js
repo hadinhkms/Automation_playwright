@@ -71,11 +71,12 @@ test.describe('Settings / Suites save safety (NB-01, NB-02)', () => {
     expect(suites.smoke).toMatchObject({ label: 'Smoke Tests', project: 'Desktop Smoke Tests', grep: '@smoke' });
   });
 
-  test('NB-01b: Suites save without edits keeps project outside the Playwright catalog', async ({ page }) => {
+  test('NB-01b: editing a suite keeps its project even when the Playwright catalog lacks it', async ({ page }) => {
     await page.goto(`${harness.url}/#/suites-view`);
     await page.waitForSelector('#suites-save-btn');
+    await page.fill('#suite-field-label', 'Smoke Renamed');
     await page.click('#suites-save-btn');
     await expect(page.locator('#toast')).toContainText('thành công');
-    expect((await getSettings(harness)).suites.smoke).toMatchObject({ project: 'Desktop Smoke Tests', grep: '@smoke' });
+    expect((await getSettings(harness)).suites.smoke).toMatchObject({ label: 'Smoke Renamed', project: 'Desktop Smoke Tests', grep: '@smoke' });
   });
 });
