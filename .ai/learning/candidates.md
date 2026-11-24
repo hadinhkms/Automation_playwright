@@ -47,3 +47,6 @@
 - **CANDIDATE-15 (Sync Dialog Cancel Guard, Plain-Object JSON Parsing & Sub-Module Allowlist Sync):**
   - **DO:** Gọi `event.preventDefault()` đồng bộ trước `await confirmClose()` trên `<dialog>` `'cancel'`, ép `parseBody` chỉ nhận plain JSON object kèm `err.status = 400`, và đồng bộ allowlist `sourcesAssertionConstants.js` khi tách helper.
   - **DON'T:** Không `await` trước `preventDefault()` trên sự kiện `cancel` của `<dialog>` và không gọi `decodeURIComponent` hay `parseBody` ngoài `try/catch`.
+- **CANDIDATE-16 (Symlink-Safe Path Whitelist) — PENDING:**
+  - **DO:** Symlink-safe path whitelist: resolve bằng realpath, từ chối symlink dangling và đường dẫn ổ đĩa trước khi kiểm allowlist (BUG-06, Gate 3 F1).
+  - **Evidence:** 3e87f28, 81c0f01.
