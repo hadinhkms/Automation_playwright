@@ -18,6 +18,7 @@ import { followAccent } from './pickerContrast.js';
 import { escapeHtml } from './pickerText.js';
 
 let current = null;
+let saved = null; // selection/search/filters survive leaving the Runner screen (NB-PK-2); session memory only
 
 export function mountScriptPicker(win = window) {
   if (current) return current;
@@ -33,7 +34,7 @@ export function mountScriptPicker(win = window) {
   const tab = doc.querySelector('.runner-mode-tab[data-mode="manual"]');
   if (tab) tab.innerHTML = '<i class="ph-bold ph-list-checks"></i> Chọn script';
 
-  const ctx = { catalog: null, state: createState(), phase: 'loading', slow: false, error: '', runError: '', notice: '', running: false, focusKey: '', suites: {}, projectsOpen: false, undo: null };
+  const ctx = { catalog: null, state: saved ? saved.state : createState(), phase: 'loading', slow: false, error: '', runError: '', notice: '', running: false, focusKey: '', suites: {}, projectsOpen: false, undo: null };
   const $ = (sel) => root.querySelector(sel);
   const controls = () => ({
     environment: doc.querySelector('#environment')?.value || '', workers: Number(doc.querySelector('#workers')?.value) || 2, headed: Boolean(doc.querySelector('#headed')?.checked),
@@ -94,7 +95,7 @@ export function mountScriptPicker(win = window) {
   const unbind = bindEvents({ root, doc, win, ctx, view, groupFiles, renderTop, renderBody, renderFoot, changed, load, isActive, $ });
 
   const stop = doc.querySelector('#stop-button');
-  const watcher = stop ? new win.MutationObserver(() => { ctx.running = !stop.disabled; renderFoot(); }) : null;
+  const watcher = stop ? new win.MutationObserver(() => { const was = ctx.running; ctx.running = !stop.disabled; if (was && !ctx.running && ctx.phase === 'ready') { ctx.notice = 'Đã chạy xong.'; ctx.runError = ''; } renderFoot(); }) : null;
   watcher?.observe(stop, { attributes: true, attributeFilter: ['disabled'] });
   ['#environment', '#workers', '#headed'].forEach((s) => doc.querySelector(s)?.addEventListener('change', renderFoot));
 
@@ -102,7 +103,7 @@ export function mountScriptPicker(win = window) {
     isActive: isVisible, isReady, selectedFiles: () => (isReady() ? view().selected : []),
     getRunPayload: () => (isReady() ? view().payload : { specs: [] }), // not ready: an empty list the server rejects (400)
     runSucceeded: () => { ctx.runError = ''; renderFoot(); },
-    runFailed: (err) => { ctx.notice = ''; ctx.runError = err.status === 409 ? 'Đang có một test run khác. Chờ chạy xong hoặc bấm Dừng.' : `Chưa chạy được: ${err.message}. Lựa chọn của bạn vẫn còn — sửa rồi bấm Chạy lại.`; renderFoot(); },
+    runFailed: (err) => { ctx.notice = ''; ctx.runError = err.status === 409 ? 'Đang có một test run khác. Chờ chạy xong hoặc bấm Dừng.' : `Chưa chạy được: ${String(err.message).replace(/[.\s]+$/, '')}. Lựa chọn của bạn vẫn còn — sửa rồi bấm Chạy lại.`; renderFoot(); },
   };
   const stopAccent = followAccent(win, root);
   const undoExpose = exposeScriptPicker(win, api);
@@ -111,7 +112,7 @@ export function mountScriptPicker(win = window) {
   load();
   current = {
     api, ctx,
-    unmount() { root.remove(); doc.getElementById('runner-view')?.classList.remove('has-script-picker'); unbind(); watcher?.disconnect(); stopAccent(); undoBridge(); undoExpose(); current = null; },
+    unmount() { saved = { state: ctx.state }; root.remove(); doc.getElementById('runner-view')?.classList.remove('has-script-picker'); unbind(); watcher?.disconnect(); stopAccent(); undoBridge(); undoExpose(); current = null; },
   };
   return current;
 }

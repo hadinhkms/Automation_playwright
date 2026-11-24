@@ -5,7 +5,8 @@
 import { escapeHtml } from './pickerText.js';
 
 export function summaryText(i) {
-  const n = i.all ? `Tất cả (${i.count}) script` : `${i.count} script`;
+  // "all" = every file; it is NOT a claim that every test runs (tags/projects decide that), so no "Chạy tất cả" wording
+  const n = `${i.count} script${i.all ? ' (tất cả file)' : ''}`;
   const hidden = i.hidden ? ` (${i.hidden} đang ẩn bởi bộ lọc)` : '';
   const parts = [`<strong>${n}</strong>${hidden}`];
   if (i.projects.length) parts.push(escapeHtml(i.projects.join(', ')));
@@ -17,7 +18,7 @@ export function summaryText(i) {
 
 export function runLabel(i) {
   if (i.running) return 'Đang chạy…';
-  return i.all ? `Chạy tất cả (${i.count}) script` : `Chạy ${i.count} script`;
+  return `Chạy ${i.count} script`;
 }
 
 export function renderFooter(i) {

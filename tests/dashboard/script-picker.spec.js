@@ -148,7 +148,7 @@ test.describe('Script Picker', () => {
   test('select everything sends spec:"all"', async ({ page }) => {
     const run = await open(page);
     await page.click('[data-act="select-found"]');
-    await expect(page.locator('#sp-run')).toHaveText(/Chạy tất cả \(5\) script/);
+    await expect(page.locator('#sp-run')).toHaveText(/Chạy 5 script/);
     await page.click('#sp-run');
     await expect.poll(() => run.body).not.toBeNull();
     expect(run.body.spec).toBe('all');
@@ -202,7 +202,7 @@ test.describe('Script Picker', () => {
     await page.keyboard.press('Home');
     await expect(page.locator('.sp-group').first()).toBeFocused();
     await page.keyboard.press('Control+a');
-    await expect(page.locator('.sp-summary')).toContainText('Tất cả (5) script');
+    await expect(page.locator('.sp-summary')).toContainText('5 script (tất cả file)');
     expect(await page.locator('#sp-body [tabindex="0"]').count()).toBe(1);
     await page.keyboard.press('Escape');
     await expect(page.locator('#sp-search')).toBeFocused();
