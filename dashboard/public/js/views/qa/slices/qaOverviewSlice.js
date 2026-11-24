@@ -50,16 +50,24 @@ export class QaOverviewSlice {
     const box = root && root.querySelector('#qa-stats');
     if (!box || !trace) return;
     if (trace.available === false) { box.hidden = true; return; }
-    const c = trace.counts || {};
     const set = (id, v) => { const el = root.querySelector(`#${id}`); if (el) el.textContent = String(v ?? 0); };
-    set('qa-stat-req', c.requirements);
-    set('qa-stat-ac', c.acceptanceCriteria);
-    set('qa-stat-tc', c.testCases);
-    set('qa-stat-auto', trace.automatedCount);
-    const summaryMajor = (this.qaSlice.summary && Array.isArray(this.qaSlice.summary.findings))
-      ? this.qaSlice.summary.findings.filter((f) => f.severity === 'major' || f.severity === 'blocker').length
-      : 0;
-    set('qa-stat-major', (trace.majorCount || 0) + summaryMajor);
+    // Một nguồn sự thật: QA Core summary (cùng bộ số với `node tools/qa summary` và /api/qa/summary).
+    // Chỉ khi summary chưa về mới tạm hiện số của trace.
+    const s = this.qaSlice.summary;
+    if (s && s.metrics) {
+      set('qa-stat-req', s.metrics.requirements);
+      set('qa-stat-ac', s.metrics.acceptanceCriteria);
+      set('qa-stat-tc', s.metrics.testCases);
+      set('qa-stat-auto', s.metrics.automatedTests);
+      set('qa-stat-major', (s.health?.blockers || 0) + (s.health?.majors || 0));
+    } else {
+      const c = trace.counts || {};
+      set('qa-stat-req', c.requirements);
+      set('qa-stat-ac', c.acceptanceCriteria);
+      set('qa-stat-tc', c.testCases);
+      set('qa-stat-auto', trace.automatedCount);
+      set('qa-stat-major', trace.majorCount || 0);
+    }
     box.hidden = false;
   }
 
@@ -67,6 +75,7 @@ export class QaOverviewSlice {
     if (!root) return;
     const t = traceArg || this.qaSlice.trace;
     let s = summaryArg || this.qaSlice.summary;
+    const hasSummary = Boolean(s);
     if (!s && t) {
       const c = t.counts || {};
       const autoCount = t.automatedCount || 0;
@@ -87,7 +96,7 @@ export class QaOverviewSlice {
 
     let healthStatus = s.systemHealth || s.health?.status || 'HEALTHY';
     const traceMajors = (t?.findings?.major || []).length || (t?.majorCount || 0);
-    if (healthStatus === 'HEALTHY' && traceMajors > 0) healthStatus = 'WARNING';
+    if (!hasSummary && healthStatus === 'HEALTHY' && traceMajors > 0) healthStatus = 'WARNING';
 
     const healthBadge = root.querySelector('#qa-health-badge');
     const healthStatusEl = root.querySelector('#qa-health-status');
@@ -101,11 +110,8 @@ export class QaOverviewSlice {
     }
     if (healthStatusEl) healthStatusEl.textContent = healthStatus;
     if (healthFindings) {
-      const summaryCount = s.health?.totalFindings ?? (Array.isArray(s.findings) ? s.findings.length : 0);
-      const traceCount = t && t.findings
-        ? ((t.findings.major || []).length + (t.findings.minor || []).length + (t.findings.info || []).length)
-        : (t?.majorCount || 0);
-      healthFindings.textContent = `${summaryCount + traceCount} phát hiện`;
+      const total = s.health?.totalFindings ?? (Array.isArray(s.findings) ? s.findings.length : 0);
+      healthFindings.textContent = `${total} phát hiện`;
     }
 
     const m = s.metrics || {};

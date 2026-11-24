@@ -14,6 +14,7 @@ const {
 } = require('./lib/cliRenderReport');
 const { gaps, drift, matrix, summary, SEVERITY_RANK } = require('./lib/commands');
 const { fixTraceability } = require('./lib/fixer');
+const { dedupeSummary } = require('./lib/summaryDedupe');
 const { loadConfig } = require('./lib/config');
 
 const ROOT = path.resolve(__dirname, '..', '..');
@@ -98,7 +99,7 @@ function main(opts = {}) {
         break;
       }
       case 'summary': {
-        const res = summary(rootDir, options);
+        const res = dedupeSummary(summary(rootDir, options));
         if (flags.output) {
           const outPath = path.resolve(rootDir, flags.output);
           fs.mkdirSync(path.dirname(outPath), { recursive: true });

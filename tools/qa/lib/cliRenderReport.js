@@ -102,7 +102,7 @@ function renderSummaryBox(res, outputFlag) {
   console.log(`│  Automated Tests    : ${bold(String(m.automatedTests).padEnd(4))}  · WIP / Stub Tests : ${bold(String(m.wipTests).padEnd(5))}     │`);
   console.log(`│  Vấn đề (Findings)  : ${red(h.blockers)} blocker · ${yellow(h.majors)} major · ${dim(h.minors)} minor    │`);
   console.log(`│  Quyết định chờ duyệt: ${bold(String(d.pending).padEnd(3))} (Chặn: ${d.blocking > 0 ? red(d.blocking) : green(0)})                   │`);
-  console.log(`│  Ranh giới Hub-Repo : ${b.status === 'ALIGNED' ? green('ALIGNED') : red('DRIFTED')} (ship ${b.shipCount}, seed ${b.seedCount}, own ${b.ownCount})  │`);
+  console.log(`│  Ranh giới Hub-Repo : ${b.status === 'ALIGNED' ? green('ALIGNED') : red(b.status)} (ship ${b.shipCount}, seed ${b.seedCount}, own ${b.ownCount})  │`);
   console.log(bold('└─────────────────────────────────────────────────────────────┘\n'));
   if (outputFlag) console.log(dim(`(Đã xuất báo cáo JSON ra: ${outputFlag})\n`));
 }
