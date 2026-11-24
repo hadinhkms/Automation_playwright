@@ -34,23 +34,31 @@ function quarantine(file) {
 }
 
 function createJsonRunStore({ fileFor, maxRuns, isValidRecord, quarantineCorrupt = false }) {
-  function read(root) {
+  /** { runs, ok }: ok=false khi lỗi đọc KHÔNG phải ENOENT (EACCES/EBUSY/EPERM...): không được ghi đè (R-4). */
+  function load(root) {
     const file = fileFor(root);
     let raw;
-    try { raw = fs.readFileSync(file, 'utf8'); } catch (_) { return []; }
+    try { raw = fs.readFileSync(file, 'utf8'); } catch (err) { return { runs: [], ok: err.code === 'ENOENT', err }; }
     let parsed;
     try { parsed = JSON.parse(raw); } catch (_) {
       if (quarantineCorrupt) quarantine(file);
-      return [];
+      return { runs: [], ok: true };
     }
     const runs = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.runs) ? parsed.runs : []);
-    return runs.filter(isValidRecord).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    return { runs: runs.filter(isValidRecord).sort((a, b) => b.startedAt.localeCompare(a.startedAt)), ok: true };
   }
+
+  const read = (root) => load(root).runs;
 
   /** Adds a record (replacing one with the same id) and keeps the newest `maxRuns`. */
   function append(root, record) {
     if (!isValidRecord(record)) return null;
-    const runs = [record, ...read(root).filter((r) => r.id !== record.id)].slice(0, maxRuns);
+    const state = load(root);
+    if (!state.ok) {
+      console.warn(`[run-history] không đọc được ${fileFor(root)} (${state.err.code || state.err.message}): bỏ lần ghi để không mất lịch sử`);
+      return null;
+    }
+    const runs = [record, ...state.runs.filter((r) => r.id !== record.id)].slice(0, maxRuns);
     writeAtomic(fileFor(root), { version: 1, runs });
     return record;
   }

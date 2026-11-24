@@ -7,7 +7,8 @@ const { sendJson } = require('./routeUtils');
 const { listRuns, getRun, latestFailed, fileStatuses, MAX_RUNS } = require('../services/runHistoryService');
 
 async function handleRunHistoryRoutes(request, response, url, context = {}) {
-  if (request.method !== 'GET' || !url.pathname.startsWith('/api/run-history')) return false;
+  // R-5: khớp đúng '/api/run-history' hoặc '/api/run-history/...', không phải mọi đường dẫn bắt đầu bằng chuỗi đó.
+  if (request.method !== 'GET' || (url.pathname !== '/api/run-history' && !url.pathname.startsWith('/api/run-history/'))) return false;
   const root = context.root || process.env.QA_PROJECT_ROOT || process.cwd();
   const rest = url.pathname.slice('/api/run-history'.length);
 

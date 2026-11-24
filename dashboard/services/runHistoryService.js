@@ -54,11 +54,11 @@ function buildRecord(run, results) {
   };
 }
 
-/** Gọi từ handler `close` của run: không bao giờ ném (lỗi lịch sử không được đổi trạng thái run). */
-function recordWebRun(root, run, rawFile) {
+/** Gọi SAU khi run đã nhả activeRun và phát trạng thái kết thúc (R-3). Không bao giờ ném/reject (lỗi lịch sử không được đổi trạng thái run). */
+async function recordWebRun(root, run, rawFile) {
   try {
-    const results = readResults(root, rawFile, Date.parse(run.startedAt) || 0);
-    return store.append(root, buildRecord(run, results));
+    const results = await readResults(root, rawFile, { startedAt: run.startedAt, finishedAt: run.finishedAt, projects: buildRecord(run, { source: 'none' }).projects });
+    return store.append(root, buildRecord(run, results)); // append đọc-sửa-ghi ĐỒNG BỘ
   } catch (err) {
     console.warn(`[run-history] không ghi được lịch sử run ${run && run.id}: ${err.message}`);
     return null;

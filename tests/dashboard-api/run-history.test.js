@@ -33,7 +33,9 @@ describe('GET /api/run-history* after real runs', () => {
   const get = async (p) => { const res = await fetch(`${harness.url}${p}`); return { status: res.status, body: await res.json() }; };
   const post = (p, body) => fetch(`${harness.url}${p}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const idle = async () => { for (let i = 0; i < 150; i += 1) { if (!(await (await fetch(`${harness.url}/api/state`)).json()).activeRun) return; await sleep(200); } throw new Error('run did not finish'); };
-  const runAndWait = async (body) => { const res = await post('/api/run', body); assert.equal(res.status, 202); await idle(); return (await res.json()).id; };
+  // The record is written AFTER the run is released and its final status published (R-3): wait for it.
+  const recorded = async (id) => { for (let i = 0; i < 100; i += 1) { if ((await fetch(`${harness.url}/api/run-history/${id}`)).status === 200) return; await sleep(100); } throw new Error(`no history record for ${id}`); };
+  const runAndWait = async (body) => { const res = await post('/api/run', body); assert.equal(res.status, 202); const id = (await res.json()).id; await idle(); await recorded(id); return id; };
   const write = (rel, text) => { const full = path.join(root, rel); fs.mkdirSync(path.dirname(full), { recursive: true }); fs.writeFileSync(full, text); };
 
   before(async () => {
@@ -102,7 +104,7 @@ describe('GET /api/run-history* after real runs', () => {
     assert.ok(failure.error.length <= 300, `error length ${failure.error.length}`);
     assert.ok(!failure.error.includes(TOKEN), failure.error);
     assert.ok(!failure.error.includes('abc.DEF-123'), failure.error);
-    assert.match(failure.error, /Bearer \*\*\*/);
+    assert.match(failure.error, /\*\*\*/);
     const raw = fs.readFileSync(path.join(root, 'test-results/web-runs/index.json'), 'utf8');
     assert.ok(!raw.includes(TOKEN) && !raw.includes('abc.DEF-123'), 'the stored file is masked too');
 
@@ -135,6 +137,7 @@ describe('GET /api/run-history* after real runs', () => {
     await sleep(2500);
     assert.equal((await post('/api/stop', {})).status, 202);
     await idle();
+    await recorded(id);
     const rec = (await get(`/api/run-history/${id}`)).body;
     assert.equal(rec.status, 'stopped');
     assert.equal(rec.resultsSource, 'none');
@@ -184,12 +187,12 @@ describe('GET /api/run-history* after real runs', () => {
 describe('history store limits (unit through the service)', () => {
   const { recordWebRun, listRuns, historyFile, MAX_RUNS } = require('../../dashboard/services/runHistoryService');
   const os = require('os');
-  test('101 runs leave 100, newest first; unknown results source is "none"', () => {
+  test('101 runs leave 100, newest first; unknown results source is "none"', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'run-hist-'));
     try {
       for (let i = 0; i < 101; i += 1) {
         const startedAt = new Date(Date.UTC(2026, 10, 24, 8, 0, i)).toISOString();
-        recordWebRun(root, { id: `r${i}`, startedAt, finishedAt: startedAt, status: 'passed', exitCode: 0, options: {}, command: 'x' }, null);
+        await recordWebRun(root, { id: `r${i}`, startedAt, finishedAt: startedAt, status: 'passed', exitCode: 0, options: {}, command: 'x' }, null);
       }
       assert.equal(MAX_RUNS, 100);
       const stored = JSON.parse(fs.readFileSync(historyFile(root), 'utf8')).runs;

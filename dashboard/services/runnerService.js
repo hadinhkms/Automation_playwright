@@ -81,10 +81,12 @@ function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT ||
     activeRun.finishedAt = new Date().toISOString();
     activeRun.exitCode = exitCode;
     activeRun.reportAvailable = Boolean(report);
-    if (!uiMode) recordWebRun(root, activeRun, rawResults); // không ném: lỗi lịch sử không đổi trạng thái run
-    lastRun = publicRun(activeRun);
+    const finished = activeRun;
+    lastRun = publicRun(finished);
     activeRun = null;
     publish('status', lastRun);
+    // R-3: phần nặng (đọc kết quả, ghi lịch sử) SAU khi đã nhả activeRun và phát trạng thái kết thúc; không ném.
+    if (!uiMode) setImmediate(() => { recordWebRun(root, finished, rawResults).then((rec) => { if (rec) publish('history', { runId: rec.id }); }); });
   });
 
   return publicRun(activeRun);
