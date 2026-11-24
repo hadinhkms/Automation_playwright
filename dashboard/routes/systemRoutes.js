@@ -8,13 +8,13 @@ const https = require('https');
 const {
   CONFIG_PATH, getDashboardConfig, publicDashboardConfig, saveDashboardConfig,
 } = require('../../core/config/dashboardConfig');
-const { checkForUpdates, applyUpdate, getCurrentVersion } = require('../../core/system/updater');
+const { getCurrentVersion } = require('../../core/system/updater');
 const { createRemoteRunService } = require('../../core/ci/remoteRunService');
 const { listSpecs, listSpecDetails, specProjects, getPlaywrightProjects } = require('../services/specService');
 const { createBackup } = require('../services/resourceService');
 const { parseEnvFile, writeEnvFile } = require('./aiRoutes');
 const { sendJson, parseBody } = require('./routeUtils');
-const { updateFramework } = require('../../scripts/update-framework');
+const { handleSystemMaintenanceRoutes } = require('./systemMaintenanceRoutes');
 
 const remoteRunConfig = { environments: {}, suites: {}, github: {} };
 const remoteRunService = createRemoteRunService({ config: remoteRunConfig, allowProd: process.env.DASHBOARD_ALLOW_PROD_REMOTE === '1' });
@@ -69,73 +69,12 @@ async function handleSystemRoutes(request, response, url, context = {}) {
   if (request.method === 'GET' && url.pathname === '/api/health') {
     return sendJson(response, 200, { appName, workspaceRoot: root, port, pid: process.pid }) || true;
   }
+  if (await handleSystemMaintenanceRoutes(request, response, url, context)) return true;
+
   if (request.method === 'GET' && url.pathname === '/api/system/version') {
     return sendJson(response, 200, {
       appName, version: getCurrentVersion(), workspaceRoot: root, engineDir, port, isEngineStandalone: root === engineDir,
     }) || true;
-  }
-  if (request.method === 'GET' && url.pathname === '/api/system/ping-site') {
-    const targetUrl = url.searchParams.get('url');
-    if (!targetUrl) {
-      return sendJson(response, 400, { ok: false, error: 'Thiếu tham số url.' }) || true;
-    }
-    const startTime = Date.now();
-    try {
-      const parsed = new URL(targetUrl);
-      if (!['http:', 'https:'].includes(parsed.protocol)) {
-        return sendJson(response, 400, { ok: false, error: 'Chỉ hỗ trợ giao thức http hoặc https.' }) || true;
-      }
-      let responded = false;
-      const sendPingResponse = (statusCode, payload) => {
-        if (responded) return;
-        responded = true;
-        sendJson(response, statusCode, payload);
-      };
-
-      const client = parsed.protocol === 'https:' ? require('https') : require('http');
-      const req = client.request(parsed, {
-        method: 'HEAD',
-        timeout: 6000,
-        rejectUnauthorized: false,
-        headers: { 'User-Agent': 'QA-Dashboard/1.0' },
-      }, (res) => {
-        const timeMs = Date.now() - startTime;
-        sendPingResponse(200, {
-          ok: res.statusCode >= 200 && res.statusCode < 500,
-          status: res.statusCode,
-          statusText: res.statusMessage || '',
-          timeMs,
-        });
-      });
-      req.on('timeout', () => {
-        req.destroy();
-        sendPingResponse(200, { ok: false, status: 408, error: 'Timeout (>6s)', timeMs: Date.now() - startTime });
-      });
-      req.on('error', (err) => {
-        sendPingResponse(200, { ok: false, status: 0, error: err.code || err.message, timeMs: Date.now() - startTime });
-      });
-      req.end();
-      return true;
-    } catch (e) {
-      return sendJson(response, 400, { ok: false, error: e.message }) || true;
-    }
-  }
-  if (request.method === 'GET' && url.pathname === '/api/system/check-update') {
-    try { sendJson(response, 200, await checkForUpdates({ rootDir: root })); } catch (e) { sendJson(response, 500, { ok: false, error: e.message }); }
-    return true;
-  }
-  if (request.method === 'POST' && url.pathname === '/api/system/apply-update') {
-    try { const r = applyUpdate({ rootDir: root }); sendJson(response, r.ok ? 200 : 400, r); } catch (e) { sendJson(response, 500, { ok: false, error: e.message }); }
-    return true;
-  }
-  if (request.method === 'POST' && (url.pathname === '/api/framework/update' || url.pathname === '/api/system/update-framework')) {
-    try {
-      const r = updateFramework({ targetDir: root });
-      sendJson(response, r.ok ? 200 : 400, r);
-    } catch (e) {
-      sendJson(response, 500, { ok: false, error: e.message });
-    }
-    return true;
   }
   if (request.method === 'GET' && url.pathname === '/api/settings') {
     return sendJson(response, 200, publicDashboardConfig()) || true;

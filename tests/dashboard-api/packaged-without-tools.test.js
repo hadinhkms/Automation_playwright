@@ -3,9 +3,8 @@
  * Gate 3 N1: package.json "files" does not ship tools/ or scripts/, so dashboard/server.js and
  * qaService must load and serve without tools/ (no MODULE_NOT_FOUND before the Soft Fallback).
  * Copies the "files" entries to a temp dir and runs from there.
- * Known, separate gap: dashboard/routes/systemRoutes.js also requires scripts/update-framework,
- * which "files" does not ship either, so the server test below adds scripts/ (and only scripts/)
- * back; the qaService test uses the strict package contents.
+ * The copy contains exactly the "files" entries: no tools/, no scripts/. The route that needs
+ * scripts/update-framework must answer 501 instead of crashing the server at require time.
  */
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -37,6 +36,7 @@ describe('Packaged install without tools/ (npm "files" only)', () => {
     }
     fs.symlinkSync(path.join(ENGINE, 'node_modules'), path.join(pkgDir, 'node_modules'), 'junction');
     assert.ok(!fs.existsSync(path.join(pkgDir, 'tools')), 'tools/ must not be part of the package');
+    assert.ok(!fs.existsSync(path.join(pkgDir, 'scripts')), 'scripts/ must not be part of the package');
   });
 
   after(() => { if (pkgDir) fs.rmSync(pkgDir, { recursive: true, force: true }); });
@@ -46,9 +46,8 @@ describe('Packaged install without tools/ (npm "files" only)', () => {
     assert.equal(res.status, 0, res.stderr);
   });
 
-  test('dashboard/server.js starts and /api/qa/summary answers via Soft Fallback', async () => {
+  test('dashboard/server.js starts, /api/qa/summary uses Soft Fallback, update-framework routes answer 501', async () => {
     const port = await freePort();
-    fs.cpSync(path.join(ENGINE, 'scripts'), path.join(pkgDir, 'scripts'), { recursive: true });
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'dash-ws-'));
     const child = spawn(process.execPath, [path.join(pkgDir, 'dashboard/server.js')], {
       cwd: pkgDir,
@@ -69,6 +68,16 @@ describe('Packaged install without tools/ (npm "files" only)', () => {
       const summary = await fetch(`http://127.0.0.1:${port}/api/qa/summary?force=true`);
       assert.equal(summary.status, 200);
       assert.ok((await summary.json()).metrics);
+
+      // scripts/update-framework is not packaged: clear 501 JSON, never a crash or a hang.
+      for (const route of ['/api/framework/update', '/api/system/update-framework']) {
+        const res = await fetch(`http://127.0.0.1:${port}${route}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        assert.equal(res.status, 501, route);
+        const body = await res.json();
+        assert.equal(body.ok, false);
+        assert.match(body.error, /bản checkout repo/);
+      }
+      assert.equal(child.exitCode, null, 'server must still be running');
     } finally {
       child.kill('SIGTERM');
       fs.rmSync(workspace, { recursive: true, force: true });
