@@ -8,6 +8,8 @@ const { runtimeEnv } = require('./runnerRuntimeEnv');
 const { validateOptions } = require('./runOptions');
 const { buildPlaywrightArgs } = require('./runnerArgs');
 const { recordWebRun, rawResultsFile } = require('./runHistoryService');
+const { createMasker } = require('./secretMask');
+const { createLogMasker } = require('./logMasker');
 const { newestReport } = require('./resourceService');
 
 let activeRun = null;
@@ -70,12 +72,15 @@ function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT ||
   };
   publish('status', publicRun(activeRun));
 
-  const pipe = (src, stream) => src.on('data', (d) => publish('log', { stream, text: d.toString() }));
-  pipe(child.stdout, 'stdout');
-  pipe(child.stderr, 'stderr');
+  // B-2: mọi dòng log được che bí mật TRƯỚC khi vào bộ đệm /api/state và trước khi phát SSE (stdout, stderr, lỗi spawn).
+  const mask = createMasker();
+  const maskers = ['stdout', 'stderr'].map((stream) => createLogMasker(mask, (text) => publish('log', { stream, text })));
+  child.stdout.on('data', (d) => maskers[0].push(d.toString()));
+  child.stderr.on('data', (d) => maskers[1].push(d.toString()));
 
-  child.on('error', (err) => publish('log', { stream: 'stderr', text: `${err.message}\n` }));
+  child.on('error', (err) => publish('log', { stream: 'stderr', text: `${mask(err.message)}\n` }));
   child.on('close', (exitCode, signal) => {
+    maskers.forEach((m) => m.flush());
     const report = newestReport(root);
     activeRun.status = signal ? 'stopped' : exitCode === 0 ? 'passed' : 'failed';
     activeRun.finishedAt = new Date().toISOString();

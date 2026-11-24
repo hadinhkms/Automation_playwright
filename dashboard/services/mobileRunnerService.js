@@ -8,6 +8,8 @@ const { publish, getActiveRun: getWebRun } = require('./runnerService');
 const { buildArgs, buildEnv, displayCommand } = require('./mobileRunOptions');
 const { collectEvidence, finalizeJunit, findWdioBin } = require('./mobileRunArtifacts');
 const { appendRun } = require('./mobileRunHistory');
+const { createMasker } = require('./secretMask');
+const { createLogMasker } = require('./logMasker');
 
 const RESULT_PATTERN = /(✓|✖)\s+(.+?)\s*$/;
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
@@ -19,7 +21,7 @@ const logTail = [];
 
 function publicRun(run) {
   if (!run) return null;
-  const { child, lineBuffer, stopRequested, ...rest } = run;
+  const { child, lineBuffer, stopRequested, mask, flushLogs, ...rest } = run;
   return rest;
 }
 
@@ -46,11 +48,16 @@ function consumeLine(run, rawLine) {
 }
 
 function pipe(run, stream, name) {
-  stream.on('data', (chunk) => {
-    const text = chunk.toString();
+  // B-2: log đã che bí mật (theo dòng) trước khi vào bộ đệm /api/state và trước SSE; phân tích kết quả dùng văn bản gốc.
+  const masker = createLogMasker(run.mask, (text) => {
     logTail.push({ stream: name, text });
     if (logTail.length > MAX_LOG) logTail.shift();
     publish('mobile_log', { runId: run.id, stream: name, text });
+  });
+  run.flushLogs.push(masker.flush);
+  stream.on('data', (chunk) => {
+    const text = chunk.toString();
+    masker.push(text);
     const lines = (run.lineBuffer[name] + text).split(/\r?\n/);
     run.lineBuffer[name] = lines.pop();
     lines.forEach((l) => consumeLine(run, l));
@@ -82,14 +89,17 @@ function startMobileRun(options, root) {
     evidence: [],
     child,
     lineBuffer: { stdout: '', stderr: '' },
+    mask: createMasker(),
+    flushLogs: [],
     stopRequested: false,
   };
   activeRun = run;
   emitStatus();
   pipe(run, child.stdout, 'stdout');
   pipe(run, child.stderr, 'stderr');
-  child.on('error', (err) => publish('mobile_log', { runId: run.id, stream: 'stderr', text: `${err.message}\n` }));
+  child.on('error', (err) => publish('mobile_log', { runId: run.id, stream: 'stderr', text: `${run.mask(err.message)}\n` }));
   child.on('close', (exitCode) => {
+    run.flushLogs.forEach((flush) => flush());
     ['stdout', 'stderr'].forEach((n) => consumeLine(run, run.lineBuffer[n]));
     run.status = run.stopRequested ? 'stopped' : exitCode === 0 ? 'passed' : 'failed';
     run.phase = 'done';

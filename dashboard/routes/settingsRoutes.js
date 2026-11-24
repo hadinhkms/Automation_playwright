@@ -7,7 +7,8 @@
  *          vẫn lưu như cũ (tương thích client cũ) và ghi cảnh báo. Thành công trả `revision` mới.
  * So sánh + ghi chạy đồng bộ (không await giữa hai bước) nên hai PUT trong cùng tiến trình không chen nhau.
  */
-const { CONFIG_PATH, publicDashboardConfig, saveDashboardConfig } = require('../../core/config/dashboardConfig');
+const { CONFIG_PATH, getDashboardConfig, publicDashboardConfig, saveDashboardConfig } = require('../../core/config/dashboardConfig');
+const { mergeSettings } = require('../services/settingsMerge');
 const { createBackup } = require('../services/resourceService');
 const { currentRevision, requestedBaseRevision, CONFLICT } = require('../services/configRevision');
 const { sendJson, parseBody } = require('./routeUtils');
@@ -29,7 +30,8 @@ async function handleSettingsRoutes(request, response, url, context = {}) {
       if (base !== undefined && base !== revision) return sendJson(response, 409, { ...CONFLICT, revision }) || true;
       if (base === undefined) console.warn('[settings] PUT /api/settings không có baseRevision: lưu không kiểm tra xung đột.');
       const backup = createBackup('core/config/dashboardConfig.json', CONFIG_PATH, root);
-      const saved = saveDashboardConfig(body);
+      // B-1: gộp body vào cấu hình hiện có để PUT từng phần (chỉ {suites}) không reset trường khác (vd. branding.fontSize).
+      const saved = saveDashboardConfig(mergeSettings(getDashboardConfig(), body));
       sendJson(response, 200, { message: 'Đã lưu cấu hình.', backup, settings: publicDashboardConfig(saved), revision: currentRevision() });
     } catch (e) { sendJson(response, 400, { error: `Không thể lưu cấu hình: ${e.message}` }); }
     return true;

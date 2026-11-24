@@ -38,11 +38,20 @@ function secretValues() {
   return [...new Set(values)].sort((a, b) => b.length - a.length);
 }
 
-function maskSecrets(text) {
-  let out = String(text ?? '').replace(ANSI, '');
-  for (const value of secretValues()) out = out.split(value).join('***');
-  for (const [pattern, replacement] of PATTERNS) out = out.replace(pattern, replacement);
-  return out;
+/**
+ * Chụp một lần danh sách giá trị bí mật (env + registrationBearerToken) rồi trả hàm che: dùng cho log trực tiếp
+ * (mỗi dòng gọi một lần, không đọc lại cấu hình/ môi trường mỗi dòng). Giá trị đổi sau lúc chụp không được che.
+ */
+function createMasker() {
+  const values = secretValues();
+  return (text) => {
+    let out = String(text ?? '').replace(ANSI, '');
+    for (const value of values) out = out.split(value).join('***');
+    for (const [pattern, replacement] of PATTERNS) out = out.replace(pattern, replacement);
+    return out;
+  };
 }
 
-module.exports = { maskSecrets, MIN_SECRET_LENGTH };
+const maskSecrets = (text) => createMasker()(text);
+
+module.exports = { maskSecrets, createMasker, MIN_SECRET_LENGTH };
