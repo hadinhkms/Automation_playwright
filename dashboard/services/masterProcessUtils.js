@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { canonicalPath, isForeignDrivePath } = require('./projectPathGuard');
+const { controlCharError, hasControlChars } = require('./masterProcessErrors');
 
 let syncManifest = null;
 try {
@@ -97,6 +98,7 @@ function getAllowedProjectRoots(fallbackRoot) {
 }
 
 function validateProjectPath(targetPath, fallbackRoot) {
+  if (hasControlChars(targetPath)) throw controlCharError();
   const chosen = targetPath || fallbackRoot || process.cwd();
   const resolved = path.resolve(chosen);
   const canonical = canonicalPath(resolved);

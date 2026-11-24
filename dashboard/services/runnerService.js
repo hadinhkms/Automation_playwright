@@ -5,7 +5,9 @@
 const { spawn } = require('child_process');
 const https = require('https');
 const { getDashboardConfig } = require('../../core/config/dashboardConfig');
+const { runtimeEnv } = require('./runnerRuntimeEnv');
 const { listSpecs, getPlaywrightProjects } = require('./specService');
+const { getLastConfigError } = require('./playwrightConfigLoader');
 const { newestReport } = require('./resourceService');
 
 let activeRun = null;
@@ -63,47 +65,16 @@ function validateOptions(input, root = process.env.QA_PROJECT_ROOT || process.cw
     if (getPlaywrightProjects(root).includes(input.project)) projects = [input.project];
   }
 
-  if (!getPlaywrightProjects(root).includes(project) && project !== 'all') throw new Error('Project không hợp lệ.');
+  if (!getPlaywrightProjects(root).includes(project) && project !== 'all') {
+    const why = getLastConfigError();
+    throw new Error(`Project không hợp lệ.${why ? ` Không đọc được playwright.config.js (${why}) nên danh sách project trống; sửa lỗi cấu hình rồi thử lại.` : ''}`);
+  }
   if (!environments.includes(environment)) throw new Error('Environment không hợp lệ.');
   if (!Number.isInteger(workers) || workers < 1 || workers > 8) throw new Error('Luồng chạy phải từ 1 đến 8.');
   if (grep.length > 80 || /[\r\n\0]/.test(grep)) throw new Error('Tag/grep không hợp lệ.');
 
   const spec = specs.length === 1 ? specs[0] : (specs.length > 1 ? specs.join(' ') : 'all');
   return { project, projects, environment, spec, specs, grep, workers, headed: input.headed === true, viewport, suiteLabel };
-}
-
-function runtimeEnv(options) {
-  const settings = getDashboardConfig();
-  const runtime = settings.runtime;
-  const api = settings.api;
-  const retries = process.env.CI ? runtime.retriesCI : runtime.retriesLocal;
-  const selectedSpec = String(options.spec || (Array.isArray(options.specs) && options.specs.length > 0 ? options.specs[0] : '') || '');
-  const selectedProject = String(options.project || '');
-  const platform = selectedSpec.startsWith('tests/e2e/mobile-web/') || selectedSpec.startsWith('tests/e2e/mobile/') || selectedSpec.includes('.mobile.') || /^Mobile (?:Chrome|Safari)/i.test(selectedProject)
-    ? 'mobile-web' : selectedSpec.startsWith('tests/e2e/mobile-app/') ? 'mobile-app' : 'desktop';
-
-  const vpWidth = options.viewport?.width || runtime.viewport.width;
-  const vpHeight = options.viewport?.height || runtime.viewport.height;
-
-  return {
-    NODE_ENV: options.environment,
-    QA_PLATFORM: platform,
-    PW_WORKERS: String(options.workers),
-    PW_RETRIES: String(retries),
-    PW_TEST_TIMEOUT: String(runtime.testTimeout),
-    PW_NAVIGATION_TIMEOUT: String(runtime.navigationTimeout),
-    PW_ACTION_TIMEOUT: String(runtime.actionTimeout),
-    PW_TRACE: runtime.trace,
-    PW_SCREENSHOT: runtime.screenshot,
-    PW_VIDEO: runtime.video,
-    PW_VIEWPORT_WIDTH: String(vpWidth),
-    PW_VIEWPORT_HEIGHT: String(vpHeight),
-    SHOW_ENV_BANNER: runtime.showEnvBanner ? '1' : '0',
-    DEBUG_OPTIONAL_POPUPS: runtime.debugOptionalPopups ? '1' : '0',
-    REGISTRATION_BEARER_TOKEN: api.registrationBearerToken || '',
-    REGISTRATION_BRANCH: api.branch,
-    REGISTRATION_LANG: api.lang,
-  };
 }
 
 function startRun(options, uiMode = false, root = process.env.QA_PROJECT_ROOT || process.cwd()) {

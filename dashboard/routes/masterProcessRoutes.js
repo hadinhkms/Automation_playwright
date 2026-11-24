@@ -7,6 +7,8 @@
 const fs = require('fs');
 const path = require('path');
 const { sendJson, parseBody } = require('./routeUtils');
+const { detectMasterRoot } = require('../services/masterProcessUtils');
+const { hubNotFoundError } = require('../services/masterProcessErrors');
 const { getCircuitBreakerStatus, updateFreezeState } = require('../../core/utils/circuitBreaker');
 const {
   validateProjectPath,
@@ -22,6 +24,12 @@ const {
   runMasterAction,
 } = require('../services/masterProcessService');
 
+// Các endpoint chạy master.py: không có Hub thì trả 503 rõ ràng thay vì 500 từ lỗi nội bộ.
+const HUB_REQUIRED = new Set([
+  '/api/mp/run', '/api/mp/init', '/api/mp/sync', '/api/mp/install-hooks', '/api/mp/audit',
+  '/api/mp/doctor', '/api/mp/probes', '/api/mp/evidence/export', '/api/mp/evidence/review',
+]);
+
 async function handleMasterProcessRoutes(request, response, url, context = {}) {
   const normPath = url.pathname.replace(/^\/api\/master-process\//, '/api/mp/');
   if (!normPath.startsWith('/api/mp/')) return false;
@@ -34,6 +42,7 @@ async function handleMasterProcessRoutes(request, response, url, context = {}) {
     }
     const target = body.targetPath || body.projectRoot || url.searchParams.get('target') || fallbackRoot;
     const projectRoot = validateProjectPath(target, fallbackRoot);
+    if (HUB_REQUIRED.has(normPath) && !detectMasterRoot(projectRoot)) throw hubNotFoundError();
 
     if (normPath === '/api/mp/projects' && request.method === 'GET') {
       const currentRoot = path.resolve(fallbackRoot).replace(/\\/g, '/');

@@ -5,30 +5,9 @@
 const fs = require('fs');
 const path = require('path');
 
+const { loadPlaywrightConfig, getPlaywrightProjects } = require('./playwrightConfigLoader');
+
 const CODE_ROOTS = ['tests', 'pages', 'core'];
-
-function loadPlaywrightConfig(root = process.env.QA_PROJECT_ROOT || process.cwd()) {
-  try {
-    const configPath = path.join(root, 'playwright.config.js');
-    if (!fs.existsSync(configPath)) return null;
-    delete require.cache[require.resolve(configPath)];
-    return require(configPath);
-  } catch (err) {
-    console.error('Lỗi khi đọc cấu hình playwright.config.js:', err.message);
-    return null;
-  }
-}
-
-function getPlaywrightProjects(root = process.env.QA_PROJECT_ROOT || process.cwd()) {
-  const config = loadPlaywrightConfig(root);
-  if (!config || !Array.isArray(config.projects)) {
-    return ['all'];
-  }
-  const projectNames = config.projects
-    .map((p) => p.name)
-    .filter((name) => name && name !== 'setup');
-  return ['all', ...projectNames];
-}
 
 function matchGlobOrRegex(pattern, str) {
   if (!pattern) return true;
