@@ -7,7 +7,8 @@
  *
  * Cache theo (mtime+size mọi spec, các file cấu hình, NODE_ENV hiệu lực): lần ấm không spawn gì. Lần lạnh chạy
  * bất đồng bộ có timeout (DASHBOARD_SPEC_LIST_TIMEOUT_MS, mặc định 20 s). Lỗi/timeout/lỗi cấu hình -> dùng cách
- * ước lượng cũ và trả source:'estimate' để UI/D8 biết dữ liệu không chắc.
+ * ước lượng cũ và trả source:'estimate' (cache 30 s) để UI/D8 biết dữ liệu không chắc. Workspace không có
+ * playwright.config.* thì không spawn gì: source:'none', mọi file = [].
  */
 const crypto = require('crypto');
 const fs = require('fs');
@@ -17,7 +18,9 @@ const { getDashboardConfig, getResolvedConfigPath } = require('../../core/config
 const { listSpecs, specProjects: estimateSpecProjects } = require('./specService');
 
 const DEFAULT_TIMEOUT_MS = 20000;
+const ESTIMATE_TTL_MS = 30000; // lỗi/timeout không spawn lại ở MỖI request, nhưng thử lại sau ít giây
 const MAX_OUTPUT_BYTES = 32 * 1024 * 1024;
+const hasPlaywrightConfig = (root) => ['js', 'ts', 'mjs', 'cjs', 'mts', 'cts'].some((ext) => fs.existsSync(path.join(root, `playwright.config.${ext}`)));
 const CONFIG_FILES = ['playwright.config.js', 'core/config/defineConfig.js', 'core/config/env.js', 'core/config/dashboardConfig.js', 'core/config/dashboardConfig.json', 'dashboardConfig.json', 'qa-engine.config.json'];
 
 const cache = new Map(); // root -> { key, result }
@@ -89,20 +92,21 @@ async function compute(root, key, specs, env, timeoutMs) {
   }
 }
 
-/** @returns {Promise<{map: Object<string,string[]>, source: 'playwright'|'estimate', ms: number, cached: boolean}>} */
+/** @returns {Promise<{map: Object<string,string[]>, source: 'playwright'|'estimate'|'none', ms: number, cached: boolean}>} */
 async function getSpecProjects(root = process.env.QA_PROJECT_ROOT || process.cwd()) {
   const specs = listSpecs(null, root);
   const env = listingEnv();
   const key = cacheKey(root, specs, env);
+  if (!hasPlaywrightConfig(root)) return { map: Object.fromEntries(specs.map((s) => [s, []])), source: 'none', ms: 0, cached: false };
   const hit = cache.get(root);
-  if (hit && hit.key === key) return { ...hit.result, cached: true };
+  if (hit && hit.key === key && (hit.result.source === 'playwright' || Date.now() - hit.at < ESTIMATE_TTL_MS)) return { ...hit.result, cached: true };
 
   const flightKey = `${root}|${key}`;
   if (!inflight.has(flightKey)) {
     const timeoutMs = Number(process.env.DASHBOARD_SPEC_LIST_TIMEOUT_MS) || DEFAULT_TIMEOUT_MS;
     inflight.set(flightKey, compute(root, key, specs, env, timeoutMs).then((result) => {
-      // Ước lượng không được cache: lần sau thử lại (lỗi tạm thời không "dính" mãi).
-      if (result.source === 'playwright') cache.set(root, { key, result });
+      // Kết quả của Playwright cache đến khi file đổi; ước lượng chỉ cache ESTIMATE_TTL_MS (lỗi tạm thời không "dính" mãi).
+      cache.set(root, { key, result, at: Date.now() });
       return result;
     }).finally(() => inflight.delete(flightKey)));
   }

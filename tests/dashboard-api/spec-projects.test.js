@@ -129,4 +129,29 @@ describe('estimate flag when playwright --list cannot answer', () => {
     assert.ok(Date.now() - started < 5000);
     assert.ok(Array.isArray(body.specs) && body.specs.length === Object.keys(FILES).length);
   });
+
+  test('the estimate is cached for a short time: a second call does not spawn --list again', async () => {
+    const started = Date.now();
+    const body = await (await fetch(`${harness.url}/api/config`)).json();
+    assert.equal(body.specProjectsSource, 'estimate');
+    assert.ok(Date.now() - started < 400, `second call took ${Date.now() - started} ms`);
+  });
+});
+
+describe('a workspace without playwright.config.*', () => {
+  let fixture; let harness;
+  before(async () => { fixture = createFixtureWorkspace(); harness = await startDashboardHarness(fixture.rootPath); });
+  after(async () => { if (harness) await harness.stop(); if (fixture) fixture.cleanup(); });
+
+  test('never spawns playwright: source "none", every file [] and every call is fast', async () => {
+    fs.mkdirSync(path.join(fixture.rootPath, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(fixture.rootPath, 'tests/x.spec.js'), '');
+    for (let i = 0; i < 3; i += 1) {
+      const started = Date.now();
+      const body = await (await fetch(`${harness.url}/api/config`)).json();
+      assert.equal(body.specProjectsSource, 'none');
+      assert.deepEqual(body.specProjects['tests/x.spec.js'], []);
+      assert.ok(Date.now() - started < 300, `call ${i} took ${Date.now() - started} ms`);
+    }
+  });
 });
