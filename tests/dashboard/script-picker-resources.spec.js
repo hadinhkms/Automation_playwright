@@ -74,21 +74,27 @@ test.describe('Script Picker: connections, long tag lists, locked buttons', () =
     await expect(page.locator('#sp-save')).toBeEnabled();
   });
 
-  test('V4: the Playwright-UI button is locked while the picker shows and given back in suite mode', async ({ page }) => {
-    const calls = [];
-    page.on('request', (r) => { if (/\/api\/ui$/.test(r.url())) calls.push(r.method()); });
+  test('Playwright UI stays available: 2 files picked -> exactly one POST /api/ui with the picker\'s specs; nothing picked -> 0 requests', async ({ page }) => {
+    const uiCalls = [];
+    await page.route('**/api/ui', (route) => { uiCalls.push(route.request().postDataJSON()); return route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'u', mode: 'ui', status: 'running', command: 'npx playwright test --ui', logs: [], startedAt: new Date().toISOString(), options: { environment: 'qc', project: 'all' } }) }); });
+    const runCalls = [];
+    page.on('request', (r) => { if (/\/api\/run$/.test(r.url())) runCalls.push(r.postData()); });
     await page.goto(harness.url);
     await page.waitForSelector('.sp-file');
     const ui = page.locator('#ui-button');
-    await expect(ui).toBeDisabled();
-    await expect(ui).toHaveAttribute('aria-hidden', 'true');
-    await page.evaluate(() => { const b = document.getElementById('ui-button'); b.click(); b.disabled = false; b.click(); });
-    await page.waitForTimeout(300);
-    expect(calls).toEqual([]);
-    await page.click('.runner-mode-tab[data-mode="suite"]');
     await expect(ui).toBeEnabled();
-    await page.click('.runner-mode-tab[data-mode="manual"]');
-    await expect(ui).toBeDisabled();
+    await page.evaluate(() => document.getElementById('ui-button').click()); // nothing picked
+    await page.waitForTimeout(400);
+    expect(uiCalls).toEqual([]);
+    await expect(page.locator('#toast')).toContainText('Chọn ít nhất 1 script để chạy');
+    const first = page.locator('.sp-file .sp-row').nth(0); const second = page.locator('.sp-file .sp-row').nth(1);
+    const paths = [await page.locator('.sp-file').nth(0).getAttribute('data-path'), await page.locator('.sp-file').nth(1).getAttribute('data-path')];
+    await first.click(); await second.click();
+    await ui.click();
+    await expect.poll(() => uiCalls.length).toBe(1);
+    expect(uiCalls[0].specs.sort()).toEqual(paths.sort());
+    expect(uiCalls[0].spec).toBeUndefined();
+    expect(runCalls).toEqual([]); // the old run path stays closed
   });
 
   test('every chip-like button carries aria-pressed that follows the selection (quick chips too)', async ({ page }) => {

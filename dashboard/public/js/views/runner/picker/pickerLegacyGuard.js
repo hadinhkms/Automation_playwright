@@ -1,7 +1,8 @@
 /**
  * dashboard/public/js/views/runner/picker/pickerLegacyGuard.js
- * While the picker panel is shown, the old #run-button (hidden by CSS) and #ui-button (it would open Playwright
- * UI with the picker's payload) must be REALLY out of service: disabled,
+ * While the picker panel is shown, the old #run-button (hidden by CSS) must be REALLY out of service. The hero
+ * #ui-button ("Mở Playwright UI") stays usable: it sends the picker's payload and the request wrapper refuses it when
+ * nothing is selected or the catalog is not ready. #run-button: disabled,
  * out of the tab order and its clicks swallowed, so a script calling .click()/dispatchEvent cannot start the old
  * "run everything" path. The app's own disabled state (a run in progress) is remembered and given back exactly
  * when the picker panel is left (suite mode). app.js is not touched.
@@ -44,6 +45,5 @@ function guardButton(win, selector, isVisible) {
 }
 
 export function guardLegacyRunButton(win, isVisible) {
-  const undo = ['#run-button', '#ui-button'].map((selector) => guardButton(win, selector, isVisible));
-  return () => undo.forEach((fn) => fn());
+  return guardButton(win, '#run-button', isVisible);
 }

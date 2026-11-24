@@ -149,15 +149,12 @@ test.describe('Script Picker: run history', () => {
       await expect(old).toHaveAttribute('tabindex', '-1');
       await page.evaluate(() => { const b = document.getElementById('run-button'); b.click(); b.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true })); b.disabled = false; b.click(); }); // even if re-enabled by a script
       await page.focus('#workers'); await page.keyboard.press('Enter'); // empty selection
-      await page.evaluate(() => document.getElementById('ui-button').click()); // V4: the Playwright-UI button is locked too
-      await expect(page.locator('#ui-button')).toBeDisabled();
-      await expect(page.locator('#ui-button')).toHaveAttribute('aria-hidden', 'true');
+      await page.evaluate(() => document.getElementById('ui-button').click()); // Playwright UI with an empty selection: refused, 0 requests
       await page.waitForTimeout(400);
       expect(calls).toEqual([]);
       await page.click('.runner-mode-tab[data-mode="suite"]');
       await expect(old).toBeEnabled();
-      await expect(page.locator('#ui-button')).toBeEnabled(); // V4: given back in suite mode
-      await expect(page.locator('#ui-button')).not.toHaveAttribute('aria-hidden', 'true');
+      await expect(page.locator('#ui-button')).toBeEnabled(); // never locked
       await expect(old).not.toHaveAttribute('aria-hidden', 'true');
       await page.click('.runner-mode-tab[data-mode="manual"]');
       await expect(old).toBeDisabled();
