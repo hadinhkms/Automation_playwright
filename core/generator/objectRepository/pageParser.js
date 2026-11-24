@@ -115,7 +115,7 @@ function parsePageObject(relativePath, rootDir = process.cwd()) {
   const isBase = path.basename(relativePath) === 'BasePage.js';
 
   const declaration = findClassDeclaration(content);
-  const className = declaration ? declaration.className : path.basename(relativePath, '.js');
+  const className = (declaration && declaration.className) || path.basename(relativePath, '.js');
   const baseClass = declaration ? declaration.baseClass || 'None' : 'None';
 
   const meta = PAGE_METADATA[normalizedRel] || {

@@ -37,12 +37,16 @@ function stripComments(source) {
   return out;
 }
 
-const DECLARATION = /(?:^|[\n;{}=])\s*(?:export\s+(?:default\s+)?)?class\s+([A-Za-z_$][\w$]*)(?:\s+extends\s+([A-Za-z_$][\w$.]*))?/;
+const DECLARATION = /(?:^|[\n;{}=])\s*(?:export\s+(?:default\s+)?)?class\s+(?!extends\b)([A-Za-z_$][\w$]*)(?:\s+extends\s+([A-Za-z_$][\w$.]*))?/;
 
-/** @returns {{ className: string, baseClass: string|null } | null} */
+/** @returns {{ className: string|null, baseClass: string|null } | null} */
 function findClassDeclaration(source) {
-  const match = stripComments(String(source || '')).match(DECLARATION);
-  return match ? { className: match[1], baseClass: match[2] || null } : null;
+  const text = stripComments(String(source || ''));
+  const match = text.match(DECLARATION);
+  if (match) return { className: match[1], baseClass: match[2] || null };
+  // `module.exports = class extends Base {}`: không có tên -> className null (caller dùng tên file).
+  const anonymous = text.match(/(?:^|[\n;{}=])\s*class\s+extends\s+([A-Za-z_$][\w$.]*)/);
+  return anonymous ? { className: null, baseClass: anonymous[1] } : null;
 }
 
 module.exports = { findClassDeclaration, stripComments };

@@ -19,6 +19,11 @@ test('bỏ qua comment dòng, giữ chuỗi chứa //, nhận export/module.expo
   assert.equal(findClassDeclaration('/* class A {} */ const x = 1;'), null);
 });
 
+test('class ẩn danh `class extends Base` không bị bắt tên "extends" (Gate 3 F4)', () => {
+  assert.deepEqual(findClassDeclaration('module.exports = class extends BasePage {}'), { className: null, baseClass: 'BasePage' });
+  assert.deepEqual(findClassDeclaration('class Named extends BasePage {}'), { className: 'Named', baseClass: 'BasePage' });
+});
+
 test('regression: pages/native/NativeBasePage.js ra NativeBasePage, không phải "for"', () => {
   const page = parsePageObject('pages/native/NativeBasePage.js', ROOT);
   assert.equal(page.className, 'NativeBasePage');
